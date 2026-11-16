@@ -239,6 +239,7 @@ void UTitleScreenWidget::NativeOnActivated()
 	GSaveResetNoticeShown |= bShowReset;
 	Panel = bShowReset ? ETitlePanel::SaveReset : ETitlePanel::None;
 	Refresh();
+	ShowCursorNextTick(); // D-233
 	UE_LOG(LogWoRUI, Log, TEXT("[Title] Opened%s"), bShowReset ? TEXT(" (the save was reset: notice shown)") : TEXT(""));
 }
 

@@ -1245,6 +1245,7 @@ The queue of questions only Crown can answer.
 ### D-233 — Every screen works with the mouse as well as keys and a pad
 **Status:** ANSWERED (Crown, 2026-11-16); a standing rule · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "we should allow mouse clicks; it's a PC and console game". Every menu and screen can be used with the mouse (hover lights a row, a click picks it, the wheel scrolls a list), as well as the keyboard and a gamepad. A new screen ships with all three; existing screens that are keys-only (the title and the new-game screen first) get the mouse added.
+**Built (B-538, in dev, 2026-11-16):** the title and the new-game screen (hover, click through the confirm path, the cursor shows). Every other screen and what the mouse does there: `InputMap.md`, "Screens and how they are reached", the Mouse column.
 
 ### D-232 — The title is its own level
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing

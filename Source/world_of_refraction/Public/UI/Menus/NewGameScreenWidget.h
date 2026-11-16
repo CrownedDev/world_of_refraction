@@ -6,7 +6,8 @@
 // Body (Manny / Quinn), Class (Generic, Refractor, Resonator with its line and budget), and for a Refractor the nine
 // elements in the side panel; the panel's title and text, and the Begin button, follow the pick. What it says and
 // what Begin does are WoRNewGame (NewGameScreenModel.h). The heading is a placeholder: the opening is Crown's.
-// Not built: the body previews (grey boxes), the mouse.
+// D-233 (B-538): the mouse too: hover lights a card, chip or Begin; a click picks it (ClickPart); the cursor shows.
+// Not built: the body previews (grey boxes).
 
 #pragma once
 
@@ -46,6 +47,10 @@ public:
 	void MoveSide(int32 Delta);
 	/** A: Begin on the button, else the next part down. */
 	void Confirm();
+	/** D-233: a click on a part: a body card (Index: Manny 0, Quinn 1), a class card or an element chip (Index in
+	 *  WoRNewGame's lists) takes the focus and the pick; Begin (Index unused) is Confirm on Begin, A's path. An index
+	 *  out of range, or an element with no element grid, does nothing. */
+	void ClickPart(ENewGameFocus Part, int32 Index);
 
 	const FNewGamePick &GetPick() const { return Pick; }
 	ENewGameFocus GetFocus() const { return Focus; }
@@ -56,6 +61,9 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent &InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 
 private:
 	void BuildTree();
@@ -63,10 +71,15 @@ private:
 	bool HasElements() const { return Pick.Class == ECharacterClass::Caster; }
 	int32 GetClassIndex() const;
 	int32 GetElementIndex() const;
+	/** The part and index under the cursor; false over none. */
+	bool FindPartUnder(const FVector2D &ScreenPosition, ENewGameFocus &OutPart, int32 &OutIndex) const;
 
 	FNewGamePick Pick;
 	ENewGameFocus Focus = ENewGameFocus::Class;
 	FText Status;
+	/** D-233: what the mouse is over, lit with the hover colour (INDEX_NONE: nothing). */
+	ENewGameFocus HoveredPart = ENewGameFocus::Body;
+	int32 HoveredIndex = INDEX_NONE;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> BodyCards;

@@ -126,6 +126,31 @@ void FNewGameScreenSpec::Define()
 		TestFalse(TEXT("Begin with no player refuses in words"), Screen->GetStatus().IsEmpty());
 	});
 
+	It("D-233: a click picks a body, a class or an element and takes the focus; a click on Begin is A on Begin", [this]()
+	{
+		UNewGameScreenWidget *Screen = NewObject<UNewGameScreenWidget>();
+		Screen->ClickPart(ENewGameFocus::Element, 0);
+		TestTrue(TEXT("an element chip (a Refractor)"),
+				 Screen->GetFocus() == ENewGameFocus::Element && Screen->GetPick().Element == WoRNewGame::GetElements()[0]);
+		Screen->ClickPart(ENewGameFocus::Body, static_cast<int32>(EPlayerBaseForm::Quinn));
+		TestTrue(TEXT("a body card"), Screen->GetFocus() == ENewGameFocus::Body && Screen->GetPick().Body == EPlayerBaseForm::Quinn);
+		Screen->ClickPart(ENewGameFocus::Class, 0);
+		TestTrue(TEXT("a class card"), Screen->GetFocus() == ENewGameFocus::Class && Screen->GetPick().Class == WoRNewGame::GetClasses()[0]);
+		const FNewGamePick Before = Screen->GetPick();
+		Screen->ClickPart(ENewGameFocus::Class, WoRNewGame::GetClasses().Num());
+		Screen->ClickPart(ENewGameFocus::Body, INDEX_NONE);
+		TestTrue(TEXT("a click off the cards changes nothing"),
+				 Screen->GetPick().Class == Before.Class && Screen->GetPick().Body == Before.Body && Screen->GetFocus() == ENewGameFocus::Class);
+		if (Before.Class != ECharacterClass::Caster)
+		{
+			Screen->ClickPart(ENewGameFocus::Element, 0);
+			TestTrue(TEXT("no element grid: an element click does nothing"), Screen->GetFocus() == ENewGameFocus::Class);
+		}
+		Screen->ClickPart(ENewGameFocus::Begin, 0);
+		TestTrue(TEXT("Begin: the focus, and A's refusal with no player"),
+				 Screen->GetFocus() == ENewGameFocus::Begin && !Screen->GetStatus().IsEmpty());
+	});
+
 	Describe("the fresh game in place", [this]()
 	{
 		It("leaves only the picked character in the party and empties what the old game held", [this]()
