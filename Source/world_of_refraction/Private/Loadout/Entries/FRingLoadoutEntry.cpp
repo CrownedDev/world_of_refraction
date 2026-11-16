@@ -31,12 +31,12 @@ TArray<USpellData *> FRingLoadoutEntry::GetAllSpells(bool bAsIfIntact) const
 
 int32 FRingLoadoutEntry::GetSpellSlotCap() const
 {
-    // D-224 (AssetOverhaulPlan §4): a ring's slots follow its built tier, the ring and its socket averaged; an empty
-    // ring keeps its own tier's. MAX_RING_SPELLS only as the no-ring ceiling.
+    // D-226 (3): a ring's slots come from its socket's tier (a gem, a fusion's gem half or an evolution), not the built
+    // average (skill power keeps that); an empty ring keeps its own tier's. MAX_RING_SPELLS only as the no-ring ceiling.
     if (RingEntry.Ring)
     {
         return CrystalEffectTable::SlotsForContainerTier(
-            CrystalEffectTable::GetBuiltTier(RingEntry.Tier, RingEntry.GetAttachedItem()));
+            CrystalEffectTable::GetSocketSkillTier(RingEntry.GetAttachedItem()).Get(RingEntry.Tier));
     }
     return CrystalEffectTable::ResolveSpellSlotCap(
         RingEntry.GetAttachedItem(),
