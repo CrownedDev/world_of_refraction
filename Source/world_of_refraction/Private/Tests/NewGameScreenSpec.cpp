@@ -23,8 +23,11 @@ namespace
 {
 	const FName NEW_GAME_TEST_COUNTER(TEXT("NewGameSpecCounter"));
 	constexpr int32 NEW_GAME_TEST_GARNETS = 4;
-	/** Darkness stands in the grid's top row, last column (Fire, Water, Earth / Wind, Light, Darkness / ...). */
+	/** Darkness stands in the grid's second row, last column (Fire, Water, Earth / Wind, Light, Darkness / Broken
+	 *  Darkness, ...). */
 	constexpr int32 DARKNESS_GRID_INDEX = 5;
+	/** B-546: Generic and Resonator, and the Refractor once per element (9) and for Broken Darkness. */
+	constexpr int32 NEW_GAME_TEST_CLASS_CHOICES = 12;
 
 	UCharacterData *MakeStart(ECharacterClass Class, ESpellElement Element, bool bBornBrokenDarkness = false)
 	{
@@ -80,7 +83,46 @@ void FNewGameScreenSpec::Define()
 		}
 	});
 
-	It("starts as the character whose class, and a Refractor's element, match; never a born Broken Darkness", [this]()
+	It("B-546: lists Broken Darkness and Reality for a Refractor, every weapon for a Generic, the nine crystals for a Resonator", [this]()
+	{
+		const TArray<FNewGameRefractorChoice> &Choices = WoRNewGame::GetRefractorChoices();
+		TestEqual(TEXT("nine elements and Broken Darkness"), Choices.Num(), 10);
+		TestTrue(TEXT("Broken Darkness after Darkness"), Choices.IsValidIndex(DARKNESS_GRID_INDEX + 1) && Choices[DARKNESS_GRID_INDEX + 1].bBrokenDarkness);
+		TestTrue(TEXT("Reality last"), Choices.Last().Element == ESpellElement::Reality);
+		FNewGamePick BrokenDarkness = MakePick(ECharacterClass::Caster);
+		BrokenDarkness.bBrokenDarkness = true;
+		TestEqual(TEXT("its title"), WoRNewGame::GetPanelTitle(BrokenDarkness).ToString(), FString(TEXT("Broken Darkness Refractor")));
+		TestTrue(TEXT("a sword and a shield are two entries"), WoRNewGame::GetWeaponChoices().Contains(EWeaponType::Sword) && WoRNewGame::GetWeaponChoices().Contains(EWeaponType::Shield));
+		TestEqual(TEXT("nine crystal types"), WoRNewGame::GetCrystalChoices().Num(), 9);
+		TestEqual(TEXT("the class choices (the default most slots)"), WoRNewGame::GetClassChoiceCount(), NEW_GAME_TEST_CLASS_CHOICES);
+	});
+
+	It("B-546: two picks for a Generic or a Resonator, the oldest giving way; Begin wants a name and both picks", [this]()
+	{
+		FNewGamePick Pick = MakePick(ECharacterClass::Generic);
+		WoRNewGame::TogglePick(Pick, 0);
+		WoRNewGame::TogglePick(Pick, 1);
+		WoRNewGame::TogglePick(Pick, 2);
+		TestTrue(TEXT("the third drops the first"), Pick.Weapons.Num() == 2 && !WoRNewGame::IsPicked(Pick, 0) && WoRNewGame::IsPicked(Pick, 2));
+		WoRNewGame::TogglePick(Pick, 2);
+		TestFalse(TEXT("a second press drops it"), WoRNewGame::IsPicked(Pick, 2));
+		TestFalse(TEXT("no name: refused"), WoRNewGame::GetBeginRefusal(Pick).IsEmpty());
+		Pick.Name = TEXT("Ash");
+		TestFalse(TEXT("one weapon: refused"), WoRNewGame::GetBeginRefusal(Pick).IsEmpty());
+		WoRNewGame::TogglePick(Pick, 0);
+		TestTrue(TEXT("a name and two weapons: Begin may run"), WoRNewGame::GetBeginRefusal(Pick).IsEmpty());
+		FNewGamePick Resonator = MakePick(ECharacterClass::Resonator);
+		Resonator.Name = TEXT("Ash");
+		WoRNewGame::TogglePick(Resonator, 0);
+		WoRNewGame::TogglePick(Resonator, 6);
+		TestTrue(TEXT("two crystal types, 3 of each in the line"),
+				 WoRNewGame::GetBeginRefusal(Resonator).IsEmpty() && WoRNewGame::GetPicksLine(Resonator).ToString().Contains(FString::FromInt(WoRNewGame::STARTING_CRYSTALS_PER_TYPE)));
+		FNewGamePick Refractor = MakePick(ECharacterClass::Caster);
+		Refractor.Name = TEXT("Ash");
+		TestTrue(TEXT("a Refractor's one pick is always made"), WoRNewGame::GetBeginRefusal(Refractor).IsEmpty());
+	});
+
+	It("starts as the character whose class, and a Refractor's element and Broken Darkness, match", [this]()
 	{
 		UCharacterData *Generic = MakeStart(ECharacterClass::Generic, ESpellElement::Generic);
 		UCharacterData *BornBD = MakeStart(ECharacterClass::Caster, ESpellElement::Darkness, true);
@@ -92,9 +134,12 @@ void FNewGameScreenSpec::Define()
 		TestTrue(TEXT("Fire Refractor"), WoRNewGame::FindStartCharacter(Choices, MakePick(ECharacterClass::Caster, ESpellElement::Fire)) == Fire);
 		TestNull(TEXT("no Void Refractor set up"), WoRNewGame::FindStartCharacter(Choices, MakePick(ECharacterClass::Caster, ESpellElement::Void)));
 		TestNull(TEXT("no Resonator set up"), WoRNewGame::FindStartCharacter(Choices, MakePick(ECharacterClass::Resonator)));
+		FNewGamePick BrokenDarkness = MakePick(ECharacterClass::Caster);
+		BrokenDarkness.bBrokenDarkness = true;
+		TestTrue(TEXT("B-546: Broken Darkness starts as the born one"), WoRNewGame::FindStartCharacter(Choices, BrokenDarkness) == BornBD);
 	});
 
-	It("moves between body, class, a Refractor's elements and Begin", [this]()
+	It("moves between the name, body, class, the class's picks and Begin", [this]()
 	{
 		UNewGameScreenWidget *Screen = NewObject<UNewGameScreenWidget>();
 		TestTrue(TEXT("opens on the class, as a Darkness Refractor"),
@@ -103,9 +148,9 @@ void FNewGameScreenSpec::Define()
 		Screen->MoveSide(1);
 		TestTrue(TEXT("Right: the element grid"), Screen->GetFocus() == ENewGameFocus::Element);
 		Screen->MoveSide(-1);
-		TestTrue(TEXT("Left in the grid picks the element beside it"), Screen->GetPick().Element == WoRNewGame::GetElements()[DARKNESS_GRID_INDEX - 1]);
+		TestTrue(TEXT("Left in the grid picks the element beside it"), Screen->GetPick().Element == WoRNewGame::GetRefractorChoices()[DARKNESS_GRID_INDEX - 1].Element);
 		Screen->MoveDown();
-		TestTrue(TEXT("Down picks the element under it"), Screen->GetPick().Element == WoRNewGame::GetElements()[DARKNESS_GRID_INDEX + 2]);
+		TestTrue(TEXT("Down picks the element under it"), Screen->GetPick().Element == WoRNewGame::GetRefractorChoices()[DARKNESS_GRID_INDEX + 2].Element);
 		Screen->MoveDown();
 		Screen->MoveDown();
 		TestTrue(TEXT("Down from the last row: Begin"), Screen->GetFocus() == ENewGameFocus::Begin);
@@ -114,9 +159,13 @@ void FNewGameScreenSpec::Define()
 		TestTrue(TEXT("Up from Begin: the class, Up again: the class above"),
 				 Screen->GetFocus() == ENewGameFocus::Class && Screen->GetPick().Class == ECharacterClass::Generic);
 		Screen->MoveSide(1);
-		TestTrue(TEXT("a Generic has no element grid"), Screen->GetFocus() == ENewGameFocus::Class);
+		TestTrue(TEXT("B-546: a Generic's weapon grid, from its first entry"), Screen->GetFocus() == ENewGameFocus::Element && Screen->GetPickCursor() == 0);
+		Screen->MoveSide(-1);
 		Screen->MoveSide(-1);
 		TestTrue(TEXT("Left from the class: the body cards, on its left (B-539)"), Screen->GetFocus() == ENewGameFocus::Body);
+		Screen->MoveUp();
+		TestTrue(TEXT("B-546: Up from the body: the name"), Screen->GetFocus() == ENewGameFocus::Name);
+		Screen->MoveDown();
 		Screen->MoveDown();
 		Screen->MoveUp();
 		Screen->MoveSide(1);
@@ -124,9 +173,16 @@ void FNewGameScreenSpec::Define()
 				 Screen->GetFocus() == ENewGameFocus::Body && Screen->GetPick().Body == EPlayerBaseForm::Quinn);
 		Screen->Confirm();
 		Screen->Confirm();
-		TestTrue(TEXT("A walks on: body, class, then Begin (a Generic)"), Screen->GetFocus() == ENewGameFocus::Begin);
 		Screen->Confirm();
-		TestFalse(TEXT("Begin with no player refuses in words"), Screen->GetStatus().IsEmpty());
+		TestTrue(TEXT("A walks on: body, class, the grid; A there picks the lit weapon (a Generic)"),
+				 Screen->GetFocus() == ENewGameFocus::Element && Screen->GetPick().Weapons.Num() == 1);
+		for (int32 Step = 0; Step < WoRNewGame::GetWeaponChoices().Num(); ++Step)
+		{
+			Screen->MoveDown();
+		}
+		TestTrue(TEXT("Down from the grid's last row: Begin"), Screen->GetFocus() == ENewGameFocus::Begin);
+		Screen->Confirm();
+		TestFalse(TEXT("Begin with no name refuses in words"), Screen->GetStatus().IsEmpty());
 	});
 
 	It("D-233: a click picks a body, a class or an element and takes the focus; a click on Begin is A on Begin", [this]()
@@ -144,10 +200,13 @@ void FNewGameScreenSpec::Define()
 		Screen->ClickPart(ENewGameFocus::Body, INDEX_NONE);
 		TestTrue(TEXT("a click off the cards changes nothing"),
 				 Screen->GetPick().Class == Before.Class && Screen->GetPick().Body == Before.Body && Screen->GetFocus() == ENewGameFocus::Class);
-		if (Before.Class != ECharacterClass::Caster)
+		if (Before.Class == ECharacterClass::Generic)
 		{
 			Screen->ClickPart(ENewGameFocus::Element, 0);
-			TestTrue(TEXT("no element grid: an element click does nothing"), Screen->GetFocus() == ENewGameFocus::Class);
+			TestTrue(TEXT("B-546: a click on a Generic's grid picks that weapon"),
+					 Screen->GetFocus() == ENewGameFocus::Element && WoRNewGame::IsPicked(Screen->GetPick(), 0));
+			Screen->ClickPart(ENewGameFocus::Element, WoRNewGame::GetWeaponChoices().Num());
+			TestEqual(TEXT("a click past the list changes nothing"), Screen->GetPick().Weapons.Num(), 1);
 		}
 		Screen->ClickPart(ENewGameFocus::Begin, 0);
 		TestTrue(TEXT("Begin: the focus, and A's refusal with no player"),

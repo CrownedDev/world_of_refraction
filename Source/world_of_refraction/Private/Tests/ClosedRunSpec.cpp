@@ -128,9 +128,8 @@ void FClosedRunSpec::Define()
 		WithRun.Run.bHasRun = true;
 		const FTitleSaveSummary Lost = WoRTitleScreen::Summarize(WithRun, true, CLOSED_RUN_PLAY_SECONDS);
 		TestTrue(TEXT("the run was lost"), Lost.bLastRunLost);
-		const FString Line = WoRTitleScreen::BuildRows(Lost)[0].Line.ToString();
-		TestTrue(TEXT("Continue starts in the hub"), Line.Contains(TEXT("hub")));
-		TestTrue(TEXT("and says the run was lost"), Line.Contains(TEXT("lost")));
+		TestTrue(TEXT("Continue starts in the hub"), Lost.Place.ToString().Contains(TEXT("hub")));
+		TestFalse(TEXT("B-546: a run with no saved levels shows dashes"), Lost.bHasRunLevels);
 		TestTrue(TEXT("settled already this session: still said"), WoRTitleScreen::Summarize(FWoRSaveData(), true, CLOSED_RUN_PLAY_SECONDS, /*bRunSettled=*/true).bLastRunLost);
 		TestFalse(TEXT("no run: nothing lost"), WoRTitleScreen::Summarize(FWoRSaveData(), true, CLOSED_RUN_PLAY_SECONDS).bLastRunLost);
 	});

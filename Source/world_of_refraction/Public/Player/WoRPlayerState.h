@@ -25,6 +25,7 @@
 
 class UCurrencyComponent;
 class UCharacterData;
+class ACharacter;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API AWoRPlayerState : public APlayerState
@@ -242,6 +243,12 @@ private:
 
 	UPROPERTY(ReplicatedUsing = OnRep_Form)
 	EPlayerBaseForm BaseForm = EPlayerBaseForm::Manny;
+
+	/** B-547: what ApplyFormLook last put on which pawn, so arriving (pawn set, then the form's replication) dresses once. */
+	TWeakObjectPtr<const ACharacter> DressedPawn;
+	TWeakObjectPtr<UCharacterFormData> DressedForm;
+	EPlayerBaseForm DressedBase = EPlayerBaseForm::Manny;
+	TWeakObjectPtr<USkeletalMesh> DressedMesh;
 
 	/** B-232: the characters this player commands. */
 	UPROPERTY(Replicated)

@@ -4,11 +4,12 @@
 // when that is the game's default map (the hub), PIE included; wor.UI.TitleAtStart 0 skips it, wor.UI.Title opens it.
 // Back never closes it.
 //
-// Left: "WORLD OF REFRACTION", "TALES OF THE VOID" and the rows (WoRTitleScreen). Continue goes on where the save is
-// (the level is already the save's); New Game over a save asks first and needs A held for 2 seconds; Settings opens
-// the settings screen over it; Quit quits. "Your save was reset" (D-060) shows first when the load wiped an old save.
-// New Game (with no save, or once the hold has deleted it) opens the new game screen (B-469), whose Begin starts the
-// fresh game in place. Not built: the nebula and the hexagon vortex (an editor step, D-202).
+// B-546 (D-229, stage 1): all centred: "WORLD OF REFRACTION", "TALES OF THE VOID", then the character slots
+// (WoRTitleScreen::BuildRows), then Settings, Credits and Quit as buttons along the bottom. A filled slot continues
+// (the level is already the save's); the + opens the new game screen (B-469), over a save after a yes / no (one save
+// file until stage 3). R / Y on a filled slot deletes it after a yes / no. "Your save was reset" (D-060) shows first
+// when the load wiped an old save. Not built: the nebula and the hexagon vortex (an editor step, D-202), and the
+// character figure: it goes on the right, and TitleScreenStyle::SlotsAlignment moves the slots left when it comes.
 
 #pragma once
 
@@ -29,8 +30,10 @@ enum class ETitlePanel : uint8
 	None,
 	/** D-060: the load wiped an old save. */
 	SaveReset,
-	/** New Game over a save: hold A to start over. */
-	NewGameConfirm
+	/** The + over a save: yes / no to start over (B-546; it was a 2-second hold). */
+	NewGameConfirm,
+	/** B-546: R / Y on a filled slot: yes / no to delete it. */
+	DeleteConfirm
 };
 
 UCLASS()
@@ -50,13 +53,21 @@ public:
 	static void MarkLeftThisLaunch();
 
 	// What the keys and the mouse do.
+	/** Up / Down: through the slots, then down into the buttons. */
 	void MoveSelection(int32 Delta);
+	/** B-546: Left / Right: across the buttons, or between a panel's yes and no. */
+	void MoveSide(int32 Delta);
 	void SelectRow(int32 Index);
 	void Confirm();
-	/** New Game's confirm: held time added (the ticker calls it while A is down). */
+	/** B-546: R / Y: a filled slot asks to be deleted. */
+	void RequestDelete();
+	/** B-546: a yes / no panel's answer. */
+	void ChooseAnswer(bool bYes);
+	/** New Game's confirm: held time added. OBSOLETE (B-546): the confirm is a yes / no; retire after PIE. */
 	void UpdateHold(float DeltaSeconds);
 
 	ETitlePanel GetPanel() const { return Panel; }
+	bool IsYesLit() const { return bPanelYes; }
 	const TArray<FTitleScreenRow> &GetRows() const { return Rows; }
 	int32 GetSelectedRow() const { return SelectedRow; }
 
@@ -80,26 +91,43 @@ private:
 	void ShowPanel(ETitlePanel InPanel);
 	/** Continue, or New Game with no save: the title is done for this launch. */
 	void Leave();
+	/** OBSOLETE (B-546): nothing starts the hold now; retire after PIE. */
 	void StartHold();
 	void StopHold();
-	/** The hold is done: the save is deleted and the new game screen opens (B-469). */
+	/** The + over a save, answered yes: the save is deleted and the new game screen opens (B-469). */
 	void StartOver();
+	/** B-546: the delete answered yes: the save is deleted and the slots read again. */
+	void DeleteCharacter();
+	/** The slots come first in Rows, then the buttons. */
+	int32 GetSlotCount() const;
+	UBorder *GetRowBox(int32 Index) const;
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
+	/** 1 under Yes, 0 under No, else INDEX_NONE. */
+	int32 FindAnswerUnder(const FPointerEvent &MouseEvent) const;
+	bool IsYesNoPanel() const { return Panel == ETitlePanel::NewGameConfirm || Panel == ETitlePanel::DeleteConfirm; }
 
 	TArray<FTitleScreenRow> Rows;
 	FTitleSaveSummary Save;
 	int32 SelectedRow = 0;
 	ETitlePanel Panel = ETitlePanel::None;
+	/** B-546: a yes / no panel opens on No. */
+	bool bPanelYes = false;
 	FText Status;
 	float HeldSeconds = 0.0f;
 	FTSTicker::FDelegateHandle HoldTicker;
 
+	/** The slots' boxes. */
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> RowBoxes;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> RowLabels;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> RowLines;
+	/** B-546: Settings, Credits and Quit along the bottom. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> ButtonBoxes;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> ButtonLabels;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> StatusText;
 	UPROPERTY(Transient)
@@ -116,8 +144,16 @@ private:
 	TObjectPtr<UTextBlock> OldVersionText;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> NeededVersionText;
+	/** OBSOLETE (B-546): never shown now; retire with the hold. */
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> HoldLines;
 	UPROPERTY(Transient)
 	TObjectPtr<UProgressBar> HoldBar;
+	/** B-546: a yes / no panel's answers. */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> AnswerLines;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> YesBox;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> NoBox;
 };

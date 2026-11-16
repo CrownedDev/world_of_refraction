@@ -1,7 +1,7 @@
 // TitleScreenSpec.cpp
-// B-467 (D-202, D-060): the title screen's model. Continue is first and only with a save, with where it is, who is
-// in the party and the time played; the rows not built yet say so; New Game's warning says what starting over
-// replaces; the reset notice names both versions. The screen itself is the PIE sheet (docs/PIE/B-467.md).
+// B-467 (D-202, D-060): the title screen's model. B-546 (D-229): the character slots (a filled one with its character,
+// then the + while a slot is free), then the Settings, Credits and Quit buttons; starting over and deleting say what
+// goes; the reset notice names both versions. The screen itself is the PIE sheet (docs/PIE/B-546.md).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -12,7 +12,9 @@
 
 namespace
 {
-	constexpr int32 TITLE_TEST_ROWS_WITHOUT_SAVE = 5;
+	/** The + and the three buttons. */
+	constexpr int32 TITLE_TEST_ROWS_WITHOUT_SAVE = 4;
+	constexpr int32 TITLE_TEST_BUTTONS = 3;
 	constexpr double TITLE_TEST_FOURTEEN_AND_A_HALF_HOURS = 14.5 * 3600.0;
 	constexpr double TITLE_TEST_FIFTY_NINE_MINUTES = 59.0 * 60.0 + 30.0;
 	constexpr int32 TITLE_TEST_OLD_VERSION = 31;
@@ -24,6 +26,11 @@ namespace
 		Save.Place = FText::FromString(TEXT("The Hub"));
 		Save.PartyNames = {FText::FromString(TEXT("Sera")), FText::FromString(TEXT("Garrick")), FText::FromString(TEXT("Bram"))};
 		Save.PlaySeconds = TITLE_TEST_FOURTEEN_AND_A_HALF_HOURS;
+		Save.LeaderName = FText::FromString(TEXT("Sera"));
+		Save.bHasRunLevels = true;
+		Save.RunMind = 3;
+		Save.RunBody = 2;
+		Save.RunSpirit = 1;
 		return Save;
 	}
 }
@@ -33,30 +40,51 @@ END_DEFINE_SPEC(FTitleScreenSpec)
 
 void FTitleScreenSpec::Define()
 {
-	It("with no save lists New Game first, no Continue, and the rows not built yet say so", [this]()
+	It("with no save shows the + as the only slot, then the three buttons; no New Game or Join a friend row", [this]()
 	{
 		const TArray<FTitleScreenRow> Rows = WoRTitleScreen::BuildRows(FTitleSaveSummary());
 		TestEqual(TEXT("rows"), Rows.Num(), TITLE_TEST_ROWS_WITHOUT_SAVE);
-		TestTrue(TEXT("New Game first"), Rows[0].Id == ETitleScreenRow::NewGame);
+		TestTrue(TEXT("the + first"), Rows[0].Id == ETitleScreenRow::NewGame && !Rows[0].bButton);
 		TestTrue(TEXT("Quit last"), Rows.Last().Id == ETitleScreenRow::Quit);
-		for (const FTitleScreenRow &Row : Rows)
+		for (int32 Index = 0; Index < Rows.Num(); ++Index)
 		{
-			TestFalse(TEXT("named"), Row.Label.IsEmpty());
-			TestTrue(TEXT("no Continue"), Row.Id != ETitleScreenRow::Continue);
-			TestEqual(TEXT("only Join a friend is refused"), Row.CanUse(), Row.Id != ETitleScreenRow::JoinFriend);
+			TestFalse(TEXT("named"), Rows[Index].Label.IsEmpty());
+			TestTrue(TEXT("usable"), Rows[Index].CanUse());
+			TestTrue(TEXT("no Continue, no Join a friend"), Rows[Index].Id != ETitleScreenRow::Continue && Rows[Index].Id != ETitleScreenRow::JoinFriend);
+			TestEqual(TEXT("the last three are buttons"), Rows[Index].bButton, Index >= Rows.Num() - TITLE_TEST_BUTTONS);
 		}
 	});
 
-	It("with a save puts Continue first, with the place, the party and the time played", [this]()
+	It("with a save shows its character as slot 1 (the name and the last run's levels only) and the + as slot 2", [this]()
 	{
-		const TArray<FTitleScreenRow> Rows = WoRTitleScreen::BuildRows(MakeSave());
+		const TArray<FTitleScreenRow> Rows = WoRTitleScreen::BuildRows(MakeSave(), 2);
 		TestEqual(TEXT("one row more"), Rows.Num(), TITLE_TEST_ROWS_WITHOUT_SAVE + 1);
-		TestTrue(TEXT("Continue first"), Rows[0].Id == ETitleScreenRow::Continue);
-		TestTrue(TEXT("usable"), Rows[0].CanUse());
+		TestTrue(TEXT("the filled slot first"), Rows[0].Id == ETitleScreenRow::Continue && Rows[0].CanUse());
+		TestEqual(TEXT("named for its character"), Rows[0].Label.ToString(), FString(TEXT("Sera")));
 		const FString Line = Rows[0].Line.ToString();
-		TestTrue(TEXT("the place"), Line.Contains(TEXT("The Hub")));
-		TestTrue(TEXT("the party"), Line.Contains(TEXT("Sera, Garrick, Bram")));
-		TestTrue(TEXT("whole hours"), Line.Contains(TEXT("14 h")));
+		TestTrue(TEXT("the run's three levels"), Line.Contains(TEXT("Mind 3")) && Line.Contains(TEXT("Body 2")) && Line.Contains(TEXT("Spirit 1")));
+		TestFalse(TEXT("nothing else: no place, no time"), Line.Contains(TEXT("Hub")) || Line.Contains(TEXT("14 h")));
+		TestTrue(TEXT("the + second"), Rows[1].Id == ETitleScreenRow::NewGame && !Rows[1].bButton);
+		FTitleSaveSummary NeverRan = MakeSave();
+		NeverRan.bHasRunLevels = false;
+		TestFalse(TEXT("no run: a dash, not a level"), WoRTitleScreen::GetRunLevelsText(NeverRan).ToString().Contains(TEXT("3")));
+		TestTrue(TEXT("no run: dashes"), WoRTitleScreen::GetRunLevelsText(NeverRan).ToString().Contains(TEXT("Mind -")));
+	});
+
+	It("shows no + once the slots are full, and defaults the most slots to the class choices (B-546)", [this]()
+	{
+		const TArray<FTitleScreenRow> Rows = WoRTitleScreen::BuildRows(MakeSave(), 1);
+		TestEqual(TEXT("the slot and the buttons"), Rows.Num(), 1 + TITLE_TEST_BUTTONS);
+		TestFalse(TEXT("no +"), Rows.ContainsByPredicate([](const FTitleScreenRow &Row) { return Row.Id == ETitleScreenRow::NewGame; }));
+		TestTrue(TEXT("at least one slot"), WoRTitleScreen::GetMaxSlots() > 0);
+	});
+
+	It("names the character a delete takes, and what goes with it (B-546)", [this]()
+	{
+		const FString Warning = WoRTitleScreen::GetDeleteWarning(MakeSave()).ToString();
+		TestTrue(TEXT("whose"), Warning.Contains(TEXT("Sera")));
+		TestTrue(TEXT("the time"), Warning.Contains(TEXT("14 h")));
+		TestTrue(TEXT("for good"), Warning.Contains(TEXT("undone")));
 	});
 
 	It("says time under an hour in minutes", [this]()
