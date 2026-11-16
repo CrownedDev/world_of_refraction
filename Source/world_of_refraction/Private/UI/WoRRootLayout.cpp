@@ -4,6 +4,7 @@
 
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "CommonActivatableWidget.h"
+#include "Engine/Engine.h"
 #include "Input/CommonUIActionRouterBase.h"
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Party/PartyDisplayWidget.h"
@@ -108,6 +109,12 @@ bool UWoRRootLayout::HasActiveScreen() const
 
 void UWoRRootLayout::SetPartyStripHidden(bool bHidden)
 {
+	// B-543: world prompts never draw over an open screen. Only display pauses; the messages stay queued.
+	if (GEngine && bHidden != bPausedScreenMessages && (!bHidden || GEngine->bEnableOnScreenDebugMessagesDisplay))
+	{
+		GEngine->bEnableOnScreenDebugMessagesDisplay = !bHidden;
+		bPausedScreenMessages = bHidden;
+	}
 	if (!bHidden)
 	{
 		for (const TPair<TWeakObjectPtr<UWidget>, ESlateVisibility> &Hidden : HiddenStrips)
@@ -175,6 +182,11 @@ void UWoRRootLayout::RunWhenAllClosed(TFunction<void()> Action)
 void UWoRRootLayout::NativeDestruct()
 {
 	WhenAllClosed = nullptr; // a waiting action dies with the layout
+	if (bPausedScreenMessages && GEngine) // a level change with a screen open: the next level's hints show again
+	{
+		GEngine->bEnableOnScreenDebugMessagesDisplay = true;
+		bPausedScreenMessages = false;
+	}
 	Super::NativeDestruct();
 }
 
