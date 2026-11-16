@@ -2,6 +2,9 @@
 // D-221 stage 1c (B-511): the kit every trial starts on, per class, so every run has the same starting point. One asset,
 // DA_Loadout_ClassDefaults, found by UTrialRunSubsystem's config path (DefaultGame.ini). Each character's kit is minted
 // into the pool once as its own (UPoolSubsystem::MintClassDefaultKit). Plan: docs/Design/LoadoutRestructurePlan.md §3.
+// B-549 (D-228, one-player stage 2): also the class table: what each class, and a Refractor's element choice, gives
+// a character (world levels, action speed, portrait, innate spells). Stage 3 builds the player from it and the picks.
+// Filled once from today's Lords (FillFromSources, an editor button). Resistances stay in ClassInnateResistanceTable.
 
 #pragma once
 
@@ -9,10 +12,15 @@
 #include "Character/ECharacterClass.h"
 #include "Engine/DataAsset.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Loadout/FCombatLoadout.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "ClassDefaultLoadoutData.generated.h"
 
 class UAbilityData;
 class UApparelData;
+class UCharacterData;
+class USpellData;
+class UTexture2D;
 class UEquipmentDataBase;
 class USkillDataBase;
 class UWeaponData;
@@ -92,6 +100,58 @@ struct WORLD_OF_REFRACTION_API FClassDefaultKitIDs
 	}
 };
 
+/** B-549: what a class, or one of a Refractor's element choices, gives a character. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FClassElementNumbers
+{
+	GENERATED_BODY()
+
+	/** A Refractor's element; Broken Darkness is Darkness with the flag. Unused on a class row. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
+	ESpellElement Element = ESpellElement::Darkness;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
+	bool bBrokenDarkness = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table", meta = (ClampMin = 0, ClampMax = 7))
+	int32 WorldMindLevel = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table", meta = (ClampMin = 0, ClampMax = 7))
+	int32 WorldBodyLevel = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table", meta = (ClampMin = 0, ClampMax = 7))
+	int32 WorldSpiritLevel = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
+	TSoftObjectPtr<UTexture2D> Portrait; // D-057: a new visual field is soft
+
+	/** A Refractor's innate spells (for Broken Darkness: the Darkness pool). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
+	TArray<TObjectPtr<USpellData>> InnateSpells;
+
+	/** Broken Darkness only: the element pools, locked until absorbed. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
+	TArray<FBDElementSpellPool> BDSpellPools;
+};
+
+/** B-549: one class's row; a Refractor's numbers come from its element rows. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FClassNumbers
+{
+	GENERATED_BODY()
+
+	/** The class's own world levels and portrait (Generic, Resonator); a Refractor reads its element row instead. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
+	FClassElementNumbers Base;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table", meta = (ClampMin = 0))
+	int32 ActionSpeed = 0;
+
+	/** A Refractor's element choices (the nine elements and Broken Darkness). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table", meta = (TitleProperty = "Element"))
+	TArray<FClassElementNumbers> Elements;
+};
+
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UClassDefaultLoadoutData : public UPrimaryDataAsset
 {
@@ -102,9 +162,34 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Kit")
 	TMap<ECharacterClass, FClassDefaultLoadout> Defaults;
 
+	/** B-549: the class table (D-228). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
+	TMap<ECharacterClass, FClassNumbers> Classes;
+
+	/** B-549: the characters FillFromSources reads (today's Lords). Transient, so the table keeps no hold on them. */
+	UPROPERTY(EditAnywhere, Transient, Category = "Class table|Fill")
+	TArray<TObjectPtr<UCharacterData>> FillSources;
+
+	/** B-549: what Class (and a Refractor's Element, Broken Darkness) starts with. False: no row for it. */
+	bool FindNumbers(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness, FClassElementNumbers &OutNumbers,
+					 int32 &OutActionSpeed) const;
+
+	/** B-549: one row per source: a Generic or Resonator its class row, a Caster its element row (world levels, action
+	 *  speed, portrait, its inventory's default loadout's innate spells and BD pools). Returns the rows written. */
+	int32 FillFrom(const TArray<UCharacterData *> &Sources);
+
+	/** The editor step: FillFrom(FillSources) and mark the asset dirty; saving it is the user's step. */
+	UFUNCTION(CallInEditor, Category = "Class table|Fill")
+	void FillFromSources();
+
 	/** Each class's kit, one line per piece. */
 	FString GetDefaultsString() const;
+	/** B-549: the class table, a line per class and element row. */
+	FString GetClassTableString() const;
 
 	UFUNCTION(CallInEditor, Category = "Debug")
 	void PrintDefaults() const;
+
+	UFUNCTION(CallInEditor, Category = "Debug")
+	void PrintClassTable() const;
 };
