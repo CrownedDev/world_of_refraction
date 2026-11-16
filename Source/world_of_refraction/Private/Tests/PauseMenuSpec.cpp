@@ -1,5 +1,5 @@
 // PauseMenuSpec.cpp
-// B-439 (D-181, D-176): the game menu's model. Its eight pages in order, which ones open, the header in the hub
+// B-439 (D-181, D-176): the game menu's model. Its nine pages in order, which ones open, the header in the hub
 // and in a run, and Quit in a run: the run's end pays nothing. The screen itself is the PIE sheet (docs/PIE/B-439.md).
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -17,7 +17,7 @@
 namespace
 {
 	constexpr int32 PAUSE_TEST_SEED = 23;
-	constexpr int32 PAUSE_TEST_PAGE_COUNT = 8;
+	constexpr int32 PAUSE_TEST_PAGE_COUNT = 9; // B-536: Forms
 	constexpr int32 PAUSE_TEST_CHIP_COUNT = 3;
 }
 
@@ -56,10 +56,10 @@ void FPauseMenuSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("lists the eight pages in the mockup's order, Resume first and Quit last", [this]()
+	It("lists the nine pages in order (the mockup's, plus Forms), Resume first and Quit last", [this]()
 	{
 		const TArray<FPauseMenuPage> Pages = WoRPauseMenu::BuildPages(false, true);
-		if (!TestEqual(TEXT("eight pages"), Pages.Num(), PAUSE_TEST_PAGE_COUNT))
+		if (!TestEqual(TEXT("nine pages"), Pages.Num(), PAUSE_TEST_PAGE_COUNT))
 		{
 			return;
 		}
@@ -79,6 +79,7 @@ void FPauseMenuSpec::Define()
 		TestTrue(TEXT("Loadout opens (B-440a)"), Pages[static_cast<int32>(EPauseMenuPage::Loadout)].CanOpen());
 		TestTrue(TEXT("Character opens (B-442)"), Pages[static_cast<int32>(EPauseMenuPage::Character)].CanOpen());
 		TestTrue(TEXT("Settings opens (B-452)"), Pages[static_cast<int32>(EPauseMenuPage::Settings)].CanOpen());
+		TestTrue(TEXT("Forms opens (B-536)"), Pages[static_cast<int32>(EPauseMenuPage::Forms)].CanOpen());
 	});
 
 	It("refuses Quit to a guest in a run, and only then", [this]()

@@ -168,6 +168,14 @@ private:
 	/** B-503e: makes any field action still empty (no asset, no ini line) in code with its InputMap.md keys. */
 	void BuildCodeFieldActions();
 
+	/** B-536: a tap of Tab opens the game menu too (Esc ends PIE in the editor). Made in code: IA_UI_GameMenuTab in
+	 *  IMC_UI_GameMenuTab, at WoRInputPriority::FIELD_KEYS; a hold stays free for the join request card (B-459c). */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> GameMenuTabAction;
+	UPROPERTY(Transient)
+	TObjectPtr<class UInputMappingContext> GameMenuTabContext;
+	void BuildGameMenuTabKey();
+
 	/** B-214g: the field attack's press (real time, for its hold); a release with no press (focus loss) does nothing. */
 	double FieldAttackPressTime = 0.0;
 	bool bFieldAttackPressed = false;
