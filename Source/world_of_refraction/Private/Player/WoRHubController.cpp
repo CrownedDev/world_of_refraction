@@ -368,6 +368,10 @@ void AWoRHubController::HandleToggleMenu(const FInputActionValue & /*Value*/)
 void AWoRHubController::OpenGameMenu()
 {
 	// Opening only: with the menu up, game input is off, so the menu's own Back / Menu key closes it.
+	if (WoRFrontEnd::IsFrontEndWorld(GetWorld()))
+	{
+		return; // B-537: the menu level is the title; there is no game to pause
+	}
 	UPauseMenuWidget::Open(this);
 }
 

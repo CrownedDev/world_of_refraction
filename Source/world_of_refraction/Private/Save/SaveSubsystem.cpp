@@ -561,7 +561,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	{
 		PendingRun = Data.Run;
 		UWorld *World = GI->GetWorld();
-		if (World && World->IsGameWorld() && World->AreActorsInitialized())
+		if (World && World->IsGameWorld() && World->AreActorsInitialized() && !WoRFrontEnd::IsFrontEndWorld(World)) // B-537: not in the menu level
 		{
 			TryResumeRun(World);
 		}

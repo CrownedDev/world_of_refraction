@@ -12,6 +12,7 @@
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
 #include "Save/SaveSubsystem.h"
+#include "WoRLog.h"
 
 AWoRGameModeBase::AWoRGameModeBase()
 {
@@ -54,10 +55,10 @@ APawn *AWoRGameModeBase::SpawnDefaultPawnAtTransform_Implementation(AController 
     // default (the Character Template). The pawn still spawns; the travel happens on the next tick.
     const USaveSubsystem *Save = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
     const bool bHasLeader = Party && Party->Members.Num() > 0 && Party->Members[0].CharacterData;
-    if (Player && Player->IsLocalController() && GetNetMode() != NM_Client &&
+    if (Player && Player->IsLocalController() && GetNetMode() == NM_Standalone && // a host's travel would drop its guests
         WoRFrontEnd::ShouldFallBackToFrontEnd(Save && Save->HasSave(), bHasLeader, WoRFrontEnd::HasFrontEnd(GetGameInstance()), GIsAutomationTesting))
     {
-        UE_LOG(LogTemp, Warning, TEXT("[WoRGameMode] No save and no party leader: going to the menu level instead of %s"),
+        UE_LOG(LogWoR, Warning, TEXT("[WoRGameMode] No save and no party leader: going to the menu level instead of %s"),
                *GetNameSafe(PawnClass));
         WoRFrontEnd::TravelToFrontEnd(GetWorld());
     }
