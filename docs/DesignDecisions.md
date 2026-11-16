@@ -1245,6 +1245,7 @@ The queue of questions only Crown can answer.
 ### D-231 — A prebuilt adapter has no augment slot
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "if a prebuilt adapter is used, augment slots disappear": "the prebuilt comes with a crystal, so we shouldn't allow an additional crystal to be attached". A prebuilt adapter (bought or found already built, D-226) shows no augment slot and takes nothing more.
+**Changed the same day (Crown):** "maybe the best way to do it is a prebuilt adapter shows its crystal in augment slot 1": the slots do not disappear; the prebuilt's crystal sits in the first slot, filled. **Open (Crown): whether the second slot stays usable.** Until answered, nothing is built for D-231.
 **Defaults (Crown may change):** the adapter remembers that it came prebuilt; its own crystal stays as built and cannot be swapped; an adapter the player built from an empty ring keeps its augment slot. A starting ring handed out with its crystal (the Earth Ring) counts as prebuilt.
 
 ### D-230 — The loadout screen gets an Inventory tab, first in the row
