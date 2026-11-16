@@ -11,6 +11,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/FEvolutionInventoryEntry.h"
 #include "Equipment/FCrystalAttachment.h"
+#include "Equipment/GearSockets.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/Entries/FApparelEntry.h"
@@ -349,6 +350,32 @@ void FLoadoutScreenSpec::Define()
 		TestEqual(TEXT("a filled socket offers nothing"),
 				  WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Page.Rows[LOADOUT_SCREEN_TEST_FIRST], LoadoutScreenSockets::CRYSTAL,
 													   Carried, {Free}, {}).Num(), 0);
+	});
+
+	It("D-231 point 5 (B-540): a piece set to one crystal type takes only that gem, says why, and unset takes any", [this]()
+	{
+		TestTrue(TEXT("unset takes any gem"), GearSockets::AcceptsCrystal(ECrystalType::None, ECrystalType::Ruby));
+		TestTrue(TEXT("the set type fits"), GearSockets::AcceptsCrystal(ECrystalType::Emerald, ECrystalType::Emerald));
+		TestFalse(TEXT("another gem is refused"), GearSockets::AcceptsCrystal(ECrystalType::Emerald, ECrystalType::Ruby));
+		TestTrue(TEXT("a stone is not limited"), GearSockets::AcceptsCrystal(ECrystalType::Emerald, ECrystalType::DamageStone));
+
+		FCombatLoadout Loadout = TwoWeapons();
+		Loadout.SecondaryWeapon.WeaponEntry.Weapon->AcceptedCrystalType = ECrystalType::Citrine;
+		const FLoadoutScreenRow &Hammer = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic).Rows[LOADOUT_SCREEN_TEST_SECOND];
+		TestTrue(TEXT("the row reads the piece's setting"), Hammer.AcceptedCrystal == ECrystalType::Citrine);
+		const FCrystalId Citrine(ECrystalType::Citrine, EItemTier::C_Tier);
+		const FCrystalId Ruby(ECrystalType::Ruby, EItemTier::C_Tier);
+		const TArray<FLoadoutScreenChoice> Choices = WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Hammer, LoadoutScreenSockets::CRYSTAL,
+																						 {{Citrine, 1}, {Ruby, 1}}, {}, {});
+		const FLoadoutScreenChoice *Fits = Choices.FindByPredicate([&Citrine](const FLoadoutScreenChoice &C) { return C.Crystal == Citrine; });
+		const FLoadoutScreenChoice *Refused = Choices.FindByPredicate([&Ruby](const FLoadoutScreenChoice &C) { return C.Crystal == Ruby; });
+		if (!TestNotNull(TEXT("both gems listed"), Fits) || !TestNotNull(TEXT("the other gem stays, greyed"), Refused))
+		{
+			return;
+		}
+		TestTrue(TEXT("its own type fits"), Fits->Refusal.IsEmpty());
+		TestTrue(TEXT("another type is refused, naming the type it takes"),
+				 Refused->Refusal.ToString().Contains(WoRGameNames::GetCrystalTypeName(ECrystalType::Citrine).ToString()));
 	});
 
 	It("refuses a stone that takes a full Generic over 5, and names the stone in the cost line (B-472, D-206)", [this]()
