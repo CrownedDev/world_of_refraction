@@ -10,6 +10,11 @@
 - **(b) yes:** a character keeps the skills found in a run, "similar to their other equipment", under the found-gear rules of D-219 and D-221 (§5.3).
 - **Broken Darkness's pools are capacity, not content:** empty places to learn spells, never pre-filled. The authored field goes, and the pool is a rule in code that the screens draw as empty places (§5.4).
 
+**Revision 6 (2026-11-16) takes in Crown's last answers (D-223, D-224):**
+- **Only the elemental side averages (§4.1):** the weapon-and-crystal average drives the elemental (infused) strength and the elemental status build-up. Physical attacks and physical build-up stay on the weapon's own tier. Revision 5 moved the whole channel; this splits it.
+- **Found skills follow the equipment rules (§5.3, questions 10 to 12):** only slotted skills are kept, the rest go back; on a lost run they follow D-219; a kept skill is for the hub and its presets, not the next run's start.
+- **Two same-named pieces:** the tier tells them apart first, a number only when the tier matches too (D-223; built by B-516b; question 2).
+
 **Revision 5 (2026-11-15) takes in Crown's answers on revision 4 (D-224):**
 - **Q3:** the averaged tier does not lower the ring's own stat lines; they stay on the ring's own tier. The average drives how strong the skills cast through the ring are (§4).
 - **Q4:** weapons average with their crystal too, and it affects the status build-up (§4.1).
@@ -367,15 +372,15 @@ One helper works this out (`CrystalEffectTable::GetAdapterTier(const FRingInvent
 
 ### 4.1 A weapon's tier is the built average too (D-224, Q4)
 
-**Crown:** weapons average with their crystal too, "and it would affect the status build-up". The rule is the ring's: the weapon's own tier and its socket's tier, a half rounded down, counted from F0 to S6. An empty socket, or one with no spell source, gives the weapon's own tier. The stone socket doesn't count. The sockets are the main hand's (D-210), so a pair averages its main hand with that socket.
+**Crown:** weapons average with their crystal too, "and it would affect the status build-up". **Only the elemental side** (Crown, D-224): the average drives the elemental (infused) strength and the **elemental** status build-up; physical attacks and physical build-up stay on the weapon's own tier. The rule is the ring's: the weapon's own tier and its socket's tier, a half rounded down, counted from F0 to S6. An empty socket, or one with no spell source, gives the weapon's own tier. The stone socket doesn't count. The sockets are the main hand's (D-210), so a pair averages its main hand with that socket.
 
 **Each weapon mechanic that reads a tier today, and what it should read:**
 
 | Mechanic | Today | With D-224 | Note |
 |---|---|---|---|
-| **The channel for attacks and abilities** (the tier gap) | the weapon's own instance tier (`ResolveChannelTier`, `ActionExecutor.cpp:431-447`) | **the weapon tier** (the average) | This is the reader that carries the status build-up (below). |
-| **Status build-up** of an ability or attack | authored × the charge multiplier × own-tier power × **the tier gap** against the channel (`ActionExecutor.cpp:1633`) | follows the channel, so it reads the average | No new code of its own: it changes because the channel does. |
-| **Damage** of an ability or attack | the same tier gap (ED-11) | follows the channel | As for rings. |
+| **The channel for attacks and abilities** (the tier gap) | the weapon's own instance tier (`ResolveChannelTier`, `ActionExecutor.cpp:431-447`) | **two channels:** the physical one on the weapon's own tier, the elemental one on the average | Today there is one gap per action; it is split (below). |
+| **Status build-up** of an ability or attack | one number, authored × the charge multiplier × own-tier power × **the tier gap** (`ActionExecutor.cpp:1633`), sent to both the physical bar and the element bar | **the physical bar** on the weapon's own gap, **the element bar** on the average's gap | Two numbers instead of one, from the same authored build-up. An uninfused action fills only the physical bar, as today. |
+| **Damage** of an ability or attack | the same tier gap (ED-11), one number | **the physical part** on the weapon's own gap, **the elemental part** on the average's gap | An uninfused hit is all physical: nothing changes for it. |
 | **The action's own tier fallback** (a skill that can't resolve) | the weapon's instance tier (`ActionExecutor.cpp:414-424`) | **the weapon tier** | Safety path only. |
 | **Combat Tier** | the weapon entry's tier (`CombatTier.cpp:47`) | **the weapon tier** | Matches the rings' row. |
 | **Weapon power** (base damage) | `Power` × the instance tier's power (`WeaponPower.cpp:50`) | **keep the weapon's own tier** | The piece's own stats, as Q3 keeps a ring's stat lines. |
@@ -383,12 +388,19 @@ One helper works this out (`CrystalEffectTable::GetAdapterTier(const FRingInvent
 | **Crystal infusion wear, max durability, Crystal Amp** | the crystal's tier | **keep** | The crystal's own state, as for rings. |
 | **Dismantle, price, repair, the lost-run drop** | as for rings | **keep** | As for rings. |
 
-**How the average feeds the status build-up.** The gap is the skill's tier against the channel. A skill above the channel is cut, and one below it is boosted (`TierGapDamage`, `TierGapScalingSpec`). The build-up uses the same multiplier as the damage.
+**Splitting a hit with both sides.** An infused physical hit (a Fire Sword's slash) is both. Today it is one number with one gap.
+- **The physical part** is what the hit deals uninfused: the base × the gap against the weapon's own tier.
+- **The elemental part** is what the infusion adds: the charge multiplier's share above ×1 × the gap against the average. A level-0 infusion (×1.00) adds no elemental damage, so its damage stays on the weapon's tier; it still takes the element and fills the element bar.
+- **A plain elemental action** (a pulse, a spell through the weapon's crystal) is all elemental: the whole of it reads the average.
+- **Build-up** splits the same way: the physical bar's share reads the weapon's gap, the element bar's share the average's.
+- Resistances and the element's own rules still apply to the whole hit as today; only the tier gap is split.
+
+**How the average feeds the status build-up.** The gap is the skill's tier against the channel. What follows is the **elemental** side; the physical side reads the weapon's own tier, as today. A skill above the channel is cut, and one below it is boosted (`TierGapDamage`, `TierGapScalingSpec`). The build-up uses the same multiplier as the damage.
 - **A gem above the weapon** raises the channel. A skill above the weapon is cut less, and its build-up and damage go up. An F sword with a B Garnet reads D: a D ability on it was 2 tiers above the channel and is now matched (×1.00).
 - **A gem below the weapon** lowers the channel. Its skills gain the "below the channel" boost less, or are cut, so build-up and damage go down. An S sword with an F gem reads C.
 - **A weapon with no crystal** keeps its own tier: nothing changes.
 
-**The size:** one helper (`CrystalEffectTable::GetWeaponTier(const FWeaponInventoryEntry&)`) and three readers: the channel, the fallback and Combat Tier. Add weapon cases to `WoR.Loadout.AdapterTier` (an F sword with a B gem reads D; empty reads its own tier; the build-up of a D ability rises), update the ED-11 weapon specs, and change the rules rows. It joins stage 2b, one or two commits more.
+**The size:** one helper (`CrystalEffectTable::GetWeaponTier(const FWeaponInventoryEntry&)`); the channel split into a physical and an elemental gap (`ResolveChannelTier` gives both), read by the damage and the build-up at `ActionExecutor.cpp:737` / `:1633`; the fallback and Combat Tier. Add weapon cases to `WoR.Loadout.AdapterTier`: an F sword with a B gem reads D on the elemental side and F on the physical; empty reads its own tier on both; an uninfused hit is unchanged; an infused D ability's element build-up rises, its physical build-up doesn't. Update the ED-11 weapon specs and the rules rows. It joins stage 2b, two or three commits more.
 
 ## 5. Skills under D-224
 
@@ -480,18 +492,25 @@ One helper works this out (`CrystalEffectTable::GetAdapterTier(const FRingInvent
 
 | The run ends by | A found gear piece (D-219) | A found skill |
 |---|---|---|
-| **a boss win (finish)** | kept if worn at the end | kept: it joins the hub's known list |
-| **an extract** (leaving early) | kept if worn | kept |
-| **out of wipes** | kept if worn, and every worn piece drops tier ranks (3, tunable) | kept (question 12 asks about the tier drop) |
-| **a quit, or the game closed mid-run** | the run-start loadout is put back; found gear goes back | **lost**: the run list is dropped, nothing joins the hub list |
+| **a boss win (finish)** | kept if worn at the end | kept if **slotted** at the end: it joins the hub's known list; the rest go back |
+| **an extract** (leaving early) | kept if worn | kept if slotted |
+| **out of wipes** | kept if worn, and every worn piece drops tier ranks (3, tunable) | kept if slotted, and every slotted skill (found or owned) drops the same ranks |
+| **a quit, or the game closed mid-run** | the run-start loadout is put back; found gear goes back; the pieces worn then that the player still owns drop tier (D-219, D-221 Q7) | **found ones are lost**: nothing joins the hub list; the owned skills slotted then drop tier, as owned gear does |
 
 - **Today it is not built:** learning writes the permanent list at once (`PoolSkills.cpp`, `CharacterSkills`), so a skill bought in a run stays even after a quit. The run list and its settling at the end are the S3 code.
-- **A kept skill is the character's**, like owned gear: it can be put in any preset in the hub.
+- **A kept skill is for the hub and its presets** (Crown, question 11): it can be put in any preset in the hub. It does **not** start the next run: a trial starts on the class kit with no skills, and the trial mirror is where a preset's skills are bought back (D-221).
+- **"Slotted"** means in a slot of a worn entry at the end (`FLoadoutSlot::AssignedAbilities` / `SpellOverrides`, B-517). A found skill only in the run list goes back to the pool, as found gear left in the inventory does.
 
-**Gaps, for Crown (questions 10 to 12):**
-- **Picked or carried (10):** D-219 keeps only the gear **worn** at the end, and found gear left in the inventory goes back. Does a found skill need to be in a slot at the end, or is every skill found in the run kept? Recommendation: every found skill is kept. A skill takes no room in the inventory, so the "worn" test protects nothing. Monster Hunter and Hades keep what you unlock whether it is equipped or not.
-- **The next run's start (11):** D-219 makes the gear you end with the next run's starting gear, but D-224 (2) says a run starts with no skills. Does a kept skill start the next run, or only sit in the hub's list (for presets) while each run starts with the kit's bolt? Recommendation: in the hub list only, so every run starts on the kit (D-224 (2) is the newer ruling). Hades and Dead Cells keep unlocks between runs while each run starts on its loadout.
-- **The tier drop (12):** out of wipes, every worn piece drops 3 tiers (D-219). Does a kept skill drop too? Recommendation: no. A learned skill has its own instance tier (`ResolveAbilityTier`), but the lost-run drop (B-510, `PoolRunLayer.cpp` `DropLostRunTier`) runs on gear only, and the worn gear's drop already carries the cost.
+**What a skill's tier is today, and what the drop does.**
+- **A skill has a tier:** the learned copy's instance tier (`FAbilityInstance::Tier` / `FSpellInstance::Tier`), set from the asset's tier when it is learned. `UInventoryComponent::ResolveAbilityTier` / `ResolveSpellTier` (`InventoryComponent.cpp:742`) read it; nothing raises it yet (leveling is planned).
+- **What reads it:** only the tier gap: the copy's tier is the action's tier against the channel, for damage, build-up and cost (`ActionExecutor.cpp:402-410`). The skill's **own-tier power** (×1.00 at F to ×4.80 at S) reads the **asset's** tier, not the copy's (`ActionExecutor.cpp:737`, `:1437`, `:1633`).
+- **So the drop, as the code stands, would backfire.** `DropLostRunTier` (`PoolRunLayer.cpp:64`, 3 ranks, not below F) on the copy lowers it against the channel, and the gap **boosts** a skill below the channel (up to ×1.30, and cheaper). The skill would come out stronger.
+- **The fix with it (S3, the plan's default):** the own-tier power reads the copy's tier as well. Then the drop costs, as it does for gear: a C skill dropped to F goes from ×2.20 power to ×1.00, with at most the ×1.20 gap boost, so about half its damage and build-up. The copy is the character's one copy, so the drop shows in every preset that holds it, as a dropped piece does.
+
+**Answered (Crown, D-224 "Found skills follow the equipment rules", questions 10 to 12):**
+- **(10)** Only the skills that are **slotted** at the end are kept; "everything else returns to the pool, like gear".
+- **(12)** On a lost run a kept skill "would follow the same rules as equipment": D-219's worn-gear rules apply to slotted skills (found ones aren't kept out of a quit; what is kept or owned takes the tier loss). The drop needs the own-tier power on the copy's tier, above.
+- **(11, agreed)** A kept skill is for the hub and its presets; a trial still starts on the class kit with no skills.
 
 ### 5.4 Broken Darkness's pools: a rule, not data (Crown, 2026-11-15)
 
@@ -557,7 +576,7 @@ Until stage 4, the new pieces are added as spares to the current played characte
 |---|---|---|---|
 | **S1. No skills on gear** (§5.1); part 1 ✅ B-517 (the picks on the worn entry), part 2 B-518 (the built-ins go) | picks move from the piece to the worn entry (`FLoadoutSlot`), with the save; built-ins and the write-back go; the Equipment screen offers only known skills | clear the clean set's skill lists (none authored) | A sword has no skills until you put one in. The skills stay when you change crystals. A preset keeps them. Giving the sword away doesn't take them along. |
 | **S2. Skills name what they need** (§5.2) | `FSkillGearRequirement`, `SkillRequirementRules::IsMet`, the four readers | one scripted pass setting every skill's requirement | An axe skill is offered only with an axe worn. A bolt needs an adapter with a crystal. An evolution skill needs an evolution. A skill whose gear you take off greys out. |
-| **S3. A run's skills** (§5.3) | the kit's `StartingSkills` into the run list at trial start (not into a slot); purchases and chests go into it; at the end the list is settled by D-219 (kept on a finish, an extract or out of wipes; dropped on a quit) | the bolt in the Generic's and the Resonator's kits | A trial starts with the bolt in the inventory, and you pick it into a slot. Buying a skill at the merchant adds it. After an extract it's in the hub list; after a quit it's gone. |
+| **S3. A run's skills** (§5.3) | the kit's `StartingSkills` into the run list at trial start (not into a slot); purchases and chests go into it; at the end the list is settled by D-219: the **slotted** ones are kept on a finish, an extract or out of wipes, the rest go back; found ones are dropped on a quit; slotted skills drop tier on a lost run or a quit, and the own-tier power reads the copy's tier | the bolt in the Generic's and the Resonator's kits | A trial starts with the bolt in the inventory, and you pick it into a slot. Buying a skill at the merchant adds it. After an extract the slotted ones are in the hub list and an unslotted one is gone; after a quit the found ones are gone. Out of wipes a slotted skill reads three tiers lower and hits softer. The next trial starts with no skills again. |
 | **S4. Enemies drop skills** | a skill entry in enemy loot | a few drop entries | Defeating a tagged enemy can give a skill, shown in the reward. |
 | **Later: trial skills** | the trial-side starting-skill track | — | — |
 
@@ -566,7 +585,7 @@ Until stage 4, the new pieces are added as spares to the current played characte
 ## Questions for Crown
 
 1. **The cast and gear list (§2):** OK as listed? It includes the item names, who holds which ring and evolution, and the adapter's one shared stat line.
-2. **Two same-named rings:** a repeat number ("Lightning Ring 2"), shown only where a list has the same name twice (the default for now)?
+2. ~~**Two same-named rings.**~~ **Answered (Crown, D-223):** the tier tells them apart first (the tier badge; the strip's tier letter); a number only when the name and the tier both match (built: B-516b).
 3. ~~**The built ring tier (§4).**~~ **Answered (Crown):** the ring's stat lines stay on its own tier; the average drives the skills cast through it (slots, damage, wear) and Combat Tier.
 4. ~~**Weapons with a crystal.**~~ **Answered (Crown):** they average too, and it affects the status build-up (§4.1). By the plan's default, weapon power and skill slots keep the weapon's own tier (its own stats; CL-20 already adds the crystal's slots).
 5. ~~**(b).**~~ **Answered (Crown):** yes. A character keeps the skills found in a run, like its other equipment, under D-219 / D-221 (§5.3). Three follow-ons are questions 10 to 12.
@@ -574,6 +593,6 @@ Until stage 4, the new pieces are added as spares to the current played characte
 7. ~~**Locked (conjured) rings.**~~ **Answered (Crown):** they become ordinary empty rings; found rings may come prebuilt, with a crystal or an evolution in the socket (§3, "Found pieces").
 8. ~~**A shield in a pair.**~~ **Answered (Crown):** it counts as one weapon, like a sword; the shield adds nothing to the slot average. By the plan's default it still adds its stats (§1).
 9. ~~**The starting bolt.**~~ **Answered (Crown):** it's in the inventory and the player attaches it; nothing is pre-attached, and the kit's sockets start empty (§5.3).
-10. **A found skill: picked or carried?** Is every skill found in a run kept, or only one in a slot at the end (D-219 keeps only worn gear)? Recommendation: every found skill (§5.3).
-11. **A kept skill and the next run:** does it start the next run (as D-219's gear does), or only sit in the hub list while each run starts on the kit (D-224 (2))? Recommendation: the hub list only (§5.3).
-12. **A kept skill out of wipes:** does it drop tiers as worn gear does? Recommendation: no (§5.3).
+10. ~~**A found skill: picked or carried?**~~ **Answered (Crown):** only the slotted ones are kept; the rest go back to the pool, like gear (§5.3).
+11. ~~**A kept skill and the next run.**~~ **Answered (agreed by Crown):** the hub list and its presets only; a trial starts on the kit with no skills (§5.3).
+12. ~~**A kept skill out of wipes.**~~ **Answered (Crown):** it follows the equipment rules: slotted skills, owned or found, take the tier loss. By the plan's default the skill's own-tier power then reads the copy's tier, or the drop would make it stronger (§5.3).
