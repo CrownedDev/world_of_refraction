@@ -89,6 +89,20 @@ What it touches today:
   - **Over-cap points (B-364):** they exist only at level 7; one lost from a pillar at 7 leaves its over-cap points in place under the current rules (the old TODO took over-cap points first). This is a decision for the build: default, over-cap points go first.
   - **Waiting (unspent) levels:** untouched.
 
+## 4d. The hub's recruits are built like the player (D-238)
+
+The 12 walk-up recruits in the hub stay, but each is **the shared character plus fixed picks**, made by the same build function as the player (stage 3) and starting on its class's F-tier kit (stage 4), not its own `UCharacterData` and `UInventoryData`.
+
+**A recruit's row** (one list, e.g. on the class table asset): the same picks struct as the player, fixed instead of chosen: name, class, the Refractor's element (BD and Reality included), a Generic's two weapons or a Resonator's two crystal types, the Starting spirit (body), and a colour for its box or body (D-238 default). The placed hub actor points at its row.
+
+**Today the 12 are** `BP_CombatCharacter_*` (Generic, Resonator, BrokenDarkness, Darkness, Earth, Fire, Light, Lightning, Reality, Void, Wind, Water), all placed in `TestLevel_Nav` with `UPartyInteractionComponent`, each with its own Lord asset and (casters, Resonator) inventory. Beyond class and element they differ in (section 1, `Audits/CharacterAssetDump.md`):
+- **Moves to the class table** (kept, same numbers): world levels (3 / 3 / 3; Darkness and BD 1 / 1 / 1; Generic 1 / 7 / 1), action speed, the resistance profile per element, innate spells (Fire and Water their own, the rest the shared pool), the portrait (each its own placeholder icon).
+- **Lost unless the row or class table carries it:** the hand-authored **evolutions** (BD two, Water one, the rest none), the caster inventories' **four element rings** and the old evolution items (replaced by the F-tier kit), the names ("Fire Lord" and so on: the row's name instead).
+- **Not read (an editor step):** each Blueprint's own mesh, materials and anim class. `UCharacterData` holds no look (all point at `DA_Cosmetics_Default`), so any unique look sits on the Blueprint; recruits are not dressed by `ApplyFormLook` (players only). Under D-238 the row's spirit and colour give the look.
+- `TurnSpeed` also differs but is obsolete (B-170h).
+
+**When:** stage 4b, after stages 3 and 4 (it needs the build function and the kit), before stage 6 deletes the Lords (removal list group 2). Saves store a recruit's pawn class path (`SaveSubsystem.cpp:1301`), so the swap raises the save version (D-060).
+
 ## 5. What does not change
 
 - **Enemies** keep their own `DA_Enemy_*` assets and inventories, and the D-225 trial pool.
@@ -107,6 +121,7 @@ UI-first order: put the UI in, Crown looks, then the code and data are aligned t
 | 3 | **Build the player from the picks and save it per character:** the picks struct (name included), the build function, `StartFreshGame`, one save file per character with the max-saves value, Continue and Load real, save version up (old saves wiped with the warning, D-060). The hub pawn is the built character. **Kept run levels (D-237, section 4c):** each wipe takes points off the run levels at once, in the trial (a tunable, 2, each rolled on its own); the per-character save gains the kept Mind / Body / Spirit levels, which are simply the run levels when the run ended (a quit puts back the pre-run ones); the hub adds them; the title slot reads them. | New game: the hub shows the picked class, element, spirit and name; Continue and Load bring it back |
 | 3b | **The character figure on the title (D-229 addition, Crown 2026-11-16):** the lit slot's character stands on the right; the slots move left (`TitleScreenStyle::SlotsAlignment`). Needs one save per character (stage 3) and the built body. | The figure matches the lit slot; keys, pad and mouse still work |
 | 4 | **The picks set the starting gear and the trial kit** (section 3), all F tier; the Resonator's empty adapters and crystals. | The hub wears the picks; a trial starts on them; a quit and an extract behave as now |
+| 4b | **Recruits built like the player (D-238, section 4d):** a recruit row per hub recruit, one recruit Blueprint, the 12 placed actors pointed at their rows; the Lords' evolutions and look decided first. | Each recruit joins with its class, element, kit and look; the party screen and a trial behave as now |
 | 5 | **Co-op:** a second player picks and joins (from the in-game menu) as their own built character. | 2-player PIE |
 | 6 | **Delete the old:** the 13 Lords, their inventories and equipment, `NewGameCharacters`, `FindStartCharacter`. This is part of `AssetOverhaulPlan.md` stage 6, after stage 5 here passes. The `_Start` inventories stay as test starts until Crown retires them. | A new game, and an old save wiped with the warning |
 
