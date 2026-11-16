@@ -43,9 +43,9 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-535](B-535.md) | `feature/B-535-title-at-start` (in dev, built 2026-11-16) | The title opens by itself on the first hub load of a session, PIE included; `wor.UI.TitleAtStart 0` skips it | Pending |
 | [B-540](B-540.md) | `feature/B-540-crystal-requirement` (in dev, built 2026-11-16) | D-231 point 5: a weapon or adapter set to one crystal type takes only that gem; the add window greys the rest with the reason. Editor step: set Accepted Crystal Type on one piece | Pending |
 | [B-541](B-541.md) | `feature/B-541-appearance-mirror` (in dev, built 2026-11-16) | D-234: the hub mirror opens the Spirit screen; Male Nobody / Female Nobody first in its list; new game says Starting spirit; game menu row Spirit. Editor step: place the mirror in TestLevel_Nav | Pending |
-| [B-542](B-542.md) | `fix/B-542-spirit-dress` (in dev, built 2026-11-16) | D-234: the pawn always wears its spirit; Male Nobody no longer leaves the Blueprint body on | Pending |
 | [B-543](B-543.md) | `feature/B-543-menu-ui` (in dev, built 2026-11-16) | D-230 addition, D-235: inventory Loadout tab, adapter icon on tiles, prompts hidden under screens, game-menu Help toggle, every balance on the header's right, Stat Essence | Pending |
 | [B-544](B-544.md) | `fix/B-544-hub-place-name` (in dev, built 2026-11-16) | D-236: the hub's place name reads The Hub, once | Pending |
+| [B-545](B-545.md) | `fix/B-545-frontend-look-input` (in dev, built 2026-11-16) | No Accessed None from the controller's mouse look on the title (menu level, no pawn) or between levels | Pending |
 | [B-539](B-539.md) | `feature/B-539-strip-enter-select` (in dev, built 2026-11-16) | D-234 point 3: Enter selects on the quick strip, hint Enter Select; Left from the new-game class cards reaches the body cards | Pending |
 | [B-538](B-538.md) | `feature/B-538-mouse-front-screens` (in dev, built 2026-11-16) | D-233: the mouse on the title and the new-game screen: hover, click, the cursor shows | Pending |
 | [B-537](B-537.md) | `feature/B-537-front-end-level` (in dev, built 2026-11-16) | D-232: the title is its own level, `L_FrontEnd`; Continue / Begin go to the hub, Quit comes back; Play in the hub or a trial goes straight in, with no save to the menu level. Editor steps first: the map, its game mode, the two ini lines | Pending |
@@ -619,6 +619,7 @@ Move rows to **Done** when every check passes.
 ## Done
 | Job | Tested | Notes |
 |---|---|---|
+| [B-542](B-542.md) | 2026-11-16 | The spirit change at the mirror works (Crown) |
 | [B-514](B-514.md) | 2026-11-15 | Look-only check of the quick strip: "that looks good" (Crown). The full test waits for the asset overhaul (D-223) |
 | [B-503s2](B-503s2.md) | 2026-11-15 | The weapon picked on the wheel shows in the fight ("the axes show in battle now", Crown) |
 | [B-500](B-500.md) | 2026-11-15 | Previewed with wor.Transition.Play: looks good, slow start then fast finish (Crown) |
