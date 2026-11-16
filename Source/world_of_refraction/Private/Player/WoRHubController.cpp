@@ -213,6 +213,11 @@ void AWoRHubController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (!GetPawn())
+	{
+		DisableInput(this); // B-545: on again in OnPossess
+	}
+
 	// B-443: the interact prompt and the money chip, for this machine's player only (B-537: not in the menu level).
 	if (IsLocalController() && !WoRFrontEnd::IsFrontEndWorld(GetWorld()))
 	{
@@ -257,6 +262,13 @@ void AWoRHubController::BeginPlay()
 	// B-467, B-535: the game opens on the title, PIE included (the first map load of a session, the default map only).
 	// OBSOLETE (B-537): once the menu level is GameDefaultMap this opens nothing (the hub is no longer the default map).
 	UTitleScreenWidget::OpenAtLaunch(this);
+}
+
+void AWoRHubController::OnUnPossess()
+{
+	Super::OnUnPossess();
+	DisableInput(this);
+	UE_LOG(LogWoR, Log, TEXT("[WoRHubController] No pawn: the controller's own input is off until the next possess"));
 }
 
 void AWoRHubController::SetupInputComponent()
@@ -379,6 +391,8 @@ void AWoRHubController::OpenGameMenu()
 void AWoRHubController::OnPossess(APawn *InPawn)
 {
 	Super::OnPossess(InPawn);
+	EnableInput(this); // B-545: off while there was no pawn
+
 
 	if (bEnsureLocalPartyOnPossess)
 	{

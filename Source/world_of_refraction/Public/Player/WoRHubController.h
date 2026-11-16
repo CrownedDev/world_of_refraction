@@ -82,6 +82,9 @@ protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void OnPossess(APawn *InPawn) override;
+	/** B-545: with no pawn (the menu level, a level change) the controller's own input is off, so the Blueprint's
+	 *  look and move events never run on a missing pawn. Screens read keys through Slate and CommonUI, not this. */
+	virtual void OnUnPossess() override;
 	virtual void SetupInputComponent() override;
 
 	/** Leave empty to use DefaultInteractAction. */
