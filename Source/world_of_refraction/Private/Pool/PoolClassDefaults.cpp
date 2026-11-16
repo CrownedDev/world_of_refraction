@@ -5,6 +5,9 @@
 #include "Pool/PoolSubsystem.h"
 
 #include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/Entries/FApparelEntry.h"
@@ -131,6 +134,62 @@ namespace
 		return FGuid();
 	}
 
+	/** B-522: a gem into a just-minted piece's socket, at full durability. Type None leaves it empty. */
+	void SocketStartingCrystal(UPoolSubsystem &Pool, const FGuid &ID, const FCrystalId &Crystal)
+	{
+		if (Crystal.Type == ECrystalType::None)
+		{
+			return;
+		}
+		if (!CrystalTypeHelpers::IsGemType(Crystal.Type))
+		{
+			UE_LOG(LogWoRLoadout, Warning, TEXT("[StartingGear] %s is not a gem: the socket stays empty"), *UEnum::GetValueAsString(Crystal.Type));
+			return;
+		}
+		FRuntimeAttachedItem Gem;
+		Gem.Kind = EAttachedItemKind::Crystal;
+		Gem.Crystal = FCrystalAttachment(Crystal, ItemIdentity::GetMaxDurability(Crystal));
+		if (const FWeaponInventoryEntry *Weapon = Pool.FindWeaponInPool(ID))
+		{
+			FWeaponInventoryEntry Socketed = *Weapon;
+			Socketed.AttachedItem = Gem;
+			Pool.UpdateWeapon(Socketed);
+		}
+		else if (const FRingInventoryEntry *Ring = Pool.FindRingInPool(ID))
+		{
+			FRingInventoryEntry Socketed = *Ring;
+			Socketed.AttachedItem = Gem;
+			Pool.UpdateRing(Socketed);
+		}
+	}
+
+	/** The worn entries for a loadout's minted IDs, place for place (shared by the kit and the starting gear). */
+	void FillWornPieces(const UPoolSubsystem &Pool, FWornGear &Worn, const FClassDefaultLoadout &Gear, const FClassDefaultKitIDs &IDs)
+	{
+		Worn.Equipment.Reset();
+		Worn.Equipment.SetNum(FMath::Max(IDs.Pieces.Num(), WornGearLayout::FIRST_ADAPTER_INDEX));
+		for (int32 Index = 0; Index < IDs.Pieces.Num(); ++Index)
+		{
+			FLoadoutSlot &Slot = Worn.Equipment[Index];
+			Slot.GearID = IDs.Pieces[Index];
+			Slot.OffHandID = IDs.OffHands.IsValidIndex(Index) ? IDs.OffHands[Index] : FGuid();
+			if (Gear.Pieces.IsValidIndex(Index))
+			{
+				Slot.AssignedAbilities.Append(Gear.Pieces[Index].SkillPicks); // D-224 (B-517): the picks are the worn entry's
+			}
+			if (const FWeaponInventoryEntry *Weapon = Pool.FindWeaponInPool(Slot.GearID))
+			{
+				Slot.Gear = FGearInstance::FromWeaponEntry(*Weapon);
+			}
+			else if (const FRingInventoryEntry *Ring = Pool.FindRingInPool(Slot.GearID))
+			{
+				Slot.Gear = FGearInstance::FromRingEntry(*Ring);
+			}
+		}
+		Worn.ActiveGearID = IDs.Pieces.IsValidIndex(Gear.ActiveIndex) ? IDs.Pieces[Gear.ActiveIndex] : FGuid();
+		Worn.Apparel = IDs.Apparel.FilterByPredicate([](const FGuid &ID) { return ID.IsValid(); });
+	}
+
 	FGuid MintKitApparel(UPoolSubsystem &Pool, UApparelData *Apparel, FName CharacterKey)
 	{
 		if (!Apparel)
@@ -225,32 +284,41 @@ TArray<FGuid> UPoolSubsystem::WearClassDefaultKit(FName CharacterKey, const FCla
 	}
 	// The character's own evolution, innate spells and Broken Darkness pools stay: they aren't the kit's.
 	FWornGear Worn = WornGear.FindRef(CharacterKey);
-	Worn.Equipment.Reset();
-	Worn.Equipment.SetNum(FMath::Max(IDs->Pieces.Num(), WornGearLayout::FIRST_ADAPTER_INDEX));
-	for (int32 Index = 0; Index < IDs->Pieces.Num(); ++Index)
-	{
-		FLoadoutSlot &Slot = Worn.Equipment[Index];
-		Slot.GearID = IDs->Pieces[Index];
-		Slot.OffHandID = IDs->OffHands.IsValidIndex(Index) ? IDs->OffHands[Index] : FGuid();
-		if (Kit.Pieces.IsValidIndex(Index))
-		{
-			Slot.AssignedAbilities.Append(Kit.Pieces[Index].SkillPicks); // D-224 (B-517): the picks are the worn entry's
-		}
-		if (const FWeaponInventoryEntry *Weapon = FindWeaponInPool(Slot.GearID))
-		{
-			Slot.Gear = FGearInstance::FromWeaponEntry(*Weapon);
-		}
-		else if (const FRingInventoryEntry *Ring = FindRingInPool(Slot.GearID))
-		{
-			Slot.Gear = FGearInstance::FromRingEntry(*Ring);
-		}
-	}
-	Worn.ActiveGearID = IDs->Pieces.IsValidIndex(Kit.ActiveIndex) ? IDs->Pieces[Kit.ActiveIndex] : FGuid();
-	Worn.Apparel = IDs->Apparel.FilterByPredicate([](const FGuid &ID) { return ID.IsValid(); });
+	FillWornPieces(*this, Worn, Kit, *IDs);
 	SetWornGear(CharacterKey, Worn);
 	SetWheelPick(CharacterKey, FWheelPick());
 	UE_LOG(LogWoRLoadout, Log, TEXT("[ClassDefaults] %s wears its class kit (D-221): %d piece(s), the wheel pick cleared"),
 		   *CharacterKey.ToString(), Worn.GetPieceIDs().Num());
+	return Worn.GetPieceIDs();
+}
+
+TArray<FGuid> UPoolSubsystem::WearStartingGear(FName CharacterKey, const FClassDefaultLoadout &Gear, UEvolutionItemData *Evolution,
+											   FWornGear Worn)
+{
+	FClassDefaultKitIDs IDs;
+	for (const FClassDefaultPiece &Piece : Gear.Pieces)
+	{
+		const FGuid ID = MintKitPiece(*this, Piece.Piece, CharacterKey);
+		SocketStartingCrystal(*this, ID, Piece.Crystal);
+		IDs.Pieces.Add(ID);
+		IDs.OffHands.Add(MintKitPiece(*this, Piece.OffHand, CharacterKey));
+	}
+	for (UApparelData *Apparel : Gear.Apparel)
+	{
+		IDs.Apparel.Add(MintKitApparel(*this, Apparel, CharacterKey));
+	}
+	FillWornPieces(*this, Worn, Gear, IDs);
+	if (Evolution)
+	{
+		FEvolutionInventoryEntry Owned(Evolution);
+		Owned.Tier = Evolution->Tier;
+		SetGearOwner(Owned.InstanceID, CharacterKey);
+		AddEvolutionToPool(Owned);
+		Worn.EvolutionID = Owned.InstanceID;
+	}
+	SetWornGear(CharacterKey, Worn);
+	UE_LOG(LogWoRLoadout, Log, TEXT("[StartingGear] %s minted and wears its starting gear (D-223): %d piece(s)%s"), *CharacterKey.ToString(),
+		   Worn.GetPieceIDs().Num(), Evolution ? TEXT(", its evolution in the seat") : TEXT(""));
 	return Worn.GetPieceIDs();
 }
 

@@ -605,6 +605,11 @@ public:
      *  cleared); its own evolution, innate spells and Broken Darkness pools stay. Returns the pieces now worn (empty
      *  with no minted kit). Home gear stays owned in the store. */
     TArray<FGuid> WearClassDefaultKit(FName CharacterKey, const FClassDefaultLoadout &Kit);
+    /** B-522 (D-223, asset overhaul stage 4): mints a character's StartingGear into the store once, owned by
+     *  CharacterKey, each piece's Crystal socketed at full durability, and Evolution as an owned evolution in the seat;
+     *  then Worn (its innate spells and pools kept) wears them and becomes CharacterKey's record. Not a kit: IsClassDefault
+     *  stays false for them, and a trial start doesn't reset them. Returns the pieces now worn. */
+    TArray<FGuid> WearStartingGear(FName CharacterKey, const FClassDefaultLoadout &Gear, UEvolutionItemData *Evolution, FWornGear Worn);
     /** The character's minted kit, or null before its first mint. */
     const FClassDefaultKitIDs *GetClassDefaultKit(FName CharacterKey) const { return ClassDefaultKits.Find(CharacterKey); }
     /** A piece of any character's kit (refused for sale, dismantling, giving and the chest). */

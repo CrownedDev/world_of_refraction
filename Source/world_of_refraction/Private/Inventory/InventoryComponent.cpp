@@ -1570,6 +1570,22 @@ bool UInventoryComponent::DrawSharedGear()
     // B-321 (D-117): each member draws only its own gear. A piece from before D-117 goes to whoever wears it,
     // else the party leader. A run-only recruit brings no gear and draws the whole armoury (TODO: B-323's give).
     Pool->AssignUnownedGear(InventoryGearSync::GetLocalLeaderKey(GI, Key));
+    // B-522 (D-223, asset overhaul stage 4): the template's StartingGear seeds the record once (a new game, a new
+    // recruit), minted before the draw so this member draws it. Its innate spells and pools still come from the old
+    // authored loadout until stage 6 moves them. With no StartingGear, the old seed below runs.
+    const UInventoryData *StartAsset = CharComp->CharacterData ? CharComp->CharacterData->Inventory : nullptr;
+    if (!bRunOnly && StartAsset && StartAsset->StartingGear.Pieces.Num() > 0 && !Pool->GetWornGear(Key) && GetOwner()->HasAuthority())
+    {
+        const ECharacterClass StartClass = CharComp->CharacterData->CharacterClass;
+        FWornGear Innate = SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) ? SavedLoadouts[ActiveLoadoutIndex].ToWornGear(StartClass) : FWornGear();
+        if (RunMember) // a wheel pick made before the first draw comes along, as the old seed below does
+        {
+            Innate.WheelPick.FieldSkill = RunMember->FieldSkill;
+            Innate.WheelPick.FieldAttackIndex = RunMember->FieldAttackIndex;
+            Innate.WheelPick.bPicked = RunMember->bFieldAttackPicked;
+        }
+        Pool->WearStartingGear(Key, StartAsset->StartingGear, StartAsset->StartingEvolution, Innate);
+    }
     bDrawsWholeArmoury = bRunOnly;
     // B-324: the chest's gear is nobody's to wear; a recruit's whole-armoury draw leaves it in the chest.
     // Key, not SharedGearKey: that is set below, once the draw is done (IsMineInStore is the same rule after that).
