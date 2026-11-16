@@ -156,6 +156,30 @@ void FLoadoutV2ModelSpec::Define()
 		TestTrue(TEXT("Refractor: an evolved staff fits"), WoRLoadoutV2::CheckDraft(Refractor, ECharacterClass::Caster, Heavy, Cells).IsEmpty());
 	});
 
+	It("gives an adapter entry the frame icon with its crystal inside, or empty (B-530, D-229)", [this]()
+	{
+		FCombatLoadout Loadout;
+		FText Refusal;
+		FLoadoutV2Draft Adapter;
+		Adapter.Kind = ELoadoutV2DraftKind::Adapter;
+		Adapter.Adapter = LoadoutV2TestAdapter();
+		TestTrue(TEXT("an empty adapter goes in"), WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, Adapter, Refusal));
+		const FLoadoutV2WeaponsPage Page = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic);
+		const FLoadoutV2Entry *Entry = Page.Entries.FindByPredicate([](const FLoadoutV2Entry &E) { return E.Kind == ELoadoutV2EntryKind::Adapter; });
+		if (!TestNotNull(TEXT("the adapter's entry"), Entry))
+		{
+			return;
+		}
+		TestTrue(TEXT("the frame, empty inside"), Entry->TypeIcon.Kind == ELoadoutV2IconKind::Adapter && Entry->TypeIcon.Element == ESpellElement::None);
+		FRingInventoryEntry Filled = LoadoutV2TestAdapter();
+		Filled.AttachedItem.Kind = EAttachedItemKind::Crystal;
+		constexpr int32 LIVE_DURABILITY = 10;
+		Filled.AttachedItem.Crystal = FCrystalAttachment(FCrystalId(ECrystalType::Garnet, EItemTier::F_Tier), LIVE_DURABILITY);
+		const FLoadoutV2Icon Fire = WoRLoadoutV2::MakeAdapterIcon(Filled);
+		TestTrue(TEXT("a Garnet inside: Fire's badge in the frame"), Fire.Kind == ELoadoutV2IconKind::Adapter && Fire.Element == ESpellElement::Fire);
+		TestFalse(TEXT("named as the adapter"), Fire.Name.IsEmpty());
+	});
+
 	It("greys an off hand that can't pair with its reason", [this]()
 	{
 		const FWeaponInventoryEntry Main = LoadoutV2TestWeapon(TEXT("Ashen Blade"), EWeaponType::Sword);

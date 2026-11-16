@@ -187,6 +187,9 @@ private:
 	TArray<TObjectPtr<UBorder>> StripTileFills;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> StripIcons;
+	/** B-530 (D-229): on an adapter's tile (its socket frame in StripIcons), its crystal's badge. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> StripIconCentres;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> StripOffHandIcons;
 	UPROPERTY(Transient)
