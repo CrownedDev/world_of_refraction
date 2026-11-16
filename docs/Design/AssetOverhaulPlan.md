@@ -256,7 +256,7 @@ These are spares on top of the crystals in the rings. More come from `wor.Econom
 
 | Class | Pieces | `StartingSkills` (in the inventory, not picked) |
 |---|---|---|
-| Generic | one weapon: `DA_Weapon_Sword` | one generic bolt |
+| Generic | one weapon: `DA_Weapon_Sword` with `DA_Weapon_Shield` in the off hand (D-227) | one generic bolt |
 | Caster (Refractor) | **nothing** ("since they have innate") | none: its innate spells are its start |
 | Resonator | two `DA_Ring_Adapter` | one generic bolt |
 
