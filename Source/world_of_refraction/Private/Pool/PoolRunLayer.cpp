@@ -479,8 +479,8 @@ int32 UPoolSubsystem::SettleRunSkills(EPoolRunEnding Ending)
         {
             continue;
         }
-        // Slotted: a pick in a slot of a worn entry (B-517). Innate, Broken Darkness and evolution spells are not gear
-        // picks and are not settled (Q-525).
+        // Slotted: a pick in a slot of a worn entry (B-517), of a skill in the run list. Innate, Broken Darkness and
+        // evolution spells in their own places are not gear picks; one also picked into a gear slot is (Q-525).
         TSet<const UObject *> Slotted;
         for (const FLoadoutSlot &Slot : Worn->Equipment)
         {

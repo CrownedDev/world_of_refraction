@@ -1340,7 +1340,7 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-525, D-224 questions 10 to 12) · **Blocks:** —
 **Question:** Crown ruled that only slotted skills are kept and that they follow D-219's worn-gear rules. Some smaller cases are left. None of this is lore.
 **Answer:** by the reference-backed default (D-219's own rules for worn gear; Monster Hunter and Diablo keep what is equipped and drop the rest):
-- **"Slotted"** means a pick in a slot of a worn weapon or adapter at the end. Innate spells, Broken Darkness pools and the evolution's spells are not gear picks: they are neither settled nor lowered, as a lost run lowers only the pieces and not their crystals or evolutions (D-221 Q6).
+- **"Slotted"** means a pick in a slot of a worn weapon or adapter at the end. Innate spells, Broken Darkness pools and the evolution's spells are not gear picks: they are neither settled nor lowered, as a lost run lowers only the pieces and not their crystals or evolutions (D-221 Q6). An innate spell that is also picked into a gear slot is a slotted pick and takes the drop. Only skills in the run's list are settled: a pick naming a skill the run never had can't be cast, so it costs nothing.
 - **A skill the hub already knew, bought back in the run** is the hub's one copy: the hub copy stays and takes the tier drop; the run's fresh copy goes.
 - **The kit's starting bolt** counts as found: slotted at an extract, it joins the hub list.
 - **A full hub list** (the learned-skill cap): a found skill with no room is not kept (counted in the log line).
