@@ -563,6 +563,10 @@ void UNewGameScreenWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEvent)
 
 FReply UNewGameScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
+	if (!IsActivated())
+	{
+		return FReply::Handled(); // a double click after Begin: the game is already starting
+	}
 	ENewGameFocus Part = ENewGameFocus::Body;
 	int32 Index = INDEX_NONE;
 	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && FindPartUnder(InMouseEvent.GetScreenSpacePosition(), Part, Index))
