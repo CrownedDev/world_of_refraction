@@ -127,7 +127,7 @@ void FLoadoutSkillsSpec::Define()
 		TestFalse(TEXT("and says so"), Refusal.IsEmpty());
 	});
 
-	It("lists a weapon's skill slots; a built-in stays until replaced, and X brings it back", [this]()
+	It("lists a weapon's skill slots, empty until filled (B-518: no built-ins), and X empties one", [this]()
 	{
 		UAbilityData *Slash = Ability();
 		UAbilityData *Cleave = Ability();
@@ -140,18 +140,18 @@ void FLoadoutSkillsSpec::Define()
 		const FLoadoutSkillTab &Tab = Page.Tabs[0];
 		TestTrue(TEXT("a weapon's list"), Tab.List == ELoadoutSkillList::WeaponSkills);
 		TestEqual(TEXT("a row per slot"), Tab.Rows.Num(), Loadout.PrimaryWeapon.GetSkillSlotCount());
-		TestTrue(TEXT("the built-in fills the first"), Tab.Rows[0].Skill == Slash && !Tab.Rows[0].bPick);
+		TestTrue(TEXT("the weapon's built-in doesn't fill the first"), Tab.Rows[0].Skill == nullptr);
 
-		const TArray<FLoadoutScreenChoice> Choices = WoRLoadoutSkills::BuildSkillChoices(Page, 0, Tab.Rows[0], {Cleave}, {}, {Slash});
-		TestTrue(TEXT("offers the learned one, not the built-in already in"), Choices.Num() == 1 && Choices[0].Row.Skill == Cleave);
+		const TArray<FLoadoutScreenChoice> Choices = WoRLoadoutSkills::BuildSkillChoices(Page, 0, Tab.Rows[0], {Cleave}, {}, {});
+		TestTrue(TEXT("offers only the learned one"), Choices.Num() == 1 && Choices[0].Row.Skill == Cleave);
 
 		FText Refusal;
-		TestFalse(TEXT("X on a built-in: nothing to bring back"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows[0], nullptr, Refusal));
-		TestTrue(TEXT("replace it"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows[0], Cleave, Refusal));
+		TestFalse(TEXT("X on an empty slot: nothing to take off"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows[0], nullptr, Refusal));
+		TestTrue(TEXT("put it in"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows[0], Cleave, Refusal));
 		const FLoadoutSkillsPage After = WoRLoadoutSkills::BuildSkillsPage(Loadout, ECharacterClass::Generic, LOADOUT_SKILLS_TEST_NO_DISCOUNT, {});
 		TestTrue(TEXT("the pick is in, marked a pick"), After.Tabs[0].Rows[0].Skill == Cleave && After.Tabs[0].Rows[0].bPick);
-		TestTrue(TEXT("X brings the built-in back"), WoRLoadoutSkills::PutSkill(Loadout, After.Tabs[0], After.Tabs[0].Rows[0], nullptr, Refusal));
-		TestTrue(TEXT("Slash is back"), Loadout.PrimaryWeapon.GetSkillSlots()[0] == Slash);
+		TestTrue(TEXT("X takes it off"), WoRLoadoutSkills::PutSkill(Loadout, After.Tabs[0], After.Tabs[0].Rows[0], nullptr, Refusal));
+		TestTrue(TEXT("the slot is empty, Slash doesn't come back"), Loadout.PrimaryWeapon.GetSkillSlots()[0] == nullptr);
 	});
 }
 
