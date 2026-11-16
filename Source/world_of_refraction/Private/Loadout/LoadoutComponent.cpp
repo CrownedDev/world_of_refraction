@@ -3005,9 +3005,8 @@ bool ULoadoutComponent::IsSpellFromBrokenRing(const USpellData *Spell) const
             return false;
         }
     }
-    // Raw lists, not the capped GetAllSpells(true): the player's capabilities list them all, and each must be greyed.
-    return Lists(Ring->RingEntry.AssignedSpells) || Lists(Ring->RingEntry.SpellPicks) // B-351d review: a pick greys out too
-           || (Ring->RingEntry.Ring && Lists(Ring->RingEntry.Ring->PresetSpells));
+    // B-518: the ring's spells are its picks alone (its presets and the old AssignedSpells list don't play).
+    return Lists(Ring->RingEntry.SpellPicks);
 }
 
 FRuntimeAttachedItem *ULoadoutComponent::FindAttachedItemByHolder(UObject *Holder)
