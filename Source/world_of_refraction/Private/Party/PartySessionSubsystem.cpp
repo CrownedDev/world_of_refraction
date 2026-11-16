@@ -1088,6 +1088,33 @@ const FPartyMember *UPartySessionSubsystem::GetMemberCarriedState(int32 SlotInde
 	return Party && Party->Members.IsValidIndex(SlotIndex) ? &Party->Members[SlotIndex] : nullptr;
 }
 
+int32 UPartySessionSubsystem::RefreshCarriedSocket(const FGuid &GearID, const FRuntimeAttachedItem &Attached, const FRuntimeAttachedItem &StoneSocket)
+{
+	UParty *Party = GetLocalParty();
+	if (!Party || !GearID.IsValid())
+	{
+		return 0;
+	}
+	int32 Changed = 0;
+	for (FPartyMember &Member : Party->Members)
+	{
+		for (FCarriedAttachment &Carried : Member.CarriedGear.Attachments)
+		{
+			if (Carried.GearID == GearID)
+			{
+				Carried.Attached = Attached;
+				Carried.StoneSocket = StoneSocket;
+				++Changed;
+			}
+		}
+	}
+	if (Changed > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[PartySession] %s: socket changed between fights, the carried copy follows it (CS-4)"), *GearID.ToString());
+	}
+	return Changed;
+}
+
 bool UPartySessionSubsystem::GetMemberVitals(int32 SlotIndex, int32 &OutHP, int32 &OutEP) const
 {
 	const UParty *Party = GetLocalParty();
