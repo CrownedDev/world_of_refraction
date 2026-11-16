@@ -21,35 +21,34 @@ namespace
 			To.Add(Pick);
 		}
 	}
+}
 
-	/** D-224 (B-517): the worn entries' picks onto the built loadout's copies of their pieces; the pieces' own picks
-	 *  (OBSOLETE, deleted in stage 6) are not read. Spell picks need a spell source in the socket. */
-	void ApplyWornPicks(FCombatLoadout &Loadout, const FWornGear &Worn)
+void FCombatLoadout::ApplyEntryPicks(const TArray<FLoadoutSlot> &Entries)
+{
+	// The pieces' own picks (OBSOLETE, deleted in stage 6) are not read.
+	const auto FindEntry = [&Entries](const FGuid &ID) -> const FLoadoutSlot *
+	{ return ID.IsValid() ? Entries.FindByPredicate([&ID](const FLoadoutSlot &Entry) { return Entry.GearID == ID; }) : nullptr; };
+	const FLoadoutSlot NoEntry;
+	for (FWeaponLoadoutEntry *Weapon : {&PrimaryWeapon, &SecondaryWeapon})
 	{
-		const auto FindEntry = [&Worn](const FGuid &ID) -> const FLoadoutSlot *
-		{ return ID.IsValid() ? Worn.Equipment.FindByPredicate([&ID](const FLoadoutSlot &Entry) { return Entry.GearID == ID; }) : nullptr; };
-		const FLoadoutSlot NoEntry;
-		for (FWeaponLoadoutEntry *Weapon : {&Loadout.PrimaryWeapon, &Loadout.SecondaryWeapon})
-		{
-			FWeaponInventoryEntry &Piece = Weapon->WeaponEntry;
-			const FLoadoutSlot *Found = FindEntry(Piece.PersistentID);
-			const FLoadoutSlot &Entry = Found ? *Found : NoEntry;
-			CopyPicks(Piece.SkillPicks, Entry.AssignedAbilities);
-			Piece.bSkillSlotsActive = !Piece.SkillPicks.IsEmpty();
-			CopyPicks(Piece.SpellPicks, Piece.AttachedItem.IsSpellSource() ? Entry.SpellOverrides : NoEntry.SpellOverrides);
-			Piece.bSpellSlotsActive = !Piece.SpellPicks.IsEmpty();
-		}
-		const auto ApplyRing = [&FindEntry, &NoEntry](FRingInventoryEntry &Piece)
-		{
-			const FLoadoutSlot *Found = FindEntry(Piece.PersistentID);
-			CopyPicks(Piece.SpellPicks, Found && Piece.AttachedItem.IsSpellSource() ? Found->SpellOverrides : NoEntry.SpellOverrides);
-			Piece.bSpellSlotsActive = !Piece.SpellPicks.IsEmpty();
-		};
-		ApplyRing(Loadout.PrimaryRing.RingEntry);
-		for (FRingLoadoutEntry &Ring : Loadout.RingLoadout)
-		{
-			ApplyRing(Ring.RingEntry);
-		}
+		FWeaponInventoryEntry &Piece = Weapon->WeaponEntry;
+		const FLoadoutSlot *Found = FindEntry(Piece.PersistentID);
+		const FLoadoutSlot &Entry = Found ? *Found : NoEntry;
+		CopyPicks(Piece.SkillPicks, Entry.AssignedAbilities);
+		Piece.bSkillSlotsActive = !Piece.SkillPicks.IsEmpty();
+		CopyPicks(Piece.SpellPicks, Piece.AttachedItem.IsSpellSource() ? Entry.SpellOverrides : NoEntry.SpellOverrides);
+		Piece.bSpellSlotsActive = !Piece.SpellPicks.IsEmpty();
+	}
+	const auto ApplyRing = [&FindEntry, &NoEntry](FRingInventoryEntry &Piece)
+	{
+		const FLoadoutSlot *Found = FindEntry(Piece.PersistentID);
+		CopyPicks(Piece.SpellPicks, Found && Piece.AttachedItem.IsSpellSource() ? Found->SpellOverrides : NoEntry.SpellOverrides);
+		Piece.bSpellSlotsActive = !Piece.SpellPicks.IsEmpty();
+	};
+	ApplyRing(PrimaryRing.RingEntry);
+	for (FRingLoadoutEntry &Ring : RingLoadout)
+	{
+		ApplyRing(Ring.RingEntry);
 	}
 }
 
@@ -251,7 +250,6 @@ FCombatLoadout FCombatLoadout::CreateFromWornGear(const FWornGear &Worn, ECharac
 	// Lossless against ToWornGear: a weapon primary is shown when it is the ACTIVE entry.
 	const bool bWeaponPrimary = Saved.PrimarySlotType == EPrimarySlotType::Weapon;
 	Saved.bShowPrimary = bWeaponPrimary ? Worn.ActiveGearID.IsValid() && Worn.ActiveGearID == Saved.PrimaryWeaponInstance : bFallbackShowPrimary;
-	FCombatLoadout Loadout = CreateFromSavedLoadout(Saved, OwnedInventory, OwnedEvolutions);
-	ApplyWornPicks(Loadout, Worn);
-	return Loadout;
+	Saved.EntryPicks = Worn.Equipment; // CreateFromSavedLoadout puts each entry's picks back (D-224, B-517)
+	return CreateFromSavedLoadout(Saved, OwnedInventory, OwnedEvolutions);
 }
