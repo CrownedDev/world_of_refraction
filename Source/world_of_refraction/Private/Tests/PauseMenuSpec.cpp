@@ -155,6 +155,20 @@ void FPauseMenuSpec::Define()
 			TestFalse(TEXT("Resume closes the menu"), Menu->IsActivated());
 		});
 
+		It("hides the page descriptions until Help, and Help toggles them (B-543)", [this]()
+		{
+			UPauseMenuWidget *Menu = OpenMenu();
+			if (!Menu)
+			{
+				return;
+			}
+			TestFalse(TEXT("off at first"), Menu->IsHelpShown());
+			Menu->ToggleHelp();
+			TestTrue(TEXT("Help shows them"), Menu->IsHelpShown());
+			Menu->ToggleHelp();
+			TestFalse(TEXT("Help again hides them"), Menu->IsHelpShown());
+		});
+
 		It("asks before quitting, holds only from the second press, and stops when let go (D-176)", [this]()
 		{
 			UPauseMenuWidget *Menu = OpenMenu();
