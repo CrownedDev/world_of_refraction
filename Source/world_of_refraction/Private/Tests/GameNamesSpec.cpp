@@ -94,8 +94,8 @@ void FGameNamesSpec::Define()
 		ExpectEveryValueNamed<ECurrencyType>(&WoRGameNames::GetCurrencyName);
 		TestEqual(TEXT("Elemental"), WoRGameNames::GetCurrencyName(ECurrencyType::ElementalEssence).ToString(),
 				  FString(TEXT("Elemental Essence")));
-		TestEqual(TEXT("Pillar"), WoRGameNames::GetCurrencyName(ECurrencyType::PillarEssence).ToString(),
-				  FString(TEXT("Pillar Essence")));
+		TestEqual(TEXT("Stat (D-235, was Pillar)"), WoRGameNames::GetCurrencyName(ECurrencyType::PillarEssence).ToString(),
+				  FString(TEXT("Stat Essence")));
 		TestEqual(TEXT("Mentor (B-361b)"), WoRGameNames::GetCurrencyName(ECurrencyType::MentorTokens).ToString(),
 				  FString(TEXT("Mentor Tokens")));
 	});

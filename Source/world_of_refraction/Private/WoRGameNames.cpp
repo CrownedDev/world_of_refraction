@@ -513,7 +513,7 @@ FText GetCurrencyName(ECurrencyType Currency)
     case ECurrencyType::ElementalEssence:
         return LOCTEXT("ECurrencyType_ElementalEssence", "Elemental Essence");
     case ECurrencyType::PillarEssence:
-        return LOCTEXT("ECurrencyType_PillarEssence", "Pillar Essence");
+        return LOCTEXT("ECurrencyType_PillarEssence", "Stat Essence") // D-235: the player calls it Stat essence;
     case ECurrencyType::MentorTokens:
         return LOCTEXT("ECurrencyType_MentorTokens", "Mentor Tokens");
     }
