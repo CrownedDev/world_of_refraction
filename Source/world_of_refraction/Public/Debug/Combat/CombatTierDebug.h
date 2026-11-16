@@ -18,6 +18,10 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Debug|Combat")
 	static FString GetCombatTierString(const AActor *Actor);
 
+	/** B-519 (D-224): each contributing weapon's and adapter's built tier with its parts ("Sword F+B=D"); "" with none. */
+	UFUNCTION(BlueprintPure, Category = "Debug|Combat")
+	static FString GetBuiltTierString(const AActor *Actor);
+
 	/** Logs GetCombatTierString for every actor with character data in the world, and shows it on screen. */
 	UFUNCTION(BlueprintCallable, Category = "Debug|Combat", meta = (WorldContext = "WorldContextObject"))
 	static void PrintCombatTiers(const UObject *WorldContextObject);

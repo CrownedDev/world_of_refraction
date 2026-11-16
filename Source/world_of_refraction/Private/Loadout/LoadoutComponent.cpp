@@ -1704,6 +1704,35 @@ FRuntimeAttachedItem *ULoadoutComponent::FindSpellCatalystAttachment(USpellData 
     return nullptr;
 }
 
+TOptional<EItemTier> ULoadoutComponent::GetBuiltTierOfSocket(const FRuntimeAttachedItem *Attachment) const
+{
+    UInventoryComponent *Inv = GetInventoryComponent();
+    if (!Attachment || !Inv || !Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
+    {
+        return TOptional<EItemTier>();
+    }
+    const FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
+    for (const FWeaponLoadoutEntry *Weapon : {&Loadout.PrimaryWeapon, &Loadout.SecondaryWeapon})
+    {
+        if (&Weapon->WeaponEntry.AttachedItem == Attachment)
+        {
+            return CrystalEffectTable::GetBuiltTier(Weapon->WeaponEntry.Tier, *Attachment);
+        }
+    }
+    if (&Loadout.PrimaryRing.RingEntry.AttachedItem == Attachment)
+    {
+        return CrystalEffectTable::GetBuiltTier(Loadout.PrimaryRing.RingEntry.Tier, *Attachment);
+    }
+    for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+    {
+        if (&Ring.RingEntry.AttachedItem == Attachment)
+        {
+            return CrystalEffectTable::GetBuiltTier(Ring.RingEntry.Tier, *Attachment);
+        }
+    }
+    return TOptional<EItemTier>();
+}
+
 TArray<USpellData *> ULoadoutComponent::GetPrimarySlotSpells() const
 {
     TArray<USpellData *> Result;

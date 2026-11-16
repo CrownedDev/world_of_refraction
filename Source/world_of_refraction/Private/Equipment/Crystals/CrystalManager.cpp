@@ -42,8 +42,9 @@ void UCrystalManager::NotifyCrystalBroken(AActor *Actor, UObject *Holder, const 
 }
 
 int32 UCrystalManager::ComputeCastWear(const AActor *Actor, EItemTier WearTier, EItemTier ActionTier, int32 InfusionLevel,
-                                      bool bIsSpell)
+                                      bool bIsSpell, TOptional<EItemTier> GapTier)
 {
+    const EItemTier GapAgainst = GapTier.Get(WearTier);
     // B-242 (DRY audit A5): the one wear formula for a crystal, a primary-slot evolution and a gear evolution.
     // Substat-modified path when the caster's UCharacterData is reachable — wear tracks real power output
     // (gear-inclusive via crystal-modified pillar accessors). Falls back to the base formula if the asset is
@@ -51,7 +52,7 @@ int32 UCrystalManager::ComputeCastWear(const AActor *Actor, EItemTier WearTier, 
     const UCharacterDataComponent *CasterCharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     if (!CasterCharComp || !CasterCharComp->CharacterData)
     {
-        return UBreakCalculator::CalculateDurabilityWear(WearTier, ActionTier, InfusionLevel, bIsSpell);
+        return UBreakCalculator::CalculateGapDurabilityWear(WearTier, GapAgainst, ActionTier, InfusionLevel, bIsSpell);
     }
     // Snapshot the wear-input stats in one call. All four substats are the FULL composed values (innate +
     // equipment + stone + transient) via GetEffectiveStats; wear is a POWER term, so a geared/buffed caster
@@ -61,8 +62,9 @@ int32 UCrystalManager::ComputeCastWear(const AActor *Actor, EItemTier WearTier, 
     const float StatusMultFrac = Stats.StatusMultiplier - 1.0f;
     const float EfficiencyFrac = 1.0f - Stats.EfficiencyMultiplier;
     const float ResistanceFrac = Stats.Resistance;
-    return UBreakCalculator::CalculateDurabilityWearWithSubstats(WearTier, ActionTier, InfusionLevel, bIsSpell, SpellDmgFrac,
-                                                                 StatusMultFrac, EfficiencyFrac, ResistanceFrac);
+    return UBreakCalculator::CalculateGapWearWithSubstatsDetailed(WearTier, GapAgainst, ActionTier, InfusionLevel, bIsSpell,
+                                                                  SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac)
+        .FinalWear;
 }
 
 void UCrystalManager::ProcessPostCastWear(
@@ -71,7 +73,8 @@ void UCrystalManager::ProcessPostCastWear(
     FRuntimeAttachedItem &Attachment,
     EItemTier ActionTier,
     int32 InfusionLevel,
-    bool bIsSpell)
+    bool bIsSpell,
+    TOptional<EItemTier> GapTier)
 {
     if (!Actor || Attachment.IsEmpty())
     {
@@ -118,7 +121,7 @@ void UCrystalManager::ProcessPostCastWear(
     // wear tracks real power output (gear-inclusive via crystal-modified
     // pillar accessors). Falls back to the base formula if the asset is
     // missing rather than crashing.
-    const int32 Wear = ComputeCastWear(Actor, WearTier, ActionTier, InfusionLevel, bIsSpell);
+    const int32 Wear = ComputeCastWear(Actor, WearTier, ActionTier, InfusionLevel, bIsSpell, GapTier);
 
     if (Wear <= 0)
     {
