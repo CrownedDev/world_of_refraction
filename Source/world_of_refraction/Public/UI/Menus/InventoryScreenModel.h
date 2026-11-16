@@ -23,7 +23,9 @@ enum class EInventoryScreenTab : uint8
 {
 	Gear,
 	Pouch,
-	Chest
+	Chest,
+	/** B-543: not a list: A (or a click on the tab) opens the Equipment screen for the same character. */
+	Loadout
 };
 
 /** What a tile is: the filter row and the verbs read it. */

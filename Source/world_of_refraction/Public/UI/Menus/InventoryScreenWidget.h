@@ -124,6 +124,8 @@ private:
 	void RefreshData();
 	/** The focused tile's colour, the detail panel and the verb menu (or "Give to"). */
 	void RefreshSelection(bool bScrollIntoView = true);
+	/** B-543: the Loadout tab: the Equipment screen (v2 loadout) for the shown character, over this one. */
+	void OpenLoadoutScreen();
 	void RunVerb(EInventoryVerb Verb, const FInventoryScreenReceiver *Receiver);
 	FName MemberKey() const;
 	const FInventoryScreenTile *FocusedTile() const;
