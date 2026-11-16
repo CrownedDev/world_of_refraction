@@ -408,6 +408,7 @@ FSavedLoadout FCombatLoadout::ToSavedLoadout(ECharacterClass CharacterClass) con
         Out.Element = Pool.Element;
         Out.Spells = Refs(Pool.Spells);
     }
+    Saved.EntryPicks = ToWornGear(CharacterClass).Equipment; // D-224 (B-517): the picks live on the entries
     return Saved;
 }
 
@@ -666,6 +667,7 @@ FCombatLoadout FCombatLoadout::CreateFromSavedLoadout(const FSavedLoadout &Saved
 
     UE_LOG(LogTemp, Verbose, TEXT("[FCombatLoadout] Created from SavedLoadout '%s' (PrimarySlotType: %d)"),
            *SavedLoadout.LoadoutName, static_cast<int32>(SavedLoadout.PrimarySlotType));
+    Result.ApplyEntryPicks(SavedLoadout.EntryPicks);
     return Result;
 }
 
