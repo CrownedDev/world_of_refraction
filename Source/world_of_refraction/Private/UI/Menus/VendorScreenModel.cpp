@@ -176,16 +176,12 @@ namespace VendorScreenBuild
 		}
 		else
 		{
-			// A weapon or an adapter, as bought: bare, with the weapon's own abilities.
+			// A weapon or an adapter, as bought: bare (B-518, D-224: gear carries no skills).
 			FLoadoutSlot Slot;
 			UWeaponData *Weapon = Cast<UWeaponData>(Asset);
 			if (Weapon)
 			{
 				Slot.Gear = FGearInstance::FromWeaponEntry(FWeaponInventoryEntry::CreateFromWeapon(Weapon));
-				for (UAbilityData *Ability : Weapon->PresetAbilities)
-				{
-					Slot.AssignedAbilities.Add(Ability);
-				}
 			}
 			else if (URingData *Adapter = Cast<URingData>(Asset))
 			{

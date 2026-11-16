@@ -937,25 +937,6 @@ namespace
             return 0;
         }
     }
-
-    /** Prisms surcharge for skills bundled on equipment (3l): each non-null skill
-     *  prices at a third of its tier base + 10 flat (integer floor per the project
-     *  rounding rule). Prisms-only — bundled skills never charge essence. Template
-     *  because DefaultSpells / PresetAbilities are arrays of different derived
-     *  pointers; Tier reads through the shared USkillDataBase. */
-    template <typename TSkill>
-    int32 BundledSkillsPrisms(const TArray<TSkill *> &Skills)
-    {
-        int32 Prisms = 0;
-        for (const TSkill *Skill : Skills)
-        {
-            if (Skill)
-            {
-                Prisms += EconomyYield::GetPrismsBaseForTier(Skill->Tier) / 3 + 10;
-            }
-        }
-        return Prisms;
-    }
 }
 
 FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &Items) const
@@ -981,29 +962,15 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
         UPrimaryDataAsset *Asset = E.Asset;
         if (UWeaponData *W = Cast<UWeaponData>(Asset))
         {
-            // Equipment pricing: Prisms base by tier + attachment surcharge + bundled
-            // skills (3l), all per-unit (quality = C placeholder until shop-roll).
-            // PresetAbilities always price — they're baked into what you're buying.
-            // Gem-side DefaultSpells price only when the attachment actually grants them
-            // (B-437, D-175: no stone grants abilities, so DefaultAbilities are not priced).
-            // WeaponAttack is the weapon's identity, never priced.
-            int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W) +
-                            BundledSkillsPrisms(W->PresetAbilities);
-            if (W->AttachedItem.Kind == EAttachedItemKind::Crystal)
-            {
-                PerUnit += BundledSkillsPrisms(W->DefaultSpells);
-            }
+            // Equipment pricing: Prisms base by tier + attachment surcharge, per unit (quality = C placeholder
+            // until shop-roll). B-518 (D-224): gear carries no skills, so none are priced. WeaponAttack is the
+            // weapon's identity, never priced.
+            const int32 PerUnit = EconomyYield::GetPrismsBaseForTier(W->Tier) + AttachmentPrisms(W);
             Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
         else if (URingData *R = Cast<URingData>(Asset))
         {
-            // Gem-attached rings price their bundled DefaultSpells (3l — the themed
-            // rings); stone/evolution/fusion attachments don't gem-seed spells.
-            int32 PerUnit = EconomyYield::GetPrismsBaseForTier(R->Tier) + AttachmentPrisms(R);
-            if (R->AttachedItem.Kind == EAttachedItemKind::Crystal)
-            {
-                PerUnit += BundledSkillsPrisms(R->DefaultSpells);
-            }
+            const int32 PerUnit = EconomyYield::GetPrismsBaseForTier(R->Tier) + AttachmentPrisms(R); // B-518: no skills priced
             Cost.Prisms += PerUnit * FMath::Max(1, E.Count);
         }
         else if (USpellData *S = Cast<USpellData>(Asset))
