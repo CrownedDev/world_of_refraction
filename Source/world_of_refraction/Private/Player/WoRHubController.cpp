@@ -215,7 +215,7 @@ void AWoRHubController::BeginPlay()
 
 	if (!GetPawn())
 	{
-		DisableInput(this); // B-545: on again in OnPossess
+		DisableInput(this); // B-545: on again in SetPawn
 	}
 
 	// B-443: the interact prompt and the money chip, for this machine's player only (B-537: not in the menu level).
@@ -264,11 +264,18 @@ void AWoRHubController::BeginPlay()
 	UTitleScreenWidget::OpenAtLaunch(this);
 }
 
-void AWoRHubController::OnUnPossess()
+void AWoRHubController::SetPawn(APawn *InPawn)
 {
-	Super::OnUnPossess();
-	DisableInput(this);
-	UE_LOG(LogWoR, Log, TEXT("[WoRHubController] No pawn: the controller's own input is off until the next possess"));
+	Super::SetPawn(InPawn);
+	if (InPawn)
+	{
+		EnableInput(this);
+	}
+	else if (InputEnabled())
+	{
+		DisableInput(this);
+		UE_LOG(LogWoR, Log, TEXT("[WoRHubController] No pawn: the controller's own input is off until the next one"));
+	}
 }
 
 void AWoRHubController::SetupInputComponent()
@@ -391,7 +398,6 @@ void AWoRHubController::OpenGameMenu()
 void AWoRHubController::OnPossess(APawn *InPawn)
 {
 	Super::OnPossess(InPawn);
-	EnableInput(this); // B-545: off while there was no pawn
 
 
 	if (bEnsureLocalPartyOnPossess)
