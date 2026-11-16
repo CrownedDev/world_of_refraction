@@ -7,6 +7,7 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Combat/TurnManager.h"
 #include "GameFramework/Character.h"
+#include "WoRLog.h"
 
 UCombatAnimInstance::UCombatAnimInstance()
 {
@@ -19,13 +20,12 @@ void UCombatAnimInstance::NativeInitializeAnimation()
 
     // Bind to montage notify events
     OnPlayMontageNotifyBegin.AddDynamic(this, &UCombatAnimInstance::HandleMontageNotify);
-    UE_LOG(LogTemp, Warning, TEXT("[CombatAnimInstance] NativeInit ran, notify bound for %s"),
-           *GetName());
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatAnimInstance] NativeInit ran, notify bound for %s"), *GetName()); // once per pawn: not a warning
 }
 
 void UCombatAnimInstance::HandleMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload &BranchingPointPayload)
 {
-    UE_LOG(LogTemp, Verbose, TEXT("[CombatAnimInstance] Notify: %s"), *NotifyName.ToString());
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatAnimInstance] Notify: %s"), *NotifyName.ToString());
     OnActionNotify.Broadcast(NotifyName);
 }
 
