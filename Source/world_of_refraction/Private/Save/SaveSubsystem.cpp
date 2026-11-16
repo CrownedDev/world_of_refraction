@@ -1488,6 +1488,25 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 	Saved.bTallyBossBeaten = TrialRun.IsRunBossBeaten();
 	Saved.BeatenMiniBosses = TrialRun.GetBeatenMiniBosses(); // B-187c
 	Saved.EncounterRevivals = TrialRun.GetEncounterRevivalCounts();
+	// CS-5 (audit clash 5): the run's levels, so a resumed run keeps them, the vendor's price step and the waiting ones.
+	TSet<FName> LevelKeys(TrialRun.GetRunLevelKeys());
+	for (const TPair<FName, int32> &Waiting : TrialRun.GetAllUnspentLevels())
+	{
+		LevelKeys.Add(Waiting.Key);
+	}
+	for (const FName &Key : LevelKeys)
+	{
+		FSavedRunLevels &Out = Saved.RunLevels.AddDefaulted_GetRef();
+		Out.CharacterKey = Key;
+		Out.Mind = TrialRun.GetRunEarnedLevels(Key, EWorldPillar::Mind);
+		Out.Body = TrialRun.GetRunEarnedLevels(Key, EWorldPillar::Body);
+		Out.Spirit = TrialRun.GetRunEarnedLevels(Key, EWorldPillar::Spirit);
+		Out.Purchases = TrialRun.GetRunLevelPurchases(Key);
+		Out.OverMind = TrialRun.GetRunOverCap(Key, EWorldPillar::Mind);
+		Out.OverBody = TrialRun.GetRunOverCap(Key, EWorldPillar::Body);
+		Out.OverSpirit = TrialRun.GetRunOverCap(Key, EWorldPillar::Spirit);
+		Out.Unspent = TrialRun.GetUnspentLevels(Key);
+	}
 	// B-314b (Q-314): the open run layer, so a resumed run keeps its found gear run-only and its home gear's home state.
 	const UGameInstance *GI = TrialRun.GetGameInstance();
 	const UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -1563,6 +1582,28 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 		TrialRun.MarkRunBossBeaten();
 	}
 	TrialRun.RestoreMiniBossRevivals(Saved.BeatenMiniBosses, Saved.EncounterRevivals); // B-187c: after RestoreRun cleared them
+	for (const FSavedRunLevels &Levels : Saved.RunLevels) // CS-5: after RestoreRun cleared them
+	{
+		const FName Key = Levels.CharacterKey;
+		TrialRun.AddRunEarnedLevels(Key, EWorldPillar::Mind, Levels.Mind);
+		TrialRun.AddRunEarnedLevels(Key, EWorldPillar::Body, Levels.Body);
+		TrialRun.AddRunEarnedLevels(Key, EWorldPillar::Spirit, Levels.Spirit);
+		for (int32 Bought = 0; Bought < Levels.Purchases; ++Bought)
+		{
+			TrialRun.AddRunLevelPurchase(Key);
+		}
+		const auto RestoreOverCap = [&TrialRun, Key](EWorldPillar Pillar, int32 Points)
+		{
+			for (int32 Point = 0; Point < Points; ++Point)
+			{
+				TrialRun.AddRunOverCap(Key, Pillar); // false at the cap: the rest are dropped
+			}
+		};
+		RestoreOverCap(EWorldPillar::Mind, Levels.OverMind);
+		RestoreOverCap(EWorldPillar::Body, Levels.OverBody);
+		RestoreOverCap(EWorldPillar::Spirit, Levels.OverSpirit);
+		TrialRun.AddUnspentLevels(Key, Levels.Unspent);
+	}
 	// B-314b: the saved layer replaces the fresh one RestoreRun opened (the store was loaded from this same save).
 	UGameInstance *GI = TrialRun.GetGameInstance();
 	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;

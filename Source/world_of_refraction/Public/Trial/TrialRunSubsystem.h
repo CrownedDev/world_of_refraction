@@ -192,6 +192,14 @@ public:
     /** Takes one of the character's unspent levels; false when it has none. */
     bool TakeUnspentLevel(FName CharacterKey);
 
+    /** CS-5: the characters with run levels (the save writes each one's). */
+    TArray<FName> GetRunLevelKeys() const
+    {
+        TArray<FName> Keys;
+        RunLevels.GetKeys(Keys);
+        return Keys;
+    }
+
     /** Debug: every character's run levels and the unspent count. wor.WorldStat.Print. */
     FString GetRunLevelsString() const;
 

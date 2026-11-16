@@ -315,6 +315,43 @@ struct WORLD_OF_REFRACTION_API FSavedRunMark
 };
 
 /** B-208 (Q-090, Q-208): the trial run as the last fight's exit left it; reloading resumes it. */
+/** CS-5 (audit clash 5): one character's run levels (UTrialRunSubsystem::RunLevels and UnspentLevels). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedRunLevels
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FName CharacterKey;
+
+	UPROPERTY()
+	int32 Mind = 0;
+
+	UPROPERTY()
+	int32 Body = 0;
+
+	UPROPERTY()
+	int32 Spirit = 0;
+
+	/** Levels bought from a vendor this run (its rising price, D-102). */
+	UPROPERTY()
+	int32 Purchases = 0;
+
+	/** B-364 (D-157): over-cap points per pillar. */
+	UPROPERTY()
+	int32 OverMind = 0;
+
+	UPROPERTY()
+	int32 OverBody = 0;
+
+	UPROPERTY()
+	int32 OverSpirit = 0;
+
+	/** Dropped levels not yet placed (B-223b). */
+	UPROPERTY()
+	int32 Unspent = 0;
+};
+
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedRun
 {
@@ -414,6 +451,11 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	/** B-508 (D-219, save v41): the run party's worn-gear records as the run began; a quit puts them back. */
 	UPROPERTY()
 	TArray<FSavedWornGear> RunStartWornGear;
+
+	/** CS-5 (no version bump: a save without it resumes with no run levels, as before): each character's levels
+	 *  earned this run, its vendor purchases, over-cap points and waiting levels. */
+	UPROPERTY()
+	TArray<FSavedRunLevels> RunLevels;
 };
 
 USTRUCT()
