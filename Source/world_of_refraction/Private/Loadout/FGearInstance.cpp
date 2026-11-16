@@ -20,6 +20,8 @@ namespace
 		To.Quality = From.Quality;
 		To.AttachedItem = From.AttachedItem;
 		To.StoneSocket = From.StoneSocket; // B-351
+		To.bPrebuilt = From.bPrebuilt;	   // D-231 (B-532)
+		To.bCrystalRemovable = From.bCrystalRemovable;
 		To.AssignedSpells.Reset(From.AssignedSpells.Num());
 		for (USpellData *Spell : From.AssignedSpells)
 		{

@@ -26,6 +26,7 @@
 #include "Equipment/EquipmentDataBase.h" // B-091: gear display names
 #include "Inventory/ItemTier.h" // TierHelpers::GetTierName for the instance dump
 #include "Equipment/FRuntimeAttachedItem.h" // attached-crystal description in the instance dump
+#include "Equipment/GearSockets.h"         // D-231: IsSocketFixed
 #include "Combat/CombatConstants.h"
 #include "Combat/TurnManager.h" // speed-notify on speed-relevant crystal detach
 #include "Equipment/Crystals/CrystalEffectTable.h"
@@ -401,6 +402,11 @@ bool UInventoryComponent::RemoveEvolutionFromGear(TArray<TEntry> &Gear, FGuid Ge
         return false;
     }
 
+    if (GearSockets::IsSocketFixed(Gear[Index])) // D-231 (B-532)
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] %s: %s %s is prebuilt with a fixed evolution"), Op, GearLabel<TEntry>(), *GearID.ToString());
+        return false;
+    }
     FRuntimeAttachedItem &Attached = Gear[Index].AttachedItem;
     // Must be a PLAYER-ATTACHED evolution: valid InstanceID. Authored-locked (invalid InstanceID) is
     // a built-in evolution and cannot be removed.
@@ -448,6 +454,11 @@ bool UInventoryComponent::RemoveCrystalFromGear(TArray<TEntry> &Gear, int32 Inde
         return false;
     }
 
+    if (GearSockets::IsSocketFixed(Gear[Index])) // D-231 (B-532): its crystal, and so its stone, stay
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RemoveCrystal: %s is prebuilt with a fixed crystal"), *Gear[Index].PersistentID.ToString());
+        return false;
+    }
     // B-351b (D-141): both sockets clear (a socketed stone was lost for good before: nothing could remove it).
     const bool bHadAttachment = !Gear[Index].AttachedItem.IsEmpty() || !Gear[Index].StoneSocket.IsEmpty();
     // Speed-relevance gate, read BEFORE the detach: a TurnSpeed-contributing stone
