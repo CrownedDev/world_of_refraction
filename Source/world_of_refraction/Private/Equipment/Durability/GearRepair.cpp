@@ -121,9 +121,9 @@ namespace
 		}));
 }
 
-bool GearRepair::CanRestore(const FRuntimeAttachedItem &Gem)
+bool GearRepair::CanRestore(const FRuntimeAttachedItem &Gem, bool bLocked)
 {
-	return Gem.IsCrystal() && Gem.IsBroken();
+	return Gem.IsCrystal() && Gem.GetCurrentDurability() < Gem.GetMaxDurability() && (bLocked || !Gem.IsBroken());
 }
 
 GearRepair::FRestorePlan GearRepair::PlanRestore(const FRuntimeAttachedItem &Gem, const UCrystalInventoryComponent &Pouch)

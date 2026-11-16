@@ -1,7 +1,7 @@
 // RestoreSpec.cpp
-// B-534 (D-231 "Restore amounts", Q-534): a gem locked to its prebuilt piece that breaks is restored with crystals of
-// its own type. One crystal restores value(its tier) / value(the gem's tier) (the merge values): the same tier fills
-// it, one tier down a half, an A a third of an S; cheapest first, overshoot lost, no money. Only a locked, broken gem.
+// B-534 (D-231 "Restore amounts", "Breaking, restoring and the word", Q-534): a worn gem, or a locked one at 0, is topped
+// up with crystals of its own type. One crystal restores value(its tier) / value(the gem's tier) (the merge values): the same tier fills
+// it, one tier down a half, an A a third of an S; cheapest first, overshoot lost, no money. An unlocked gem at 0 is gone at fight end, so not offered.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -45,12 +45,13 @@ BEGIN_DEFINE_SPEC(FRestoreSpec, "WoR.Durability.Restore", EAutomationTestFlags_A
 	UInventoryComponent *Inventory = nullptr;
 	UCrystalInventoryComponent *Crystals = nullptr;
 
-	/** An owned adapter holding Gem broken, locked (prebuilt, not removable) unless bLocked is false. */
-	FGuid AddBrokenRing(const FCrystalId &Gem, bool bLocked)
+	/** An owned adapter holding Gem at Wear (0: broken), locked (prebuilt, not removable) unless bLocked is false. */
+	FGuid AddRing(const FCrystalId &Gem, bool bLocked, int32 Wear = 0)
 	{
 		Inventory->AddRing(NewObject<URingData>(GetTransientPackage()));
 		FRingInventoryEntry &Ring = Inventory->Rings.Last();
 		Ring.AttachedItem = RestoreTestBrokenGem(Gem);
+		Ring.AttachedItem.Crystal.CurrentDurability = Wear;
 		Ring.bPrebuilt = bLocked;
 		Ring.bCrystalRemovable = !bLocked;
 		return Ring.PersistentID;
@@ -115,40 +116,54 @@ void FRestoreSpec::Define()
 		TestEqual(TEXT("Full"), Filled.NewDurability, ItemIdentity::GetMaxDurability(RESTORE_TEST_GEM));
 	});
 
-	It("restores a locked broken gem, spending its crystals; refuses an unlocked or unbroken one", [this]()
+	It("restores a locked broken gem, spending its crystals; refuses a full one or an unlocked one at 0", [this]()
 	{
 		if (!Inventory) return;
-		const FGuid Locked = AddBrokenRing(RESTORE_TEST_GEM, true);
-		TestFalse(TEXT("No crystals: refused"), Inventory->RestoreFixedCrystal(Locked));
+		const FGuid Locked = AddRing(RESTORE_TEST_GEM, true);
+		TestFalse(TEXT("No crystals: refused"), Inventory->RestoreCrystal(Locked));
 		Inventory->AddCrystal(RESTORE_TEST_SAME);
-		TestTrue(TEXT("Restored"), Inventory->RestoreFixedCrystal(Locked));
+		TestTrue(TEXT("Restored"), Inventory->RestoreCrystal(Locked));
 		const FRingInventoryEntry *Ring = Inventory->FindOwnedRing(Locked);
 		TestTrue(TEXT("Full again"), Ring && Ring->AttachedItem.GetCurrentDurability() == ItemIdentity::GetMaxDurability(RESTORE_TEST_GEM));
 		TestEqual(TEXT("The crystal spent"), Crystals->GetCount(RESTORE_TEST_SAME), 0);
 		Inventory->AddCrystal(RESTORE_TEST_SAME);
-		TestFalse(TEXT("Not broken now: refused"), Inventory->RestoreFixedCrystal(Locked));
+		TestFalse(TEXT("Full now: refused"), Inventory->RestoreCrystal(Locked));
 
-		const FGuid Unlocked = AddBrokenRing(RESTORE_TEST_GEM, false);
-		TestFalse(TEXT("Unlocked: refused"), Inventory->RestoreFixedCrystal(Unlocked));
+		const FGuid Unlocked = AddRing(RESTORE_TEST_GEM, false);
+		TestFalse(TEXT("Unlocked at 0: refused"), Inventory->RestoreCrystal(Unlocked));
 		TestEqual(TEXT("Nothing spent"), Crystals->GetCount(RESTORE_TEST_SAME), 1);
 	});
 
-	It("is offered on the Equipment screen only on a locked broken gem", [this]()
+	It("tops up any worn gem, locked or not: half worn, one tier down fills it", [this]()
+	{
+		if (!Inventory) return;
+		const int32 Max = ItemIdentity::GetMaxDurability(RESTORE_TEST_GEM);
+		const FGuid Unlocked = AddRing(RESTORE_TEST_GEM, false, Max / RESTORE_TEST_HALF_DIVISOR);
+		Inventory->AddCrystal(RESTORE_TEST_ONE_DOWN);
+		TestTrue(TEXT("Unlocked, half worn: restored"), Inventory->RestoreCrystal(Unlocked));
+		const FRingInventoryEntry *Ring = Inventory->FindOwnedRing(Unlocked);
+		TestTrue(TEXT("Full"), Ring && Ring->AttachedItem.GetCurrentDurability() == Max);
+		TestEqual(TEXT("The D spent"), Crystals->GetCount(RESTORE_TEST_ONE_DOWN), 0);
+	});
+
+	It("is offered on the Equipment screen on a worn gem, and at 0 only when locked", [this]()
 	{
 		FLoadoutScreenRow Row;
 		Row.Kind = ELoadoutScreenRowKind::Adapter;
 		Row.GearID = FGuid::NewGuid();
 		Row.Sockets.SetNum(2);
-		Row.Sockets[LoadoutScreenSockets::CRYSTAL].bEmpty = false;
-		Row.Sockets[LoadoutScreenSockets::CRYSTAL].bBroken = true;
-		Row.bCrystalFixed = true;
-		TestTrue(TEXT("Locked and broken: offered"), WoRLoadoutScreen::IsRestoreOffered(Row, LoadoutScreenSockets::CRYSTAL));
+		FLoadoutScreenSocket &Gem = Row.Sockets[LoadoutScreenSockets::CRYSTAL];
+		Gem.bEmpty = false;
+		Gem.bWorn = true;
+		TestTrue(TEXT("Worn, unlocked: offered"), WoRLoadoutScreen::IsRestoreOffered(Row, LoadoutScreenSockets::CRYSTAL));
 		TestFalse(TEXT("Not on the stone socket"), WoRLoadoutScreen::IsRestoreOffered(Row, LoadoutScreenSockets::STONE));
-		Row.bCrystalFixed = false;
-		TestFalse(TEXT("Unlocked: not offered"), WoRLoadoutScreen::IsRestoreOffered(Row, LoadoutScreenSockets::CRYSTAL));
+		Gem.bBroken = true;
+		TestFalse(TEXT("At 0, unlocked: not offered"), WoRLoadoutScreen::IsRestoreOffered(Row, LoadoutScreenSockets::CRYSTAL));
 		Row.bCrystalFixed = true;
-		Row.Sockets[LoadoutScreenSockets::CRYSTAL].bBroken = false;
-		TestFalse(TEXT("Not broken: not offered"), WoRLoadoutScreen::IsRestoreOffered(Row, LoadoutScreenSockets::CRYSTAL));
+		TestTrue(TEXT("At 0, locked: offered"), WoRLoadoutScreen::IsRestoreOffered(Row, LoadoutScreenSockets::CRYSTAL));
+		Gem.bBroken = false;
+		Gem.bWorn = false;
+		TestFalse(TEXT("Full: not offered"), WoRLoadoutScreen::IsRestoreOffered(Row, LoadoutScreenSockets::CRYSTAL));
 	});
 }
 

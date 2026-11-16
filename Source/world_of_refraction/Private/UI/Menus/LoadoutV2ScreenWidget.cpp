@@ -109,15 +109,9 @@ namespace LoadoutV2ScreenStyle
 
 	/** What A again on a filled socket takes off (today's rule, WoRLoadoutScreen::GetTakeOffSocketWarning, said for A):
 	 *  an evolution goes back with wear; a gem or a stone comes out alone and is used up (CL-28b, B-533). Empty with
-	 *  OutRefusal when the socket can't be emptied. B-534 (D-231): a locked prebuilt's broken gem offers Restore instead. */
-	FText SocketRemoveWarning(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket, FText &OutRefusal)
+	 *  OutRefusal when the socket can't be emptied. */
+	FText SocketRemoveWarning(const FLoadoutScreenRow &Row, int32 Socket, FText &OutRefusal)
 	{
-		if (WoRLoadoutScreen::IsRestoreOffered(Row, Socket))
-		{
-			const FText Restore = WoRLoadoutScreen::DescribeRestore(World, Member, Row, OutRefusal);
-			return Restore.IsEmpty() ? FText::GetEmpty()
-									 : FText::FormatNamed(LOCTEXT("WarnRestore", "{Confirm} again: Restore. {What}."), TEXT("What"), Restore);
-		}
 		if (WoRLoadoutScreen::GetTakeOffSocketWarning(Row, Socket, OutRefusal).IsEmpty())
 		{
 			return FText::GetEmpty();
@@ -2548,7 +2542,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			if (bRemoveArmed)
 			{
 				FText Refusal;
-				Equipped.Line = SocketRemoveWarning(GetWorld(), Members[MemberIndex], Row, Socket, Refusal);
+				Equipped.Line = SocketRemoveWarning(Row, Socket, Refusal);
 				Equipped.Refusal = Refusal;
 			}
 		}
@@ -2739,20 +2733,18 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 		{
 			bRemoveArmed = true; // says what comes off first (Q-440c)
 			FText Refusal;
-			const FText Warning = LoadoutV2ScreenStyle::SocketRemoveWarning(GetWorld(), Members[MemberIndex], Row, Socket, Refusal);
+			const FText Warning = LoadoutV2ScreenStyle::SocketRemoveWarning(Row, Socket, Refusal);
 			Message = Warning.IsEmpty() ? Refusal : Warning;
 			bRemoveArmed = !Warning.IsEmpty();
 			RefreshData();
 			return;
 		}
 		bRemoveArmed = false;
-		const bool bRestore = WoRLoadoutScreen::IsRestoreOffered(Row, Socket); // B-534
-		Message = bRestore ? WoRLoadoutScreen::RestoreSocket(GetWorld(), Members[MemberIndex], Row)
-						   : WoRLoadoutScreen::TakeOffSocket(GetWorld(), Members[MemberIndex], Row, Socket);
+		Message = WoRLoadoutScreen::TakeOffSocket(GetWorld(), Members[MemberIndex], Row, Socket);
 		if (Message.IsEmpty())
 		{
-			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: socket %d of %s %s"), *Members[MemberIndex].Name.ToString(), Socket + 1,
-				   bNewEntry ? *Row.Name.ToString() : *EditEntry.Name.ToString(), bRestore ? TEXT("restored") : TEXT("emptied"));
+			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: socket %d of %s emptied"), *Members[MemberIndex].Name.ToString(), Socket + 1,
+				   bNewEntry ? *Row.Name.ToString() : *EditEntry.Name.ToString());
 			// The piece changed: read its sockets again.
 			if (bNewEntry)
 			{

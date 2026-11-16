@@ -29,9 +29,10 @@ namespace GearRepair
 		int32 MaxDurability = 0;
 	};
 
-	/** B-534 (D-231): Restore is offered on a broken gem (not an evolution, which is kept and repaired, Q-159). The
-	 *  caller also checks the gem is locked to its piece (GearSockets::IsCrystalFixed). */
-	WORLD_OF_REFRACTION_API bool CanRestore(const FRuntimeAttachedItem &Gem);
+	/** B-534 (D-231 "Breaking, restoring and the word"): Restore tops up any socketed gem below full (not an evolution,
+	 *  which is repaired, Q-159); at 0 only a gem locked to its piece (bLocked: GearSockets::IsCrystalFixed), since an
+	 *  unlocked one is destroyed at fight end. */
+	WORLD_OF_REFRACTION_API bool CanRestore(const FRuntimeAttachedItem &Gem, bool bLocked);
 
 	/** B-534 (D-231 "Restore amounts", Q-534): crystals of the gem's type from Pouch, cheapest first, until it is full.
 	 *  One crystal restores value(its tier) / value(the gem's tier) of full durability (EconomyYield::GetCrystalValue,
