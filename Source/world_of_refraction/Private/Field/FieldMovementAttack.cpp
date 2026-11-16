@@ -93,6 +93,8 @@ namespace
 		/** B-503s (D-218): a weapon user throws the pulse from this slice too: the innate, an evolution, any adapter
 		 *  (B-530: a ring as well; only a weapon's own slice swings). */
 		bool bPulse = false;
+		/** B-530 (D-229): an adapter; its tile is the socket frame with its crystal. */
+		bool bAdapter = false;
 	};
 
 	/** A weapon's swing, from its loadout entry: the entry's own attack override first (as
@@ -174,7 +176,7 @@ namespace
 				Slice.Name = WoRGameNames::GetAdapterName(Slot.RingEntry.Ring, Slot.RingEntry.GetAttachedItem()); // B-514b: "Fire Ring"
 				Slice.Element = LiveSocketElement(Slot.RingEntry.GetAttachedItem());
 				Slice.bPulse = true; // B-530 (D-218): every adapter is an element source, a ring too: it puts the weapon away
-				Slice.Icon = Slot.RingEntry.Ring->Icon;
+				Slice.bAdapter = true; // B-530 (D-229): drawn as the socket frame with its crystal, not the ring's own icon
 				Slice.Type = WoRGameNames::GetAdapterFormName(Slot.RingEntry.Ring->Form);
 				Slice.Tier = Slot.RingEntry.Tier; // TODO: stage 2b, the built average of the ring and its crystal (D-224 (1))
 			};
@@ -301,6 +303,7 @@ TArray<FFieldAttackEntry> FieldSkillRules::BuildFieldAttackEntries(const AActor 
 		Base.SliceName = Slice.Name;
 		Base.SliceIcon = Slice.Icon;
 		Base.SliceOffHandIcon = Slice.OffHandIcon;
+		Base.bSliceAdapter = Slice.bAdapter;
 		Base.SliceType = Slice.Type;
 		const FText WeaponTypeName = Base.Name; // empty for a pulse or unarmed
 		const int32 First = Entries.Num();
