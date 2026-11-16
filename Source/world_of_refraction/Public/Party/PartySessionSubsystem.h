@@ -315,8 +315,8 @@ public:
 	 *  many carried entries changed (0 when no member carries the piece). */
 	int32 RefreshCarriedSocket(const FGuid &GearID, const FRuntimeAttachedItem &Attached, const FRuntimeAttachedItem &StoneSocket);
 
-	/** Trial entry: seed every slot to its computed maxima. Broken-Darkness-innate
-	 *  members start with an empty EP pool. */
+	/** Trial entry: every slot starts full (no carried vitals, CS-6): each pawn fills to its own max. Broken
+	 *  Darkness members start with an empty EP pool. */
 	UFUNCTION(BlueprintCallable, Category = "Party")
 	void SetAllMembersFull();
 
@@ -350,7 +350,7 @@ public:
 
 private:
 
-	/** A member's carried vitals at its computed maxima (Broken Darkness innate: empty EP). */
+	/** CS-6: a member's carried vitals set to "full" (the no-carry sentinel): its pawn fills to its own max. */
 	static void SetMemberVitalsFull(FPartyMember &Member);
 
 	/** Internal add path — does the work but does NOT broadcast. Callers that

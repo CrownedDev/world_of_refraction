@@ -1155,17 +1155,11 @@ void UPartySessionSubsystem::SetAllMembersFull()
 
 void UPartySessionSubsystem::SetMemberVitalsFull(FPartyMember &Member)
 {
-	if (!Member.CharacterData)
-	{
-		return;
-	}
-
-	// COMPUTED accessors, not the raw MaxHealth/MaxEnergy sub-stats — those are
-	// inputs to the calculation, not the resulting pool sizes.
-	Member.CurrentHP = Member.CharacterData->CalculateMaxHealth();
-	Member.CurrentEP = Member.CharacterData->bBrokenDarknessInnate
-						   ? 0
-						   : Member.CharacterData->CalculateMaxEnergy();
+	// CS-6 (audit clash 6): "full" is no carried number, so the next pawn fills to its own max (gear, stones, run
+	// levels), not the asset formula's. A Broken Darkness member's pawn still seeds its EP at 0
+	// (UCharacterDataComponent::BeginPlay, with no carry).
+	Member.CurrentHP = PartyConstants::NO_CARRIED_VITALS;
+	Member.CurrentEP = PartyConstants::NO_CARRIED_VITALS;
 }
 
 int32 UPartySessionSubsystem::RestMembersWhere(TFunctionRef<bool(const FPartyMember &)> IsRested)
