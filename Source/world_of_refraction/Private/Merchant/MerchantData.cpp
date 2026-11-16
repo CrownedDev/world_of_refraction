@@ -7,6 +7,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Trial/PrebuiltFindData.h"
 
 #if WITH_EDITOR
 #include "Misc/DataValidation.h"
@@ -143,7 +144,14 @@ void UMerchantData::CollectStockIssues(TArray<FString> &OutErrors, TArray<FStrin
         if (Entry.IsAssetEntry())
         {
             const UClass *Expected = GetExpectedAssetClass(MerchantType);
-            if (Expected && !Entry.Asset->IsA(Expected))
+            const UPrebuiltFindData *Prebuilt = Cast<UPrebuiltFindData>(Entry.Asset); // B-527: a prebuilt piece is its piece
+            if (Prebuilt && !Prebuilt->Piece)
+            {
+                OutErrors.Add(FString::Printf(TEXT("Stock[%d]: %s names no piece."), Index, *Entry.Asset->GetName()));
+                continue;
+            }
+            const UObject *Sold = Prebuilt ? static_cast<const UObject *>(Prebuilt->Piece.Get()) : Entry.Asset.Get();
+            if (Expected && !Sold->IsA(Expected))
             {
                 OutWarnings.Add(FString::Printf(
                     TEXT("Stock[%d]: %s is a %s — a %s normally sells %s."),
