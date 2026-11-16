@@ -20,7 +20,7 @@ namespace
 {
 	constexpr int32 PAUSE_TEST_SEED = 23;
 	constexpr int32 PAUSE_TEST_PAGE_COUNT = 9; // B-536: Forms
-	constexpr int32 PAUSE_TEST_CHIP_COUNT = 6; // B-543: the place's money, Diamond and the four essences
+	constexpr int32 PAUSE_TEST_CHIP_COUNT = 5; // B-543: the place's money, Diamond and the essences (B-550: Dormant, Elemental, Stat)
 }
 
 BEGIN_DEFINE_SPEC(FPauseMenuSpec, "WoR.UI.PauseMenu", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
