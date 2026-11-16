@@ -175,4 +175,22 @@ public:
 		float StatusMultiplierFrac,
 		float EfficiencyFrac,
 		float ResistanceFrac);
+
+	/** D-224 (AssetOverhaulPlan §4): CalculateDurabilityWearWithSubstatsDetailed with the tier gap read against
+	 *  GapTier (a ring's built tier) while max durability stays CrystalTier's. GapTier == CrystalTier is the plain
+	 *  form. C++ only. */
+	static FDurabilityWearWithSubstatsResult CalculateGapWearWithSubstatsDetailed(
+		EItemTier CrystalTier,
+		EItemTier GapTier,
+		EItemTier ActionTier,
+		int32 InfusionLevel,
+		bool bIsSpell,
+		float SpellDamageFrac,
+		float StatusMultiplierFrac,
+		float EfficiencyFrac,
+		float ResistanceFrac);
+
+	/** D-224: CalculateDurabilityWear with the gap read against GapTier; max durability stays CrystalTier's. */
+	static int32 CalculateGapDurabilityWear(EItemTier CrystalTier, EItemTier GapTier, EItemTier ActionTier, int32 InfusionLevel,
+											bool bIsSpell);
 };

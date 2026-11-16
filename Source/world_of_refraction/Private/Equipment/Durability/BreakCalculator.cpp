@@ -130,12 +130,35 @@ FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateDurabilityWearWithS
 	float EfficiencyFrac,
 	float ResistanceFrac)
 {
+	return CalculateGapWearWithSubstatsDetailed(CrystalTier, CrystalTier, ActionTier, InfusionLevel, bIsSpell, SpellDamageFrac,
+												StatusMultiplierFrac, EfficiencyFrac, ResistanceFrac);
+}
+
+int32 UBreakCalculator::CalculateGapDurabilityWear(EItemTier CrystalTier, EItemTier GapTier, EItemTier ActionTier,
+												   int32 InfusionLevel, bool bIsSpell)
+{
+	// The percent reads only the gap (GapTier vs ActionTier); the durability it is a percent of is the crystal's.
+	const float TotalPct = CalculateWearPercentOfMax(GapTier, ActionTier, InfusionLevel, bIsSpell);
+	return FMath::RoundToInt(TotalPct * static_cast<float>(DurabilityConstants::GetMaxDurabilityForTier(CrystalTier)));
+}
+
+FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateGapWearWithSubstatsDetailed(
+	EItemTier CrystalTier,
+	EItemTier GapTier,
+	EItemTier ActionTier,
+	int32 InfusionLevel,
+	bool bIsSpell,
+	float SpellDamageFrac,
+	float StatusMultiplierFrac,
+	float EfficiencyFrac,
+	float ResistanceFrac)
+{
 	using namespace DurabilityConstants;
 
 	FDurabilityWearWithSubstatsResult Result;
-	Result.BaseWear = CalculateDurabilityWear(CrystalTier, ActionTier, InfusionLevel, bIsSpell);
-	Result.WearPercentOfMax = CalculateWearPercentOfMax(CrystalTier, ActionTier, InfusionLevel, bIsSpell);
-	Result.TierGap = TierHelpers::GetTierGap(CrystalTier, ActionTier);
+	Result.BaseWear = CalculateGapDurabilityWear(CrystalTier, GapTier, ActionTier, InfusionLevel, bIsSpell);
+	Result.WearPercentOfMax = CalculateWearPercentOfMax(GapTier, ActionTier, InfusionLevel, bIsSpell);
+	Result.TierGap = TierHelpers::GetTierGap(GapTier, ActionTier);
 
 	// No overdrive and no infusion — substats cannot manufacture wear out of nothing.
 	if (Result.BaseWear == 0)
