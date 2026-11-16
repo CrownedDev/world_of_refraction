@@ -86,6 +86,7 @@ namespace LoadoutScreenBuild
 		Socket.bEmpty = Item.IsEmpty();
 		Socket.bEvolution = Item.IsEvolution();
 		Socket.bBroken = !Socket.bEmpty && Item.IsBroken(); // B-534
+		Socket.bWorn = Item.IsCrystal() && Item.GetCurrentDurability() < Item.GetMaxDurability();
 		Socket.Label = SocketLabel(Item, WhenEmpty);
 		if (!Socket.bEmpty)
 		{
@@ -183,7 +184,7 @@ namespace LoadoutScreenBuild
 		}
 		const ESpellElement Element = Gear.AttachedItem.GetElement();
 		AddDetail(Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
-		AddDetail(Row, LOCTEXT("DetailDurability", "Durability"), FormatDurability(Gear.AttachedItem));
+		AddDetail(Row, LOCTEXT("DetailDurability", "Wear"), FormatDurability(Gear.AttachedItem));
 		return Row;
 	}
 
@@ -789,7 +790,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 		Choice.Row.KindLine = Element == ESpellElement::None ? Kind : FText::Format(LOCTEXT("KindAndType", "{0} · {1}"), Kind, WoRGameNames::GetElementName(Element));
 		Choice.Row.Tier = WoRGameNames::GetTierLetter(Stack.Key.Tier);
 		AddDetail(Choice.Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
-		AddDetail(Choice.Row, LOCTEXT("DetailDurability", "Durability"), FormatDurability(Choice.Attachment));
+		AddDetail(Choice.Row, LOCTEXT("DetailDurability", "Wear"), FormatDurability(Choice.Attachment));
 		AddDetail(Choice.Row, LOCTEXT("DetailCarried", "Carried"), FText::AsNumber(Stack.Value));
 		Finish(Choice, false);
 	}
@@ -980,8 +981,8 @@ namespace LoadoutScreenRestore
 
 bool WoRLoadoutScreen::IsRestoreOffered(const FLoadoutScreenRow &Row, int32 Socket)
 {
-	return Socket == LoadoutScreenSockets::CRYSTAL && Row.bCrystalFixed && LoadoutScreenBuild::HasSocket(Row, Socket) &&
-		   Row.Sockets[Socket].bBroken && !Row.Sockets[Socket].bEvolution;
+	return Socket == LoadoutScreenSockets::CRYSTAL && LoadoutScreenBuild::HasSocket(Row, Socket) && Row.Sockets[Socket].bWorn &&
+		   (Row.bCrystalFixed || !Row.Sockets[Socket].bBroken);
 }
 
 FText WoRLoadoutScreen::DescribeRestore(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, FText &OutRefusal)
@@ -1002,9 +1003,11 @@ FText WoRLoadoutScreen::DescribeRestore(UWorld *World, const FLoadoutScreenMembe
 								   WoRGameNames::GetCrystalTypeName(Gem->Crystal.Id.Type));
 		return FText::GetEmpty();
 	}
-	const int32 Percent = Plan.MaxDurability > 0 ? FMath::FloorToInt(100.0f * Plan.NewDurability / Plan.MaxDurability) : 0;
-	return FText::Format(LOCTEXT("RestorePlan", "{0} back to {1}% for {2}"), Row.Sockets[LoadoutScreenSockets::CRYSTAL].Name,
-						 FText::AsNumber(Percent), LoadoutScreenRestore::DescribeUses(Plan.Uses));
+	FNumberFormattingOptions WholePercent;
+	WholePercent.SetMaximumFractionalDigits(0).SetRoundingMode(ERoundingMode::ToZero);
+	const float Share = Plan.MaxDurability > 0 ? static_cast<float>(Plan.NewDurability) / Plan.MaxDurability : 0.0f;
+	return FText::Format(LOCTEXT("RestorePlan", "{0} back to {1} for {2}"), Row.Sockets[LoadoutScreenSockets::CRYSTAL].Name,
+						 FText::AsPercent(Share, &WholePercent), LoadoutScreenRestore::DescribeUses(Plan.Uses));
 }
 
 FText WoRLoadoutScreen::RestoreSocket(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row)
@@ -1016,7 +1019,7 @@ FText WoRLoadoutScreen::RestoreSocket(UWorld *World, const FLoadoutScreenMember 
 	}
 	UInventoryComponent *Inventory = nullptr;
 	LoadoutScreenBuild::FindMemberLoadout(World, Member, Inventory);
-	return Inventory && Inventory->RestoreFixedCrystal(Row.GearID) ? FText::GetEmpty() : LOCTEXT("RefuseRestore", "Couldn't restore that.");
+	return Inventory && Inventory->RestoreCrystal(Row.GearID) ? FText::GetEmpty() : LOCTEXT("RefuseRestore", "Couldn't restore that.");
 }
 
 FText WoRLoadoutScreen::FormatLoadoutTitle(const FString &LoadoutName, int32 Index, int32 Count)
