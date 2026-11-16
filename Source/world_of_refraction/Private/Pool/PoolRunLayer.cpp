@@ -237,6 +237,7 @@ bool UPoolSubsystem::IsOnRun(const FGuid &GearID) const
 FPoolRunEndResult UPoolSubsystem::EndRunLayer(bool bKeepUpgrades, bool bKeepRunSockets, const TSet<FGuid> &KeepAsHubGear)
 {
     FPoolRunEndResult Result;
+    PutBackRunStartSkills(); // B-523 (D-224): the hub lists come back on every ending
     if (!bRunLayerActive)
     {
         return Result;

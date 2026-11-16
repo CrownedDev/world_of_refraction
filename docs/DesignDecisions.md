@@ -1336,6 +1336,14 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** (1) The field attack is the weapon's **standard attack**: one shared swing per weapon type, the same swing as the battle's basic hit without the dash (e.g. `AM_SAS_LightHit`'s strike), so the field and the fight match. (2) **Resonators and Refractors** throw an **energy pulse** instead: a burst from the hand that flies a few metres and engages, in the source's element colour, like Expedition 33's ranged field burst. (3) Out of battle, **LB cycles the field attack through the whole loadout**: each weapon, ring, the innate element and each evolution, in loadout order (replaces B-214g's Innate → Weapon → Ring switch).
 **Defaults (reference-backed, Crown may change):** a weapon entry uses that weapon's swing; a ring, innate or evolution entry uses the pulse in its element (for any class), since only a weapon has a swing. Reach: swing about 2 m (as today), pulse about 7 m, tuned in PIE. The cycled entry shows as a small icon and name near the party strip for 2 s (Expedition 33 and Tales of Arise show the field action this way). The choice is saved per character.
 
+### Q-523 — A run's skill list: what a kit member keeps at the start
+**Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-523, D-224 stage S3) · **Blocks:** —
+**Question:** "a run starts with no learned or bought skills; innate spells stay" (D-224). Which skills count as innate, and who is reset? None of this is lore.
+**Answer:** by the reference-backed default (Hades and Slay the Spire: every run starts from the same fixed kit, and only what the character itself is keeps across runs):
+- **Kept at the start:** the spells the worn record names apart from gear picks: the innate spells, the Broken Darkness pools and the character's own evolution's spells (the kit change already leaves those three in place). Also any picks the kit itself authors, so a kit authored with picks still casts; Crown's Q9 says the kit has none (an editor step).
+- **Reset:** only a member who starts on its class kit. A member with no kit keeps what it wears and knows. A resumed run is not reset again.
+- **Until S3c (B-525):** every ending puts the hub list back as it was, so a skill learned in the run is lost on every ending for now. S3c keeps the slotted ones.
+
 ### Q-522b — Prebuilt finds: the smaller choices
 **Status:** ANSWERED (approved by the reference-backed default, 2026-11-16; Crown may change) · **Raised:** 2026-11-16 (B-522b, Crown Q7) · **Blocks:** —
 **Question:** a prebuilt find names a piece and a gem or an evolution (`Design/AssetOverhaulPlan.md` §3 "Found pieces"). What if both are set, what if the socket can't be filled, and does a second copy of a piece still raise the duplicate choice? None of this is lore.

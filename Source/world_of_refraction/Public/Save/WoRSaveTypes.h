@@ -827,6 +827,11 @@ struct WORLD_OF_REFRACTION_API FSavedPool
 	UPROPERTY()
 	TArray<FSavedCharacterSkills> CharacterSkills;
 
+	/** B-523 (D-224, no version bump: a save without it puts nothing back, and its run never swapped the lists): each
+	 *  hub list kept aside while a run uses its run list (UPoolSubsystem::GetRunStartSkills). */
+	UPROPERTY()
+	TArray<FSavedCharacterSkills> RunStartSkills;
+
 	int32 Num() const
 	{
 		int32 Carried = 0;
