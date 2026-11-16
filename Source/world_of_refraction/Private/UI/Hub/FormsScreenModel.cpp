@@ -16,6 +16,7 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "FormsScreen"
@@ -48,17 +49,23 @@ FFormsScreenPage WoRFormsScreen::BuildPage(const UCharacterFormSubsystem &Forms,
 	FFormsScreenPage Page;
 	Page.Title = FText::Format(LOCTEXT("Title", "Spirit of {0}"), CharacterName);
 	const UCharacterFormData *Worn = Forms.GetWornForm();
-	const FText OwnForm = LOCTEXT("OwnForm", "your own form");
-	const FText Base = Forms.GetBaseForm() == EPlayerBaseForm::Quinn ? LOCTEXT("Quinn", "Quinn") : LOCTEXT("Manny", "Manny");
-	Page.WearingLine = FText::Format(LOCTEXT("Wearing", "Wearing: {0} (base body {1})"), Worn ? Worn->FormName : OwnForm, Base);
+	const FText Base = WoRGameNames::GetBaseFormName(Forms.GetBaseForm());
+	Page.WearingLine = Worn ? FText::Format(LOCTEXT("WearingForm", "Wearing: {0} (over {1})"), Worn->FormName, Base)
+							: FText::Format(LOCTEXT("Wearing", "Wearing: {0}"), Base);
 
-	FFormsScreenRow &Own = Page.Rows.AddDefaulted_GetRef();
-	Own.Name = OwnForm;
-	Own.Line = LOCTEXT("AlwaysYours", "always yours");
-	Own.Progress = 1.0f;
-	Own.bUnlocked = true;
-	Own.bWorn = !Worn;
-	Own.Status = LOCTEXT("OwnStatus", "Your own body. A takes a form off.");
+	// D-234: your own spirits first, Male Nobody then Female Nobody.
+	for (const EPlayerBaseForm Body : {EPlayerBaseForm::Manny, EPlayerBaseForm::Quinn})
+	{
+		FFormsScreenRow &Own = Page.Rows.AddDefaulted_GetRef();
+		Own.bBaseBody = true;
+		Own.BaseBody = Body;
+		Own.Name = WoRGameNames::GetBaseFormName(Body);
+		Own.Line = LOCTEXT("AlwaysYours", "always yours");
+		Own.Progress = 1.0f;
+		Own.bUnlocked = true;
+		Own.bWorn = !Worn && Forms.GetBaseForm() == Body;
+		Own.Status = LOCTEXT("OwnStatus", "Your own spirit. A wears it (and takes a form off).");
+	}
 
 	for (UCharacterFormData *Form : Forms.GetForms())
 	{
@@ -156,8 +163,15 @@ FText WoRFormsScreen::Wear(UWorld *World, const FFormsScreenRow &Row)
 		return LOCTEXT("WearUnmet", "You haven't met them yet.");
 	}
 	const EFormSwitchRefusal Refusal = Forms->TryWearForm(Row.Form);
-	UE_LOG(LogWoRUI, Log, TEXT("[FormsScreen] wear %s: %s"), *GetNameSafe(Row.Form), *UEnum::GetValueAsString(Refusal));
-	return Refusal == EFormSwitchRefusal::None ? FText::GetEmpty() : CharacterFormSwitch::GetRefusalText(Refusal);
+	UE_LOG(LogWoRUI, Log, TEXT("[FormsScreen] wear %s: %s"), Row.bBaseBody ? *UEnum::GetValueAsString(Row.BaseBody) : *GetNameSafe(Row.Form),
+		   *UEnum::GetValueAsString(Refusal));
+	if (Refusal != EFormSwitchRefusal::None)
+	{
+		return CharacterFormSwitch::GetRefusalText(Refusal);
+	}
+	return !Row.bBaseBody || Forms->TrySetBaseForm(Row.BaseBody)
+			   ? FText::GetEmpty()
+			   : LOCTEXT("BaseRefused", "Change your body in the hub or at a rest spot, outside a fight.");
 }
 
 FText WoRFormsScreen::SwitchBaseBody(UWorld *World)
