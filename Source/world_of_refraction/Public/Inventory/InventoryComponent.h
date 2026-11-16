@@ -471,6 +471,19 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Rings")
     bool RemoveStoneFromRing(int32 RingIndex);
 
+    /** D-231 (B-534): the owned weapon or adapter GearID holds a prebuilt crystal that can't come out
+     *  (GearSockets::IsCrystalFixed). False for an unknown GearID. */
+    bool IsCrystalFixedOn(const FGuid &GearID) const;
+
+    /** D-231 (B-534, Q-534): Restore. GearID's worn gem (or a locked one at 0, GearRepair::CanRestore) is topped up with
+     *  crystals of its own type from the pouch (GearRepair::PlanRestore: cheapest first, the merge values, no money).
+     *  Out of a fight only. False, nothing spent, when it can't be restored or there is nothing to spend. */
+    bool RestoreCrystal(const FGuid &GearID);
+
+    /** B-534 PIE debug (wor.Crystal.BreakLocked): wears every owned locked gem to 0, so Restore and the fight-end keep
+     *  can be checked without wearing one down in fights. Returns how many broke. */
+    int32 DebugBreakFixedCrystals();
+
     // ==================== EVOLUTION HELPERS ====================
 
     /** Get all evolution crystals owned by this character.

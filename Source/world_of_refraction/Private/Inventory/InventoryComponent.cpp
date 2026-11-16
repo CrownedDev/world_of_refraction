@@ -13,6 +13,8 @@
 #include "Inventory/InventoryData.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
+#include "Currency/EconomyService.h"            // B-534: IsOutOfCombat
+#include "Equipment/Durability/GearRepair.h"     // B-534: PlanRestore
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/StatStone.h"
@@ -36,6 +38,8 @@
 #include "Character/CharacterDataComponent.h" // owner Luck for the pickup quality roll
 #include "Currency/EconomyYield.h"            // RollQuality (§11 weighted drop curve)
 #include "WoRAuthority.h"
+#include "GameFramework/PlayerController.h" // wor.Crystal.BreakLocked (B-534 debug)
+#include "HAL/IConsoleManager.h"
 #include <type_traits>                        // std::is_same_v for the weapon/ring socket templates
 
 namespace
@@ -2590,6 +2594,98 @@ bool UInventoryComponent::RemoveStoneFromRing(int32 RingIndex)
 {
     return RemoveCrystalFromGear(Rings, RingIndex, true);
 }
+
+bool UInventoryComponent::IsCrystalFixedOn(const FGuid &GearID) const
+{
+    if (const FWeaponInventoryEntry *Weapon = FindOwnedWeapon(GearID))
+    {
+        return GearSockets::IsCrystalFixed(*Weapon);
+    }
+    const FRingInventoryEntry *Ring = FindOwnedRing(GearID);
+    return Ring && GearSockets::IsCrystalFixed(*Ring);
+}
+
+bool UInventoryComponent::RestoreCrystal(const FGuid &GearID)
+{
+    if (!GearOpHasAuthority(GetOwner(), TEXT("RestoreCrystal")))
+    {
+        return false;
+    }
+    FWeaponInventoryEntry *Weapon = FindOwnedWeapon(GearID);
+    FRingInventoryEntry *Ring = Weapon ? nullptr : FindOwnedRing(GearID);
+    FRuntimeAttachedItem *Gem = Weapon ? &Weapon->AttachedItem : Ring ? &Ring->AttachedItem : nullptr;
+    const UCrystalInventoryComponent *Pouch = GetOwner() ? GetOwner()->FindComponentByClass<UCrystalInventoryComponent>() : nullptr;
+    if (!Gem || !GearRepair::CanRestore(*Gem, IsCrystalFixedOn(GearID)) || !Pouch ||
+        !UEconomyService::IsOutOfCombat(GetOwner(), TEXT("RestoreCrystal")))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RestoreCrystal: %s has no gem to restore here (or a fight is on)"), *GearID.ToString());
+        return false;
+    }
+    const GearRepair::FRestorePlan Plan = GearRepair::PlanRestore(*Gem, *Pouch);
+    if (Plan.Uses.IsEmpty() || !CommitRemoveCrystals(Plan.Uses))
+    {
+        UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] RestoreCrystal: nothing to spend (%s)"), *GearRepair::GetRestorePlanString(*Gem, Plan));
+        return false;
+    }
+    Gem->Crystal.CurrentDurability = Plan.NewDurability;
+    UE_LOG(LogTemp, Log, TEXT("[InventoryComponent] Restored %s: %s"), *GearID.ToString(), *GearRepair::GetRestorePlanString(*Gem, Plan));
+    HandleGearSocketChanged(GearID); // the loadouts and the run's carried copy read it again
+    BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    return true;
+}
+
+int32 UInventoryComponent::DebugBreakFixedCrystals()
+{
+    TArray<FGuid> Broken;
+    auto BreakIfLocked = [&Broken](auto &Entry)
+    {
+        if (GearSockets::IsCrystalFixed(Entry) && Entry.AttachedItem.IsCrystal() && !Entry.AttachedItem.IsBroken())
+        {
+            Entry.AttachedItem.Crystal.CurrentDurability = 0;
+            Broken.Add(Entry.PersistentID);
+        }
+    };
+    for (FWeaponInventoryEntry &Weapon : Weapons)
+    {
+        BreakIfLocked(Weapon);
+    }
+    for (FRingInventoryEntry &Ring : Rings)
+    {
+        BreakIfLocked(Ring);
+    }
+    for (const FGuid &GearID : Broken)
+    {
+        HandleGearSocketChanged(GearID);
+    }
+    if (!Broken.IsEmpty())
+    {
+        BroadcastInventoryChanged(EInventoryChangeType::Equipped);
+    }
+    UE_LOG(LogTemp, Display, TEXT("[InventoryComponent] DebugBreakFixedCrystals: %d locked gem(s) broken"), Broken.Num());
+    return Broken.Num();
+}
+
+#if !UE_BUILD_SHIPPING
+namespace
+{
+    FAutoConsoleCommandWithWorld GBreakLockedCrystalsCmd(
+        TEXT("wor.Crystal.BreakLocked"),
+        TEXT("DEBUG (B-534): wear every locked prebuilt gem the played character owns to 0, to check Restore."),
+        FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+        {
+            const APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+            const APawn *Pawn = PC ? PC->GetPawn() : nullptr;
+            if (UInventoryComponent *Inv = Pawn ? Pawn->FindComponentByClass<UInventoryComponent>() : nullptr)
+            {
+                Inv->DebugBreakFixedCrystals();
+            }
+            else
+            {
+                UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] wor.Crystal.BreakLocked: no played pawn with an Inventory component."));
+            }
+        }));
+}
+#endif
 
 // ==================== EVOLUTION HELPERS ====================
 
