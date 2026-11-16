@@ -18,6 +18,7 @@ enum class EPauseMenuPage : uint8
 	Loadout,
 	Inventory,
 	Character,
+	Forms, // B-536: the Spirit of {character} screen (B-444), was console-only
 	Party,
 	Journal,
 	Settings,

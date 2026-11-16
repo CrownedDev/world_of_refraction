@@ -81,6 +81,8 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, co
 					   LOCTEXT("InventoryPreview", "Gear, pouch and chest.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Character, LOCTEXT("Character", "Character"),
 					   LOCTEXT("CharacterPreview", "Pillars, substats and resistances.")));
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Forms, LOCTEXT("Forms", "Forms"),
+					   LOCTEXT("FormsPreview", "Wear a character's form, or switch your base body.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Party, LOCTEXT("Party", "Party"),
 					   LOCTEXT("PartyPreview", "Who plays each member, and where they start a fight.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Journal, LOCTEXT("Journal", "Journal"),
