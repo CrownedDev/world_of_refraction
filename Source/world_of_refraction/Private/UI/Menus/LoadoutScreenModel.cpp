@@ -155,7 +155,7 @@ namespace LoadoutScreenBuild
 		Row.Tier = WoRGameNames::GetTierLetter(Gear.Tier);
 		Row.Sockets.Add(MakeSocket(Gear.AttachedItem, LOCTEXT("SocketCrystal", "Crystal")));
 		Row.Sockets.Add(MakeSocket(Gear.StoneSocket, LOCTEXT("SocketStone", "Stone")));
-		Row.bSocketsFixed = GearSockets::IsSocketFixed(Gear);
+		Row.bCrystalFixed = GearSockets::IsCrystalFixed(Gear);
 		Row.Cost = FLoadoutRules::SlotCost(Slot);
 		Row.CostLine = FormatCostLine(Slot, Row.Cost);
 
@@ -885,25 +885,19 @@ FText WoRLoadoutScreen::GetTakeOffSocketWarning(const FLoadoutScreenRow &Row, in
 		OutRefusal = LOCTEXT("RefuseSocketEmpty", "Nothing in this socket.");
 		return FText::GetEmpty();
 	}
-	if (Row.bSocketsFixed) // D-231 (B-532)
+	const bool bFirstSocket = Socket == LoadoutScreenSockets::CRYSTAL;
+	if (bFirstSocket && Row.bCrystalFixed) // D-231 (B-532)
 	{
-		OutRefusal = Socket == LoadoutScreenSockets::CRYSTAL
-						 ? LOCTEXT("RefuseFixedCrystal", "This prebuilt's crystal is built in: it can't be taken out.")
-						 : LOCTEXT("RefuseFixedStone", "The stone can't come off: it would take the built-in crystal with it.");
+		OutRefusal = LOCTEXT("RefuseFixedCrystal", "This prebuilt's crystal is built in: it can't be taken out.");
 		return FText::GetEmpty();
 	}
-	const FLoadoutScreenSocket &Crystal = Row.Sockets[LoadoutScreenSockets::CRYSTAL];
-	if (Crystal.bEvolution)
+	const FLoadoutScreenSocket &Taken = Row.Sockets[Socket];
+	if (bFirstSocket && Taken.bEvolution)
 	{
-		if (Socket != LoadoutScreenSockets::CRYSTAL)
-		{
-			OutRefusal = LOCTEXT("RefuseEvolutionFirst", "Take the evolution off first.");
-			return FText::GetEmpty();
-		}
-		return FText::Format(LOCTEXT("WarnEvolutionOff", "X again: {0} goes back to your evolutions with some wear (it breaks at none)."), Crystal.Name);
+		return FText::Format(LOCTEXT("WarnEvolutionOff", "X again: {0} goes back to your evolutions with some wear (it breaks at none)."), Taken.Name);
 	}
-	// CL-28b: the gem and the stone come off together, and a socketed gem or stone is used up.
-	return LOCTEXT("WarnCrystalOff", "X again: what's in both sockets comes off and is destroyed.");
+	// CL-28b (B-533, D-231): only this socket empties; a socketed gem or stone is used up.
+	return FText::Format(LOCTEXT("WarnSocketOff", "X again: {0} comes out and is destroyed. The other socket keeps its own."), Taken.Name);
 }
 
 FText WoRLoadoutScreen::TakeOffSocket(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket)
@@ -920,19 +914,20 @@ FText WoRLoadoutScreen::TakeOffSocket(UWorld *World, const FLoadoutScreenMember 
 	}
 	const bool bAdapter = Row.Kind == ELoadoutScreenRowKind::Adapter;
 	bool bDone = false;
-	if (Row.Sockets[LoadoutScreenSockets::CRYSTAL].bEvolution)
+	const bool bStone = Socket == LoadoutScreenSockets::STONE; // B-533: only the chosen socket
+	if (!bStone && Row.Sockets[LoadoutScreenSockets::CRYSTAL].bEvolution)
 	{
 		bDone = bAdapter ? Inventory->RemoveEvolutionFromRing(Row.GearID) : Inventory->RemoveEvolutionFromWeapon(Row.GearID);
 	}
 	else if (bAdapter)
 	{
 		const int32 Index = Inventory->Rings.IndexOfByPredicate([&Row](const FRingInventoryEntry &Owned) { return Owned.PersistentID == Row.GearID; });
-		bDone = Index != INDEX_NONE && Inventory->RemoveCrystalFromRing(Index);
+		bDone = Index != INDEX_NONE && (bStone ? Inventory->RemoveStoneFromRing(Index) : Inventory->RemoveCrystalFromRing(Index));
 	}
 	else
 	{
 		const int32 Index = Inventory->Weapons.IndexOfByPredicate([&Row](const FWeaponInventoryEntry &Owned) { return Owned.PersistentID == Row.GearID; });
-		bDone = Index != INDEX_NONE && Inventory->RemoveCrystalFromWeapon(Index);
+		bDone = Index != INDEX_NONE && (bStone ? Inventory->RemoveStoneFromWeapon(Index) : Inventory->RemoveCrystalFromWeapon(Index));
 	}
 	return bDone ? FText::GetEmpty() : LOCTEXT("RefuseSocketRemove", "Couldn't take that off.");
 }
