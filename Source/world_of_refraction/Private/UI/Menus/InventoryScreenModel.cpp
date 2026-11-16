@@ -56,7 +56,8 @@ namespace InventoryScreenBuild
 		Tile.Icon.Name = Tile.Name;
 		Tile.bTierBadge = true;
 		Tile.bWorn = Inventory.IsEvolutionInUse(Entry.InstanceID);
-		Tile.Details.Add({LOCTEXT("DetailDurability", "Wear"), FText::Format(LOCTEXT("DurabilityOfMax", "{0} / {1}"),
+		// D-231: the wear number alone, no word
+		Tile.Details.Add({FText::GetEmpty(), FText::Format(LOCTEXT("DurabilityOfMax", "{0} / {1}"),
 																					 FText::AsNumber(Entry.CurrentDurability),
 																					 FText::AsNumber(Entry.Item->MaxDurability))});
 		Tile.Note = FText::FromString(Entry.Item->Description);
