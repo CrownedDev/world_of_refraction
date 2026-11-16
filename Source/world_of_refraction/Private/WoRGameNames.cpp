@@ -512,9 +512,8 @@ FText GetCurrencyName(ECurrencyType Currency)
     case ECurrencyType::EssenceTyped: // OBSOLETE (B-333)
         return LOCTEXT("ECurrencyType_EssenceTyped", "Typed Essence");
     case ECurrencyType::GearEssence:
-        return LOCTEXT("ECurrencyType_GearEssence", "Gear Essence");
-    case ECurrencyType::SkillEssence:
-        return LOCTEXT("ECurrencyType_SkillEssence", "Skill Essence");
+    case ECurrencyType::SkillEssence: // B-550 (D-235): one balance
+        return LOCTEXT("ECurrencyType_DormantEssence", "Dormant Essence");
     case ECurrencyType::ElementalEssence:
         return LOCTEXT("ECurrencyType_ElementalEssence", "Elemental Essence");
     case ECurrencyType::PillarEssence:

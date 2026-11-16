@@ -32,8 +32,8 @@ enum class ECurrencyType : uint8
     Prisms,       // persistent; account-shareable (routing wired later)
     Diamond,      // persistent; account-wide premium (routing wired later)
     EssenceTyped, // OBSOLETE (B-333): the 14 typed essences retire (D-125). Nothing earns or spends it now; delete in the sweep (D-124).
-    GearEssence,  // persistent; per-character; single scalar (levels weapons + rings)
-    SkillEssence, // persistent; per-character; single scalar (spells, abilities) — appended
+    GearEssence,  // persistent; per-character; single scalar. B-550 (D-235): Dormant Essence, gear and skills alike
+    SkillEssence, // OBSOLETE (B-550, D-235): folded into GearEssence (Dormant Essence); the wallet keeps it there (KeptIn)
     ElementalEssence, // B-333 (D-125): persistent scalar; pays for anything with an element (Quartz folds in) — appended
     PillarEssence,    // B-333 (D-125): persistent scalar; pays for stat stones — appended
     MentorTokens      // B-361b (D-154): persistent scalar, the player's own; earned playing together, spent teaching — appended
@@ -41,14 +41,21 @@ enum class ECurrencyType : uint8
 
 namespace CurrencyBalances
 {
-    /** B-333 (D-125): the seven balances, in display order. Gold is run money; the rest are banked. */
+    /** B-333 (D-125): the balances, in display order. Gold is run money; the rest are banked. B-550 (D-235): six since
+     *  Skill essence folded into Dormant Essence (GearEssence). */
     inline constexpr ECurrencyType SEVEN[] = {
         ECurrencyType::Gold, ECurrencyType::Prisms, ECurrencyType::Diamond, ECurrencyType::GearEssence,
-        ECurrencyType::SkillEssence, ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
-    /** B-361b (D-154): every live balance, in display order: D-125's seven, then Mentor Tokens. */
+        ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence};
+    /** B-361b (D-154): every live balance, in display order: D-125's, then Mentor Tokens. */
     inline constexpr ECurrencyType ALL[] = {
         ECurrencyType::Gold, ECurrencyType::Prisms, ECurrencyType::Diamond, ECurrencyType::GearEssence,
-        ECurrencyType::SkillEssence, ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence, ECurrencyType::MentorTokens};
+        ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence, ECurrencyType::MentorTokens};
+
+    /** B-550 (D-235): the balance a currency is kept in. Skill essence is Dormant Essence, kept as GearEssence. */
+    inline ECurrencyType KeptIn(ECurrencyType Currency)
+    {
+        return Currency == ECurrencyType::SkillEssence ? ECurrencyType::GearEssence : Currency;
+    }
 }
 
 /** OBSOLETE (B-333): the 14 typed-essence keys (10 element, 3 pillar, 1 ability) retire (D-125);

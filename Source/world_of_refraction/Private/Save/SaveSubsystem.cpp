@@ -54,7 +54,7 @@ namespace
 	/** The banked scalar currencies (B-333: six of the seven balances; B-361b: Mentor Tokens); Gold is run-only and
 	 *  the OBSOLETE EssenceTyped is per key. */
 	constexpr ECurrencyType BANKED_SCALARS[] = {ECurrencyType::Prisms, ECurrencyType::Diamond,
-												ECurrencyType::GearEssence, ECurrencyType::SkillEssence,
+												ECurrencyType::GearEssence, // B-550: Skill essence is kept here
 												ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence,
 												ECurrencyType::MentorTokens};
 
@@ -1701,17 +1701,22 @@ void USaveSubsystem::ApplyWallet(const FSavedWallet &Saved, UCurrencyComponent *
 	{
 		return;
 	}
+	// B-550 (D-235): an older save's Gear and Skill essence are added together into Dormant Essence.
+	TMap<TPair<ECurrencyType, uint8>, int32> Kept;
 	for (const FSavedBalance &Balance : Saved.Balances)
 	{
-		if (!StaticEnum<ECurrencyType>()->IsValidEnumValue(Balance.Currency))
+		if (StaticEnum<ECurrencyType>()->IsValidEnumValue(Balance.Currency))
 		{
-			continue;
+			Kept.FindOrAdd({CurrencyBalances::KeptIn(static_cast<ECurrencyType>(Balance.Currency)), Balance.SubKey}) += Balance.Amount;
 		}
-		const ECurrencyType Currency = static_cast<ECurrencyType>(Balance.Currency);
-		const int32 Missing = Balance.Amount - Wallet->GetBalance(Currency, Balance.SubKey);
+	}
+	for (const TPair<TPair<ECurrencyType, uint8>, int32> &Balance : Kept)
+	{
+		const ECurrencyType Currency = Balance.Key.Key;
+		const int32 Missing = Balance.Value - Wallet->GetBalance(Currency, Balance.Key.Value);
 		if (Currency != ECurrencyType::Gold && Missing > 0)
 		{
-			Wallet->Add(Currency, Missing, Balance.SubKey);
+			Wallet->Add(Currency, Missing, Balance.Key.Value);
 		}
 	}
 }

@@ -1270,6 +1270,7 @@ The queue of questions only Crown can answer.
 **Go-ahead (Crown, 2026-11-16):** build the merge; the save wipe is fine ("we have nothing important saved").
 **Also (Crown, same day):** the game menu's currency row sits on the right of the header and shows every balance, Elemental essence, Stat essence and Diamond included.
 **Built (B-543, in dev, 2026-11-16):** (1) Stat Essence in the shared name table (code, enum and save field stay `PillarEssence`); the game menu's right shows every balance. (2) The Dormant Essence merge is not built.
+**Built (B-550, in dev, 2026-11-16):** (2) one Dormant Essence balance (kept as `GearEssence` in code and saves); an older save's Gear and Skill essence are added together on load, so no wipe was needed. Gear upgrades and skill buys both charge it; run rewards and dismantling both pay it; the game menu, the rest spot, shop prices and the run tally show one Dormant Essence. Costs and yields keep their numbers.
 
 ### D-234 — An appearance mirror in the hub; the two base bodies are Male Nobody and Female Nobody; Enter picks on the quick strip
 **Status:** ANSWERED in part (Crown, 2026-11-16); two points open · **Raised:** 2026-11-16 · **Blocks:** nothing
