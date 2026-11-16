@@ -21,7 +21,7 @@ namespace
 	{
 		FTitleSaveSummary Save;
 		Save.bHasSave = true;
-		Save.Place = FText::FromString(TEXT("Void Realm"));
+		Save.Place = FText::FromString(TEXT("The Hub"));
 		Save.PartyNames = {FText::FromString(TEXT("Sera")), FText::FromString(TEXT("Garrick")), FText::FromString(TEXT("Bram"))};
 		Save.PlaySeconds = TITLE_TEST_FOURTEEN_AND_A_HALF_HOURS;
 		return Save;
@@ -54,7 +54,7 @@ void FTitleScreenSpec::Define()
 		TestTrue(TEXT("Continue first"), Rows[0].Id == ETitleScreenRow::Continue);
 		TestTrue(TEXT("usable"), Rows[0].CanUse());
 		const FString Line = Rows[0].Line.ToString();
-		TestTrue(TEXT("the place"), Line.Contains(TEXT("Void Realm")));
+		TestTrue(TEXT("the place"), Line.Contains(TEXT("The Hub")));
 		TestTrue(TEXT("the party"), Line.Contains(TEXT("Sera, Garrick, Bram")));
 		TestTrue(TEXT("whole hours"), Line.Contains(TEXT("14 h")));
 	});
