@@ -794,7 +794,9 @@ bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const
         // (purchases, authored gear) skip this and keep the factory's C_Quality placeholder.
         Entry.Quality = EconomyYield::RollQuality(ResolveInventoryOwnerLuck(this));
     }
-    const TEntry *Owned = Gear.FindByPredicate([&Asset](const TEntry &Other) { return GearEntryAsset(Other) == &Asset; });
+    // B-530 (D-223): every ring is an adapter, its own piece by what is socketed: several of one asset are no duplicate.
+    constexpr bool bDuplicateRule = std::is_same_v<TEntry, FWeaponInventoryEntry>;
+    const TEntry *Owned = bDuplicateRule ? Gear.FindByPredicate([&Asset](const TEntry &Other) { return GearEntryAsset(Other) == &Asset; }) : nullptr;
     const FGuid OwnedID = Owned ? Owned->PersistentID : FGuid();
     Gear.Add(Entry);
     PushGearToPool(Entry.PersistentID);
@@ -2036,8 +2038,7 @@ TArray<FDuplicateGearPair> UInventoryComponent::FindDuplicateGear() const
             }
         }
     };
-    Collect(Weapons, false);
-    Collect(Rings, true);
+    Collect(Weapons, false); // B-530 (D-223): not Rings: adapters of one asset are separate pieces
     return Pairs;
 }
 
@@ -2312,16 +2313,9 @@ void UInventoryComponent::HandlePoolGearChanged(FGuid GearID)
     }
     else if (const FRingInventoryEntry *SharedRing = bOthers ? nullptr : Pool->FindRingInPool(GearID))
     {
-        const bool bNew = FindOwned(Rings, GearID) == nullptr;
-        const FRingInventoryEntry *Twin = Rings.FindByPredicate([SharedRing](const FRingInventoryEntry &Other)
-            { return Other.PersistentID != SharedRing->PersistentID && Other.Ring && Other.Ring == SharedRing->Ring; });
-        const FGuid TwinID = Twin ? Twin->PersistentID : FGuid();
+        // B-530 (D-223): no duplicate choice for an adapter (AddGearEntry).
         MirrorShared(Rings, *SharedRing);
         RefreshLoadoutsFromOwned(GearID);
-        if (bNew)
-        {
-            NoteDuplicate(TwinID, GetNameSafe(SharedRing->Ring));
-        }
     }
     else if (const FEvolutionInventoryEntry *SharedEvolution = bOthers ? nullptr : Pool->FindEvolutionInPool(GearID))
     {

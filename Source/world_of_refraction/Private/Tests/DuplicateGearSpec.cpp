@@ -1,5 +1,5 @@
 // DuplicateGearSpec.cpp
-// B-319 (D-115): a character keeps one copy of a weapon or adapter. The weaker copy converts to Gold or is dismantled, and its loadout slots move to the kept copy.
+// B-319 (D-115): a character keeps one copy of a weapon (B-530, D-223: adapters are each their own piece). The weaker copy converts to Gold or is dismantled, and its loadout slots move to the kept copy.
 // B-366b (Q-366): the convert pays the currency of the place: the hub currency (ECurrencyType::Prisms, shown as Gold)
 // at home, the run currency (ECurrencyType::Gold, shown as Prisms) during a run.
 
@@ -7,12 +7,15 @@
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
+#include "InventoryChangeRecorder.h"
 #include "Character/CharacterData.h"
+#include "Character/CharacterDataComponent.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
+#include "Inventory/InventoryData.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Pool/PoolSubsystem.h"
 #include "Trial/TrialData.h"
@@ -148,19 +151,33 @@ void FDuplicateGearSpec::Define()
 		TestTrue(TEXT("no duplicates left"), Inventory->FindDuplicateGear().IsEmpty());
 	});
 
-	It("dismantles the weaker adapter for Gear essence", [this]()
+	It("dismantles the weaker copy for Gear essence", [this]()
 	{
-		URingData *Ring = NewObject<URingData>(GetTransientPackage());
-		Inventory->AddRing(Ring);
-		Inventory->AddRing(Ring);
+		OwnTwoSwords(EItemTier::F_Tier);
 		const TArray<FDuplicateGearPair> Pairs = Inventory->FindDuplicateGear();
 		if (!TestEqual(TEXT("one pair"), Pairs.Num(), 1)) return;
-		TestTrue(TEXT("an adapter pair"), Pairs[0].bRing);
 		const int32 EssenceBefore = Currency->GetGearEssence();
 
 		TestTrue(TEXT("dismantled"), Economy->ResolveDuplicate(Owner, Pairs[0].WeakerID, /*bConvertToGold=*/false));
-		TestEqual(TEXT("one adapter left"), Inventory->Rings.Num(), 1);
+		TestEqual(TEXT("one sword left"), Inventory->Weapons.Num(), 1);
 		TestTrue(TEXT("Gear essence granted"), Currency->GetGearEssence() > EssenceBefore);
+	});
+
+	It("owns several adapters of one asset with no duplicate choice (B-530, D-223)", [this]()
+	{
+		constexpr int32 SPARE_ADAPTERS = 5; // the Generic's start: five empty DA_Ring_Adapter
+		UDuplicateGearRecorder *Recorder = NewObject<UDuplicateGearRecorder>();
+		Recorder->Listen(Inventory);
+		URingData *Adapter = NewObject<URingData>(GetTransientPackage());
+		UCharacterData *Data = Owner->FindComponentByClass<UCharacterDataComponent>()->CharacterData;
+		Data->Inventory = NewObject<UInventoryData>(GetTransientPackage());
+		Data->Inventory->Rings.Init(Adapter, SPARE_ADAPTERS);
+		Inventory->InitializeFromInventoryAsset(Data);
+		TestEqual(TEXT("all five spares owned"), Inventory->Rings.Num(), SPARE_ADAPTERS);
+		Inventory->AddRing(Adapter);
+		TestEqual(TEXT("a sixth found one is kept too"), Inventory->Rings.Num(), SPARE_ADAPTERS + 1);
+		TestTrue(TEXT("no duplicate choice raised"), Recorder->NewIDs.IsEmpty());
+		TestTrue(TEXT("no duplicate pairs"), Inventory->FindDuplicateGear().IsEmpty());
 	});
 
 	It("refuses a piece that is no weaker copy", [this]()
