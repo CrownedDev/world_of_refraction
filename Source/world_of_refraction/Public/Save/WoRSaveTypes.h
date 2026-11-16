@@ -520,6 +520,13 @@ struct WORLD_OF_REFRACTION_API FSavedGearDetail
 	UPROPERTY()
 	FRuntimeAttachedItem StoneSocket;
 
+	/** D-231 (B-532, save v43): granted already built, and whether its own crystal may come out. */
+	UPROPERTY()
+	bool bPrebuilt = false;
+
+	UPROPERTY()
+	bool bCrystalRemovable = false;
+
 	/** OBSOLETE (D-224, B-517; deleted in stage 6): an owned piece holds no picks now (FSavedWornEntry has them).
 	 *  B-351 (D-145): a weapon's skill-slot picks, one ref per slot (an unset ref = the built-in), and whether its
 	 *  one list is active. Empty for an adapter. */
