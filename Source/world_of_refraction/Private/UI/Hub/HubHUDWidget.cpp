@@ -378,7 +378,7 @@ void UHubHUDWidget::RefreshFieldAttack()
 {
 	if (AttackStrips.IsEmpty())
 	{
-		return; // headless, or the hub: no strips
+		return; // headless, or the hub: no card strips
 	}
 	const APawn *Pawn = GetOwningPlayerPawn();
 	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
@@ -390,7 +390,7 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 {
 	if (!AttackStrips.IsValidIndex(AttackStripCard))
 	{
-		return; // headless, the hub, or no card for the pawn
+		return; // headless, the hub (no card strips), or no card for the pawn
 	}
 	SetFieldAttack(Entry); // B-503m: no flash (Crown: the text change is enough)
 }
