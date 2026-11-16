@@ -774,7 +774,7 @@ FText WoRGameNames::GetHeldPiecesName(const UWeaponData *MainHand, const UWeapon
     {
         return FText::GetEmpty();
     }
-    return OffHand ? FText::Format(LOCTEXT("HeldPieces", "{0} and {1}"), PieceName(MainHand), PieceName(OffHand)) : PieceName(MainHand);
+    return OffHand ? FText::Format(LOCTEXT("HeldPiecesPlus", "{0} + {1}"), PieceName(MainHand), PieceName(OffHand)) : PieceName(MainHand); // Crown: a plus, not "and"
 }
 
 FText WoRGameNames::GetAdapterName(const URingData *Adapter, const FRuntimeAttachedItem &Socket)

@@ -147,9 +147,9 @@ void FGameNamesSpec::Define()
 		Unnamed->Name = FString();
 		Unnamed->WeaponType = EWeaponType::Axe;
 		TestEqual(TEXT("one piece: its name"), WoRGameNames::GetHeldPiecesName(Sword).ToString(), FString(TEXT("Flame Sword")));
-		TestEqual(TEXT("with its off hand"), WoRGameNames::GetHeldPiecesName(Sword, Shield).ToString(), FString(TEXT("Flame Sword and Void Shield")));
+		TestEqual(TEXT("with its off hand"), WoRGameNames::GetHeldPiecesName(Sword, Shield).ToString(), FString(TEXT("Flame Sword + Void Shield")));
 		TestEqual(TEXT("a piece with no name gives its type"), WoRGameNames::GetHeldPiecesName(Sword, Unnamed).ToString(),
-				  FString::Printf(TEXT("Flame Sword and %s"), *WoRGameNames::GetWeaponTypeName(EWeaponType::Axe).ToString()));
+				  FString::Printf(TEXT("Flame Sword + %s"), *WoRGameNames::GetWeaponTypeName(EWeaponType::Axe).ToString()));
 		TestTrue(TEXT("no main hand"), WoRGameNames::GetHeldPiecesName(nullptr, Shield).IsEmpty());
 	});
 
