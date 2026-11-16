@@ -314,7 +314,6 @@ struct WORLD_OF_REFRACTION_API FSavedRunMark
 	int32 HomeDurability = 0;
 };
 
-/** B-208 (Q-090, Q-208): the trial run as the last fight's exit left it; reloading resumes it. */
 /** CS-5 (audit clash 5): one character's run levels (UTrialRunSubsystem::RunLevels and UnspentLevels). */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedRunLevels
@@ -352,6 +351,7 @@ struct WORLD_OF_REFRACTION_API FSavedRunLevels
 	int32 Unspent = 0;
 };
 
+/** B-208 (Q-090, Q-208): the trial run as the last fight's exit left it; reloading resumes it. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FSavedRun
 {
