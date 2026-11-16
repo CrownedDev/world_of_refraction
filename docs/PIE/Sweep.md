@@ -92,6 +92,7 @@
 | 43 | `ETargetType_Legacy` — `Public/Combat/TargetType.h:10` | `ETargetType` + `ETargetCount` (`USkillDataBase::PostLoad`) | Editor: re-save every skill asset (no PIE check) | sweep | [ ] |
 | 49 | `ATrialNPC`, `WoRTrialNPC` and `UTrialNPCWidget`; `wor.Trial.SpawnV`, `wor.Trial.PrintNPCs`; spec `WoR.Trial.NPC` — `Public/Trial/TrialNPC.h`, `Public/UI/Trial/TrialNPCWidget.h` (B-502) | Rest point services (`ERestService::Extract`, D-214) | [B-502](B-502.md) checks 7 and 8, after its editor step 3 (no `ATrialNPC` left in any map) | sweep | [ ] |
 | 50 | `FieldSkillRules::NextSource` and `FIELD_ATTACK_SOURCE_COUNT` (B-214g's Innate → Weapon → Ring switch), with their two lines in `WoR.Field.Attack` — `Public/Field/FieldSkillTypes.h` (B-503, D-215) | The loadout cycle (`NextFieldAttackIndex`, `UFieldMovementComponent::CycleFieldAttack`) | [B-503](B-503.md) checks 1 and 2 | sweep | [ ] |
+| 51 | `GTitleLeftThisLaunch` and `UTitleScreenWidget::MarkLeftThisLaunch` (and its call in `NewGameScreenWidget.cpp`) — `Private/UI/Menus/TitleScreenWidget.cpp` (B-469) | `OpenAtLaunch` keyed on the game instance (B-535) | PIE of B-535, checks 1 to 3 | sweep | [ ] |
 
 ## Flags on branches not yet in `dev`
 

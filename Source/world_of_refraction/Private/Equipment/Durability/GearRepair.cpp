@@ -3,6 +3,8 @@
 #include "Equipment/Durability/GearRepair.h"
 #include "Currency/CurrencyComponent.h"
 #include "Currency/EconomyService.h"
+#include "Currency/EconomyYield.h"
+#include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
@@ -117,6 +119,54 @@ namespace
 				UE_LOG(LogWoR, Display, TEXT("[GearRepair] wor.Party.Repair: nothing repaired (no party or wallet, nothing worn, or not enough money)"));
 			}
 		}));
+}
+
+bool GearRepair::CanRestore(const FRuntimeAttachedItem &Gem, bool bLocked)
+{
+	return Gem.IsCrystal() && Gem.GetCurrentDurability() < Gem.GetMaxDurability() && (bLocked || !Gem.IsBroken());
+}
+
+GearRepair::FRestorePlan GearRepair::PlanRestore(const FRuntimeAttachedItem &Gem, const UCrystalInventoryComponent &Pouch)
+{
+	FRestorePlan Plan;
+	Plan.MaxDurability = Gem.GetMaxDurability();
+	const int32 Current = FMath::Clamp(Gem.GetCurrentDurability(), 0, Plan.MaxDurability);
+	Plan.NewDurability = Current;
+	const int32 TargetValue = EconomyYield::GetCrystalValue(Gem.Crystal.Id.Tier);
+	if (!Gem.IsCrystal() || TargetValue <= 0 || Plan.MaxDurability <= 0)
+	{
+		return Plan;
+	}
+	// Value units still missing, in the merge's F-units scaled to this gem's tier (TargetValue fills it).
+	const int32 Needed = FMath::DivideAndRoundUp((Plan.MaxDurability - Current) * TargetValue, Plan.MaxDurability);
+	int32 Gathered = 0;
+	for (int32 TierIndex = 0; TierIndex <= TierHelpers::GetTierValue(EItemTier::S_Tier) && Gathered < Needed; ++TierIndex)
+	{
+		const FCrystalId Id(Gem.Crystal.Id.Type, TierHelpers::GetTierFromValue(TierIndex));
+		const int32 Value = EconomyYield::GetCrystalValue(Id.Tier);
+		for (int32 Held = Pouch.GetCount(Id); Held > 0 && Value > 0 && Gathered < Needed; --Held)
+		{
+			Plan.Uses.Add(Id);
+			Gathered += Value;
+		}
+	}
+	Plan.NewDurability = FMath::Min(Plan.MaxDurability, Current + Plan.MaxDurability * Gathered / TargetValue);
+	if (Plan.NewDurability <= Current)
+	{
+		Plan.Uses.Reset(); // a share too small to add a point (one F on a big S gem) spends nothing
+	}
+	return Plan;
+}
+
+FString GearRepair::GetRestorePlanString(const FRuntimeAttachedItem &Gem, const FRestorePlan &Plan)
+{
+	FString Uses;
+	for (const FCrystalId &Id : Plan.Uses)
+	{
+		Uses += FString::Printf(TEXT("%s%s"), Uses.IsEmpty() ? TEXT("") : TEXT(", "), *TierHelpers::GetTierName(Id.Tier));
+	}
+	return FString::Printf(TEXT("%s %s: %s -> %d / %d"), *UEnum::GetValueAsString(Gem.Crystal.Id.Type), *TierHelpers::GetTierName(Gem.Crystal.Id.Tier),
+						   Uses.IsEmpty() ? TEXT("nothing to spend") : *Uses, Plan.NewDurability, Plan.MaxDurability);
 }
 
 int32 GearRepair::GetGoldForTier(EItemTier Tier)

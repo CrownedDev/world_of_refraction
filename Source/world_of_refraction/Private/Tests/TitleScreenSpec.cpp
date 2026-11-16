@@ -90,6 +90,17 @@ void FTitleScreenSpec::Define()
 		TestTrue(TEXT("the old one"), WoRTitleScreen::GetOldVersionText(TITLE_TEST_OLD_VERSION).ToString().Contains(TEXT("31")));
 		TestTrue(TEXT("the one needed"), WoRTitleScreen::GetNeededVersionText().ToString().Contains(FString::FromInt(WoRSaveVersion::MIN_SUPPORTED)));
 	});
+
+	It("opens at start only on the default map, unless switched off or under tests (B-535)", [this]()
+	{
+		const FString Hub = TEXT("/Game/Level/TestLevel_Nav");
+		const FString Trial = TEXT("/Game/Level/TestLevel_Trial");
+		TestTrue(TEXT("The hub: opens"), WoRTitleScreen::ShouldOpenAtStart(true, false, Hub, Hub));
+		TestFalse(TEXT("A trial test level: doesn't"), WoRTitleScreen::ShouldOpenAtStart(true, false, Trial, Hub));
+		TestFalse(TEXT("wor.UI.TitleAtStart 0: doesn't"), WoRTitleScreen::ShouldOpenAtStart(false, false, Hub, Hub));
+		TestFalse(TEXT("Under tests: doesn't"), WoRTitleScreen::ShouldOpenAtStart(true, true, Hub, Hub));
+		TestFalse(TEXT("No default map set: doesn't"), WoRTitleScreen::ShouldOpenAtStart(true, false, FString(), FString()));
+	});
 }
 
 #endif

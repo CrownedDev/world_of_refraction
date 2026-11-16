@@ -148,7 +148,7 @@ FText CrystalDescription::GetItemEffectText(const FCrystalId &InId)
     case ECrystalType::ReflexStone:
         return LOCTEXT("ReflexStone", "A stone that raises Reflex when attached — widening the defense input window so incoming attacks are easier to react to and block.");
     case ECrystalType::DurabilityStone:
-        return FText::Format(LOCTEXT("DurabilityStone", "Reinforces an elemental fusion — adds {0} flat durability when fused with a crystal. Inert on its own or in a stone-only fusion."),
+        return FText::Format(LOCTEXT("DurabilityStone", "Reinforces an elemental fusion — adds {0} flat wear when fused with a crystal. Inert on its own or in a stone-only fusion."),
                              ItemIdentity::GetDurabilityStoneBonus(Id.Tier));
     case ECrystalType::HealingStone:
         return FText::Format(LOCTEXT("HealingStone", "Consume to instantly heal any target (ally or enemy) for {0}% of their max HP. Consume-only — attaching it to a weapon does nothing."),

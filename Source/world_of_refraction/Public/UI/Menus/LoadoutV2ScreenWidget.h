@@ -133,6 +133,8 @@ struct FLoadoutV2WindowItem
 	FText Refusal;
 	/** The piece already in the slot: A Removes it. */
 	bool bEquipped = false;
+	/** B-534 (D-231): the crystal socket's Restore line: A tops the gem up (Line says what it spends). */
+	bool bRestore = false;
 	FWeaponInventoryEntry Weapon;
 	FRingInventoryEntry Adapter;
 	FEvolutionInventoryEntry Evolution;

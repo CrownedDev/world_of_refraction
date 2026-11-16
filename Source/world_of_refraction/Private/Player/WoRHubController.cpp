@@ -14,6 +14,7 @@
 #include "InputActionValue.h"
 #include "InputMappingContext.h"
 #include "InputModifiers.h"
+#include "InputTriggers.h"
 #include "Character/CharacterDataComponent.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -53,6 +54,9 @@ namespace WoRHubControllerConstants
 	const FName FIELD_WHEEL_CONFIRM_ACTION_NAME = TEXT("IA_Field_WheelConfirm");
 	const FName FIELD_WHEEL_CLOSE_ACTION_NAME = TEXT("IA_Field_WheelClose");
 	const FName FIELD_WHEEL_CONTEXT_NAME = TEXT("IMC_Field_Wheel");
+	/** B-536: the game menu's second key (InputMap.md, Menus). */
+	const FName GAME_MENU_TAB_ACTION_NAME = TEXT("IA_UI_GameMenuTab");
+	const FName GAME_MENU_TAB_CONTEXT_NAME = TEXT("IMC_UI_GameMenuTab");
 	/** B-503m5: how often the cursor is read while the wheel is up (only then; the field has no tick for it). */
 	constexpr float FIELD_WHEEL_HOVER_SECONDS = 1.0f / 30.0f;
 }
@@ -157,8 +161,34 @@ void AWoRHubController::BuildCodeFieldActions()
 		   FieldKeysContext->GetMappings().Num(), *FIELD_KEYS_CONTEXT_NAME.ToString());
 }
 
+void AWoRHubController::BuildGameMenuTabKey()
+{
+	UEnhancedInputLocalPlayerSubsystem *Mappings =
+		ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer());
+	if (GameMenuTabContext || !Mappings)
+	{
+		return;
+	}
+	using namespace WoRHubControllerConstants;
+	GameMenuTabAction = NewObject<UInputAction>(this, GAME_MENU_TAB_ACTION_NAME);
+	GameMenuTabAction->ValueType = EInputActionValueType::Boolean;
+	GameMenuTabAction->bConsumeInput = false; // a hold of Tab still reaches the join request card
+	GameMenuTabContext = NewObject<UInputMappingContext>(this, GAME_MENU_TAB_CONTEXT_NAME);
+	GameMenuTabContext->MapKey(GameMenuTabAction, EKeys::Tab).Triggers.Add(NewObject<UInputTriggerTap>(GameMenuTabContext));
+	Mappings->AddMappingContext(GameMenuTabContext, WoRInputPriority::FIELD_KEYS);
+}
+
 void AWoRHubController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
+	if (GameMenuTabContext) // B-536: as the field keys below, none left for the next level's controller
+	{
+		if (UEnhancedInputLocalPlayerSubsystem *Mappings =
+				ULocalPlayer::GetSubsystem<UEnhancedInputLocalPlayerSubsystem>(GetLocalPlayer()))
+		{
+			Mappings->RemoveMappingContext(GameMenuTabContext);
+		}
+		GameMenuTabContext = nullptr;
+	}
 	// The local player outlives this controller: leave no stale field keys for the next level's controller.
 	if (FieldKeysContext)
 	{
@@ -216,11 +246,8 @@ void AWoRHubController::BeginPlay()
 		   *RootLayoutClass->GetName(), *UEnum::GetValueAsString(CurrentMode),
 		   WoRHubControllerConstants::ROOT_LAYOUT_ZORDER);
 
-	// B-467: the game opens on the title. Not in the editor's PIE (wor.UI.Title opens it there).
-	if (!GIsEditor)
-	{
-		UTitleScreenWidget::OpenAtLaunch(this);
-	}
+	// B-467, B-535: the game opens on the title, PIE included (the first map load of a session, the default map only).
+	UTitleScreenWidget::OpenAtLaunch(this);
 }
 
 void AWoRHubController::SetupInputComponent()
@@ -316,6 +343,11 @@ void AWoRHubController::SetupInputComponent()
 			   TEXT("[WoRHubController] No menu action: set DefaultToggleMenuAction in Config/DefaultGame.ini (now '%s'); "
 					"wor.UI.Pause stands in (B-439)"),
 			   *DefaultToggleMenuAction.ToString());
+	}
+	BuildGameMenuTabKey();
+	if (GameMenuTabAction)
+	{
+		EnhancedInput->BindAction(GameMenuTabAction, ETriggerEvent::Triggered, this, &AWoRHubController::HandleToggleMenu); // on the tap's release
 	}
 }
 

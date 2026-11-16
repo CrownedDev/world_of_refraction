@@ -4,6 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/GameInstance.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Inventory/InventoryComponent.h" // B-534: IsCrystalFixedOn
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/EAttachedItemKind.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -153,6 +154,15 @@ namespace
 		if (Slot.Kind == EAttachedItemKind::Evolution)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken evolution '%s' on %s kept (Q-159)"),
+				   *CrystalBreakDisplayName(Slot), *Actor->GetName());
+			return false;
+		}
+		// D-231 (B-534): a gem locked to its prebuilt piece is kept, broken, like an evolution, until Restore or a paid
+		// repair brings it back. An unlocked gem breaks as before.
+		const UInventoryComponent *Inventory = Actor->FindComponentByClass<UInventoryComponent>();
+		if (Inventory && Slot.Kind == EAttachedItemKind::Crystal && Slot.GearID.IsValid() && Inventory->IsCrystalFixedOn(Slot.GearID))
+		{
+			UE_LOG(LogTemp, Log, TEXT("[CombatOrchestrator] Broken locked crystal '%s' on %s kept (D-231)"),
 				   *CrystalBreakDisplayName(Slot), *Actor->GetName());
 			return false;
 		}

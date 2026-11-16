@@ -946,6 +946,10 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	case ELoadoutV2Mode::WindowSlots:
 		return LOCTEXT("HintsSlots", "{Confirm}  Open        {Second}  Confirm        {Back}  Cancel");
 	case ELoadoutV2Mode::WindowItems:
+		if (Items.IsValidIndex(Selected) && Items[Selected].bRestore)
+		{
+			return LOCTEXT("HintsItemsRestore", "{Confirm}  Restore        {Second}  Confirm        {Back}  Back");
+		}
 		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped
 				   ? LOCTEXT("HintsItemsEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Second}  Confirm        {Back}  Back")
 				   : LOCTEXT("HintsItems", "{Confirm}  Pick        {Toggle}  Compare        {Second}  Confirm        {Back}  Back");
@@ -1659,9 +1663,9 @@ void ULoadoutV2ScreenWidget::PressA()
 		{
 			return;
 		}
-		if (Items[Selected].bEquipped)
+		if (Items[Selected].bEquipped || Items[Selected].bRestore)
 		{
-			RemoveEquipped();
+			RemoveEquipped(); // B-534: the Restore line is done there too, without the arm step
 		}
 		else
 		{
@@ -2703,6 +2707,15 @@ void ULoadoutV2ScreenWidget::BuildItems()
 				Equipped.Refusal = Refusal;
 			}
 		}
+		const bool bRestoreLine = WoRLoadoutScreen::IsRestoreOffered(Row, Socket);
+		if (bRestoreLine)
+		{
+			FLoadoutV2WindowItem &Restore = Items.AddDefaulted_GetRef();
+			Restore.bRestore = true;
+			Restore.Name = LOCTEXT("RestoreLineName", "Restore");
+			Restore.Line = WoRLoadoutScreen::DescribeRestore(GetWorld(), Members[MemberIndex], Row, Restore.Refusal);
+			Restore.Line = Restore.Line.IsEmpty() ? Restore.Refusal : Restore.Line;
+		}
 		for (const FLoadoutScreenChoice &Choice : WoRLoadoutScreen::BuildSocketChoices(GetWorld(), Members[MemberIndex], Row, Socket, bNewEntry ? &Preview : nullptr))
 		{
 			FLoadoutV2WindowItem &Item = Items.AddDefaulted_GetRef();
@@ -2713,7 +2726,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 									  FText::AsNumber(Page.CellsBudget));
 			Item.Refusal = Choice.Refusal;
 		}
-		if (Items.Num() == 1 && Items[0].bEquipped)
+		if (Items.Num() == (bRestoreLine ? 2 : 1) && Items[0].bEquipped)
 		{
 			// Today's socket rule: a full socket is emptied first (its gem goes, CL-28b), then filled.
 			Items[0].Line = bRemoveArmed ? Items[0].Line : FText::FormatNamed(LOCTEXT("SocketFullLine", "{What} · {Confirm} Remove to put another in"), TEXT("What"), Items[0].Line);
@@ -2886,7 +2899,8 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 		{
 			return;
 		}
-		if (!bRemoveArmed)
+		const bool bRestore = Items.IsValidIndex(Selected) && Items[Selected].bRestore; // B-534: the line says what it spends
+		if (!bRestore && !bRemoveArmed)
 		{
 			bRemoveArmed = true; // says what comes off first (Q-440c)
 			FText Refusal;
@@ -2897,11 +2911,12 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 			return;
 		}
 		bRemoveArmed = false;
-		Message = WoRLoadoutScreen::TakeOffSocket(GetWorld(), Members[MemberIndex], Row, Socket);
+		Message = bRestore ? WoRLoadoutScreen::RestoreSocket(GetWorld(), Members[MemberIndex], Row)
+						   : WoRLoadoutScreen::TakeOffSocket(GetWorld(), Members[MemberIndex], Row, Socket);
 		if (Message.IsEmpty())
 		{
-			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: socket %d of %s emptied"), *Members[MemberIndex].Name.ToString(), Socket + 1,
-				   bNewEntry ? *Row.Name.ToString() : *EditEntry.Name.ToString());
+			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: socket %d of %s %s"), *Members[MemberIndex].Name.ToString(), Socket + 1,
+				   bNewEntry ? *Row.Name.ToString() : *EditEntry.Name.ToString(), bRestore ? TEXT("restored") : TEXT("emptied"));
 			// The piece changed: read its sockets again.
 			if (bNewEntry)
 			{
@@ -2911,6 +2926,7 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 			{
 				Draft = WoRLoadoutV2::DraftFromEntry(Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex], EditEntry);
 			}
+			Selected = bRestore ? 0 : Selected; // the Restore line goes once full: a second A mustn't land on a choice
 		}
 		RefreshData();
 		return;

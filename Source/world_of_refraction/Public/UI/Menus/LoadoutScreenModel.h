@@ -67,6 +67,10 @@ struct FLoadoutScreenSocket
 	bool bEmpty = true;
 	/** An evolution sits in it (it goes back to the owner when taken off; a gem or stone is destroyed). */
 	bool bEvolution = false;
+	/** B-534: what sits in it has no wear left. */
+	bool bBroken = false;
+	/** B-534: a gem below full wear (Restore can top it up). */
+	bool bWorn = false;
 };
 
 /** B-440c: a gear row's two sockets, as indices into FLoadoutScreenRow::Sockets. */
@@ -239,6 +243,18 @@ namespace WoRLoadoutScreen
 
 	/** Empties Row's Socket on the owned piece. Empty on success; else the reason. */
 	WORLD_OF_REFRACTION_API FText TakeOffSocket(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket);
+
+	/** D-231 (B-534): Row's Socket lists a Restore line: a gem below full, or a locked prebuilt's gem at 0 (an unlocked
+	 *  one at 0 is destroyed at fight end). */
+	WORLD_OF_REFRACTION_API bool IsRestoreOffered(const FLoadoutScreenRow &Row, int32 Socket);
+
+	/** B-534: what Restore would do, said before it is done: "Garnet (C) back to 50% for 2 Garnet (F), 1 Garnet (E)".
+	 *  Empty with OutRefusal when Member holds none of its crystals. */
+	WORLD_OF_REFRACTION_API FText DescribeRestore(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, FText &OutRefusal);
+
+	/** B-534: restores Row's gem from Member's crystals (UInventoryComponent::RestoreCrystal). Empty on success; else
+	 *  the reason. */
+	WORLD_OF_REFRACTION_API FText RestoreSocket(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row);
 
 	/** The weapon or adapter in Row's place of Loadout (at most one is set; neither for an empty place). */
 	WORLD_OF_REFRACTION_API void FindRowGear(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, FWeaponLoadoutEntry *&OutWeapon,

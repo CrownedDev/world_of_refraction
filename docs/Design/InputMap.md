@@ -18,7 +18,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Change the field attack (D-217, D-218; **B-514 (D-222): the quick strip**, replacing the round wheel): **hold** (0.5 s, `FIELD_SOURCE_HOLD_SECONDS`) **opens the quick strip** through the screen's middle (Breath of the Wild's quick-select): one icon tile per piece of gear (each weapon or pair, the adapters or rings, a Refractor's innate, the evolution), the piece in use tagged IN HAND, the world dimmed behind. **Left / right moves along the pieces** (wrapping at the ends; on PC A / D or the mouse wheel, down = next; the mouse cursor picks the tile under it once it moves). **Up / down cycles the piece's source** (a weapon plain / its crystal, Water / Ice, Reality's (R) Fire, Broken Darkness's Dark Fire; on PC W / S; down = next); the source is text under the row ("Excalibur (Fire)"). **A toggle** (B-503m5, D-218): it stays up after the key is let go; **A or a click on a tile confirms** and closes, **B, Backspace, RB or R closes** with no change (the menu key too); a click off the tiles does nothing; the character stands and the camera holds while it is up. A tap does nothing (RB's tap is the attack, row 15). The hub and trial maps (B-528, D-218: the pick writes the worn record's piece in hand, as in a trial); the strip above the card stays a trial's (D-216) | Hold R; strip: A / D or mouse wheel (pieces), W / S (source), mouse cursor, click | Hold RB (R1); strip: D-pad or left stick left / right (pieces), up / down (source) | `IA_Field_SwitchSource` | Code bound (B-214g: config `DefaultFieldSwitchSourceAction`; Started / Completed / Canceled; the action keeps its B-214g name so the asset and the ini line stand). Editor step: none needed. B-503e: with no asset the controller makes it in code (context `IMC_Field_Keys`, priority `FIELD_KEYS`, keys not eaten); an asset named in the ini line wins (it must have no Pressed trigger). B-503m4: LB removed (free on the map; RT too). The strip's keys are always made in code, in `IMC_Field_Wheel` (priority `FIELD_WHEEL`), mapped only while it is up, all eaten: B-514: `IA_Field_StripMove` (1D, Started: D-pad Right / Left Stick Right / D, D-pad Left / Left Stick Left / A negated; was `IA_Field_WheelPick`), `IA_Field_StripSource` (1D, Started: D-pad Down / Left Stick Down / S, D-pad Up / Left Stick Up / W negated; was `IA_Field_WheelElement`), `IA_Field_WheelMouse` (2D, Mouse XY: only eats the mouse's travel, the cursor picks), `IA_Field_WheelScroll` (1D, Mouse Wheel Axis: along the pieces), `IA_Field_WheelConfirm` (Gamepad Face Bottom, Left Mouse), `IA_Field_WheelClose` (Gamepad Face Right, Backspace, RB, R) |
 | Fly up / down (while flying, D-099) | Space (up) / Left Ctrl (down) | A (Cross) up / R3 click down | `IA_Field_FlyVertical` | Code bound (B-214g, Q-214g: config `DefaultFieldFlyVerticalAction`, a 1D axis, Triggered → `AddFlightVerticalInput`; Minecraft-style flight: jump up, crouch / right stick click down; B stays Back). Space / A are also Jump: a jump does nothing while flying. Editor step: none needed. B-503e: with no asset the controller makes it in code with these keys (context `IMC_Field_Keys`, priority `FIELD_KEYS`, keys not eaten); an asset named in the ini line wins (Left Ctrl / R3 through a Negate modifier) |
 | Interact (doors, merchants, recruits, fragments, rest spots; the hub HUD's prompt shows this key, B-443) | E | X (Square) | `IA_Interact` | Built (gamepad key: check editor) |
-| Menu / pause | Esc | Menu (Options) | `IA_ToggleMenu` | Built (B-439: opens the game menu, see Menus; keys: check editor) |
+| Menu / pause | Esc; **tap Tab** (B-536) | Menu (Options) | `IA_ToggleMenu`; `IA_UI_GameMenuTab` (Tab, code-built) | Built (B-439: opens the game menu, see Menus; keys: check editor). B-536: Tab, see Menus |
 | Map | M | View (Touchpad) | `IA_Field_Map` | Proposed |
 | Journal (memories, lore) | J | D-pad Up | `IA_Field_Journal` | Proposed |
 
@@ -49,6 +49,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
 | Open the game menu | Esc | Menu (Options) | `IA_ToggleMenu` | Built (B-439): `AWoRHubController::OpenGameMenu`, hub and trial map (not in a battle). Console: `wor.UI.Pause`. In the editor Esc ends PIE, so use the gamepad or the console |
+| Open the game menu, the second key (it works in PIE, where Esc ends the session); Tab again closes it | tap Tab (released within 0.2 s); in the menu Tab closes like Back | Menu (Options), as above | `IA_UI_GameMenuTab` (code-built, Tap trigger, doesn't eat the key) | Built (B-536): `AWoRHubController::BuildGameMenuTabKey`, context `IMC_UI_GameMenuTab`. A **hold** of Tab stays the host's join request answer (B-459c, row below): the tap fires on release, so the two don't meet. Tab is the common second menu key on PC; nothing else on the map uses it (the boss cinematic skip is combat-only) |
 | Move up / down a list | Up / Down, W / S, mouse over a row | D-pad, left stick | none (the screen's keys) | Built (B-439, game menu) |
 | Select | Enter, Space, left click | A (Cross) | none | Built (B-439, game menu) |
 | Hold to confirm (Quit) | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-439, D-176): 2 seconds, after a first press asks; with Hold to confirm off (B-453c), a second press instead |
@@ -107,6 +108,30 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Back / close | **Backspace** (the key every footer names, B-481), Esc | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu; B-481: every code-built menu takes both through `WoRMenuStyle::IsBackKey`; Esc ends PIE in the editor, so the footer says "Backspace  Back"). A focused text box (the v2 loadout's name box) keeps Backspace for typing; Enter keeps the name, Esc drops it. In a fight Backspace is End Turn (B-170e): no menu screen is open there |
 | Key hints (every code-built menu's footer, tab key labels, hold hints, the hub prompt): the keys named are the device's in use | any keyboard key or mouse input: keyboard names (Enter, Backspace, X, R, Q / E, Z / C, 6) | any gamepad input: button names (A, B, X, Y, LB / RB, LT / RT, L3) | none (CommonUI's input type, `UCommonInputSubsystem`) | Built (B-481): `WoRKeyHints` (`UI/WoRKeyHintText.h`): a hint is a pattern (`{Confirm}  Select        {Back}  Back`), `WoRMenuStyle::MakeHintText` + `WoRKeyHints::SetHint`; switches live. `wor.UI.KeyHints.Print` |
 
+## Screens and how they are reached (B-536)
+
+Every player screen as of 2026-11-16. "Console only" means a player could not reach it by playing.
+
+| Screen | Reached by | Console |
+|---|---|---|
+| Title | Opens at the start of a session (B-535); Quit to title | `wor.UI.Title` |
+| New game, Credits | The title's rows | `wor.UI.NewGame`, `wor.UI.Credits` |
+| Game menu | Esc, **tap Tab** (B-536), gamepad Menu | `wor.UI.Pause` |
+| Loadout v2 (Equipment, with its Inventory tab, Skills, Apparel) | Game menu > Loadout; the Gate screen | `wor.UI.LoadoutV2` |
+| Inventory | Game menu > Inventory | `wor.UI.InventoryScreen` |
+| Character sheet | Game menu > Character | `wor.UI.Sheet` |
+| **Forms ("Spirit of {character}")** | **Game menu > Forms (B-536; was console only)** | `wor.UI.Forms` |
+| Party (and its Invite) | Game menu > Party | `wor.UI.Party` |
+| Journal | Game menu > Journal; the hub's journal station (memories) | `wor.UI.Journal` |
+| Settings | Game menu > Settings; the title | `wor.UI.Settings` |
+| Vendor (Buy, Sell, Dismantle, Item slots, Repair, Curses, Merge) | A merchant; a rest spot | `wor.UI.VendorScreen` |
+| Rest spot (rest, level drops, hand over host) | Interact at a rest spot | — |
+| Gate | Interact at a trial door | `wor.UI.Gate` |
+| Recruit card | Interact with a character | `wor.UI.RecruitCard` |
+| Join request card | Hold Tab / View when a friend asks to join | `wor.UI.AnswerJoinRequest` |
+
+Still console only, on purpose (each has a replacement the player reaches): the placeholders `wor.UI.Inventory`, `wor.UI.Give`, `wor.UI.Storage`, `wor.UI.Dismantle`, `wor.UI.Duplicates` (the inventory screen's verbs, OBSOLETE B-339), `wor.UI.Vendor`, `wor.UI.ItemSlots`, `wor.UI.ClearCurse` (the vendor screen's tabs), `wor.UI.FormsOld` (the Forms screen), `wor.UI.PartyControl` (the Party screen).
+
 ## Mapping contexts (B-129)
 
 Higher priority wins a key two contexts both map. The numbers live in `WoRInputPriority` (`Public/Player/InputPriorities.h`); no literal priority is left in C++.
@@ -117,6 +142,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | Combat (editor-authored: Guard, Dodge) | `ACombatPlayerController::CombatMappingContext` | `COMBAT` = 0 | Built (B-129: named) |
 | Combat menu keys (code-built: Defend, infusion, category keys, skip cinematic) | `ACombatPlayerController::BuildMenuKeys` | `COMBAT_MENU_KEYS` = `COMBAT` + 1 | Built (B-129: named; was `CombatMenuKeys::CONTEXT_PRIORITY`) |
 | Join request card (code-built: hold to answer) | `UJoinRequestCardPresenter::AddHoldKey`, only while a join request waits | `JOIN_REQUEST_CARD` = `COMBAT_MENU_KEYS` + 1 | Built (B-459c) |
+| Game menu Tab (code-built: tap Tab opens the game menu) | `AWoRHubController::BuildGameMenuTabKey` (hub and trial map) | `FIELD_KEYS` = `EXPLORATION` + 1 | Built (B-536) |
 
 ## Notes
 
@@ -181,4 +207,5 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-15 | Field attack wheel (row 18): a toggle: the hold opens it and it stays up; A or a click confirms and closes, B / Backspace / RB / R closes with no change; on keyboard and mouse the cursor shows and picks the slice under it; the character stands and the camera holds while it is up (B-503m5, D-218) | feature/B-503m5-wheel-toggle |
 | 2026-11-15 | Loadout v2: the Weapons tab is named Equipment and its add row + Add equipment (D-220); no key changes (B-503u) | feature/B-503u-equipment-tab |
 | 2026-11-16 | Quick strip and field attack (rows 15, 18): they work in the hub too, same keys as a trial; no key changes (B-528, D-218) | feature/B-528-hub-quick-strip |
+| 2026-11-16 | B-536: tap Tab opens the game menu (`IA_UI_GameMenuTab`, code-built, works in PIE), Tab closes it; a screens table; the game menu gains Forms | feature/B-536-menu-reaches-screens |
 | 2026-11-14 | Loadout v2: X Compare in the apparel picker and for every Add gear list (B-476e) | feature/B-476e-loadout-v2-compare-on-dev-cloud |
