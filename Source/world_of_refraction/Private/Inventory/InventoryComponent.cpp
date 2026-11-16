@@ -2038,7 +2038,9 @@ TArray<FDuplicateGearPair> UInventoryComponent::FindDuplicateGear() const
             }
         }
     };
-    Collect(Weapons, false); // B-530 (D-223): not Rings: adapters of one asset are separate pieces
+    // B-530 (D-223): not Rings: adapters of one asset are separate pieces. TODO: drop Collect's bRing (and
+    // FDuplicateGearPair::bRing) after Crown's PIE pass.
+    Collect(Weapons, false);
     return Pairs;
 }
 
