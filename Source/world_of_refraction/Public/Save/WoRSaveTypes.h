@@ -627,6 +627,10 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 	UPROPERTY()
 	FGuid SecondaryOffHandInstance;
 
+	/** D-224 (B-517, save v42): each entry's skill and spell picks by piece (FSavedLoadout::EntryPicks). */
+	UPROPERTY()
+	TArray<FSavedWornEntry> EntryPicks;
+
 	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
 	UPROPERTY()
 	TArray<FSavedAssetRef> Adapters;

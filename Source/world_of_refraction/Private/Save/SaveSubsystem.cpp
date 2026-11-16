@@ -252,6 +252,40 @@ TArray<FSpellRef> RestoreLoadoutSpellRefs(const TArray<FSavedAssetRef> &Refs)
 	return Spells;
 }
 
+/** D-224 (B-517): one worn or loadout entry, its picks one ref per slot (an empty slot kept). */
+FSavedWornEntry SaveWornEntry(const FLoadoutSlot &Entry)
+{
+	FSavedWornEntry Out;
+	Out.GearID = Entry.GearID;
+	Out.OffHandID = Entry.OffHandID;
+	for (const UAbilityData *Pick : Entry.AssignedAbilities)
+	{
+		Out.Abilities.Add(FSavedAssetRef::Make(Pick));
+	}
+	for (const USpellData *Pick : Entry.SpellOverrides)
+	{
+		Out.Spells.Add(FSavedAssetRef::Make(Pick));
+	}
+	return Out;
+}
+
+/** SaveWornEntry's way back; a gone skill leaves its slot empty. */
+FLoadoutSlot RestoreWornEntry(const FSavedWornEntry &In)
+{
+	FLoadoutSlot Entry;
+	Entry.GearID = In.GearID;
+	Entry.OffHandID = In.OffHandID;
+	for (const FSavedAssetRef &Ref : In.Abilities)
+	{
+		Entry.AssignedAbilities.Add(Ref.IsSet() ? Ref.ResolveAs<UAbilityData>() : nullptr);
+	}
+	for (const FSavedAssetRef &Ref : In.Spells)
+	{
+		Entry.SpellOverrides.Add(Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr);
+	}
+	return Entry;
+}
+
 FSavedCustomLoadout SaveCustomLoadout(const FSavedLoadout &Loadout)
 {
 	FSavedCustomLoadout Saved;
@@ -309,6 +343,10 @@ FSavedCustomLoadout SaveCustomLoadout(const FSavedLoadout &Loadout)
 		Out.Element = static_cast<uint8>(Pool.Element);
 		Out.Spells = SaveLoadoutSpellRefs(Pool.Spells);
 	}
+	for (const FLoadoutSlot &Entry : Loadout.EntryPicks)
+	{
+		Saved.EntryPicks.Add(SaveWornEntry(Entry));
+	}
 	return Saved;
 }
 
@@ -359,6 +397,10 @@ FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
 		Pool.Element = static_cast<ESpellElement>(In.Element);
 		Pool.Spells = RestoreLoadoutSpellRefs(In.Spells);
 	}
+	for (const FSavedWornEntry &In : Saved.EntryPicks)
+	{
+		Loadout.EntryPicks.Add(RestoreWornEntry(In));
+	}
 	return Loadout;
 }
 
@@ -369,17 +411,7 @@ FSavedWornGear SaveWornGearRecord(FName Character, const FWornGear &Worn)
 	Out.Character = Character;
 	for (const FLoadoutSlot &Entry : Worn.Equipment)
 	{
-		FSavedWornEntry &OutEntry = Out.Equipment.AddDefaulted_GetRef();
-		OutEntry.GearID = Entry.GearID;
-		OutEntry.OffHandID = Entry.OffHandID;
-		for (const UAbilityData *Pick : Entry.AssignedAbilities) // B-517: one ref per slot, empty slots kept
-		{
-			OutEntry.Abilities.Add(FSavedAssetRef::Make(Pick));
-		}
-		for (const USpellData *Pick : Entry.SpellOverrides)
-		{
-			OutEntry.Spells.Add(FSavedAssetRef::Make(Pick));
-		}
+		Out.Equipment.Add(SaveWornEntry(Entry));
 	}
 	Out.ActiveGearID = Worn.ActiveGearID;
 	Out.EvolutionID = Worn.EvolutionID;
@@ -412,17 +444,7 @@ TMap<FName, FWornGear> RestoreWornGearRecords(const TArray<FSavedWornGear> &Save
 		FWornGear &Worn = WornGear.Add(In.Character);
 		for (const FSavedWornEntry &InEntry : In.Equipment)
 		{
-			FLoadoutSlot &Entry = Worn.Equipment.AddDefaulted_GetRef();
-			Entry.GearID = InEntry.GearID;
-			Entry.OffHandID = InEntry.OffHandID;
-			for (const FSavedAssetRef &Ref : InEntry.Abilities) // B-517: a gone skill leaves its slot empty
-			{
-				Entry.AssignedAbilities.Add(Ref.IsSet() ? Ref.ResolveAs<UAbilityData>() : nullptr);
-			}
-			for (const FSavedAssetRef &Ref : InEntry.Spells)
-			{
-				Entry.SpellOverrides.Add(Ref.IsSet() ? Ref.ResolveAs<USpellData>() : nullptr);
-			}
+			Worn.Equipment.Add(RestoreWornEntry(InEntry));
 		}
 		Worn.ActiveGearID = In.ActiveGearID;
 		Worn.EvolutionID = In.EvolutionID;
