@@ -5,6 +5,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CombatCharacter.h"
 #include "Engine/GameInstance.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "GameFramework/PlayerController.h"
 #include "Loadout/LoadoutRules.h"
 #include "Party/Party.h"
@@ -28,6 +29,199 @@ const TArray<ESpellElement> &WoRNewGame::GetElements()
 												   ESpellElement::Wind, ESpellElement::Light, ESpellElement::Darkness,
 												   ESpellElement::Lightning, ESpellElement::Void, ESpellElement::Reality};
 	return Elements;
+}
+
+const TArray<FNewGameRefractorChoice> &WoRNewGame::GetRefractorChoices()
+{
+	static const TArray<FNewGameRefractorChoice> Choices = []()
+	{
+		TArray<FNewGameRefractorChoice> Out;
+		for (const ESpellElement Element : GetElements())
+		{
+			Out.Add({Element, false});
+			if (Element == ESpellElement::Darkness)
+			{
+				Out.Add({ESpellElement::Darkness, true}); // D-228: Broken Darkness comes under the Refractor
+			}
+		}
+		return Out;
+	}();
+	return Choices;
+}
+
+const TArray<EWeaponType> &WoRNewGame::GetWeaponChoices()
+{
+	static const TArray<EWeaponType> Weapons = []()
+	{
+		TArray<EWeaponType> Out;
+		for (int32 Value = 0; Value <= static_cast<int32>(EWeaponType::Shield); ++Value)
+		{
+			Out.Add(static_cast<EWeaponType>(Value));
+		}
+		return Out;
+	}();
+	return Weapons;
+}
+
+const TArray<ECrystalType> &WoRNewGame::GetCrystalChoices()
+{
+	static const TArray<ECrystalType> Crystals = {ECrystalType::Garnet, ECrystalType::Sapphire, ECrystalType::Citrine,
+												  ECrystalType::Emerald, ECrystalType::Amber, ECrystalType::Opal,
+												  ECrystalType::Onyx, ECrystalType::Amethyst, ECrystalType::Iolite};
+	return Crystals;
+}
+
+int32 WoRNewGame::GetClassChoiceCount()
+{
+	return GetClasses().Num() - 1 + GetRefractorChoices().Num(); // the Refractor counts once per choice
+}
+
+int32 WoRNewGame::GetPickChoiceCount(ECharacterClass Class)
+{
+	switch (Class)
+	{
+	case ECharacterClass::Generic:
+		return GetWeaponChoices().Num();
+	case ECharacterClass::Caster:
+		return GetRefractorChoices().Num();
+	case ECharacterClass::Resonator:
+		return GetCrystalChoices().Num();
+	}
+	return 0;
+}
+
+FText WoRNewGame::GetPickChoiceName(ECharacterClass Class, int32 Index)
+{
+	if (Index < 0 || Index >= GetPickChoiceCount(Class))
+	{
+		return FText::GetEmpty();
+	}
+	switch (Class)
+	{
+	case ECharacterClass::Generic:
+		return WoRGameNames::GetWeaponTypeName(GetWeaponChoices()[Index]);
+	case ECharacterClass::Caster:
+		return GetRefractorChoiceName(GetRefractorChoices()[Index]);
+	case ECharacterClass::Resonator:
+		return WoRGameNames::GetCrystalTypeName(GetCrystalChoices()[Index]);
+	}
+	return FText::GetEmpty();
+}
+
+bool WoRNewGame::GetPickChoiceElement(ECharacterClass Class, int32 Index, ESpellElement &OutElement)
+{
+	if (Index < 0 || Index >= GetPickChoiceCount(Class) || Class == ECharacterClass::Generic)
+	{
+		return false;
+	}
+	OutElement = Class == ECharacterClass::Caster ? GetRefractorChoices()[Index].Element : CrystalTypeHelpers::GetElement(GetCrystalChoices()[Index]);
+	return true;
+}
+
+int32 WoRNewGame::GetPickCount(ECharacterClass Class)
+{
+	return Class == ECharacterClass::Caster ? 1 : MULTI_PICK_COUNT;
+}
+
+bool WoRNewGame::IsPicked(const FNewGamePick &Pick, int32 Index)
+{
+	if (Index < 0 || Index >= GetPickChoiceCount(Pick.Class))
+	{
+		return false;
+	}
+	switch (Pick.Class)
+	{
+	case ECharacterClass::Generic:
+		return Pick.Weapons.Contains(GetWeaponChoices()[Index]);
+	case ECharacterClass::Caster:
+	{
+		const FNewGameRefractorChoice &Choice = GetRefractorChoices()[Index];
+		return Choice.Element == Pick.Element && Choice.bBrokenDarkness == Pick.bBrokenDarkness;
+	}
+	case ECharacterClass::Resonator:
+		return Pick.Crystals.Contains(GetCrystalChoices()[Index]);
+	}
+	return false;
+}
+
+namespace
+{
+	template <typename T>
+	void ToggleIn(TArray<T> &Picked, const T &Entry)
+	{
+		if (Picked.Remove(Entry) > 0)
+		{
+			return;
+		}
+		Picked.Add(Entry);
+		while (Picked.Num() > WoRNewGame::MULTI_PICK_COUNT)
+		{
+			Picked.RemoveAt(0); // the oldest pick gives way
+		}
+	}
+}
+
+void WoRNewGame::TogglePick(FNewGamePick &Pick, int32 Index)
+{
+	if (Index < 0 || Index >= GetPickChoiceCount(Pick.Class))
+	{
+		return;
+	}
+	switch (Pick.Class)
+	{
+	case ECharacterClass::Generic:
+		ToggleIn(Pick.Weapons, GetWeaponChoices()[Index]);
+		break;
+	case ECharacterClass::Caster:
+		Pick.Element = GetRefractorChoices()[Index].Element;
+		Pick.bBrokenDarkness = GetRefractorChoices()[Index].bBrokenDarkness;
+		break;
+	case ECharacterClass::Resonator:
+		ToggleIn(Pick.Crystals, GetCrystalChoices()[Index]);
+		break;
+	}
+}
+
+FText WoRNewGame::GetPicksLabel(ECharacterClass Class)
+{
+	switch (Class)
+	{
+	case ECharacterClass::Generic:
+		return LOCTEXT("PicksWeapons", "Two weapons");
+	case ECharacterClass::Resonator:
+		return LOCTEXT("PicksCrystals", "Two crystal types");
+	default:
+		return LOCTEXT("Element", "Element");
+	}
+}
+
+FText WoRNewGame::GetPicksLine(const FNewGamePick &Pick)
+{
+	TArray<FText> Names;
+	if (Pick.Class == ECharacterClass::Generic)
+	{
+		for (const EWeaponType Weapon : Pick.Weapons)
+		{
+			Names.Add(WoRGameNames::GetWeaponTypeName(Weapon));
+		}
+		return Names.IsEmpty() ? LOCTEXT("NoWeapons", "Pick two weapons. A sword and a shield are two picks.")
+							   : FText::Format(LOCTEXT("WeaponsLine", "{0} (F tier)"), FText::Join(LOCTEXT("PickSeparator", ", "), Names));
+	}
+	if (Pick.Class == ECharacterClass::Resonator)
+	{
+		for (const ECrystalType Crystal : Pick.Crystals)
+		{
+			Names.Add(WoRGameNames::GetCrystalTypeName(Crystal));
+		}
+		return Names.IsEmpty() ? FText::Format(LOCTEXT("NoCrystals", "Pick two crystal types: {0} of each, for two empty adapters."), STARTING_CRYSTALS_PER_TYPE)
+							   : FText::Format(LOCTEXT("CrystalsLine", "{0}: {1} of each (F tier)"), FText::Join(LOCTEXT("PickSeparator", ", "), Names), STARTING_CRYSTALS_PER_TYPE);
+	}
+	return FText::GetEmpty();
+}
+
+FText WoRNewGame::GetRefractorChoiceName(const FNewGameRefractorChoice &Choice)
+{
+	return Choice.bBrokenDarkness ? LOCTEXT("BrokenDarkness", "Broken Darkness") : WoRGameNames::GetElementName(Choice.Element);
 }
 
 FText WoRNewGame::GetClassKind(ECharacterClass Class)
@@ -63,7 +257,7 @@ FText WoRNewGame::GetPanelTitle(const FNewGamePick &Pick)
 {
 	const FText ClassName = WoRGameNames::GetCharacterClassName(Pick.Class);
 	return Pick.Class == ECharacterClass::Caster
-		? FText::Format(LOCTEXT("RefractorTitle", "{0} {1}"), WoRGameNames::GetElementName(Pick.Element), ClassName)
+		? FText::Format(LOCTEXT("RefractorTitle", "{0} {1}"), GetRefractorChoiceName({Pick.Element, Pick.bBrokenDarkness}), ClassName)
 		: ClassName;
 }
 
@@ -75,7 +269,7 @@ FText WoRNewGame::GetAbout(const FNewGamePick &Pick)
 		return LOCTEXT("GenericAbout", "Fights with what it holds. Abilities come from the weapon; elements from its crystal.");
 	case ECharacterClass::Caster:
 		return FText::Format(LOCTEXT("RefractorAbout", "Casts {0} from within. The only class with an innate element and spells of its own."),
-							 WoRGameNames::GetElementName(Pick.Element));
+							 GetRefractorChoiceName({Pick.Element, Pick.bBrokenDarkness}));
 	case ECharacterClass::Resonator:
 		return LOCTEXT("ResonatorAbout", "Channels through adapters, each with its own element and spells; switch between them in a fight.");
 	}
@@ -114,7 +308,23 @@ FText WoRNewGame::GetPanelFootnote(const FNewGamePick &Pick)
 {
 	return Pick.Class == ECharacterClass::Caster
 		? LOCTEXT("RefractorFootnote", "Your spells, your infusions and your status bar all use this element.")
-		: LOCTEXT("OtherFootnote", "Gear, skills and forms are earned by playing.");
+		: Pick.Class == ECharacterClass::Resonator
+		? LOCTEXT("ResonatorFootnote", "You start with two empty adapters and socket the crystals yourself. Every pick is F tier.")
+		: LOCTEXT("GenericFootnote", "You start holding both weapons. Every pick is F tier.");
+}
+
+FText WoRNewGame::GetBeginRefusal(const FNewGamePick &Pick)
+{
+	if (Pick.Name.TrimStartAndEnd().IsEmpty())
+	{
+		return LOCTEXT("NoName", "Type a name first.");
+	}
+	const int32 Picked = Pick.Class == ECharacterClass::Generic ? Pick.Weapons.Num() : Pick.Class == ECharacterClass::Resonator ? Pick.Crystals.Num() : 1;
+	if (Picked < GetPickCount(Pick.Class))
+	{
+		return FText::Format(LOCTEXT("PickMore", "{0}: pick {1}."), GetPicksLabel(Pick.Class), GetPickCount(Pick.Class));
+	}
+	return FText::GetEmpty();
 }
 
 FText WoRNewGame::GetBeginLabel(const FNewGamePick &Pick)
@@ -129,7 +339,8 @@ UCharacterData *WoRNewGame::FindStartCharacter(const TArray<TSoftObjectPtr<UChar
 	for (const TSoftObjectPtr<UCharacterData> &Choice : Choices)
 	{
 		UCharacterData *Data = Choice.LoadSynchronous();
-		if (!Data || Data->CharacterClass != Pick.Class || Data->bBrokenDarknessInnate)
+		const bool bWantBrokenDarkness = Pick.Class == ECharacterClass::Caster && Pick.bBrokenDarkness;
+		if (!Data || Data->CharacterClass != Pick.Class || Data->bBrokenDarknessInnate != bWantBrokenDarkness)
 		{
 			continue;
 		}
@@ -150,6 +361,11 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	if (!PartySession || !Saves || !TrialRun)
 	{
 		return LOCTEXT("NoGame", "The game isn't ready to start yet.");
+	}
+	const FText Refusal = GetBeginRefusal(Pick);
+	if (!Refusal.IsEmpty())
+	{
+		return Refusal;
 	}
 	if (Saves->IsPlayingHostCopy())
 	{
