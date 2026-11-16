@@ -57,7 +57,8 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "0. Starting Gear")
     FClassDefaultLoadout StartingGear;
 
-    /** The character's own evolution, minted with the StartingGear and put in its seat. Null: none. */
+    /** The character's own evolution, minted with the StartingGear and put in its seat. Null: none. Not listed again in
+     *  EvolutionEquipment (that would own it twice). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "0. Starting Gear")
     TObjectPtr<UEvolutionItemData> StartingEvolution = nullptr;
 

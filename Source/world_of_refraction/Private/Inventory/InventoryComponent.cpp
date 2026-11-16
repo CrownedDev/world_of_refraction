@@ -1577,7 +1577,13 @@ bool UInventoryComponent::DrawSharedGear()
     if (!bRunOnly && StartAsset && StartAsset->StartingGear.Pieces.Num() > 0 && !Pool->GetWornGear(Key) && GetOwner()->HasAuthority())
     {
         const ECharacterClass StartClass = CharComp->CharacterData->CharacterClass;
-        const FWornGear Innate = SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) ? SavedLoadouts[ActiveLoadoutIndex].ToWornGear(StartClass) : FWornGear();
+        FWornGear Innate = SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) ? SavedLoadouts[ActiveLoadoutIndex].ToWornGear(StartClass) : FWornGear();
+        if (RunMember) // a wheel pick made before the first draw comes along, as the old seed below does
+        {
+            Innate.WheelPick.FieldSkill = RunMember->FieldSkill;
+            Innate.WheelPick.FieldAttackIndex = RunMember->FieldAttackIndex;
+            Innate.WheelPick.bPicked = RunMember->bFieldAttackPicked;
+        }
         Pool->WearStartingGear(Key, StartAsset->StartingGear, StartAsset->StartingEvolution, Innate);
     }
     bDrawsWholeArmoury = bRunOnly;
