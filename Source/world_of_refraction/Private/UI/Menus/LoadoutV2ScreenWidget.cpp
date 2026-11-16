@@ -68,6 +68,27 @@ namespace LoadoutV2ScreenStyle
 		return Weapon.Weapon ? FText::FromString(Weapon.Weapon->GetDisplayName()) : FText::GetEmpty();
 	}
 
+	/** B-531 (D-230): the piece lines from First on, exactly-same pieces with the same verdict as one line with a count
+	 *  (the Inventory tab's helper, WoRLoadoutV2::GroupStacks). */
+	void StackPieceLines(TArray<FLoadoutV2WindowItem> &Items, int32 First)
+	{
+		TArray<FString> Keys;
+		for (int32 Index = First; Index < Items.Num(); ++Index)
+		{
+			const FLoadoutV2WindowItem &Item = Items[Index];
+			const FString Key = Item.Weapon.IsValid() ? WoRLoadoutV2::GetStackKey(Item.Weapon) : Item.Adapter.Ring ? WoRLoadoutV2::GetStackKey(Item.Adapter) : FString();
+			Keys.Add(Key.IsEmpty() ? Key : Key + TEXT("|") + Item.Refusal.ToString() + TEXT("|") + Item.Line.ToString());
+		}
+		TArray<FLoadoutV2WindowItem> Stacked(Items.GetData(), First);
+		for (const FLoadoutV2Stack &Stack : WoRLoadoutV2::GroupStacks(Keys))
+		{
+			FLoadoutV2WindowItem &Line = Stacked.Add_GetRef(Items[First + Stack.First]);
+			Line.Count = Stack.Count;
+			Line.Name = WoRLoadoutV2::GetStackedName(Line.Name, Stack.Count);
+		}
+		Items = MoveTemp(Stacked);
+	}
+
 	FText AttachmentText(const FRuntimeAttachedItem &Item)
 	{
 		if (Item.IsEmpty())
@@ -2384,6 +2405,8 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.Line = WoRGameNames::GetHeldWeaponTypeName(InSlot.Weapon, bMain && Current.OffHand.IsValid() ? Current.OffHand.Weapon : nullptr); // B-513, B-515: with its off hand
 		}
 		const TArray<FLoadoutV2OffHandChoice> OffHands = bMain ? TArray<FLoadoutV2OffHandChoice>() : WoRLoadoutV2::BuildOffHandChoices(Draft.MainHand, Inventory->Weapons, Class);
+		const int32 FirstPiece = Items.Num();
+		ON_SCOPE_EXIT { StackPieceLines(Items, FirstPiece); }; // B-531 (D-230)
 		for (const FWeaponInventoryEntry &Owned : Inventory->Weapons)
 		{
 			if (!Owned.Weapon || (InSlot.IsValid() && Owned.PersistentID == InSlot.PersistentID) || Owned.PersistentID == (bMain ? Draft.OffHand : Draft.MainHand).PersistentID)
@@ -2418,6 +2441,8 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.Adapter = Current.Adapter;
 			Equipped.Name = WoRGameNames::GetAdapterName(Current.Adapter.Ring, Current.Socket1); // B-514b: "Fire Ring"
 		}
+		const int32 FirstPiece = Items.Num();
+		ON_SCOPE_EXIT { StackPieceLines(Items, FirstPiece); }; // B-531 (D-230)
 		if (!bEditing)
 		{
 			for (const FLoadoutV2PieceChoice &Choice : WoRLoadoutV2::BuildAdapterChoices(*Active, Class, Inventory->Rings))

@@ -136,6 +136,8 @@ struct FLoadoutV2WindowItem
 	FWeaponInventoryEntry Weapon;
 	FRingInventoryEntry Adapter;
 	FEvolutionInventoryEntry Evolution;
+	/** B-531 (D-230): how many exactly-same pieces the line stands for ("Adapter Ring x5"); picking it takes the first. */
+	int32 Count = 1;
 	/** B-485: a socket line's tier as a letter, written after the name when there is no tier badge to show. */
 	FText TierText;
 	/** A socket line (today's socket picker's choice for the entry's row); B-440f: or an apparel line (the piece as
