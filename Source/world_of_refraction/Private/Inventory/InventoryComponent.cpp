@@ -2842,6 +2842,15 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     {
         SavedLoadouts.Add_GetRef(FCombatLoadout::CreateFromSavedLoadout(SavedLoadout, this, OwnedEvolutions)).bLore = true;
     }
+    // TODO: (Q-518, B-518) remove in stage 5: gear has no built-ins now (D-224), so an enemy's empty pieces fill
+    // from its known skills until enemies carry their own.
+    if (!CharacterData->IsPlayerOrigin())
+    {
+        for (FCombatLoadout &Loadout : SavedLoadouts)
+        {
+            Loadout.FillEmptyPicksFromKnown(InventoryAsset->Abilities, InventoryAsset->Spells);
+        }
+    }
 
     // Active index — clamp to valid range. Empty SavedLoadouts is soft-fail
     // (legacy parity); LoadoutComponent will seed an empty default downstream.
