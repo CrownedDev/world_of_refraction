@@ -1242,6 +1242,11 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-231 — A prebuilt adapter has no augment slot
+**Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
+**Answer (Crown):** "if a prebuilt adapter is used, augment slots disappear": "the prebuilt comes with a crystal, so we shouldn't allow an additional crystal to be attached". A prebuilt adapter (bought or found already built, D-226) shows no augment slot and takes nothing more.
+**Defaults (Crown may change):** the adapter remembers that it came prebuilt; its own crystal stays as built and cannot be swapped; an adapter the player built from an empty ring keeps its augment slot. A starting ring handed out with its crystal (the Earth Ring) counts as prebuilt.
+
 ### D-230 — The loadout screen gets an Inventory tab, first in the row
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "we should have an inventory tab, which should be first": the tab row reads Inventory, Equipment, Skills, Apparel, Cosmetics. It shows what the character owns and is not wearing, so spares can be seen and swapped in ("we should add what they can't equip to inventory so we can change it").
