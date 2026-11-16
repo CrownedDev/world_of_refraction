@@ -28,6 +28,7 @@
 #include "Save/WoRSaveGame.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Trial/TrialLoot.h"
 
 namespace
 {
@@ -192,6 +193,35 @@ void FSkillsPerCharacterSpec::Define()
 		const int32 PrismsAfter = Wallet->GetBalance(ECurrencyType::Prisms);
 		TestFalse(TEXT("buying it again for the receiver is refused"), Economy->PurchaseFor(Payer, KeyOf(SKILLS_RECEIVER), {Entry}));
 		TestEqual(TEXT("nothing spent on the refusal"), Wallet->GetBalance(ECurrencyType::Prisms), PrismsAfter);
+	});
+
+	It("learns a chest find and a purchase made in a run into the run list, not the hub's (B-524)", [this]()
+	{
+		if (!Ready()) return;
+		UEconomyService *Economy = TestWorld->GetSubsystem<UEconomyService>();
+		AActor *Member = Inventories[SKILLS_GIVER]->GetOwner();
+		UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Member);
+		if (!TestNotNull(TEXT("Economy"), Economy) || !TestNotNull(TEXT("Wallet"), Wallet)) return;
+		for (const ECurrencyType Balance : {ECurrencyType::Prisms, ECurrencyType::SkillEssence, ECurrencyType::ElementalEssence})
+		{
+			Wallet->Add(Balance, SKILLS_WALLET);
+		}
+		TestTrue(TEXT("the hub knows the spell"), Inventories[SKILLS_GIVER]->LearnSpell(Spell));
+		Pool->BeginRunLayer();
+		Pool->BeginRunSkills(KeyOf(SKILLS_GIVER), {}, {});
+		TestFalse(TEXT("the run starts without it, on the member too"), Inventories[SKILLS_GIVER]->Spells.HasSpell(Spell));
+
+		TestTrue(TEXT("a chest gives the ability"), TrialLoot::GrantTo(Member, Ability));
+		FMerchantStockEntry Entry;
+		Entry.Asset = Spell;
+		TestTrue(TEXT("the spell is bought back in the run"), Economy->PurchaseFor(Member, KeyOf(SKILLS_GIVER), {Entry}));
+		TestTrue(TEXT("both are in the run list"), Pool->KnowsAbility(KeyOf(SKILLS_GIVER), Ability) && Pool->KnowsSpell(KeyOf(SKILLS_GIVER), Spell));
+		const FPoolSkills *Hub = Pool->GetRunStartSkills().Find(KeyOf(SKILLS_GIVER));
+		TestTrue(TEXT("the hub list kept aside is unchanged"), Hub && Hub->Spells.Num() == 1 && Hub->Abilities.IsEmpty());
+
+		Pool->CloseRun(EPoolRunEnding::Quit);
+		TestTrue(TEXT("after a quit the hub spell is back"), Inventories[SKILLS_GIVER]->Spells.HasSpell(Spell));
+		TestFalse(TEXT("and the chest's ability is gone"), Pool->KnowsAbility(KeyOf(SKILLS_GIVER), Ability));
 	});
 
 	It("keeps each character's skills through a save round trip", [this]()
