@@ -82,6 +82,7 @@ void FSaveGearDetailSpec::Define()
 		Entry.ResistanceBonus.Fire = GEAR_DETAIL_FIRE_RESIST;
 		Entry.StatPool = GEAR_DETAIL_STAT_POOL;
 		Entry.StatMaxPool = GEAR_DETAIL_STAT_MAX_POOL;
+		Entry.bPrebuilt = true; // D-231 (B-532), its crystal left fixed
 		Pool->AddWeaponToPool(Entry);
 
 		const UPoolSubsystem *Restored = GearDetailRoundTrip(*this, *Pool, After);
@@ -101,6 +102,7 @@ void FSaveGearDetailSpec::Define()
 		TestEqual(TEXT("The same stat roll"), Back.StatBonus.BonusRawDamage, GEAR_DETAIL_RAW_DAMAGE);
 		TestEqual(TEXT("The same resistance roll"), Back.ResistanceBonus.Fire, GEAR_DETAIL_FIRE_RESIST);
 		TestTrue(TEXT("The same roll pools"), Back.StatPool == GEAR_DETAIL_STAT_POOL && Back.StatMaxPool == GEAR_DETAIL_STAT_MAX_POOL);
+		TestTrue(TEXT("D-231: still prebuilt, its crystal still fixed"), Back.bPrebuilt && !Back.bCrystalRemovable);
 	});
 
 	It("brings a ring back with its crystal, rolls and spells, empty spell slots in place", [this]()

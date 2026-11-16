@@ -74,6 +74,9 @@ void FStartingGearSpec::Define()
 															  ItemIdentity::GetMaxDurability(Ring.Crystal));
 		TestEqual(TEXT("the ring is the hero's"), Pool->GetGearOwner(RingSlot->GearID), Key);
 		TestFalse(TEXT("not a kit piece"), Pool->IsClassDefault(RingSlot->GearID));
+		TestTrue(TEXT("D-231: handed out with its crystal, the ring is prebuilt, its crystal fixed"),
+				 OwnedRing && OwnedRing->bPrebuilt && !OwnedRing->bCrystalRemovable);
+		TestTrue(TEXT("D-231: the empty sword is not"), OwnedSword && !OwnedSword->bPrebuilt);
 
 		const FEvolutionInventoryEntry *Seat = Pool->FindEvolutionInPool(Worn->EvolutionID);
 		TestTrue(TEXT("Gale owned and in the seat, at its tier"), Seat && Seat->Item == Gale && Seat->Tier == EItemTier::D_Tier);
