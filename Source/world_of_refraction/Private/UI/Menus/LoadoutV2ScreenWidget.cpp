@@ -304,7 +304,8 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		}
 		else if (Mode == ELoadoutV2Mode::WindowKind)
 		{
-			Kinds = WoRLoadoutV2::BuildAddKinds(*Active, Members[MemberIndex].Class);
+			Kinds = bEditing ? WoRLoadoutV2::BuildEditKinds(*Active, Members[MemberIndex].Class, EditEntry) // B-531 (D-230)
+							 : WoRLoadoutV2::BuildAddKinds(*Active, Members[MemberIndex].Class);
 		}
 		else if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
 		{
@@ -2157,12 +2158,27 @@ void ULoadoutV2ScreenWidget::OpenWindowForEntry(const FLoadoutV2Entry &Entry)
 	bEditing = true;
 	EditEntry = Entry;
 	Draft = WoRLoadoutV2::DraftFromEntry(*Active, Entry);
-	StartDraft(Draft.Kind);
+	// B-531 (D-230): the same first question as "+ Add equipment"; the entry's own kind is lit (A: edit it as before).
+	Slots.Reset();
+	Items.Reset();
+	Mode = ELoadoutV2Mode::WindowKind;
+	Message = FText::GetEmpty();
+	RefreshData();
+	const int32 Own = Kinds.IndexOfByPredicate([this](const FLoadoutV2KindChoice &Kind) { return Kind.Kind == Draft.Kind; });
+	Selected = Own == INDEX_NONE ? 0 : Own;
+	RefreshView();
+}
+
+bool ULoadoutV2ScreenWidget::IsReplacingKind() const
+{
+	return bEditing && Draft.Kind != WoRLoadoutV2::GetDraftKind(EditEntry.Kind);
 }
 
 void ULoadoutV2ScreenWidget::StartDraft(ELoadoutV2DraftKind Kind)
 {
-	if (!bEditing)
+	// An edit keeps the entry's pieces (OpenWindowForEntry's draft); another kind starts empty and replaces the entry
+	// on Y Confirm only (WoRLoadoutV2::ReplaceEntry), so Back before then leaves it as it was.
+	if (!bEditing || Kind != WoRLoadoutV2::GetDraftKind(EditEntry.Kind))
 	{
 		Draft = FLoadoutV2Draft();
 		Draft.Kind = Kind;
@@ -2238,7 +2254,8 @@ namespace LoadoutV2DraftSocket
 {
 	/** B-516: a new entry's piece is not in the loadout yet, so its sockets are read off a copy with the draft in
 	 *  (Preview, the budget the socket lines count against). Empty on success; else why it can't be socketed yet. */
-	FText FindDraftRow(const FCombatLoadout &Active, ECharacterClass Class, const FLoadoutV2Draft &Draft, FCombatLoadout &OutPreview, FLoadoutScreenRow &OutRow)
+	FText FindDraftRow(const FCombatLoadout &Active, ECharacterClass Class, const FLoadoutV2Draft &Draft, const FLoadoutV2Entry *Replacing, FCombatLoadout &OutPreview,
+					   FLoadoutScreenRow &OutRow)
 	{
 		const bool bAdapter = Draft.Kind == ELoadoutV2DraftKind::Adapter;
 		const FGuid PieceID = bAdapter ? Draft.Adapter.PersistentID : Draft.Kind == ELoadoutV2DraftKind::Weapon ? Draft.MainHand.PersistentID : FGuid();
@@ -2248,7 +2265,8 @@ namespace LoadoutV2DraftSocket
 		}
 		OutPreview = Active;
 		FText Refusal;
-		if (!WoRLoadoutV2::ApplyDraft(OutPreview, Class, Draft, Refusal))
+		// B-531: a piece replacing an entry (Replacing) is previewed in its place, as Y Confirm will put it.
+		if (Replacing ? !WoRLoadoutV2::ReplaceEntry(OutPreview, Class, *Replacing, Draft, Refusal) : !WoRLoadoutV2::ApplyDraft(OutPreview, Class, Draft, Refusal))
 		{
 			return Refusal;
 		}
@@ -2289,9 +2307,9 @@ namespace LoadoutV2DraftSocket
 
 bool ULoadoutV2ScreenWidget::FindScreenRow(FLoadoutScreenRow &OutRow) const
 {
-	if (!bEditing || !Members.IsValidIndex(MemberIndex))
+	if (!bEditing || IsReplacingKind() || !Members.IsValidIndex(MemberIndex))
 	{
-		return false;
+		return false; // a new piece (B-531: or one replacing the entry): its row is read off a preview (FindDraftRow)
 	}
 	const FLoadoutScreenPage GearPage = WoRLoadoutScreen::BuildGearPage(GetWorld(), Members[MemberIndex]);
 	const ELoadoutScreenRowKind Kind = EditEntry.Kind == ELoadoutV2EntryKind::Adapter ? ELoadoutScreenRowKind::Adapter : ELoadoutScreenRowKind::Weapon;
@@ -2479,7 +2497,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 		FLoadoutScreenRow Row;
 		FCombatLoadout Preview;
 		const bool bNewEntry = !FindScreenRow(Row);
-		const FText NotYet = bNewEntry ? LoadoutV2DraftSocket::FindDraftRow(*Active, Class, Draft, Preview, Row) : FText::GetEmpty();
+		const FText NotYet = bNewEntry ? LoadoutV2DraftSocket::FindDraftRow(*Active, Class, Draft, bEditing ? &EditEntry : nullptr, Preview, Row) : FText::GetEmpty();
 		if (!NotYet.IsEmpty())
 		{
 			FLoadoutV2WindowItem &Note = Items.AddDefaulted_GetRef();
@@ -2667,7 +2685,7 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 		FCombatLoadout Preview;
 		const bool bNewEntry = !FindScreenRow(Row);
 		if (!FindActive(Loadout, Inventory, Active) ||
-			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, Preview, Row).IsEmpty()))
+			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, bEditing ? &EditEntry : nullptr, Preview, Row).IsEmpty()))
 		{
 			return;
 		}
@@ -2752,7 +2770,7 @@ void ULoadoutV2ScreenWidget::ConfirmWindow()
 		FCombatLoadout Preview;
 		const bool bNewEntry = !FindScreenRow(Row);
 		if (!FindActive(Loadout, Inventory, Active) ||
-			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, Preview, Row).IsEmpty()))
+			(bNewEntry && !LoadoutV2DraftSocket::FindDraftRow(*Active, Members[MemberIndex].Class, Draft, bEditing ? &EditEntry : nullptr, Preview, Row).IsEmpty()))
 		{
 			return;
 		}

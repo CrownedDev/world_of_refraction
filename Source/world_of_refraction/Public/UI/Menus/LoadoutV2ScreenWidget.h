@@ -257,7 +257,10 @@ private:
 
 	// The window.
 	void OpenWindowForNew();
+	/** A on an entry (B-531, D-230): the Add window's first question; its own kind edits it, another replaces it on Y. */
 	void OpenWindowForEntry(const FLoadoutV2Entry &Entry);
+	/** B-531: the window edits an entry with a piece of another kind (it replaces the entry on Y Confirm). */
+	bool IsReplacingKind() const;
 	void StartDraft(ELoadoutV2DraftKind Kind);
 	void BuildItems();
 	void PickItem();
