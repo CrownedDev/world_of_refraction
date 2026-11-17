@@ -5,37 +5,21 @@
 // The pick is a typed name, a body (Manny / Quinn), a class and the class's own pick (D-228): a Refractor picks one
 // element (Broken Darkness and Reality among them), a Generic two weapons (a sword and a shield are two picks), a
 // Resonator two crystal types (3 of each, for two empty adapters). Every pick starts at F tier.
-// B-546 (stage 1, look only): the lists are this stub class table; Begin still starts as one of the lords
-// (UPartySessionSubsystem::NewGameCharacters) whose class, and for a Refractor its innate element, match. The name and
-// the Generic / Resonator picks are not used by Begin yet (OnePlayerCharacterPlan.md stages 3 and 4).
+// B-546 (stage 1, look only): the lists are this stub class table.
+// B-554 (stage 3): Begin builds the player from the pick (WoRPlayerBuild) into the first free character slot; the
+// Generic and Resonator picks set the gear from stage 4 (OnePlayerCharacterPlan.md).
 
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Character/ECharacterClass.h"
-#include "Character/Forms/CharacterFormData.h"
-#include "Equipment/Crystals/CrystalType.h"
-#include "Equipment/Weapons/EWeaponType.h"
-#include "Skills/Definitions/ESpellElement.h"
+#include "Character/PlayerPicks.h"
 
 class APlayerController;
 class UCharacterData;
+class UClassDefaultLoadoutData;
 
-struct FNewGamePick
-{
-	/** B-546: typed at the screen (D-228 Q6); saved from stage 3. */
-	FString Name;
-	EPlayerBaseForm Body = EPlayerBaseForm::Manny;
-	ECharacterClass Class = ECharacterClass::Caster;
-	/** Used only by a Refractor. The mockup's default: Darkness. */
-	ESpellElement Element = ESpellElement::Darkness;
-	/** B-546: a Refractor's Broken Darkness (Element is then Darkness). */
-	bool bBrokenDarkness = false;
-	/** B-546: a Generic's picks, oldest first. */
-	TArray<EWeaponType> Weapons;
-	/** B-546: a Resonator's picks, oldest first. */
-	TArray<ECrystalType> Crystals;
-};
+/** B-554: the screen's pick is the saved picks struct (Character/PlayerPicks.h). */
+using FNewGamePick = FPlayerPicks;
 
 /** B-546: one entry of a Refractor's list: an element, or Broken Darkness (Darkness, broken). */
 struct FNewGameRefractorChoice
@@ -58,8 +42,11 @@ namespace WoRNewGame
 	WORLD_OF_REFRACTION_API const TArray<ESpellElement> &GetElements();
 	/** B-546: a Refractor's list: the nine elements with Broken Darkness after Darkness. */
 	WORLD_OF_REFRACTION_API const TArray<FNewGameRefractorChoice> &GetRefractorChoices();
-	/** B-546: every weapon type (Shield included). */
-	WORLD_OF_REFRACTION_API const TArray<EWeaponType> &GetWeaponChoices();
+	/** B-559: the weapon types the class table gives a weapon for (Picks | Pick Weapons), in type order; every type
+	 *  (Shield included) when the table stocks none. */
+	WORLD_OF_REFRACTION_API TArray<EWeaponType> GetWeaponChoicesFor(const UClassDefaultLoadoutData *Table);
+	/** GetWeaponChoicesFor the game's class table (UTrialRunSubsystem's, DefaultGame.ini). */
+	WORLD_OF_REFRACTION_API TArray<EWeaponType> GetWeaponChoices();
 	/** B-546: the nine element crystals (Garnet to Iolite). */
 	WORLD_OF_REFRACTION_API const TArray<ECrystalType> &GetCrystalChoices();
 	/** B-546 (D-229): Generic, Resonator and each Refractor choice: the default most character slots. */

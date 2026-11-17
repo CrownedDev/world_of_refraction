@@ -4,12 +4,16 @@
 #include "Equipment/Apparel/ApparelData.h"
 #include "Equipment/EquipmentDataBase.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Equipment/Rings/RingData.h"
 #include "Character/CharacterData.h"
+#include "Loadout/WornGear.h"
+#include "UI/Menus/NewGameScreenModel.h"
 #include "Engine/Texture2D.h"
 #include "Inventory/InventoryData.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 bool UClassDefaultLoadoutData::FindNumbers(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness,
@@ -87,6 +91,53 @@ int32 UClassDefaultLoadoutData::FillFrom(const TArray<UCharacterData *> &Sources
 		UE_LOG(LogWoRLoadout, Log, TEXT("[ClassTable] %s filled from %s"), *UEnum::GetDisplayValueAsText(Source->CharacterClass).ToString(), *Source->GetName());
 	}
 	return Written;
+}
+
+#define LOCTEXT_NAMESPACE "ClassDefaultLoadout"
+
+const FPlayerPicks *UClassDefaultLoadoutData::FindRecruit(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness) const
+{
+	return Recruits.FindByPredicate([Class, Element, bBrokenDarkness](const FPlayerPicks &Row)
+	{
+		return Row.Class == Class && (Class != ECharacterClass::Caster || (Row.Element == Element && Row.bBrokenDarkness == bBrokenDarkness));
+	});
+}
+
+TArray<FPlayerPicks> UClassDefaultLoadoutData::MakeDefaultRecruits()
+{
+	const auto Make = [](ECharacterClass Class, const FText &Name)
+	{
+		FPlayerPicks Row;
+		Row.Name = Name.ToString();
+		Row.Class = Class;
+		Row.bRecruit = true;
+		return Row;
+	};
+	TArray<FPlayerPicks> Rows;
+	FPlayerPicks &Generic = Rows.Add_GetRef(Make(ECharacterClass::Generic, LOCTEXT("GenericSpirit", "Generic Spirit")));
+	Generic.Weapons = {EWeaponType::Sword, EWeaponType::Shield};
+	FPlayerPicks &Resonator = Rows.Add_GetRef(Make(ECharacterClass::Resonator, LOCTEXT("ResonatorSpirit", "Resonator Spirit")));
+	Resonator.Crystals = {ECrystalType::Garnet, ECrystalType::Sapphire};
+	const FText SpiritFormat = LOCTEXT("ElementSpirit", "{0} Spirit");
+	for (uint8 Value = static_cast<uint8>(ESpellElement::Fire); Value < static_cast<uint8>(ESpellElement::None); ++Value)
+	{
+		const ESpellElement Element = static_cast<ESpellElement>(Value);
+		FPlayerPicks &Refractor = Rows.Add_GetRef(Make(ECharacterClass::Caster, FText::Format(SpiritFormat, WoRGameNames::GetElementName(Element))));
+		Refractor.Element = Element;
+	}
+	FPlayerPicks &Broken = Rows.Add_GetRef(Make(ECharacterClass::Caster, LOCTEXT("BrokenDarknessSpirit", "Broken Darkness Spirit")));
+	Broken.Element = ESpellElement::Darkness;
+	Broken.bBrokenDarkness = true;
+	return Rows;
+}
+
+#undef LOCTEXT_NAMESPACE
+
+void UClassDefaultLoadoutData::FillRecruits()
+{
+	Recruits = MakeDefaultRecruits();
+	MarkPackageDirty();
+	UE_LOG(LogWoRLoadout, Display, TEXT("[ClassTable] %d recruit row(s) filled; set each Body (Starting spirit), then save"), Recruits.Num());
 }
 
 void UClassDefaultLoadoutData::FillFromSources()
@@ -167,7 +218,106 @@ FString UClassDefaultLoadoutData::GetDefaultsString() const
 			Out += TEXT("\n    WARNING: the ACTIVE place holds no piece");
 		}
 	}
+	// B-556: the pick tables.
+	Out += FString::Printf(TEXT("\n  Picks: adapter %s; %d weapon type(s)"), *GetNameSafe(PickAdapter.Get()), PickWeapons.Num());
+	for (const TPair<EWeaponType, TObjectPtr<UWeaponData>> &Pair : PickWeapons)
+	{
+		Out += FString::Printf(TEXT("\n    %s: %s (tier %s)"), *UEnum::GetDisplayValueAsText(Pair.Key).ToString(), *GetNameSafe(Pair.Value.Get()),
+							   Pair.Value ? *UEnum::GetDisplayValueAsText(Pair.Value->Tier).ToString() : TEXT("-"));
+	}
+	// B-557: the recruit rows.
+	Out += FString::Printf(TEXT("\n  Recruits: %d"), Recruits.Num());
+	for (const FPlayerPicks &Recruit : Recruits)
+	{
+		Out += FString::Printf(TEXT("\n    %s: %s %s%s, body %s"), *Recruit.Name, *UEnum::GetDisplayValueAsText(Recruit.Class).ToString(),
+							   *UEnum::GetDisplayValueAsText(Recruit.Element).ToString(), Recruit.bBrokenDarkness ? TEXT(" (BD)") : TEXT(""),
+							   *UEnum::GetDisplayValueAsText(Recruit.Body).ToString());
+	}
 	return Out;
+}
+
+FClassDefaultLoadout UClassDefaultLoadoutData::MakePickedGear(const FPlayerPicks &Picks, const FClassDefaultLoadout *Base) const
+{
+	FClassDefaultLoadout Gear = Base ? *Base : FClassDefaultLoadout();
+	const auto Place = [&Gear](int32 Index) -> FClassDefaultPiece &
+	{
+		if (Gear.Pieces.Num() <= Index)
+		{
+			Gear.Pieces.SetNum(Index + 1);
+		}
+		return Gear.Pieces[Index];
+	};
+	if (Picks.Class == ECharacterClass::Generic)
+	{
+		TArray<UWeaponData *> Weapons;
+		for (const EWeaponType Type : Picks.Weapons)
+		{
+			UWeaponData *Weapon = PickWeapons.FindRef(Type);
+			UE_CLOG(!Weapon, LogWoRLoadout, Warning, TEXT("[ClassDefaults] %s has no pick weapon for %s (Picks | Pick Weapons): none given"),
+					*GetName(), *UEnum::GetDisplayValueAsText(Type).ToString());
+			if (Weapon)
+			{
+				Weapons.Add(Weapon);
+			}
+		}
+		// A shield is held in the off hand only (B-515): it goes after the weapon it pairs with.
+		Weapons.StableSort([](const UWeaponData &A, const UWeaponData &B) { return A.WeaponType != EWeaponType::Shield && B.WeaponType == EWeaponType::Shield; });
+		UE_CLOG(Weapons.Num() > WornGearLayout::SECONDARY_INDEX + 1, LogWoRLoadout, Warning,
+				TEXT("[ClassDefaults] %d weapons picked; only the first two are given"), Weapons.Num());
+		// Over a kit only the pieces change: the place's skill picks and crystal stay the kit's.
+		FClassDefaultPiece &Main = Place(WornGearLayout::PRIMARY_INDEX);
+		FClassDefaultPiece &Second = Place(WornGearLayout::SECONDARY_INDEX);
+		Second = FClassDefaultPiece(); // filled again below when a second weapon takes it
+		Main.OffHand = nullptr;
+		Main.Piece = Weapons.IsValidIndex(0) ? Weapons[0] : nullptr;
+		if (Weapons.IsValidIndex(1))
+		{
+			const UWeaponData *First = Weapons[0];
+			const UWeaponData *Other = Weapons[1];
+			const bool bShieldPair = Other->WeaponType == EWeaponType::Shield && First->WeaponType != EWeaponType::Shield;
+			const bool bDualPair = Other->WeaponType == First->WeaponType && First->WeaponType != EWeaponType::Shield &&
+								   First->Handling != EWeaponHandling::SingleOnly &&
+								   Other->Handling != EWeaponHandling::SingleOnly;
+			if (bShieldPair || bDualPair)
+			{
+				Main.OffHand = Weapons[1];
+			}
+			else
+			{
+				Second = Base && Base->Pieces.IsValidIndex(WornGearLayout::SECONDARY_INDEX) ? Base->Pieces[WornGearLayout::SECONDARY_INDEX] : FClassDefaultPiece();
+				Second.OffHand = nullptr;
+				Second.Piece = Weapons[1];
+			}
+		}
+		Gear.ActiveIndex = WornGearLayout::PRIMARY_INDEX;
+	}
+	else if (Picks.Class == ECharacterClass::Resonator)
+	{
+		UE_CLOG(!PickAdapter, LogWoRLoadout, Warning, TEXT("[ClassDefaults] %s has no pick adapter (Picks | Pick Adapter): none given"), *GetName());
+		for (int32 Count = 0; Count < ClassPickRules::PICK_ADAPTER_COUNT; ++Count)
+		{
+			FClassDefaultPiece &Adapter = Place(WornGearLayout::FIRST_ADAPTER_INDEX + Count);
+			Adapter.Piece = PickAdapter.Get(); // empty unless the kit socketed one: the player sockets the picked crystals
+		}
+		if (!Base)
+		{
+			Gear.ActiveIndex = WornGearLayout::FIRST_ADAPTER_INDEX;
+		}
+	}
+	return Gear;
+}
+
+TMap<FCrystalId, int32> UClassDefaultLoadoutData::GetPickedCrystals(const FPlayerPicks &Picks)
+{
+	TMap<FCrystalId, int32> Crystals;
+	if (Picks.Class == ECharacterClass::Resonator)
+	{
+		for (const ECrystalType Type : Picks.Crystals)
+		{
+			Crystals.FindOrAdd(FCrystalId(Type, EItemTier::F_Tier)) += WoRNewGame::STARTING_CRYSTALS_PER_TYPE;
+		}
+	}
+	return Crystals;
 }
 
 void UClassDefaultLoadoutData::PrintDefaults() const

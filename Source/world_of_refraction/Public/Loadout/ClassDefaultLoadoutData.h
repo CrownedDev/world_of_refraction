@@ -11,7 +11,9 @@
 #include "CoreMinimal.h"
 #include "Character/ECharacterClass.h"
 #include "Engine/DataAsset.h"
+#include "Character/PlayerPicks.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Weapons/EWeaponType.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "ClassDefaultLoadoutData.generated.h"
@@ -24,6 +26,13 @@ class UTexture2D;
 class UEquipmentDataBase;
 class USkillDataBase;
 class UWeaponData;
+class URingData;
+
+namespace ClassPickRules
+{
+	/** B-556 (D-228): the empty adapters a Resonator starts with. */
+	constexpr int32 PICK_ADAPTER_COUNT = 2;
+}
 
 /** One kit piece: a weapon or an adapter, at its authored tier (the asset's). */
 USTRUCT(BlueprintType)
@@ -165,6 +174,42 @@ public:
 	/** B-549: the class table (D-228). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Class table")
 	TMap<ECharacterClass, FClassNumbers> Classes;
+
+	/** B-556 (D-228, stage 4): the weapon a Generic gets for each weapon type it picks (an F-tier asset: the piece is
+	 *  minted at the asset's tier). A type with no entry gives nothing (logged). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Picks")
+	TMap<EWeaponType, TObjectPtr<UWeaponData>> PickWeapons;
+
+	/** B-556: the empty adapter a Resonator starts with, PICK_ADAPTER_COUNT of them (an F-tier ring with no crystal). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Picks")
+	TObjectPtr<URingData> PickAdapter;
+
+	/** B-556 (D-228): the picked pieces laid over Base (null: the picks alone, the starting gear). A Generic's two
+	 *  weapons take the weapon places: a weapon and a shield, or two of a type that can pair, are one hand set (the
+	 *  shield or the second in the off hand); other pairs take both places. A Resonator's PICK_ADAPTER_COUNT adapters
+	 *  take the adapter places. A Refractor adds nothing. */
+	FClassDefaultLoadout MakePickedGear(const FPlayerPicks &Picks, const FClassDefaultLoadout *Base) const;
+
+	/** B-556 (D-228): a Resonator's starting crystals: WoRNewGame::STARTING_CRYSTALS_PER_TYPE F-tier of each picked
+	 *  type. Empty for the other classes. */
+	static TMap<FCrystalId, int32> GetPickedCrystals(const FPlayerPicks &Picks);
+
+	/** B-557 (D-238, stage 4b): the hub's walk-up recruits, each the shared character with fixed picks (bRecruit set):
+	 *  name, Starting spirit, class, a Refractor's element, a Generic's weapons, a Resonator's crystals. A placed recruit
+	 *  finds its row by its old asset's class and element (FindRecruit); none: it stays its old asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recruits", meta = (TitleProperty = "Name"))
+	TArray<FPlayerPicks> Recruits;
+
+	/** B-557: the recruit row for a class (a Refractor: and its element and Broken Darkness), or null. */
+	const FPlayerPicks *FindRecruit(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness) const;
+
+	/** B-557 (D-238 defaults): the 12 recruits as Spirits: Generic (Sword and Shield), Resonator (Garnet and Sapphire),
+	 *  and a Refractor per element with Broken Darkness and Reality, each named by its element or class, on Male Nobody. */
+	static TArray<FPlayerPicks> MakeDefaultRecruits();
+
+	/** The editor step: Recruits = MakeDefaultRecruits() and mark the asset dirty; set each Body, then save. */
+	UFUNCTION(CallInEditor, Category = "Recruits")
+	void FillRecruits();
 
 	/** B-549: the characters FillFromSources reads (today's Lords). Transient, so the table keeps no hold on them. */
 	UPROPERTY(EditAnywhere, Transient, Category = "Class table|Fill")

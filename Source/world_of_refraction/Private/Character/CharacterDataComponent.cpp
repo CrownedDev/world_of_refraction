@@ -404,9 +404,15 @@ void UCharacterDataComponent::SeedWorldStats()
     const int32 RunBody   = Run ? Run->GetRunEarnedLevels(RunKey, EWorldPillar::Body)   : 0;
     const int32 RunSpirit = Run ? Run->GetRunEarnedLevels(RunKey, EWorldPillar::Spirit) : 0;
 
-    LiveWorldMind   = FMath::Clamp(BaseMind   + HeadStartMind   + RunMind,   0, WorldStatConstants::LIVE_MAX);
-    LiveWorldBody   = FMath::Clamp(BaseBody   + HeadStartBody   + RunBody,   0, WorldStatConstants::LIVE_MAX);
-    LiveWorldSpirit = FMath::Clamp(BaseSpirit + HeadStartSpirit + RunSpirit, 0, WorldStatConstants::LIVE_MAX);
+    // B-555 (D-237): outside a run (the hub) the member's kept levels from its last run count; a trial starts without them.
+    const bool bKept = Member && !Run;
+    const int32 KeptMind   = bKept ? Member->KeptMind   : 0;
+    const int32 KeptBody   = bKept ? Member->KeptBody   : 0;
+    const int32 KeptSpirit = bKept ? Member->KeptSpirit : 0;
+
+    LiveWorldMind   = FMath::Clamp(BaseMind   + HeadStartMind   + RunMind   + KeptMind,   0, WorldStatConstants::LIVE_MAX);
+    LiveWorldBody   = FMath::Clamp(BaseBody   + HeadStartBody   + RunBody   + KeptBody,   0, WorldStatConstants::LIVE_MAX);
+    LiveWorldSpirit = FMath::Clamp(BaseSpirit + HeadStartSpirit + RunSpirit + KeptSpirit, 0, WorldStatConstants::LIVE_MAX);
     WorldStatPurchaseCount = Run ? Run->GetRunLevelPurchases(RunKey) : WorldStatPurchaseCount;
 }
 

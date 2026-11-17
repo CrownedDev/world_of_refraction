@@ -362,6 +362,15 @@ public:
      *  start are never touched. */
     int32 LoseRunPoints(FName CharacterKey, int32 MaxPoints);
 
+    /** B-555 (D-237): a wipe takes up to Points of CharacterKey's run points (earned or bought this run), each from a
+     *  pillar rolled on its own among those with any; a pillar's over-cap points go before its levels. The asset's
+     *  levels, the head start and the kept levels are never touched. Returns how many it took. */
+    int32 TakeWipePoints(FName CharacterKey, int32 Points, FRandomStream &Stream);
+
+    /** B-555 (D-237): each party member keeps the levels it earned this run (FPartyMember::Kept*), replacing its last
+     *  run's. The run's end calls it on a boss win, an extract and out of wipes, not on a quit. Nothing outside a run. */
+    void KeepRunLevels();
+
     /** B-362b (D-160): the run's Prisms dropped where the party last fell (the Souls bloodstain: only the newest drop
      *  exists). Amount is the run balance (ECurrencyType::Gold, shown as Prisms, D-159). B-362c (D-160 as changed):
      *  the drop lies at the pending fight's map spot (GetPendingFightSpot), a pickup there gives it back
@@ -493,6 +502,8 @@ public:
     const FClassDefaultLoadout *FindClassDefaults(ECharacterClass Class) const;
     /** B-512: specs point the trial start at their own kits (or none), so they don't depend on the content's asset. */
     void SetClassDefaultLoadouts(const TSoftObjectPtr<UClassDefaultLoadoutData> &Kits) { ClassDefaultLoadouts = Kits; }
+    /** B-554: the class table's asset (its numbers build the player, WoRPlayerBuild). */
+    const TSoftObjectPtr<UClassDefaultLoadoutData> &GetClassDefaultLoadouts() const { return ClassDefaultLoadouts; }
 
     /** Debug: the kit asset's classes and every character's minted kit (wor.Trial.PrintClassDefaults). */
     FString GetClassDefaultsString() const;

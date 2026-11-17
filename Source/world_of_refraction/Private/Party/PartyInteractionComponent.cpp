@@ -6,6 +6,8 @@
 #include "Player/WoRPlayerState.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/PlayerBuild.h"
+#include "Character/PlayerPicks.h"
 #include "Components/SphereComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
@@ -277,7 +279,15 @@ UCharacterData *UPartyInteractionComponent::GetOwnerCharacterData() const
 {
 	const UCharacterDataComponent *DataComponent =
 		GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	return DataComponent ? DataComponent->CharacterData : nullptr;
+	UCharacterData *Authored = DataComponent ? DataComponent->CharacterData : nullptr;
+	// B-557 (D-238): a recruit with a row on the class table is the shared character built from it ("Fire Spirit");
+	// an older save's Lord already in the party stays itself, so it can still be dismissed.
+	const UPartySessionSubsystem *PartySession = GetPartySession();
+	const bool bAuthoredInParty = Authored && PartySession && PartySession->GetMemberSlotByData(Authored) != INDEX_NONE;
+	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const FPlayerPicks *Recruit = Authored && !bAuthoredInParty ? WoRPlayerBuild::FindRecruitPicks(*Authored, GI) : nullptr;
+	UCharacterData *Built = Recruit ? WoRPlayerBuild::Build(*Recruit, GI) : nullptr;
+	return Built ? Built : Authored;
 }
 
 UPartySessionSubsystem *UPartyInteractionComponent::GetPartySession() const

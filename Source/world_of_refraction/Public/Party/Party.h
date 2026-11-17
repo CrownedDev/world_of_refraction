@@ -19,6 +19,8 @@
 #include "Combat/Defense/EGuardStyle.h"
 #include "Combat/Defense/EParryElementPriority.h"
 #include "Field/FieldSkillTypes.h"
+#include "Character/EWorldPillar.h"
+#include "Character/PlayerPicks.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Party.generated.h"
@@ -131,6 +133,24 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	int32 HeadStartSpirit = 0;
 
+	/** B-555 (D-237): the pillar levels the member earned in its last run, kept in the hub the way gear is (a boss win,
+	 *  an extract, out of wipes; a quit keeps the ones from before it). The hub adds them; a trial starts without them.
+	 *  Saved (FSavedPartyMember). */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 KeptMind = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 KeptBody = 0;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	int32 KeptSpirit = 0;
+
+	/** B-555: a run has ended for this member (before that the title slot shows a dash). */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	bool bHasKeptLevels = false;
+
+	int32 GetKept(EWorldPillar Pillar) const { return Pillar == EWorldPillar::Body ? KeptBody : Pillar == EWorldPillar::Spirit ? KeptSpirit : KeptMind; }
+
 	/** B-348c (Q-348b, Crown 2026-11-08): the member is in Broken Darkness. Persistent in and out of the run: a
 	 *  mid-fight transformation stays across fights, runs and the save until reverted
 	 *  (UBrokenDarknessManager::RevertTransformation). Banked at each fight's end; the pawn seeds from it. */
@@ -208,6 +228,11 @@ struct FPartyMember
 	 *  through UPartySessionSubsystem::SetMemberActiveWeapon. Saved; unset: the loadout's own choice. */
 	UPROPERTY()
 	FGuid ActiveWeaponId;
+
+	/** B-554 (D-228): the player's new-game picks. Set: CharacterData was built from them (WoRPlayerBuild), and a load
+	 *  builds it again from them (the built copy has no asset to save). Unset: an authored character. Saved. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	FPlayerPicks Picks;
 
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 

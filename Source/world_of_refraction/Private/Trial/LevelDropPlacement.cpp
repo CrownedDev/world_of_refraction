@@ -84,7 +84,9 @@ int32 WoRLevelDrops::GetLiveLevel(const UWorld *World, const FPartyMember &Membe
 	const int32 Earned = Run ? Run->GetRunEarnedLevels(UPoolSubsystem::GetCharacterKey(Member), Pillar) : 0;
 	// B-348b: the member's saved head-start is part of its live level too (UCharacterDataComponent::SeedWorldStats).
 	const int32 HeadStart = Pillar == EWorldPillar::Mind ? Member.HeadStartMind : Pillar == EWorldPillar::Body ? Member.HeadStartBody : Member.HeadStartSpirit;
-	return FMath::Min(AssetLevel(*Member.CharacterData, Pillar) + HeadStart + Earned, WorldStatConstants::LIVE_MAX);
+	// B-555 (D-237): outside a run the kept levels count, as on the pawn (SeedWorldStats).
+	const int32 Kept = Run && Run->IsRunActive() ? 0 : Member.GetKept(Pillar);
+	return FMath::Min(AssetLevel(*Member.CharacterData, Pillar) + HeadStart + Earned + Kept, WorldStatConstants::LIVE_MAX);
 }
 
 int32 WoRLevelDrops::GetOverCap(const UWorld *World, const FPartyMember &Member, EWorldPillar Pillar)

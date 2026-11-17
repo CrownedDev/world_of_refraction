@@ -127,6 +127,19 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	int32 HeadStartSpirit = 0;
 
+	/** B-555 (D-237, save v44 with B-554): the levels kept from the last run (FPartyMember::Kept*). */
+	UPROPERTY()
+	int32 KeptMind = 0;
+
+	UPROPERTY()
+	int32 KeptBody = 0;
+
+	UPROPERTY()
+	int32 KeptSpirit = 0;
+
+	UPROPERTY()
+	bool bHasKeptLevels = false;
+
 	/** B-348c (save v21, shared with B-348b: both landed in dev together, before any v21 save existed): the member is in Broken Darkness (persistent until reverted, Q-348b), and the
 	 *  run's strain (written only with a saved run, like the carried vitals). */
 	UPROPERTY()
@@ -164,6 +177,11 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	 *  (FPartyMember::ParryElementPriority). */
 	UPROPERTY()
 	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
+
+	/** B-554 (D-228, save v44): the player's new-game picks (FPartyMember::Picks). Set: the load builds the character
+	 *  from them (CharacterData then holds the built copy's transient path, which is not read). */
+	UPROPERTY()
+	FPlayerPicks Picks;
 
 	// D-221 (B-507, save v40): the field skill, the field attack pick and the weapon in hand moved to the member's
 	// worn-gear record (FSavedPool::WornGear).
