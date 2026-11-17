@@ -16,6 +16,7 @@
 
 class APlayerController;
 class UCharacterData;
+class UClassDefaultLoadoutData;
 
 /** B-554: the screen's pick is the saved picks struct (Character/PlayerPicks.h). */
 using FNewGamePick = FPlayerPicks;
@@ -41,8 +42,11 @@ namespace WoRNewGame
 	WORLD_OF_REFRACTION_API const TArray<ESpellElement> &GetElements();
 	/** B-546: a Refractor's list: the nine elements with Broken Darkness after Darkness. */
 	WORLD_OF_REFRACTION_API const TArray<FNewGameRefractorChoice> &GetRefractorChoices();
-	/** B-546: every weapon type (Shield included). */
-	WORLD_OF_REFRACTION_API const TArray<EWeaponType> &GetWeaponChoices();
+	/** B-559: the weapon types the class table gives a weapon for (Picks | Pick Weapons), in type order; every type
+	 *  (Shield included) when the table stocks none. */
+	WORLD_OF_REFRACTION_API TArray<EWeaponType> GetWeaponChoicesFor(const UClassDefaultLoadoutData *Table);
+	/** GetWeaponChoicesFor the game's class table (UTrialRunSubsystem's, DefaultGame.ini). */
+	WORLD_OF_REFRACTION_API TArray<EWeaponType> GetWeaponChoices();
 	/** B-546: the nine element crystals (Garnet to Iolite). */
 	WORLD_OF_REFRACTION_API const TArray<ECrystalType> &GetCrystalChoices();
 	/** B-546 (D-229): Generic, Resonator and each Refractor choice: the default most character slots. */
