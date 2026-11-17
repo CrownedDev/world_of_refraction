@@ -246,3 +246,50 @@ Counts are from file names. "Kept" leaves out Paragon's `_MSA` and additive copi
 - **Spear and scythe:** **no missing hero clearly fills them** either. Serath (on disk) remains the only weak scythe lead.
 - **A second dual or shield set:** none of the missing heroes adds one. The best addition is **Sevarog for a two-handed hammer**.
 - **Where they exist:** these heroes come **inside Epic's full hero packs** ("Paragon: Sevarog" etc.: model, skins, animations, Animation Blueprint) on **their own skeletons**. Their animations would need retargeting to Manny, unlike the pack we already have. Whether any animation-only Manny copy exists for them: **not verified**.
+
+## 7. Paragon hero packs as cosmetics (D-242, D-234, D-241)
+
+**Confirmed by Crown:** this PC has only the Paragon animations; no hero pack has been downloaded. Everything below is from the web, checked 2026-11-17. **Epic's own listing pages returned "forbidden"**, so the figures are from search summaries of those pages (marked *listing*) or from forum answers (marked *forum*). Nothing was downloaded.
+
+### 7.1 What a "Paragon: <Hero>" pack holds
+
+- **Every pack:** the hero's base meshes, textures, **skins**, animations, ability and character FX, sounds and dialogue, and later Animation Blueprints (Epic's 2018 release coverage: [80.lv](https://80.lv/articles/final-round-of-free-paragon-assets-valued-at-over-5-million), [Unreal forum](https://forums.unrealengine.com/t/final-round-of-free-paragon-assets-released/116733)). Engine support on the listings: UE 4.19–4.27 and 5.0–5.3 (*listing*); 5.8 is not listed, so importing into 5.8 may need a conversion pass.
+- **Skins, where found:** Sparrow **8 skins** (1 character, 152 animations, 62 FX, 416 textures; *listing*, [Sparrow](https://docs.unrealengine.com/marketplace/ja/product/paragon-sparrow)); Greystone **5 skins** (*listing*, [Greystone](https://docs.unrealengine.com/marketplace/ja/product/paragon-greystone?lang=ja)). Other heroes: **not verified**.
+- **What a skin changes:** **not verified from a primary source.** From memory of Paragon, most skins are new materials and textures on the same mesh, and a few "premium" skins add mesh parts. Check in the editor after a download.
+- **Size on disk:** **not found** in any source. From memory it is roughly 1–5 GB per hero; treat that as a guess until a pack is downloaded.
+
+### 7.2 Is the weapon separate?
+
+- **Mostly no: the weapon is part of the hero's body mesh**, skinned to weapon bones on the hero's skeleton (*forum*). People remove one by:
+  - hiding its bones;
+  - masking its material slot, which only works if the weapon has its own slot;
+  - cutting it out in Blender and re-importing it as its own mesh ([forum: delete a Paragon weapon](https://forums.unrealengine.com/t/best-way-to-delete-a-paragon-character-weapon-mesh/108672), [forum: swap Countess's weapon](https://forums.unrealengine.com/t/paragon-countess-can-i-swap-her-weapon/432435)).
+- **So a "weapon look" exists only on that hero's body** until someone cuts it out. Weapon variants come with the skins only as far as a skin repaints the weapon part of the mesh (not verified per hero).
+
+### 7.3 The skeleton
+
+- Each hero has **its own skeleton**, close to the UE4 mannequin's bone names, plus **extra weapon bones** (e.g. `bow_base`; `weapon_r` / `weapon_l`) (*forum*: [weapon bones](https://forums.unrealengine.com/t/paragon-characters-weapon-offset-issue-on-skeleton/458186), [retarget rig](https://forums.unrealengine.com/t/retarget-paragon-animations-to-any-other-skeleton/144063)). The packs carry a retarget rig (`Paragon_Proto_Retarget` / `Orion_Proto_Retarget`) for this; forum users map it to the mannequin with the weapon bones left out.
+- **What that means for us:** our `<Hero>Manny` clips have no weapon bones, so any weapon motion in them (a bow string, a spinning blade) is gone; the game's own weapon on a socket replaces it. A hero body brought in needs either its mesh moved onto Manny's skeleton or an IK Retargeter from Manny to the hero, plus our sockets added (section 3).
+
+### 7.4 Which heroes to test first
+
+| Test | Hero | Why | Sure |
+|---|---|---|---|
+| Several skins | **Sparrow** (8) | Most skins found; also matches the bow test in section 2 | Skin count: *listing* |
+| Build close to Quinn | **Sparrow** (or Kallari) | Slim human woman | From memory |
+| Build close to Manny | **Kwang** (or Murdock) | Human man of normal build; Greystone has 5 skins but is broad | From memory |
+| Weapon that comes apart | **None confirmed.** Try Sparrow (her bow sits on its own bones, so hiding them should work) | Bone hiding is the cheapest test | *forum*; editor needed |
+
+One download (Sparrow) covers three of the four tests.
+
+### 7.5 What "cosmetics" could mean, and what each takes
+
+| | Meaning | Work | Size of job |
+|---|---|---|---|
+| **(a) A hero as an unlockable body** ("Body of …") | The whole hero replaces Male / Female Nobody as a look | Import into 5.8; move the mesh onto Manny's skeleton or retarget Manny animations to it; add our sockets; **hide its own weapon** (hide its weapon bones) so the game's weapon shows; decide what happens to apparel (Manny-fitted apparel won't fit: hide it on this body); rename (no "Paragon", D-241 name rules) | Medium per hero; the first one is the pipeline test |
+| **(b) A hero's skins as variants of that body** | Pick a skin at the mirror's Cosmetics option | Skins that only change materials: one material swap per skin, nearly free once (a) is done. Skins that change the mesh: a second body entry | Small after (a) |
+| **(c) A hero's weapon as a look on the game's own weapon** | Sparrow's bow shown on our Bow piece | Cut the weapon out of the body mesh in Blender, re-import it as its own mesh, set its grip and pivot to the house standard, add it as a weapon look of that type; repeat per skin if the skin repaints it | **Large per weapon**; only worth it for a few favourites |
+
+**Plain answer:** (a) and (b) are realistic with these packs; (b) is the cheap win once a hero is in. (c) is a hand-made job per weapon, because the weapons are part of the body. If weapon looks are wanted at scale, a weapon pack (StylizedWeapons' colour variants, or bought weapon skins) does it far more cheaply.
+
+**Not verified:** skin counts beyond Sparrow and Greystone; what each skin changes; pack sizes; whether any hero's weapon has its own material slot; 5.8 import behaviour.
