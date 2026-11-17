@@ -365,10 +365,10 @@ void UJoinRequestCardPresenter::Focus()
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Shown->TakeWidget());
 	PC->SetInputMode(InputMode);
-	bShowedCursor = !PC->ShouldShowMouseCursor() && !WoRKeyHints::IsGamepad(Shown); // B-553: the mouse can answer too
-	if (bShowedCursor)
+	if (!PC->ShouldShowMouseCursor() && !WoRKeyHints::IsGamepad(Shown)) // B-553: the mouse can answer too
 	{
 		PC->SetShowMouseCursor(true);
+		CursorShownFor = PC;
 	}
 	UE_LOG(LogWoRUI, Log, TEXT("[JoinRequestCard] Answering"));
 	Sync();
@@ -393,12 +393,12 @@ bool UJoinRequestCardPresenter::ReleaseKeys()
 	if (APlayerController *PC = Card.IsValid() ? Card->GetOwningPlayer() : nullptr)
 	{
 		PC->SetInputMode(FInputModeGameOnly());
-		if (bShowedCursor)
-		{
-			PC->SetShowMouseCursor(false);
-		}
 	}
-	bShowedCursor = false;
+	if (APlayerController *CursorPC = CursorShownFor.Get())
+	{
+		CursorPC->SetShowMouseCursor(false);
+	}
+	CursorShownFor.Reset();
 	return true;
 }
 

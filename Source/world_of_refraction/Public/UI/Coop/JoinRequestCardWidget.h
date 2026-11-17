@@ -129,8 +129,8 @@ private:
 	FDelegateHandle RequestsChangedHandle;
 	uint32 HoldBindingHandle = 0;
 	bool bFocused = false;
-	/** B-553: Focus showed the cursor (keyboard and mouse), so ReleaseKeys hides it again. */
-	bool bShowedCursor = false;
+	/** B-553: the controller Focus showed the cursor for (keyboard and mouse); ReleaseKeys hides it again, card or not. */
+	TWeakObjectPtr<APlayerController> CursorShownFor;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> AnswerAction;
