@@ -1097,15 +1097,6 @@ The queue of questions only Crown can answer.
 - Weapons keep their own Compare (power, cells change, built-ins gained and lost).
 - **The apparel socket (B-476e): a gem in apparel doesn't count toward "one S-tier crystal per loadout"**, and costs no cells: apparel sits outside the loadout's budget (D-164). Only the loadout's gear counts, as Path of Exile's and Diablo IV's per-slot caps apply to the gear they name. Taking a crystal off apparel follows CL-50b (it goes back to storage; an evolution stays owned), not a weapon's CL-28b.
 
-— The Skills tab: where Innate spells sit, the evolution, the tab order and X
-**Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-476d, UIScreens #2-3) · **Blocks:** —
-**Question:** the mockup shows a Refractor's Innate spells as an entry and the tabs Weapons | Skills | Apparel | Cosmetics on LB / RB; where does Innate spells sit, does the character's evolution get an entry, how do LB / RB turn now that there are three built tabs, and what does X do on the Skills tab?
-**Answer**, by the reference-backed default (Crown may change any):
-- **Innate spells is one entry, after the gear entries**, its slots the school rows on points (the mockup's `7_skills_refractor.png`). Persona 5 and Expedition 33 list a character's own skills after the equipped gear's.
-- **The character's evolution has no Skills entry:** it adds no skill slots (its passives show on the Weapons tab).
-- **LB / RB turn Weapons | Skills | Apparel in a ring** (RB right, LB left; Cosmetics joins later), the chips' order (B-482), as Elden Ring's and Expedition 33's bumper-paged menus wrap around. This changes B-440f's "either key turns" (two tabs).
-- **X switches a skill's full and short effect text, shared with the Weapons tab's view** (B-479c: the screen remembers the view); the box beside the list stands in for the mockup's open-in-place row (the B-479c layout).
-
 ### Q-476d — The Skills tab: where Innate spells sit, the evolution, the tab order and X
 **Status:** ANSWERED (reference-backed default, 2026-11-14) · **Raised:** 2026-11-14 (B-476d, UIScreens #2-3) · **Blocks:** —
 **Question:** the mockup shows a Refractor's Innate spells as an entry and the tabs Weapons | Skills | Apparel | Cosmetics on LB / RB; where does Innate spells sit, does the character's evolution get an entry, how do LB / RB turn now that there are three built tabs, and what does X do on the Skills tab?
