@@ -77,6 +77,16 @@ void FGuestKeepSpec::Define()
 		FPlayerPicks Other = MakePicks();
 		Other.Element = ESpellElement::Fire;
 		TestNull(TEXT("another character: none"), UGuestKeepSubsystem::FindGuestMember(Host, Other));
+
+		// D-228: two guests of the same kind share a name; the joining player's name tells them apart.
+		Guest.Picks.GuestKey = TEXT("Player 2");
+		FSavedPartyMember &SecondGuest = Host.Party.Members.AddDefaulted_GetRef();
+		SecondGuest.Picks = MakePicks();
+		SecondGuest.Picks.bGuest = true;
+		SecondGuest.Picks.GuestKey = TEXT("Player 3");
+		FPlayerPicks Joined = MakePicks();
+		Joined.GuestKey = TEXT("Player 3");
+		TestTrue(TEXT("the guest with its own player name"), UGuestKeepSubsystem::FindGuestMember(Host, Joined) == &Host.Party.Members[2]);
 	});
 
 	It("gives the run's kept levels to the guest's own character, and nothing when the run kept none", [this]()
