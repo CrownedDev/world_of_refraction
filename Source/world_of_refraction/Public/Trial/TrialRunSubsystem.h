@@ -103,6 +103,11 @@ public:
      *  EnterTrial calls it (a resumed run does not: RestoreRun); specs call it directly. */
     void StartRunGearAndGold();
 
+    /** B-552 (D-239): a character picked up inside a run starts from scratch, as one that began it (D-221): its class
+     *  kit, reset and taken on the run. With no worn record yet, its innate list comes from its template first. False
+     *  outside a run (no run layer) or with no kit for its class. UPartySessionSubsystem::InviteRunMember calls it. */
+    bool StartRecruitOnKit(const UCharacterData *Data, FName CharacterKey);
+
     /** Return to the config-authored HubLevel and clear the active trial. Safe
      *  to call when no trial is active (it is just "go to the hub"). Ignored
      *  (with a log) when HubLevel is unset. */

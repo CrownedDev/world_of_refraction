@@ -118,6 +118,26 @@ void FTrialClassDefaultsSpec::Define()
 		TestWorld.Reset();
 	});
 
+	It("starts a character picked up inside the run on its class kit, taken on the run (B-552, D-239)", [this]()
+	{
+		if (!Pool || !TrialRun) return;
+		UPartySessionSubsystem *PartySession = TestWorld->GetSubsystem<UPartySessionSubsystem>();
+		UCharacterData *Recruit = FWoRTestWorld::NewCharacterData();
+		Recruit->Name = TEXT("Recruit");
+		Recruit->CharacterClass = ECharacterClass::Generic;
+		TestFalse(TEXT("outside a run it joins ungeared"), TrialRun->StartRecruitOnKit(Recruit, UPoolSubsystem::GetCharacterKey(Recruit)));
+		TrialRun->StartRunGearAndGold();
+		if (!TestTrue(TEXT("joins"), PartySession && PartySession->InviteRunMember(ACombatCharacter::StaticClass(), Recruit))) return;
+		const FName RecruitKey = UPoolSubsystem::GetCharacterKey(Recruit);
+		const FWornGear *Worn = Pool->GetWornGear(RecruitKey);
+		const FClassDefaultKitIDs *IDs = Pool->GetClassDefaultKit(RecruitKey);
+		if (!TestNotNull(TEXT("a record"), Worn) || !TestTrue(TEXT("its own kit"), IDs && !IDs->Pieces.IsEmpty())) return;
+		const FGuid KitID = IDs->Pieces[WornGearLayout::PRIMARY_INDEX];
+		TestEqual(TEXT("it wears its kit sword"), Worn->Equipment[WornGearLayout::PRIMARY_INDEX].GearID, KitID);
+		TestTrue(TEXT("taken on the run"), Pool->IsOnRun(KitID));
+		TestNotEqual(TEXT("not the first member's"), KitID, KitSwordID());
+	});
+
 	It("starts the trial on the class kit whatever the hub wore; home gear stays owned at home", [this]()
 	{
 		if (!Pool || !TrialRun) return;
