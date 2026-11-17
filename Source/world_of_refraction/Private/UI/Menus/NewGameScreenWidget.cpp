@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Infusion/ElementColors.h"
 #include "Player/WoRHubController.h"
+#include "Save/SaveSubsystem.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/TitleScreenWidget.h"
 #include "UI/WoRRootLayout.h"
@@ -493,11 +494,17 @@ void UNewGameScreenWidget::Confirm()
 		if (bJoining)
 		{
 			Status = WoRNewGame::GetBeginRefusal(Pick);
+			const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+			if (Status.IsEmpty() && Saves && Saves->FindFreeSlot(WoRTitleScreen::GetMaxSlots()) == INDEX_NONE)
+			{
+				// B-563 (Q-561): a new character made to join keeps what it earns in a slot of its own.
+				Status = LOCTEXT("JoinSlotsFull", "Every character slot is in use: join as one of your characters, or delete one on the title.");
+			}
 			if (Status.IsEmpty())
 			{
 				APlayerController *PC = GetOwningPlayer();
 				DeactivateWidget(); // B-562: the host builds it and picks the seat (D-150)
-				WoRTitleScreen::SendJoin(PC, Pick);
+				WoRTitleScreen::SendJoin(PC, Pick, INDEX_NONE);
 				return;
 			}
 			break;

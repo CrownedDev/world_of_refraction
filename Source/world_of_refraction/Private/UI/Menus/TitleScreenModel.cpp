@@ -9,6 +9,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Player/WoRPlayerState.h"
+#include "Save/GuestKeepSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveGame.h"
 #include "Trial/LevelDropPlacement.h"
@@ -110,12 +111,18 @@ bool WoRTitleScreen::ReadSlotPicks(const UGameInstance *GameInstance, int32 Slot
 	return Saves && Saves->ReadSlot(Slot, Data, PlaySeconds) && FindSavedPicks(Data, OutPicks);
 }
 
-bool WoRTitleScreen::SendJoin(APlayerController *PC, const FPlayerPicks &Picks)
+bool WoRTitleScreen::SendJoin(APlayerController *PC, const FPlayerPicks &Picks, int32 Slot)
 {
 	AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
 	if (!Player || !Picks.IsSet())
 	{
 		UE_LOG(LogWoRUI, Warning, TEXT("[Title] Join not sent: %s"), Player ? TEXT("no character picked") : TEXT("no player state"));
+		return false;
+	}
+	UGuestKeepSubsystem *Keep = PC->GetGameInstance() ? PC->GetGameInstance()->GetSubsystem<UGuestKeepSubsystem>() : nullptr;
+	if (!Keep || !Keep->BeginJoin(Slot, Picks, Player->GetWallet()))
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[Title] Join not sent: %s has no save slot to keep what it earns"), *Picks.Name);
 		return false;
 	}
 	UE_LOG(LogWoRUI, Log, TEXT("[Title] Asking the host to join as %s"), *Picks.Name);

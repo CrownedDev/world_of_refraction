@@ -569,7 +569,7 @@ void UTitleScreenWidget::JoinAs(const FTitleScreenRow &Row)
 	}
 	APlayerController *PC = GetOwningPlayer();
 	DeactivateWidget(); // the host picks the seat (D-150); its answer comes back as the seat, not to this screen
-	WoRTitleScreen::SendJoin(PC, Picks);
+	WoRTitleScreen::SendJoin(PC, Picks, Row.Slot);
 }
 
 void UTitleScreenWidget::RequestDelete()

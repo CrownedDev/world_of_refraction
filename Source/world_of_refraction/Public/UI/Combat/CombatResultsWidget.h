@@ -44,6 +44,10 @@ public:
     UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Combat Results", meta = (ClampMin = 0))
     float InputGraceSeconds = 0.75f;
 
+    /** B-565 (TrialPoolDesign stage 1): what the fight dropped, one "Dropped: ..." line each
+     *  (WoRTrialPoolLook::GetDroppedLine). Empty hides the line. Stage 5 fills it from the real drop. */
+    void SetDroppedLines(const TArray<FText> &Lines);
+
     /** Debug: shown state + last result line. */
     FString GetResultsStateString() const;
 
@@ -66,12 +70,16 @@ protected:
     UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
     TObjectPtr<UTextBlock> PromptText;
 
+    UPROPERTY(BlueprintReadOnly, meta = (BindWidgetOptional))
+    TObjectPtr<UTextBlock> DroppedText;
+
 private:
     FTimerHandle AutoContinueTimerHandle;
     double ShownAtSeconds = 0.0;
     bool bShown = false;
     bool bContinued = false;
     FString LastResultLine;
+    FString LastDroppedLines;
 
     bool IsPastInputGrace() const;
     void Continue();
