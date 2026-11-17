@@ -3091,7 +3091,8 @@ void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, co
     FWornGear Worn;
     if (Authored)
     {
-        Worn.InnateSpells.Append(Authored->InnateSpells);
+        // B-567c: the innate spells it keeps, up to its innate limit (D-240's places when unset).
+        Worn.InnateSpells.Append(Authored->InnateSpells.GetData(), FMath::Min(Authored->InnateSpells.Num(), Kit.MostInnate));
         Worn.BDSpellPools = Authored->BDSpellPools;
     }
     Spells.LearnedSpells.Empty();
@@ -3102,14 +3103,10 @@ void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, co
     // Placed by WornGearLayout: weapons first and second; adapters from the adapter places, or first with no weapon.
     TArray<FGuid> WeaponIDs;
     TArray<FGuid> AdapterIDs;
+    TMap<FGuid, const FRolledKitPiece *> PieceOf;
     for (const FRolledKitPiece &Piece : Kit.Pieces)
     {
-        FRuntimeAttachedItem Socket;
-        if (Piece.Crystal.Type != ECrystalType::None)
-        {
-            Socket.Kind = EAttachedItemKind::Crystal;
-            Socket.Crystal = FCrystalAttachment(Piece.Crystal, ItemIdentity::GetMaxDurability(Piece.Crystal));
-        }
+        const FRuntimeAttachedItem Socket = EnemyKitRoll::MakeSocket(Piece);
         // Added directly, not through AddGearEntry: an enemy's two of one piece is no duplicate prompt, and it has no pool.
         if (UWeaponData *Weapon = Cast<UWeaponData>(Piece.Piece))
         {
@@ -3118,6 +3115,7 @@ void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, co
             Entry.Tier = Piece.Tier;
             Entry.AttachedItem = Socket;
             WeaponIDs.Add(Entry.PersistentID);
+            PieceOf.Add(Entry.PersistentID, &Piece);
         }
         else if (URingData *Ring = Cast<URingData>(Piece.Piece))
         {
@@ -3126,15 +3124,19 @@ void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, co
             Entry.Tier = Piece.Tier;
             Entry.AttachedItem = Socket;
             AdapterIDs.Add(Entry.PersistentID);
+            PieceOf.Add(Entry.PersistentID, &Piece);
         }
     }
-    const auto Place = [&Worn](int32 Index, const FGuid &ID)
+    const auto Place = [&Worn, &PieceOf](int32 Index, const FGuid &ID)
     {
         if (Worn.Equipment.Num() <= Index)
         {
             Worn.Equipment.SetNum(Index + 1);
         }
-        Worn.Equipment[Index].GearID = ID;
+        FLoadoutSlot &Entry = Worn.Equipment[Index];
+        Entry.GearID = ID;
+        Entry.AssignedAbilities = PieceOf[ID]->Abilities; // the roll's picks, piece by piece (B-567c)
+        Entry.SpellOverrides = PieceOf[ID]->Spells;
     };
     int32 NextAdapter = FIRST_ADAPTER_INDEX;
     for (int32 i = 0; i < AdapterIDs.Num(); ++i)
@@ -3158,8 +3160,7 @@ void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, co
     const UEvolutionInventoryComponent *OwnedEvolutions = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
     FCombatLoadout Loadout = FCombatLoadout::CreateFromWornGear(Worn, CharacterData.CharacterClass, this, OwnedEvolutions);
     Loadout.bLore = true;
-    Loadout.FillEmptyPicksFromKnown(TArray<UAbilityData *>(Kit.Abilities), TArray<USpellData *>(Kit.Spells));
-    // The roll matches skills to gear by weapon type and element only; a slot rule it doesn't model leaves one unslotted.
+    // The roll places each skill by the player's slot rules; a rule it doesn't model (a weapon pair) can leave one out.
     const TArray<UAbilityData *> SlottedAbilities = Loadout.GetAllAbilities();
     const TArray<USpellData *> SlottedSpells = Loadout.GetAllSpells();
     for (const UAbilityData *Ability : Kit.Abilities)

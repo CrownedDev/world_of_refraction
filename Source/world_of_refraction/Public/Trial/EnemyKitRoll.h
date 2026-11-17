@@ -4,7 +4,8 @@
 // meet the same kit.
 //   Order (§5): 1 the always-has pieces; 2 more pieces from the pool, inside the limits and the class cap; 3 a crystal
 //   for each adapter (an adapter with no crystal does nothing; weapons stay empty, as §8's examples count their slots);
-//   4 the always-has skills, then skills the gear can use, up to the slots and the skill limit.
+//   4 the always-has skills, then skills the gear can use, each on a piece that holds it, up to each piece's slots
+//   and the per-piece limit (B-567c; the player's slot rules, FWeaponLoadoutEntry / FRingLoadoutEntry).
 //   The always-has part is the same on every enemy of the type; the open part is rolled per enemy (its own seed).
 // shortcut: evolutions and apparel are not rolled or worn yet (always-has ones are skipped with a log); add them when
 // a fight can wear an enemy's evolution or apparel without the pool.
@@ -14,6 +15,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/FRuntimeAttachedItem.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Trial/TrialPool.h"
 
@@ -33,6 +35,9 @@ struct FRolledKitPiece
 	FCrystalId Crystal;
 	/** From the always-has list (the template's part), not the pool. */
 	bool bAlwaysHas = false;
+	/** Its picks, slot by slot: a weapon's abilities, an adapter's spells. */
+	TArray<TObjectPtr<UAbilityData>> Abilities;
+	TArray<TObjectPtr<USpellData>> Spells;
 };
 
 struct FRolledEnemyKit
@@ -41,6 +46,8 @@ struct FRolledEnemyKit
 	/** In pick order: the always-has skills first. */
 	TArray<TObjectPtr<UAbilityData>> Abilities;
 	TArray<TObjectPtr<USpellData>> Spells;
+	/** How many of its authored innate spells it keeps (EnemyKitRules::GetMostInnate). */
+	int32 MostInnate = 0;
 
 	bool HasGear() const { return Pieces.Num() > 0; }
 };
@@ -72,7 +79,12 @@ namespace EnemyKitRoll
 	WORLD_OF_REFRACTION_API TArray<FRolledEnemyKit> RollTeam(TConstArrayView<UCharacterData *> Team, FEnemyKitRollInput Input, int32 RunSeed,
 															 const FString &EncounterKey);
 
-	/** Skill slots the pieces give: a weapon by its tier, an adapter by its crystal's tier (else its own). */
+	/** The socket a rolled piece is worn with (its crystal at full durability, or empty). */
+	WORLD_OF_REFRACTION_API FRuntimeAttachedItem MakeSocket(const FRolledKitPiece &Piece);
+	/** The skills one piece holds by the player's rules: a weapon's skill slots (its attached crystal's included), an
+	 *  adapter's spell slots when its crystal gives spells (else none). */
+	WORLD_OF_REFRACTION_API int32 GetPieceSlots(const FRolledKitPiece &Piece);
+	/** Every piece's slots together. */
 	WORLD_OF_REFRACTION_API int32 GetSlotCount(const FRolledEnemyKit &Kit);
 
 	/** "Arming Sword D; Adapter Ring F [Garnet C] | Lunge, Heavy Strike" with asset names, so same-named skills differ. */

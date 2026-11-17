@@ -9,7 +9,10 @@
 #include "Equipment/GearSockets.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Loadout/Entries/FRingLoadoutEntry.h"
+#include "Loadout/Entries/FWeaponLoadoutEntry.h"
 #include "Loadout/LoadoutRules.h"
+#include "Loadout/WeaponSetRules.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Definitions/SpellData.h"
@@ -76,23 +79,40 @@ namespace
 		});
 	}
 
-	bool CanUse(const FRolledEnemyKit &Kit, const UAbilityData &Ability)
+	FWeaponLoadoutEntry AsWeaponEntry(const FRolledKitPiece &Piece)
 	{
-		// The same test FCombatLoadout::FillEmptyPicksFromKnown fills with, so a chosen skill finds its slot.
-		return !Ability.IsAttack() && Kit.Pieces.ContainsByPredicate([&Ability](const FRolledKitPiece &Piece)
-		{
-			const UWeaponData *Weapon = Cast<UWeaponData>(Piece.Piece);
-			return Weapon && Weapon->WeaponType == Ability.RequiredWeaponType;
-		});
+		FWeaponLoadoutEntry Entry;
+		Entry.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(Cast<UWeaponData>(Piece.Piece));
+		Entry.WeaponEntry.Tier = Piece.Tier;
+		Entry.WeaponEntry.AttachedItem = EnemyKitRoll::MakeSocket(Piece);
+		return Entry;
 	}
 
-	bool CanUse(const FRolledEnemyKit &Kit, const USpellData &Spell)
+	FRingLoadoutEntry AsRingEntry(const FRolledKitPiece &Piece)
 	{
-		return Kit.Pieces.ContainsByPredicate([&Spell](const FRolledKitPiece &Piece)
+		FRingLoadoutEntry Entry;
+		Entry.RingEntry = FRingInventoryEntry::CreateFromRing(Cast<URingData>(Piece.Piece));
+		Entry.RingEntry.Tier = Piece.Tier;
+		Entry.RingEntry.AttachedItem = EnemyKitRoll::MakeSocket(Piece);
+		return Entry;
+	}
+
+	/** The tests FCombatLoadout::FillEmptyPicksFromKnown slots with, on this piece's next slot. */
+	bool CanHold(const FRolledKitPiece &Piece, const USkillDataBase &Skill)
+	{
+		if (const UAbilityData *Ability = Cast<UAbilityData>(&Skill))
 		{
-			return !IsWeapon(Piece) && Piece.Crystal.Type != ECrystalType::None &&
-				   ElementHelpers::SpellElementMatchesHost(Spell.Element, CrystalTypeHelpers::GetElement(Piece.Crystal.Type));
-		});
+			const UWeaponData *Weapon = Cast<UWeaponData>(Piece.Piece);
+			if (!Weapon || Ability->IsAttack() || Ability->RequiredWeaponType != Weapon->WeaponType)
+			{
+				return false;
+			}
+			const FWeaponLoadoutEntry Entry = AsWeaponEntry(Piece);
+			return Ability->AllowsWieldMode(WeaponSetRules::GetSetWieldMode(Entry)) && Entry.CanHoldSkill(Piece.Abilities.Num(), Ability);
+		}
+		const USpellData *Spell = Cast<USpellData>(&Skill);
+		return Spell && !IsWeapon(Piece) && Piece.Crystal.Type != ECrystalType::None &&
+			   ElementHelpers::SpellElementMatchesHost(Spell->Element, CrystalTypeHelpers::GetElement(Piece.Crystal.Type));
 	}
 
 	FString GetPieceString(const FRolledKitPiece &Piece)
@@ -102,7 +122,20 @@ namespace
 		{
 			Line += FString::Printf(TEXT(" [%s]"), *ItemIdentity::GetDisplayName(Piece.Crystal));
 		}
-		return Piece.bAlwaysHas ? Line + TEXT(" (always)") : Line;
+		if (Piece.bAlwaysHas)
+		{
+			Line += TEXT(" (always)");
+		}
+		TArray<FString> Picks;
+		for (const UAbilityData *Ability : Piece.Abilities)
+		{
+			Picks.Add(GetNameSafe(Ability));
+		}
+		for (const USpellData *Spell : Piece.Spells)
+		{
+			Picks.Add(GetNameSafe(Spell));
+		}
+		return FString::Printf(TEXT("%s: %s"), *Line, Picks.IsEmpty() ? TEXT("no skills") : *FString::Join(Picks, TEXT(", ")));
 	}
 }
 
@@ -194,51 +227,63 @@ FRolledEnemyKit EnemyKitRoll::Roll(const UCharacterData &Template, const FEnemyK
 		RollCrystal(Piece, Limits, Input, bRangeMeets ? Range : Input.ZoneRange, Roll); // an always-has adapter still gets one
 	}
 
-	// 4. Skills: the always-has ones, then ones the gear can use, up to the skill limit and the slots.
-	const int32 MostSkills = EnemyKitRules::GetMostSkills(Limits, GetSlotCount(Kit));
-	int32 Chosen = 0;
+	// 4. Skills, piece by piece (B-567c): the always-has ones, then ones the gear can use in a seeded order; each goes
+	//    on the first piece that holds it with room (its slots, lowered by the per-piece limit).
+	TArray<int32> Room;
+	for (const FRolledKitPiece &Piece : Kit.Pieces)
+	{
+		Room.Add(EnemyKitRules::GetMostSkillsOnPiece(Limits, GetPieceSlots(Piece)));
+	}
+	const auto Place = [&Kit, &Room](USkillDataBase *Skill)
+	{
+		for (int32 i = 0; i < Kit.Pieces.Num(); ++i)
+		{
+			FRolledKitPiece &Piece = Kit.Pieces[i];
+			if (Room[i] <= 0 || !CanHold(Piece, *Skill))
+			{
+				continue;
+			}
+			--Room[i];
+			if (UAbilityData *Ability = Cast<UAbilityData>(Skill))
+			{
+				Piece.Abilities.Add(Ability);
+				Kit.Abilities.Add(Ability);
+			}
+			else
+			{
+				Piece.Spells.Add(Cast<USpellData>(Skill));
+				Kit.Spells.Add(Cast<USpellData>(Skill));
+			}
+			return true;
+		}
+		return false;
+	};
+	TArray<USkillDataBase *> Placed;
 	for (USkillDataBase *Skill : Limits.Skills)
 	{
-		if (Chosen >= MostSkills)
+		if (Skill && !Placed.Contains(Skill))
 		{
-			break;
-		}
-		if (UAbilityData *Ability = Cast<UAbilityData>(Skill))
-		{
-			Kit.Abilities.AddUnique(Ability);
-			++Chosen;
-		}
-		else if (USpellData *Spell = Cast<USpellData>(Skill))
-		{
-			Kit.Spells.AddUnique(Spell);
-			++Chosen;
+			Placed.Add(Skill);
+			UE_CLOG(!Place(Skill), LogWoRLoadout, Log, TEXT("[EnemyKitRoll] %s: no piece holds its always-has %s"), *Template.GetName(), *Skill->GetName());
 		}
 	}
 	TArray<USkillDataBase *> Usable;
 	for (UObject *Item : Input.Pool)
 	{
-		const UAbilityData *Ability = Cast<UAbilityData>(Item);
+		USkillDataBase *Skill = Cast<USkillDataBase>(Item);
 		const USpellData *Spell = Cast<USpellData>(Item);
-		const bool bUsable = (Ability && CanUse(Kit, *Ability)) || (Spell && EnemyKitRules::AllowsElement(Limits, Spell->Element) && CanUse(Kit, *Spell));
-		if (bUsable && !Limits.Skills.Contains(Cast<USkillDataBase>(Item)))
+		if (Skill && !Placed.Contains(Skill) && (Cast<UAbilityData>(Item) || (Spell && EnemyKitRules::AllowsElement(Limits, Spell->Element))))
 		{
-			Usable.Add(Cast<USkillDataBase>(Item));
+			Usable.AddUnique(Skill);
 		}
 	}
-	while (Chosen < MostSkills && !Usable.IsEmpty())
+	while (!Usable.IsEmpty() && Room.ContainsByPredicate([](int32 Left) { return Left > 0; }))
 	{
 		USkillDataBase *Skill = Usable[Roll.RandRange(0, Usable.Num() - 1)];
 		Usable.RemoveSingle(Skill);
-		if (UAbilityData *Ability = Cast<UAbilityData>(Skill))
-		{
-			Kit.Abilities.Add(Ability);
-		}
-		else
-		{
-			Kit.Spells.Add(Cast<USpellData>(Skill));
-		}
-		++Chosen;
+		Place(Skill);
 	}
+	Kit.MostInnate = EnemyKitRules::GetMostInnate(Template);
 	return Kit;
 }
 
@@ -275,13 +320,33 @@ TArray<FRolledEnemyKit> EnemyKitRoll::RollTeam(TConstArrayView<UCharacterData *>
 	return Kits;
 }
 
+FRuntimeAttachedItem EnemyKitRoll::MakeSocket(const FRolledKitPiece &Piece)
+{
+	FRuntimeAttachedItem Socket;
+	if (Piece.Crystal.Type != ECrystalType::None)
+	{
+		Socket.Kind = EAttachedItemKind::Crystal;
+		Socket.Crystal = FCrystalAttachment(Piece.Crystal, ItemIdentity::GetMaxDurability(Piece.Crystal));
+	}
+	return Socket;
+}
+
+int32 EnemyKitRoll::GetPieceSlots(const FRolledKitPiece &Piece)
+{
+	if (IsWeapon(Piece))
+	{
+		return AsWeaponEntry(Piece).GetSkillSlotCount();
+	}
+	const FRingLoadoutEntry Ring = AsRingEntry(Piece);
+	return Ring.RingEntry.AttachedItem.IsSpellSource() ? Ring.GetSpellSlotCap() : 0;
+}
+
 int32 EnemyKitRoll::GetSlotCount(const FRolledEnemyKit &Kit)
 {
 	int32 Slots = 0;
 	for (const FRolledKitPiece &Piece : Kit.Pieces)
 	{
-		const bool bCrystalTier = !IsWeapon(Piece) && Piece.Crystal.Type != ECrystalType::None;
-		Slots += CrystalEffectTable::SlotsForContainerTier(bCrystalTier ? Piece.Crystal.Tier : Piece.Tier);
+		Slots += GetPieceSlots(Piece);
 	}
 	return Slots;
 }
@@ -293,17 +358,8 @@ FString EnemyKitRoll::GetRolledKitString(const FRolledEnemyKit &Kit)
 	{
 		Pieces.Add(GetPieceString(Piece));
 	}
-	TArray<FString> Skills;
-	for (const UAbilityData *Ability : Kit.Abilities)
-	{
-		Skills.Add(GetNameSafe(Ability));
-	}
-	for (const USpellData *Spell : Kit.Spells)
-	{
-		Skills.Add(GetNameSafe(Spell));
-	}
-	return FString::Printf(TEXT("%s | %d slots | %s"), Pieces.IsEmpty() ? TEXT("no gear") : *FString::Join(Pieces, TEXT("; ")), GetSlotCount(Kit),
-						   Skills.IsEmpty() ? TEXT("no skills") : *FString::Join(Skills, TEXT(", ")));
+	return FString::Printf(TEXT("%s | %d slots | innate up to %d"), Pieces.IsEmpty() ? TEXT("no gear") : *FString::Join(Pieces, TEXT("; ")),
+						   GetSlotCount(Kit), Kit.MostInnate);
 }
 
 #if !UE_BUILD_SHIPPING
