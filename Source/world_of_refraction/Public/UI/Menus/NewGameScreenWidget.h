@@ -45,6 +45,11 @@ public:
 
 	/** Pushes the screen onto PC's root layout (over the title). */
 	static UNewGameScreenWidget *Open(APlayerController *PC);
+	/** B-562 (stage 5): a co-op guest's new character: Begin sends its picks to the host (WoRTitleScreen::SendJoin)
+	 *  instead of starting a game. shortcut: the character is not written to the guest's own slots (Q-561); make it
+	 *  on the title first to keep it. */
+	static UNewGameScreenWidget *OpenToJoin(APlayerController *PC);
+	bool IsJoining() const { return bJoining; }
 
 	// What the keys do (specs call them directly).
 	void MoveUp();
@@ -69,6 +74,7 @@ public:
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeOnActivated() override;
+	virtual void NativeOnDeactivated() override;
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
 	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
@@ -93,6 +99,8 @@ private:
 	bool FindPartUnder(const FVector2D &ScreenPosition, ENewGameFocus &OutPart, int32 &OutIndex) const;
 
 	FNewGamePick Pick;
+	/** B-562: opened to join (OpenToJoin); cleared when it closes (the stack may hand the widget out again). */
+	bool bJoining = false;
 	ENewGameFocus Focus = ENewGameFocus::Class;
 	int32 PickCursor = 0;
 	FText Status;
