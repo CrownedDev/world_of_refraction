@@ -16,50 +16,16 @@
 
 namespace
 {
-	enum class EKitPieceKind : uint8
+	int32 CountKind(const FEnemyKit &Kit, EEnemyKitKind Kind)
 	{
-		Weapon,
-		Adapter,
-		Evolution,
-		Other, // apparel: its own place, outside the item limits
-		Unknown
-	};
-
-	EKitPieceKind GetKind(const UObject *Item)
-	{
-		if (const UPrebuiltFindData *Find = Cast<UPrebuiltFindData>(Item))
+		return Kit.Pieces.FilterByPredicate([Kind](const FEnemyKitPiece &Piece)
 		{
-			return GetKind(Find->Piece);
-		}
-		if (Cast<UWeaponData>(Item))
-		{
-			return EKitPieceKind::Weapon;
-		}
-		if (Cast<URingData>(Item))
-		{
-			return EKitPieceKind::Adapter;
-		}
-		if (Cast<UEvolutionItemData>(Item))
-		{
-			return EKitPieceKind::Evolution;
-		}
-		return Cast<UEquipmentDataBase>(Item) ? EKitPieceKind::Other : EKitPieceKind::Unknown;
+			EEnemyKitKind PieceKind;
+			return EnemyKitRules::GetKind(Piece.Item, PieceKind) && PieceKind == Kind;
+		}).Num();
 	}
 
-	int32 CountKind(const FEnemyKit &Kit, EKitPieceKind Kind)
-	{
-		return Kit.Pieces.FilterByPredicate([Kind](const FEnemyKitPiece &Piece) { return GetKind(Piece.Item) == Kind; }).Num();
-	}
-
-	/** A class limit (NO_LIMIT: none) lowered by the kit's own when set. */
-	int32 Lower(int32 ClassLimit, bool bKitLimit, int32 KitLimit)
-	{
-		if (!bKitLimit)
-		{
-			return ClassLimit;
-		}
-		return ClassLimit == LoadoutClassTable::NO_LIMIT ? KitLimit : FMath::Min(ClassLimit, KitLimit);
-	}
+	bool IsOver(int32 Count, int32 Limit) { return Limit != LoadoutClassTable::NO_LIMIT && Count > Limit; }
 
 	FString GetLimitString(int32 Limit)
 	{
@@ -67,14 +33,63 @@ namespace
 	}
 }
 
-int32 EnemyKitRules::GetMostWeapons(const FEnemyKit &Kit, ECharacterClass Class)
+bool EnemyKitRules::GetKind(const UObject *Item, EEnemyKitKind &OutKind)
 {
-	return Lower(LoadoutClassTable::Get(Class).MaxWeapons, Kit.bLimitWeapons, Kit.MostWeapons);
+	if (const UPrebuiltFindData *Find = Cast<UPrebuiltFindData>(Item))
+	{
+		return GetKind(Find->Piece, OutKind);
+	}
+	if (Cast<UWeaponData>(Item))
+	{
+		OutKind = EEnemyKitKind::Weapon;
+	}
+	else if (Cast<URingData>(Item))
+	{
+		OutKind = EEnemyKitKind::Adapter;
+	}
+	else if (Cast<UEvolutionItemData>(Item))
+	{
+		OutKind = EEnemyKitKind::Evolution;
+	}
+	else if (Cast<UEquipmentDataBase>(Item))
+	{
+		OutKind = EEnemyKitKind::Apparel;
+	}
+	else
+	{
+		return false;
+	}
+	return true;
 }
 
-int32 EnemyKitRules::GetMostAdapters(const FEnemyKit &Kit, ECharacterClass Class)
+int32 EnemyKitRules::GetMostGear(const FEnemyKit &Kit, ECharacterClass Class)
 {
-	return Lower(LoadoutClassTable::Get(Class).MaxAdapters, Kit.bLimitAdapters, Kit.MostAdapters);
+	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
+	const int32 ClassItems = Limits.MaxItems == LoadoutClassTable::NO_LIMIT ? Limits.MaxWeapons + Limits.MaxAdapters : Limits.MaxItems;
+	return Kit.bLimitGear ? FMath::Min(ClassItems, Kit.MostGear) : ClassItems;
+}
+
+int32 EnemyKitRules::GetMostOfKind(const FEnemyKit &Kit, ECharacterClass Class, EEnemyKitKind Kind)
+{
+	if (!AllowsKind(Kit, Kind))
+	{
+		return 0;
+	}
+	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
+	switch (Kind)
+	{
+	case EEnemyKitKind::Weapon:
+		return Limits.MaxWeapons;
+	case EEnemyKitKind::Adapter:
+		return Limits.MaxAdapters;
+	default:
+		return LoadoutClassTable::NO_LIMIT;
+	}
+}
+
+bool EnemyKitRules::AllowsKind(const FEnemyKit &Kit, EEnemyKitKind Kind)
+{
+	return Kit.Kinds.IsEmpty() || Kit.Kinds.Contains(Kind);
 }
 
 int32 EnemyKitRules::GetMostSkills(const FEnemyKit &Kit, int32 Slots)
@@ -105,29 +120,25 @@ TArray<FString> EnemyKitRules::CheckAlwaysHas(const FEnemyKit &Kit, ECharacterCl
 {
 	TArray<FString> Problems;
 	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
-	const int32 Weapons = CountKind(Kit, EKitPieceKind::Weapon);
-	const int32 Adapters = CountKind(Kit, EKitPieceKind::Adapter);
-	const int32 Items = Weapons + Adapters + CountKind(Kit, EKitPieceKind::Evolution);
-	if (Limits.MaxWeapons != LoadoutClassTable::NO_LIMIT && Weapons > Limits.MaxWeapons)
+	const int32 Weapons = CountKind(Kit, EEnemyKitKind::Weapon);
+	const int32 Adapters = CountKind(Kit, EEnemyKitKind::Adapter);
+	const int32 Items = Weapons + Adapters + CountKind(Kit, EEnemyKitKind::Evolution);
+	if (IsOver(Weapons, Limits.MaxWeapons))
 	{
 		Problems.Add(FString::Printf(TEXT("%d weapons; its class carries %d"), Weapons, Limits.MaxWeapons));
 	}
-	if (Limits.MaxAdapters != LoadoutClassTable::NO_LIMIT && Adapters > Limits.MaxAdapters)
+	if (IsOver(Adapters, Limits.MaxAdapters))
 	{
 		Problems.Add(FString::Printf(TEXT("%d adapters; its class carries %d"), Adapters, Limits.MaxAdapters));
 	}
-	if (Limits.MaxItems != LoadoutClassTable::NO_LIMIT && Items > Limits.MaxItems)
+	if (IsOver(Items, Limits.MaxItems))
 	{
 		Problems.Add(FString::Printf(TEXT("%d items; its class carries %d"), Items, Limits.MaxItems));
 	}
 	// The kit's own limits, which the always-has list counts toward (Q-567).
-	if (Kit.bLimitWeapons && Weapons > Kit.MostWeapons)
+	if (Kit.bLimitGear && Items > Kit.MostGear)
 	{
-		Problems.Add(FString::Printf(TEXT("%d weapons always; its own limit is %d"), Weapons, Kit.MostWeapons));
-	}
-	if (Kit.bLimitAdapters && Adapters > Kit.MostAdapters)
-	{
-		Problems.Add(FString::Printf(TEXT("%d adapters always; its own limit is %d"), Adapters, Kit.MostAdapters));
+		Problems.Add(FString::Printf(TEXT("%d pieces always; its most gear is %d"), Items, Kit.MostGear));
 	}
 	const int32 MostSkills = Kit.bLimitSkills ? Kit.MostSkills : DEFAULT_MOST_SKILLS;
 	if (Kit.Skills.Num() > MostSkills)
@@ -141,9 +152,14 @@ TArray<FString> EnemyKitRules::CheckAlwaysHas(const FEnemyKit &Kit, ECharacterCl
 	for (int32 Index = 0; Index < Kit.Pieces.Num(); ++Index)
 	{
 		const UObject *Item = Kit.Pieces[Index].Item;
-		if (GetKind(Item) == EKitPieceKind::Unknown)
+		EEnemyKitKind Kind;
+		if (!GetKind(Item, Kind))
 		{
 			Problems.Add(FString::Printf(TEXT("piece %d is empty or not gear"), Index));
+		}
+		else if (!AllowsKind(Kit, Kind))
+		{
+			Problems.Add(FString::Printf(TEXT("piece %d is a kind its own limit leaves out"), Index));
 		}
 		const UPrebuiltFindData *Find = Cast<UPrebuiltFindData>(Item);
 		const UWeaponData *Weapon = Cast<UWeaponData>(Find ? Find->Piece.Get() : Item);
@@ -195,6 +211,11 @@ FString EnemyKitRules::GetEnemyKitString(const FEnemyKit &Kit, ECharacterClass C
 	{
 		Skills.Add(Skill ? Skill->Name : FString(TEXT("<empty>")));
 	}
+	TArray<FString> Kinds;
+	for (const EEnemyKitKind Kind : Kit.Kinds)
+	{
+		Kinds.Add(UEnum::GetDisplayValueAsText(Kind).ToString());
+	}
 	TArray<FString> Types;
 	for (const EWeaponType Type : Kit.WeaponTypes)
 	{
@@ -207,14 +228,14 @@ FString EnemyKitRules::GetEnemyKitString(const FEnemyKit &Kit, ECharacterClass C
 	}
 	FString Output = FString::Printf(TEXT("Always has: %s | skills: %s"), Pieces.IsEmpty() ? TEXT("nothing") : *FString::Join(Pieces, TEXT(", ")),
 									 Skills.IsEmpty() ? TEXT("none") : *FString::Join(Skills, TEXT(", ")));
-	Output += FString::Printf(TEXT(" | most weapons %s, adapters %s, skills %d (before slots)"), *GetLimitString(GetMostWeapons(Kit, Class)),
-							  *GetLimitString(GetMostAdapters(Kit, Class)), Kit.bLimitSkills ? Kit.MostSkills : DEFAULT_MOST_SKILLS);
-	Output += FString::Printf(TEXT(" | weapon types %s | elements %s | tiers %s | evolution %s"),
+	Output += FString::Printf(TEXT(" | most gear %d (weapons %s, adapters %s), skills %d (before slots)"), GetMostGear(Kit, Class),
+							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Weapon)),
+							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Adapter)), Kit.bLimitSkills ? Kit.MostSkills : DEFAULT_MOST_SKILLS);
+	Output += FString::Printf(TEXT(" | kinds %s | weapon types %s | elements %s | tiers %s"), Kinds.IsEmpty() ? TEXT("any") : *FString::Join(Kinds, TEXT(", ")),
 							  Types.IsEmpty() ? TEXT("any") : *FString::Join(Types, TEXT(", ")),
 							  Elements.IsEmpty() ? TEXT("any") : *FString::Join(Elements, TEXT(", ")),
 							  Kit.bLimitTiers ? *FString::Printf(TEXT("%s to %s"), *ItemIdentity::GetTierLetter(Kit.MinTier), *ItemIdentity::GetTierLetter(Kit.MaxTier))
-											  : TEXT("its zone's"),
-							  Kit.bAllowEvolution ? TEXT("yes") : TEXT("no"));
+											  : TEXT("its zone's"));
 	for (const FString &Problem : CheckAlwaysHas(Kit, Class))
 	{
 		Output += FString::Printf(TEXT(" | PROBLEM: %s"), *Problem);

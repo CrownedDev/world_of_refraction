@@ -149,9 +149,9 @@ FRolledEnemyKit EnemyKitRoll::Roll(const UCharacterData &Template, const FEnemyK
 	}
 
 	// 2. More from the pool, inside the limits and the class cap (unset: everything the class can wear).
-	const int32 MostWeapons = EnemyKitRules::GetMostWeapons(Limits, Class);
-	const int32 MostAdapters = EnemyKitRules::GetMostAdapters(Limits, Class);
-	const int32 MostItems = LoadoutClassTable::Get(Class).MaxItems;
+	const int32 MostWeapons = EnemyKitRules::GetMostOfKind(Limits, Class, EEnemyKitKind::Weapon);
+	const int32 MostAdapters = EnemyKitRules::GetMostOfKind(Limits, Class, EEnemyKitKind::Adapter);
+	const int32 MostGear = EnemyKitRules::GetMostGear(Limits, Class);
 	TArray<FRolledKitPiece> Candidates;
 	for (UObject *Item : Input.Pool)
 	{
@@ -171,7 +171,7 @@ FRolledEnemyKit EnemyKitRoll::Roll(const UCharacterData &Template, const FEnemyK
 	{
 		const int32 Weapons = CountWeapons(Kit);
 		const int32 Adapters = Kit.Pieces.Num() - Weapons;
-		if (!HasRoom(Kit.Pieces.Num(), MostItems))
+		if (!HasRoom(Kit.Pieces.Num(), MostGear))
 		{
 			break;
 		}
