@@ -46,6 +46,11 @@ public:
 
 	/** Pushes the screen onto PC's root layout. */
 	static UTitleScreenWidget *Open(APlayerController *PC);
+	/** B-562 (D-229, stage 5): a co-op guest's join, from the game menu: the same slot list without the buttons. A
+	 *  filled slot sends that character's picks to the host (WoRTitleScreen::SendJoin); the + opens the new game screen
+	 *  to join (UNewGameScreenWidget::OpenToJoin). No delete; Back closes it. */
+	static UTitleScreenWidget *OpenToJoin(APlayerController *PC);
+	bool IsJoining() const { return bJoining; }
 	/** B-535: Open on a play session's first map load, when it is the game's default map (WoRTitleScreen::ShouldOpenAtStart).
 	 *  OBSOLETE (B-537): the menu level opens the title itself; once it is GameDefaultMap this opens nothing. */
 	static void OpenAtLaunch(APlayerController *PC);
@@ -98,6 +103,8 @@ private:
 	void StartOver();
 	/** B-546: the delete answered yes: the save is deleted and the slots read again. */
 	void DeleteCharacter();
+	/** B-562: the lit slot's character asks the host for a seat, and the screen closes. */
+	void JoinAs(const FTitleScreenRow &Row);
 	/** The slots come first in Rows, then the buttons. */
 	int32 GetSlotCount() const;
 	UBorder *GetRowBox(int32 Index) const;
@@ -112,6 +119,8 @@ private:
 	/** B-554 (D-229): every filled slot, read from disk when the title opens and after a delete (not on every move). */
 	TArray<FTitleSaveSummary> SlotSaves;
 	bool bSlotsRead = false;
+	/** B-562: opened to join a friend's game (OpenToJoin); cleared when it closes. */
+	bool bJoining = false;
 	int32 SelectedRow = 0;
 	ETitlePanel Panel = ETitlePanel::None;
 	/** B-546: a yes / no panel opens on No. */

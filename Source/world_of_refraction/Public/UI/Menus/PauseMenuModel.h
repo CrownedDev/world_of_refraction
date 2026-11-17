@@ -22,7 +22,9 @@ enum class EPauseMenuPage : uint8
 	Party,
 	Journal,
 	Settings,
-	Quit
+	Quit,
+	/** B-562 (D-229, stage 5): a co-op guest joins the host's party as one of its own characters (listed before Quit). */
+	Join
 };
 
 struct FPauseMenuPage
@@ -75,6 +77,10 @@ namespace WoRPauseMenu
 	/** The eight pages. bCanEndRun: false for a co-op guest in a run (only the host ends it). TrackedLine (B-463b): the
 	 *  tracked quest's step, the Journal row's preview when not empty. */
 	WORLD_OF_REFRACTION_API TArray<FPauseMenuPage> BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine = FText::GetEmpty(), bool bHasFrontEnd = false);
+	/** B-562: as above, with a Join row before Quit when bCanJoin (a co-op guest: a client); refused while bSeated (it
+	 *  already plays a member). */
+	WORLD_OF_REFRACTION_API TArray<FPauseMenuPage> BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine, bool bHasFrontEnd,
+															  bool bCanJoin, bool bSeated);
 
 	/** B-463b: the tracked quest's "Title: current goal"; empty when nothing is tracked. */
 	WORLD_OF_REFRACTION_API FText GetTrackedLine(const UWorld *World);
