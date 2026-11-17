@@ -14,6 +14,7 @@
 #include "Combat/Resistance/ClassInnateResistanceTable.h"
 #include "Combat/Actions/EActionType.h"
 #include "Combat/Camera/BossFraming.h"
+#include "Trial/EnemyKit.h"
 #include <Combat/CombatConstants.h>
 
 #if WITH_EDITOR
@@ -229,6 +230,11 @@ public:
 	 *  mini-boss low and looking up, others at eye level. Set Low for a tall normal enemy, EyeLevel for a small boss. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Enemy")
 	EEnemyCameraHeight EnemyCameraHeight = EEnemyCameraHeight::ByRank;
+
+	/** B-567 (D-225, trial pool stage 3): as an enemy, what it always has and the limits on what it takes from the
+	 *  trial's pool (unset = any; skills 3). Not read by a fight until the roll (stage 4). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Enemy|Kit")
+	FEnemyKit EnemyKit;
 
 	/** Widens the real-time defense input window (more Reflex = more lead-in time to
 	 *  land a parry/dodge). Scales ON TOP of UDefenseSystem::DefenseInputWindow — see
@@ -744,6 +750,10 @@ public:
 	/** Logs UCharacterDataDebug::GetCharacterStatsString. */
 	UFUNCTION(CallInEditor, Category = "Debug")
 	void PrintCharacterData();
+
+	/** B-567: logs EnemyKitRules::GetEnemyKitString (the always-has list, the limits, problems against the class). */
+	UFUNCTION(CallInEditor, Category = "Debug")
+	void PrintEnemyKit() const;
 
 private:
 	/** Repopulate the transient ResistanceProfile mirror from

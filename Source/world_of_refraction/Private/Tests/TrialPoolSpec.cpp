@@ -45,14 +45,16 @@ void FTrialPoolSpec::Define()
 		TestFalse(TEXT("neither: none"), TrialPool::GetPoolTag(nullptr, FEncounterZoneInfo()).IsValid());
 	});
 
-	It("holds the five base elements' gems and no stones (Q-566)", [this]()
+	It("holds every element's gem, no Quartz and no stones (Q-566)", [this]()
 	{
 		const TArray<ECrystalType> &Crystals = TrialPool::GetPoolCrystals();
-		for (const ECrystalType Gem : {ECrystalType::Garnet, ECrystalType::Sapphire, ECrystalType::Citrine, ECrystalType::Emerald, ECrystalType::Amber})
+		for (const ECrystalType Gem : {ECrystalType::Garnet, ECrystalType::Sapphire, ECrystalType::Citrine, ECrystalType::Emerald, ECrystalType::Amber,
+									   ECrystalType::Opal, ECrystalType::Onyx, ECrystalType::Amethyst, ECrystalType::Iolite})
 		{
 			TestTrue(FString::Printf(TEXT("has %d"), static_cast<int32>(Gem)), Crystals.Contains(Gem));
 		}
-		TestEqual(TEXT("five"), Crystals.Num(), 5);
+		TestEqual(TEXT("nine"), Crystals.Num(), 9);
+		TestFalse(TEXT("no Quartz"), Crystals.Contains(ECrystalType::Quartz));
 		TestFalse(TEXT("no Damage Stone"), Crystals.Contains(ECrystalType::DamageStone));
 	});
 
