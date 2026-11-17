@@ -88,8 +88,10 @@ namespace WoRHubHUD
 
 	/** B-503g: the party strip, one card per member in party order (members with no data are left out).
 	 *  B-503j (D-216): the battle HUD's card; its data from the carried vitals (none: full, as the pause menu).
-	 *  B-503m4 (D-217): the played member (PlayedSlot) is always the first card, the others after in party order. */
-	WORLD_OF_REFRACTION_API TArray<FBattleHUDCard> BuildPartyStrip(const UParty *Party, int32 PlayedSlot = INDEX_NONE);
+	 *  B-503m4 (D-217): the played member (PlayedSlot) is always the first card, the others after in party order.
+	 *  D-229: a player character's card reads You or its player's tag in World (null: You), its kind name under it. */
+	WORLD_OF_REFRACTION_API TArray<FBattleHUDCard> BuildPartyStrip(const UParty *Party, int32 PlayedSlot = INDEX_NONE,
+																   const UWorld *World = nullptr);
 
 	/** B-503m4: the party slot of the member Pawn plays (INDEX_NONE: none). */
 	WORLD_OF_REFRACTION_API int32 FindPlayedMemberSlot(const APawn *Pawn);

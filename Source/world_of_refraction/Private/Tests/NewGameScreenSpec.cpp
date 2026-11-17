@@ -132,24 +132,11 @@ void FNewGameScreenSpec::Define()
 		TestTrue(TEXT("a Refractor's one pick is always made"), WoRNewGame::GetBeginRefusal(Refractor).IsEmpty());
 	});
 
-	It("refuses a kind the player already has, one of each (D-229)", [this]()
+	It("allows a second character of a kind (D-241); the default slot count stays 12", [this]()
 	{
 		FNewGamePick FireRefractor = MakePick(ECharacterClass::Caster, ESpellElement::Fire);
-		FNewGamePick Generic = MakePick(ECharacterClass::Generic);
-		Generic.Weapons = {EWeaponType::Sword, EWeaponType::Shield};
-		const TArray<FPlayerPicks> Made = {FireRefractor, Generic};
-		TestEqual(TEXT("a second Fire Refractor: refused, by name"), WoRNewGame::GetKindRefusal(FireRefractor, Made).ToString(),
-				  FString(TEXT("You already have a Fire Refractor.")));
-		FNewGamePick OtherGeneric = MakePick(ECharacterClass::Generic);
-		OtherGeneric.Weapons = {EWeaponType::Bow};
-		TestFalse(TEXT("a Generic with other weapons is still a Generic"), WoRNewGame::GetKindRefusal(OtherGeneric, Made).IsEmpty());
-		TestTrue(TEXT("a Water Refractor is another kind"), WoRNewGame::GetKindRefusal(MakePick(ECharacterClass::Caster, ESpellElement::Water), Made).IsEmpty());
-		FNewGamePick BrokenDarkness = MakePick(ECharacterClass::Caster, ESpellElement::Darkness);
-		BrokenDarkness.bBrokenDarkness = true;
-		TestTrue(TEXT("Broken Darkness and Darkness are two kinds"), !WoRNewGame::IsSameKind(BrokenDarkness, MakePick(ECharacterClass::Caster, ESpellElement::Darkness)));
-		TestTrue(TEXT("a Resonator is free"), WoRNewGame::GetKindRefusal(MakePick(ECharacterClass::Resonator), Made).IsEmpty());
-		TestEqual(TEXT("the default slot count is one per kind: Generic, Resonator, nine elements, Broken Darkness"),
-				  WoRNewGame::GetClassChoiceCount(), 12);
+		TestTrue(TEXT("a Fire Refractor may Begin whatever is already made"), WoRNewGame::GetBeginRefusal(FireRefractor).IsEmpty());
+		TestEqual(TEXT("the default slot count: Generic, Resonator, nine elements, Broken Darkness"), WoRNewGame::GetClassChoiceCount(), 12);
 	});
 
 	It("names a character by what it is, its class and element, never a typed name (D-228)", [this]()

@@ -99,6 +99,65 @@ void FGuestPicksSpec::Define()
 		TestEqual(TEXT("an authored character asset is never renamed"), Authored.CharacterData->Name, FString(TEXT("Authored")));
 	});
 
+	It("reads a card as You for its own player, the gamer tag for another, and a recruit by its name (D-229)", [this]()
+	{
+		UPackage *Package = GetTransientPackage();
+		UCharacterData *Player = NewObject<UCharacterData>(Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(),
+																						  *(FString(WoRPlayerBuild::BUILT_NAME) + TEXT("_CardSpec"))));
+		Player->Name = TEXT("Fire Refractor");
+		Player->CharacterClass = ECharacterClass::Caster;
+		Player->InnateElement = ESpellElement::Fire;
+		UCharacterData *Recruit = NewObject<UCharacterData>(Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(),
+																						   *(FString(WoRPlayerBuild::BUILT_NAME) + TEXT("_Recruit_CardSpec"))));
+		Recruit->Name = TEXT("Fire Spirit");
+		TestTrue(TEXT("a built player is a player character; a recruit is not"),
+				 WoRPlayerBuild::IsPlayerCharacter(Player) && !WoRPlayerBuild::IsPlayerCharacter(Recruit));
+		TestEqual(TEXT("own: You"), WoRPlayerBuild::MakeCardName(*Player, true, true, TEXT("Rin")).ToString(), FString(TEXT("You")));
+		TestEqual(TEXT("another player's: its tag, no brackets"), WoRPlayerBuild::MakeCardName(*Player, true, false, TEXT("Rin")).ToString(), FString(TEXT("Rin")));
+		TestEqual(TEXT("a recruit: its own name"), WoRPlayerBuild::MakeCardName(*Recruit, false, true, TEXT("Rin")).ToString(), FString(TEXT("Fire Spirit")));
+		TestEqual(TEXT("no world (solo): You"), WoRPlayerBuild::GetCardName(Player, FGuid(), nullptr).ToString(), FString(TEXT("You")));
+		TestTrue(TEXT("a recruit: no detail line"), WoRPlayerBuild::GetDetailLine(Recruit, FGuid(), nullptr).IsEmpty());
+		TestEqual(TEXT("no world: the Spirit line only"), WoRPlayerBuild::GetDetailLine(Player, FGuid(), nullptr).ToString(), FString(TEXT("Spirit of Fire")));
+	});
+
+	It("names party members in a list as the cards, with identity lines when one player has two (D-241)", [this]()
+	{
+		UPackage *Package = GetTransientPackage();
+		const auto MakeMember = [Package](const TCHAR *Part, ESpellElement Element, const TCHAR *Name)
+		{
+			FPartyMember Member;
+			Member.CharacterData = NewObject<UCharacterData>(Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(),
+																							  *(FString(WoRPlayerBuild::BUILT_NAME) + Part)));
+			Member.CharacterData->Name = Name;
+			Member.CharacterData->CharacterClass = ECharacterClass::Caster;
+			Member.CharacterData->InnateElement = Element;
+			return Member;
+		};
+		const FPartyMember Fire = MakeMember(TEXT("_ListSpec"), ESpellElement::Fire, TEXT("Fire Refractor"));
+		const FPartyMember Recruit = MakeMember(TEXT("_Recruit_ListSpec"), ESpellElement::Water, TEXT("Water Spirit"));
+		const TArray<FPartyMember> One = {Fire, Recruit};
+		TestEqual(TEXT("one of their own: You"), WoRPlayerBuild::GetMemberListName(Fire, One, nullptr).ToString(), FString(TEXT("You")));
+		TestEqual(TEXT("a recruit: its own name"), WoRPlayerBuild::GetMemberListName(Recruit, One, nullptr).ToString(), FString(TEXT("Water Spirit")));
+		const FPartyMember Earth = MakeMember(TEXT("_ListSpec"), ESpellElement::Earth, TEXT("Earth Refractor"));
+		const TArray<FPartyMember> Two = {Fire, Earth, Recruit};
+		const FString FireName = WoRPlayerBuild::GetMemberListName(Fire, Two, nullptr).ToString();
+		const FString EarthName = WoRPlayerBuild::GetMemberListName(Earth, Two, nullptr).ToString();
+		TestTrue(TEXT("two of their own: told apart by Spirit of"), FireName.StartsWith(TEXT("You")) && FireName.Contains(TEXT("Spirit of Fire"))
+																	   && EarthName.Contains(TEXT("Spirit of Earth")));
+		TestEqual(TEXT("the recruit still its own name"), WoRPlayerBuild::GetMemberListName(Recruit, Two, nullptr).ToString(), FString(TEXT("Water Spirit")));
+	});
+
+	It("reads a character as Spirit of over Body of (D-241)", [this]()
+	{
+		TestEqual(TEXT("a Refractor: its element"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Caster, ESpellElement::Fire, false).ToString(), FString(TEXT("Fire")));
+		TestEqual(TEXT("Reality: Unknown"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Caster, ESpellElement::Reality, false).ToString(), FString(TEXT("Unknown")));
+		TestEqual(TEXT("Broken Darkness"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Caster, ESpellElement::Darkness, true).ToString(), FString(TEXT("Broken Darkness")));
+		TestEqual(TEXT("a Resonator: its class"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Resonator, ESpellElement::None, false).ToString(), FString(TEXT("Resonator")));
+		const FString Lines = WoRPlayerBuild::MakeIdentityLines(FText::FromString(TEXT("Fire")), FText::FromString(TEXT("Orthos"))).ToString();
+		TestTrue(TEXT("two lines"), Lines.StartsWith(TEXT("Spirit of Fire")) && Lines.EndsWith(TEXT("Body of Orthos")) && Lines.Contains(TEXT("\n")));
+		TestEqual(TEXT("no body: one line"), WoRPlayerBuild::MakeIdentityLines(FText::FromString(TEXT("Fire")), FText::GetEmpty()).ToString(), FString(TEXT("Spirit of Fire")));
+	});
+
 	It("refuses a join with no picks, without a host", [this]()
 	{
 		URunStateComponent *Run = NewObject<URunStateComponent>(GetTransientPackage());

@@ -205,7 +205,7 @@ FText WoRNewGame::GetPicksLabel(ECharacterClass Class)
 	case ECharacterClass::Resonator:
 		return LOCTEXT("PicksCrystals", "Two crystal types");
 	default:
-		return LOCTEXT("Element", "Element");
+		return LOCTEXT("SpiritOfLabel", "Spirit of"); // D-241: was "Element"; the plain element names under it
 	}
 }
 
@@ -332,37 +332,6 @@ FText WoRNewGame::GetPanelFootnote(const FNewGamePick &Pick)
 		: LOCTEXT("GenericFootnote", "You start holding both weapons. Every pick is F tier.");
 }
 
-bool WoRNewGame::IsSameKind(const FPlayerPicks &A, const FPlayerPicks &B)
-{
-	return A.Class == B.Class && (A.Class != ECharacterClass::Caster || (A.Element == B.Element && A.bBrokenDarkness == B.bBrokenDarkness));
-}
-
-TArray<FPlayerPicks> WoRNewGame::ReadMadeCharacters(const UGameInstance *GameInstance)
-{
-	TArray<FPlayerPicks> Made;
-	const USaveSubsystem *Saves = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
-	for (int32 Slot = 0; Saves && Slot < WoRTitleScreen::GetMaxSlots(); ++Slot)
-	{
-		FWoRSaveData Data;
-		double PlaySeconds = 0.0;
-		// The slot's own character: the first member with picks that is not a recruit or a guest, wherever it stands.
-		const FSavedPartyMember *Own = Saves->ReadSlot(Slot, Data, PlaySeconds)
-			? Data.Party.Members.FindByPredicate([](const FSavedPartyMember &Member) { return Member.Picks.IsSet() && !Member.Picks.bRecruit && !Member.Picks.bGuest; })
-			: nullptr;
-		if (Own)
-		{
-			Made.Add(Own->Picks);
-		}
-	}
-	return Made;
-}
-
-FText WoRNewGame::GetKindRefusal(const FNewGamePick &Pick, TConstArrayView<FPlayerPicks> Made)
-{
-	const bool bMade = Algo::AnyOf(Made, [&Pick](const FPlayerPicks &Character) { return IsSameKind(Character, Pick); });
-	return bMade ? FText::Format(LOCTEXT("KindMade", "You already have a {0}."), GetCharacterName(Pick)) : FText::GetEmpty();
-}
-
 FText WoRNewGame::GetBeginRefusal(const FNewGamePick &Pick)
 {
 	const int32 Picked = Pick.Class == ECharacterClass::Generic ? Pick.Weapons.Num() : Pick.Class == ECharacterClass::Resonator ? Pick.Crystals.Num() : 1;
@@ -412,12 +381,6 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	if (!Refusal.IsEmpty())
 	{
 		return Refusal;
-	}
-	const FText KindRefusal = GetKindRefusal(Pick, ReadMadeCharacters(GI)); // D-229: in code, not only on the screen
-	if (!KindRefusal.IsEmpty())
-	{
-		UE_LOG(LogWoRUI, Log, TEXT("[NewGame] Not begun: %s"), *KindRefusal.ToString());
-		return KindRefusal;
 	}
 	if (Saves->IsPlayingHostCopy())
 	{

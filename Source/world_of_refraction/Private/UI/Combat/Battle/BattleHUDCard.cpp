@@ -209,6 +209,7 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 
 	Card.NameText = AddText(Tree, Rows, NameFontSize);
 	Card.NameText->SetAutoWrapText(Parts.bFixedWidth); // wrapping needs a width: a fitted card keeps the name on one line
+	Card.DetailText = AddText(Tree, Rows, LineFontSize); // D-229: the kind name ("Fire Refractor")
 
 	// B-503m: the numbers sit on the bars (HP on the HP bar, EP on its own bar); an enemy's HP bar has no number (Q-391).
 	if (Parts.bHPBar && Parts.bHPLine)
@@ -260,6 +261,11 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 	if (Card.NameText)
 	{
 		Card.NameText->SetColorAndOpacity(FSlateColor(Card.bActing ? ActingColor : TextColor));
+	}
+	SetTextSafe(Card.DetailText, Card.DetailLine);
+	if (Card.DetailText)
+	{
+		Card.DetailText->SetVisibility(Card.DetailLine.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
 	if (Card.HPBar)
 	{

@@ -820,13 +820,13 @@ namespace
 }
 
 template <class TEntry>
-bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const UEquipmentDataBase &Asset)
+bool UInventoryComponent::AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const UEquipmentDataBase &Asset, bool bPickupRoll)
 {
     // Acquisition is the ONE mint point for the persistent owned-instance guid — the CreateFrom* factories
     // deliberately leave it invalid (loadout inflation reuses them and must not mint). Tier/Quality are
     // seeded in the factory, so loadout-inflated entries get them too (cluster 2a).
     Entry.PersistentID = FGuid::NewGuid();
-    if (Asset.bRandomGenerateOnPickup)
+    if (Asset.bRandomGenerateOnPickup && bPickupRoll) // B-569: an enemy's drop keeps its worn tier, no roll
     {
         // OBSOLETE (B-335, D-127; delete in the D-124 sweep): the stat / resistance roll. The Quality roll below stays (Q-335).
         ApplyPickupRoll(&Asset, Entry.StatBonus, Entry.ResistanceBonus, Entry.StatMaxPool, Entry.ResistanceMaxPool);
@@ -962,6 +962,23 @@ bool UInventoryComponent::RemoveStoneFromWeapon(int32 WeaponIndex)
 }
 
 // ==================== RING OPERATIONS ====================
+
+bool UInventoryComponent::AddDroppedGear(UEquipmentDataBase *Piece, EItemTier Tier)
+{
+    if (UWeaponData *Weapon = Cast<UWeaponData>(Piece); Weapon && CanAddWeapon(Weapon))
+    {
+        FWeaponInventoryEntry Entry = FWeaponInventoryEntry::CreateFromWeapon(Weapon);
+        Entry.Tier = Tier;
+        return AddGearEntry(Weapons, Entry, *Weapon, /*bPickupRoll=*/false);
+    }
+    if (URingData *Ring = Cast<URingData>(Piece); Ring && CanAddRing(Ring))
+    {
+        FRingInventoryEntry Entry = FRingInventoryEntry::CreateFromRing(Ring);
+        Entry.Tier = Tier;
+        return AddGearEntry(Rings, Entry, *Ring, /*bPickupRoll=*/false);
+    }
+    return false;
+}
 
 bool UInventoryComponent::AddRing(URingData *Ring)
 {

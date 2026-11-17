@@ -101,6 +101,8 @@ struct FBattleHUDCard
 	/** B-503m: the EP bar (a Broken Darkness pool past max reads full; its line says the overload). */
 	float EPFraction = 0.0f;
 	FText Name;
+	/** D-229: the kind name ("Fire Refractor") under a player character's name; empty (collapsed) for anyone else. */
+	FText DetailLine;
 	FText HPLine;
 	FText EPLine;
 	/** B-170e: "Actions ●●○ 2 · Max 3 (+75/100)"; party cards in an action-pips fight only. */
@@ -123,6 +125,9 @@ struct FBattleHUDCard
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> NameText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> DetailText;
 
 	UPROPERTY()
 	TObjectPtr<UProgressBar> HPBar;

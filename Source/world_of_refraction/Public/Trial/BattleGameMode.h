@@ -16,6 +16,7 @@
 
 #include "Combat/Actions/ActionStructs.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Trial/TrialDrops.h"
 #include "CoreMinimal.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "GameFramework/GameModeBase.h"
@@ -104,6 +105,10 @@ private:
     /** Show the results screen; false if it couldn't be created (caller returns immediately). */
     bool ShowResults(const FCombatResult &Result);
 
+    /** B-569 (D-225 stage 5): a won trial fight drops one thing for each player character (TrialDrops), seeded by the
+     *  run and the fight; fills DroppedLines for the results. No pool: nothing. */
+    void GrantFightDrops(UTrialRunSubsystem &TrialRun);
+
     void ReturnToTrial();
 
     /** B-362 (D-155, Q-155): the party was wiped. Counts it on the run, takes each member's run pillar points
@@ -166,6 +171,11 @@ private:
 
     UPROPERTY(Transient)
     TObjectPtr<UCombatResultsWidget> ResultsWidget;
+
+    /** Per fight (D-064), B-569: what the enemies' rolled kits held (assets, kept alive by their packages). */
+    TArray<FTrialDropUse> FightUsed;
+    /** Per fight, B-569: the results' "Dropped: ..." lines. */
+    TArray<FText> DroppedLines;
 
     /** Per fight (D-064, B-212): reactions and boss triggers waiting for their mid-fight moment. */
     UPROPERTY(Transient)

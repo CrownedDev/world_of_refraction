@@ -86,13 +86,6 @@ namespace WoRNewGame
 	WORLD_OF_REFRACTION_API FText GetPanelFootnote(const FNewGamePick &Pick);
 	/** "Begin as Darkness Refractor", "Begin as a Generic". */
 	WORLD_OF_REFRACTION_API FText GetBeginLabel(const FNewGamePick &Pick);
-	/** D-229 (Crown): one character of each kind per player: the same class and, for a Refractor, the same element
-	 *  and Broken Darkness. A Generic's weapons and a Resonator's crystals don't make another kind. */
-	WORLD_OF_REFRACTION_API bool IsSameKind(const FPlayerPicks &A, const FPlayerPicks &B);
-	/** D-229: this player's own characters, one per filled save slot (a recruit's or guest's picks are not one). */
-	WORLD_OF_REFRACTION_API TArray<FPlayerPicks> ReadMadeCharacters(const UGameInstance *GameInstance);
-	/** D-229: why this kind can't be made ("You already have a Fire Refractor."), empty when Made has none of it. */
-	WORLD_OF_REFRACTION_API FText GetKindRefusal(const FNewGamePick &Pick, TConstArrayView<FPlayerPicks> Made);
 	/** B-546: why Begin can't run yet (a Generic's or Resonator's picks short); empty when it can. */
 	WORLD_OF_REFRACTION_API FText GetBeginRefusal(const FNewGamePick &Pick);
 

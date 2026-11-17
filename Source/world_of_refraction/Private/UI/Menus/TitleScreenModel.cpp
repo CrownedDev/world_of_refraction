@@ -3,6 +3,9 @@
 #include "UI/Menus/TitleScreenModel.h"
 
 #include "Character/CharacterData.h"
+#include "Character/Forms/CharacterFormData.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/PlayerBuild.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -67,6 +70,12 @@ TArray<FTitleScreenRow> WoRTitleScreen::BuildSlotRows(const TArray<FTitleSaveSum
 		// B-546 (Crown): a slot shows the name and the last run's levels, nothing else.
 		const FText Name = Save.LeaderName.IsEmpty() ? LOCTEXT("Continue", "Continue") : Save.LeaderName;
 		FTitleScreenRow Row{ETitleScreenRow::Continue, Name, GetRunLevelsText(Save)};
+		if (!Save.LeaderSpirit.IsEmpty())
+		{
+			// D-241 (Crown): Spirit of Fire, then Body of Male Nobody over the run's levels.
+			Row.Label = WoRGameNames::FormatSpiritOf(Save.LeaderSpirit);
+			Row.Line = FText::Format(LOCTEXT("BodyAndLevels", "{0}\n{1}"), WoRGameNames::FormatBodyOf(Name), Row.Line);
+		}
 		Row.Slot = Save.Slot;
 		Rows.Add(Row);
 		++Filled;
@@ -132,7 +141,8 @@ bool WoRTitleScreen::SendJoin(APlayerController *PC, const FPlayerPicks &Picks, 
 	return true;
 }
 
-FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled)
+FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled,
+											  const UCharacterFormSubsystem *Forms)
 {
 	FTitleSaveSummary Summary;
 	Summary.bHasSave = bHasSave;
@@ -151,6 +161,14 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 			if (Summary.LeaderName.IsEmpty()) // the first resolved member leads (B-529)
 			{
 				Summary.LeaderName = Name;
+				if (Member.Picks.IsSet() && !Member.Picks.bRecruit && !Member.Picks.bGuest) // the save's forms are its player's
+				{
+					// D-241 (Crown): named by its body selection; "Spirit of Fire" says what it is.
+					const UCharacterFormData *Worn = Forms && !Data.Forms.WornForm.IsNone() ? Forms->FindFormByName(Data.Forms.WornForm) : nullptr;
+					const EPlayerBaseForm Body = Data.Forms.BaseForm == static_cast<uint8>(EPlayerBaseForm::Quinn) ? EPlayerBaseForm::Quinn : EPlayerBaseForm::Manny;
+					Summary.LeaderName = Worn ? Worn->FormName : WoRGameNames::GetBaseFormName(Body);
+					Summary.LeaderSpirit = WoRPlayerBuild::GetSpiritName(Member.Picks.Class, Member.Picks.Element, Member.Picks.bBrokenDarkness);
+				}
 				// The run keys a character by its path, "#member id" after it for a copy (UPoolSubsystem::GetCharacterKey);
 				// a built player's path is its fixed built name (WoRPlayerBuild::BUILT_NAME).
 				// shortcut: the first entry for the leader's path.
@@ -193,7 +211,8 @@ FTitleSaveSummary WoRTitleScreen::SummarizeSave(const UGameInstance *GameInstanc
 	}
 	// A handed-over copy's run resumes (Q-208), so it is not lost: only the own slot's run is settled as a quit.
 	const bool bOwnRunInSave = Saves->GetData().Run.bHasRun && !Saves->IsPlayingHostCopy();
-	FTitleSaveSummary Summary = Summarize(Saves->GetData(), Saves->HasSave(), Saves->GetPlaySeconds(), Saves->WasClosedRunSettled());
+	FTitleSaveSummary Summary = Summarize(Saves->GetData(), Saves->HasSave(), Saves->GetPlaySeconds(), Saves->WasClosedRunSettled(),
+										  GameInstance->GetSubsystem<UCharacterFormSubsystem>());
 	Summary.bLastRunLost = Saves->HasSave() && (bOwnRunInSave || Saves->WasClosedRunSettled());
 	return Summary;
 }
@@ -222,7 +241,7 @@ TArray<FTitleSaveSummary> WoRTitleScreen::SummarizeSlots(const UGameInstance *Ga
 			{
 				continue;
 			}
-			Summary = Summarize(Data, /*bHasSave=*/true, PlaySeconds);
+			Summary = Summarize(Data, /*bHasSave=*/true, PlaySeconds, /*bRunSettled=*/false, GameInstance->GetSubsystem<UCharacterFormSubsystem>());
 		}
 		if (Summary.bHasSave)
 		{

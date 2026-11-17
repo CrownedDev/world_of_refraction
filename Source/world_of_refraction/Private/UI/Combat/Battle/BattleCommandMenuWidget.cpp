@@ -16,6 +16,7 @@
 #include "GameFramework/Actor.h"
 #include "UI/Combat/Battle/BattleHUDButton.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
+#include "WoRGameNames.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRLog.h"
 
@@ -222,7 +223,10 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 	}
 
 	const AActor *Acting = Menu ? Menu->GetCurrentActor() : nullptr;
-	Title = Acting ? FText::Format(LOCTEXT("Title", "{0}'s turn"), BattleHUDView::GetCombatantName(Acting)) : FText::GetEmpty();
+	const FText ActingName = Acting ? BattleHUDView::GetCombatantName(Acting) : FText::GetEmpty();
+	Title = !Acting ? FText::GetEmpty()
+		: ActingName.EqualTo(WoRGameNames::GetYouWord()) ? WoRGameNames::GetYourTurnText() // D-229: not "You's turn"
+		: FText::Format(LOCTEXT("Title", "{0}'s turn"), ActingName);
 	RefreshDurability(); // B-391c: per menu open, as the old header
 	bShowing = true;
 	PushToWidgets();

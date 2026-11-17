@@ -9,6 +9,7 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Online/WoRSessionSubsystem.h"
+#include "Character/PlayerBuild.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/RunStateComponent.h"
@@ -97,7 +98,7 @@ FInviteScreenPage WoRInviteScreen::BuildPage(UWorld *World, const TSet<FString> 
 		const bool bHeld = bAISeat && Run && !Run->GetHeldFor(Member.MemberId).IsEmpty();
 		const FString Claimant = bLeader || bAISeat ? FString() : FindClaimantName(World, Member);
 		FInviteSeatRow &Seat = Seats.AddDefaulted_GetRef();
-		Seat.Name = Member.CharacterData ? FText::FromString(Member.CharacterData->Name) : LOCTEXT("NoData", "<no data>");
+		Seat.Name = Member.CharacterData ? WoRPlayerBuild::GetMemberListName(Member, Party->Members, World) : LOCTEXT("NoData", "<no data>"); // D-241
 		Seat.Who = GetSeatWho(bLeader, bAISeat, bHeld, Claimant, bHosting);
 		Seat.bYours = !bAISeat && Claimant.IsEmpty();
 	}

@@ -498,6 +498,26 @@ FText GetHubPlaceName()
     return LOCTEXT("HubPlaceName", "The Hub");
 }
 
+FText FormatSpiritOf(const FText &What)
+{
+    return FText::Format(LOCTEXT("SpiritOf", "Spirit of {0}"), What);
+}
+
+FText FormatBodyOf(const FText &Look)
+{
+    return FText::Format(LOCTEXT("BodyOf", "Body of {0}"), Look);
+}
+
+FText GetYouWord()
+{
+    return LOCTEXT("You", "You");
+}
+
+FText GetYourTurnText()
+{
+    return LOCTEXT("YourTurn", "Your turn");
+}
+
 FText GetCurrencyName(ECurrencyType Currency)
 {
     switch (Currency)

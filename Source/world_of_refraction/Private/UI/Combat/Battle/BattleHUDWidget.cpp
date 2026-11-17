@@ -3,6 +3,7 @@
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 
 #include "Save/SaveSubsystem.h"
+#include "Character/PlayerBuild.h"
 #include "WoRGameNames.h"
 
 #include "Blueprint/WidgetLayoutLibrary.h"
@@ -176,6 +177,7 @@ void UBattleHUDWidget::AddCard(AActor *Actor, bool bParty)
 
 	UCharacterDataComponent *CharData = Actor->FindComponentByClass<UCharacterDataComponent>();
 	Card.CharData = CharData;
+	Card.DetailLine = CharData ? WoRPlayerBuild::GetDetailLine(CharData->CharacterData, CharData->PartyMemberId, GetWorld()) : FText::GetEmpty(); // D-241
 	if (CharData)
 	{
 		CharData->OnHPChanged.AddDynamic(this, &UBattleHUDWidget::HandlePoolChanged);
@@ -471,6 +473,14 @@ void UBattleHUDWidget::RefreshTurnStrip()
 {
 	const TArray<FBattleTurnSlot> Strip = BattleHUDView::ReadTurnStrip(this, CurrentTurnNumber, BattleHUDView::UPCOMING_TURNS_SHOWN);
 	const AActor *Acting = Strip.IsEmpty() ? nullptr : Strip[0].Actor.Get();
+	for (FBattleHUDCard &Card : Cards)
+	{
+		Card.bActing = Acting && Card.Actor.Get() == Acting;
+		if (Card.bParty && Card.Actor.IsValid())
+		{
+			Card.Name = BattleHUDView::GetCombatantName(Card.Actor.Get()); // D-229: a claim or tag can arrive after the card was built
+		}
+	}
 
 	TurnLines.Reset();
 	TurnLineColors.Reset();
@@ -490,10 +500,6 @@ void UBattleHUDWidget::RefreshTurnStrip()
 						   : TurnSlot.bBonus		  ? BattleHUDStyle::BonusColor
 						   : Card && !Card->bParty ? BattleHUDStyle::EnemyColor
 												  : BattleHUDStyle::TextColor);
-	}
-	for (FBattleHUDCard &Card : Cards)
-	{
-		Card.bActing = Acting && Card.Actor.Get() == Acting;
 	}
 	PushToWidgets();
 }

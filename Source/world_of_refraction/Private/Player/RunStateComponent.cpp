@@ -183,19 +183,9 @@ void URunStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void URunStateComponent::HandlePartyChanged(UParty *Party)
+void URunStateComponent::HandlePartyChanged(UParty * /*Party*/)
 {
-	// D-229: two players' characters of one kind read apart by the player's tag (the online name, PlayerState); a
-	// rename sends the change once more so every reader shows it (the second pass changes nothing).
-	const APlayerController *Leader = Party ? Party->ResolveLeader(GetWorld()) : nullptr;
-	const FString HostTag = Leader && Leader->PlayerState ? Leader->PlayerState->GetPlayerName() : FString();
-	UPartySessionSubsystem *PartySession = GetWorld() && GetWorld()->GetGameInstance() ? GetWorld()->GetGameInstance()->GetSubsystem<UPartySessionSubsystem>() : nullptr;
-	if (Party && PartySession && WoRPlayerBuild::RetagSameNames(Party->Members, HostTag))
-	{
-		UE_LOG(LogWoR, Log, TEXT("[RunState] Same-kind characters renamed with their player's tag (host tag %s)"), *HostTag);
-		PartySession->OnPartyChanged.Broadcast(Party);
-		return;
-	}
+	// D-229: names are no longer rewritten here; each viewer reads You or the owner's tag (WoRPlayerBuild::GetCardName).
 	RefreshRoster();
 }
 

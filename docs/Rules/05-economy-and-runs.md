@@ -116,7 +116,7 @@ This page covers the currencies, what a fight and a run pay out, what carries ov
 ## Drop quality
 | # | Rule | Status | Source |
 |---|---|---|---|
-| ER-38 | A fresh pickup of a weapon, adapter or evolution flagged to roll gets a random quality: F 26%, E 22%, D 18%, C 14%, B 10%, A 6%, S 4% (`QUALITY_WEIGHT_*`). Luck tilts the odds toward high grades; at maxed Luck S goes from 4% to about 7% (`QUALITY_LUCK_MAX_TILT` 0.5). Unflagged items are C quality. | In game | `Currency/EconomyYield.h:87-97,173-205`; `Inventory/InventoryComponent.cpp:308-313,443-448` |
+| ER-38 | A fresh pickup of a weapon, adapter or evolution flagged to roll gets a random quality: F 26%, E 22%, D 18%, C 14%, B 10%, A 6%, S 4% (`QUALITY_WEIGHT_*`). Luck tilts the odds toward high grades; at maxed Luck S goes from 4% to about 7% (`QUALITY_LUCK_MAX_TILT` 0.5). Unflagged items are C quality. **B-569:** an enemy's drop in a trial skips this roll and comes at the tier the enemy wore (TrialPoolDesign §6); chests keep it. | In game | `Currency/EconomyYield.h:87-97,173-205`; `Inventory/InventoryComponent.cpp` (`AddGearEntry`, `AddDroppedGear`); `Trial/TrialDrops.cpp` |
 | ER-39 | Trials will have their own loot pools. | Code only (planned field, not built) | `Trial/TrialData.h:53-58` |
 
 ## The shared pool and presets

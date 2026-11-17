@@ -6,6 +6,9 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Character/ECharacterClass.h"
+#include "Character/Forms/CharacterFormData.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "Save/WoRSaveGame.h"
 #include "Save/WoRSaveTypes.h"
 #include "UI/Menus/TitleScreenModel.h"
@@ -111,6 +114,23 @@ void FTitleScreenSpec::Define()
 		TestFalse(TEXT("a place"), Summary.Place.IsEmpty());
 		TestEqual(TEXT("no names"), Summary.PartyNames.Num(), 0);
 		TestFalse(TEXT("no save, no summary"), WoRTitleScreen::Summarize(Data, false, 0.0).bHasSave);
+	});
+
+	It("names a character made from picks by its body, with Spirit of over Body of on its slot (D-241)", [this]()
+	{
+		FWoRSaveData Data;
+		Data.Party.bHasParty = true;
+		FSavedPartyMember &Member = Data.Party.Members.AddDefaulted_GetRef();
+		Member.Picks.Name = TEXT("Fire Refractor");
+		Member.Picks.Class = ECharacterClass::Caster;
+		Member.Picks.Element = ESpellElement::Fire;
+		Data.Forms.BaseForm = static_cast<uint8>(EPlayerBaseForm::Quinn);
+		FTitleSaveSummary Summary = WoRTitleScreen::Summarize(Data, true, TITLE_TEST_FIFTY_NINE_MINUTES);
+		TestEqual(TEXT("named by its body"), Summary.LeaderName.ToString(), FString(TEXT("Female Nobody")));
+		TestEqual(TEXT("its spirit"), Summary.LeaderSpirit.ToString(), FString(TEXT("Fire")));
+		const TArray<FTitleScreenRow> Rows = WoRTitleScreen::BuildSlotRows({Summary}, 2);
+		TestEqual(TEXT("first line"), Rows[0].Label.ToString(), FString(TEXT("Spirit of Fire")));
+		TestTrue(TEXT("second line, over the levels"), Rows[0].Line.ToString().StartsWith(TEXT("Body of Female Nobody")) && Rows[0].Line.ToString().Contains(TEXT("Mind")));
 	});
 
 	It("names both versions on the reset notice", [this]()

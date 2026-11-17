@@ -17,6 +17,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryConstants.h"
 #include "Inventory/ItemSlotUpgrade.h"
+#include "Character/PlayerBuild.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRPlayerState.h"
@@ -151,7 +152,7 @@ TArray<UItemSlotUpgradeWidget::FMember> UItemSlotUpgradeWidget::GatherMembers() 
 		if (Member.CharacterData)
 		{
 			// TODO: D-061: the character's name is still an FString on its data asset.
-			Members.Add({UPoolSubsystem::GetCharacterKey(Member), FText::FromString(Member.CharacterData->Name)});
+			Members.Add({UPoolSubsystem::GetCharacterKey(Member), WoRPlayerBuild::GetMemberListName(Member, Party->Members, GetWorld())}); // D-241
 		}
 	}
 	return Members;

@@ -25,6 +25,7 @@
 #include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Character/PlayerBuild.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -83,8 +84,8 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, co
 					   LOCTEXT("InventoryPreview", "Gear, pouch and chest.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Character, LOCTEXT("Character", "Character"),
 					   LOCTEXT("CharacterPreview", "Pillars, substats and resistances.")));
-	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Forms, LOCTEXT("Spirit", "Spirit"), // D-234: was "Forms"
-					   LOCTEXT("SpiritPreview", "Wear Male Nobody, Female Nobody or a character's form.")));
+	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Forms, LOCTEXT("Body", "Body"), // D-241: was "Spirit" (D-234: was "Forms")
+					   LOCTEXT("BodyPreview", "Wear Male Nobody, Female Nobody or a body you have unlocked.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Party, LOCTEXT("Party", "Party"),
 					   LOCTEXT("PartyPreview", "Who plays each member, and where they start a fight.")));
 	Pages.Add(MakePauseMenuPage(EPauseMenuPage::Journal, LOCTEXT("Journal", "Journal"),
@@ -185,11 +186,13 @@ TArray<FPauseMenuMember> WoRPauseMenu::BuildParty(const UWorld *World)
 			continue;
 		}
 		FPauseMenuMember Row;
-		Row.Name = FText::FromString(Data->Name);
+		Row.Name = WoRPlayerBuild::GetCardName(Data, Member.MemberId, World); // D-229: You or the player's tag
 		const FText ClassName = WoRGameNames::GetCharacterClassName(Data->CharacterClass);
-		Row.ClassLine = Data->HasInnateElement() ? FText::Format(LOCTEXT("ElementAndClass", "{0} {1}"),
-																  WoRGameNames::GetElementName(Data->GetElement()), ClassName)
-												 : ClassName;
+		// D-241: a player character reads as its identity (Spirit of ... / Body of ...), on the party list and its sheet.
+		Row.ClassLine = WoRPlayerBuild::IsPlayerCharacter(Data) ? WoRPlayerBuild::GetDetailLine(Data, Member.MemberId, World)
+						: Data->HasInnateElement() ? FText::Format(LOCTEXT("ElementAndClass", "{0} {1}"),
+																   WoRGameNames::GetElementName(Data->GetElement()), ClassName)
+												   : ClassName;
 		// As the party strip: a member with no carried vitals (the hub) reads full.
 		Row.MaxHP = Data->CalculateMaxHealth();
 		Row.MaxEP = Data->CalculateMaxEnergy();
