@@ -177,7 +177,7 @@ void UBattleHUDWidget::AddCard(AActor *Actor, bool bParty)
 
 	UCharacterDataComponent *CharData = Actor->FindComponentByClass<UCharacterDataComponent>();
 	Card.CharData = CharData;
-	Card.DetailLine = WoRPlayerBuild::GetDetailLine(CharData ? CharData->CharacterData : nullptr); // D-229
+	Card.DetailLine = CharData ? WoRPlayerBuild::GetDetailLine(CharData->CharacterData, CharData->PartyMemberId, GetWorld()) : FText::GetEmpty(); // D-241
 	if (CharData)
 	{
 		CharData->OnHPChanged.AddDynamic(this, &UBattleHUDWidget::HandlePoolChanged);

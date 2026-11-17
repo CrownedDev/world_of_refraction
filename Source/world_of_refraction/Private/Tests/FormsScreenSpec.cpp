@@ -13,6 +13,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryData.h"
 #include "UI/Hub/FormsScreenModel.h"
+#include "WoRGameNames.h"
 
 namespace
 {
@@ -55,7 +56,7 @@ void FFormsScreenSpec::Define()
 	It("titles the screen for the character and puts your own form first, worn", [this]()
 	{
 		const FFormsScreenPage Page = Build(nullptr);
-		TestTrue(TEXT("Spirit of Sera"), Page.Title.ToString().Contains(TEXT("Sera")));
+		TestTrue(TEXT("Body · Sera (D-241)"), Page.Title.ToString().Contains(TEXT("Sera")) && Page.Title.ToString().StartsWith(TEXT("Body")));
 		if (!TestEqual(TEXT("your two own spirits, then the one form"), Page.Rows.Num(), 3))
 		{
 			return;
@@ -93,7 +94,7 @@ void FFormsScreenSpec::Define()
 
 		const FFormsScreenRow Met = Build(Blade).Rows[FORMS_SCREEN_TEST_FORM_ROW];
 		TestTrue(TEXT("owning a piece meets them"), Met.bMet);
-		TestTrue(TEXT("named"), Met.Name.EqualTo(Form->FormName));
+		TestTrue(TEXT("named Body of ... (D-241)"), Met.Name.EqualTo(WoRGameNames::FormatBodyOf(Form->FormName)));
 		if (!TestEqual(TEXT("their two pieces"), Met.Pieces.Num(), 2))
 		{
 			return;

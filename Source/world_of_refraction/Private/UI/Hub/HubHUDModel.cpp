@@ -122,7 +122,7 @@ TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party, int32 Pla
 		FBattleHUDCard &Card = Cards.AddDefaulted_GetRef();
 		Card.bParty = true;
 		Card.Name = WoRPlayerBuild::GetCardName(Data, Member.MemberId, World); // D-229
-		Card.DetailLine = WoRPlayerBuild::GetDetailLine(Data);
+		Card.DetailLine = WoRPlayerBuild::GetDetailLine(Data, Member.MemberId, World); // D-241: Spirit of ... / Body of ...
 		Card.bAlive = !Member.IsFallen();
 		const int32 MaxHP = Data->CalculateMaxHealth();
 		const int32 MaxEP = Data->CalculateMaxEnergy();

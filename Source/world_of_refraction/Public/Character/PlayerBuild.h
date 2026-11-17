@@ -21,6 +21,8 @@ struct FClassElementNumbers;
 struct FGuid;
 struct FPartyMember;
 struct FPlayerPicks;
+enum class ECharacterClass : uint8;
+enum class ESpellElement : uint8;
 
 namespace WoRPlayerBuild
 {
@@ -69,9 +71,20 @@ namespace WoRPlayerBuild
 	 *  claims it, or the first local player does: the viewer's own. The tag is the owner's PlayerState name. */
 	WORLD_OF_REFRACTION_API FText GetCardName(const UCharacterData *Character, const FGuid &MemberId, const UWorld *World);
 
-	/** D-229: the detail line under a player character's name: its kind name ("Fire Refractor"). Empty for a recruit or
-	 *  an enemy. */
-	WORLD_OF_REFRACTION_API FText GetDetailLine(const UCharacterData *Character);
+	/** D-241 (Crown): the word after "Spirit of": a Refractor's element ("Fire"; Reality "Unknown"; "Broken Darkness"),
+	 *  a Generic's or Resonator's class name. */
+	WORLD_OF_REFRACTION_API FText GetSpiritName(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness);
+
+	/** D-241: a character's identity, two lines: "Spirit of Fire" and, with a body name, "Body of Male Nobody". */
+	WORLD_OF_REFRACTION_API FText MakeIdentityLines(const FText &SpiritName, const FText &BodyName);
+
+	/** D-241: the body this game's player wears: its worn form's name ("Orthos"), else Male / Female Nobody; empty with
+	 *  no form system. */
+	WORLD_OF_REFRACTION_API FText GetLocalBodyName(const UGameInstance *GameInstance);
+
+	/** D-229 / D-241: the lines under a player character's name on its card: MakeIdentityLines. The body shows on the
+	 *  viewer's own character only (another player's body isn't known here). Empty for a recruit or an enemy. */
+	WORLD_OF_REFRACTION_API FText GetDetailLine(const UCharacterData *Character, const FGuid &MemberId, const UWorld *World);
 
 	/** OBSOLETE (D-229, replaced by GetCardName: each viewer reads You or the tag; no longer called, delete after PIE).
 	 *  Two players' characters of one kind read apart by the player's tag: a built player character
