@@ -24,9 +24,12 @@
 #include "Online/HostSuccession.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/CoopCheckpoint.h"
+#include "Save/GuestKeepSubsystem.h"
+#include "Save/WoRSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "Loadout/LoadoutComponent.h" // B-392b
 #include "Engine/LocalPlayer.h"
+#include "Engine/NetDriver.h"
 #include "Memory/MemoryData.h"
 #include "Memory/MemoryJournalSubsystem.h"
 #include "Memory/MemoryUnlock.h"
@@ -143,6 +146,11 @@ void AWoRPlayerState::ClientInitialize(AController *Controller)
 		if (const USaveSubsystem *Save = GI->GetSubsystem<USaveSubsystem>())
 		{
 			ServerReportWallet(Save->GetData().Wallet, Save->GetCarriedGold()); // B-425
+			if (UGuestKeepSubsystem *Keep = GI->GetSubsystem<UGuestKeepSubsystem>())
+			{
+				const UNetDriver *Driver = World ? World->GetNetDriver() : nullptr;
+				Keep->NoteReportedWallet(Save->GetData().Wallet, Driver ? Driver->ServerConnection : nullptr); // B-563
+			}
 		}
 		if (const UHiddenQuestSubsystem *Quests = GI->GetSubsystem<UHiddenQuestSubsystem>())
 		{
@@ -171,6 +179,12 @@ void AWoRPlayerState::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (USaveSubsystem *Save = GI && HasAuthority() && IsLocalPlayerWallet() ? GI->GetSubsystem<USaveSubsystem>() : nullptr)
 	{
 		Save->BankWallet(Wallet);
+	}
+	// B-563 (Q-561): a guest's own wallet earnings go back to its joined character; a level change is not leaving.
+	UGuestKeepSubsystem *Keep = GI && !HasAuthority() && IsLocalPlayerWallet() ? GI->GetSubsystem<UGuestKeepSubsystem>() : nullptr;
+	if (Keep)
+	{
+		Keep->FoldWallet(Wallet, EndPlayReason != EEndPlayReason::LevelTransition);
 	}
 	if (UCharacterFormSubsystem *Forms = GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
 	{
@@ -647,6 +661,13 @@ void AWoRPlayerState::Client_ReceiveCheckpointChunk_Implementation(int32 Checkpo
 	KeptCheckpointBytes = Bytes.Num();
 	KeptCheckpointTime = FDateTime::Now();
 	UE_LOG(LogWoR, Log, TEXT("[Checkpoint] Kept the host's copy %d (%d bytes) in '%s'"), CheckpointId, Bytes.Num(), WoRCheckpoint::SLOT_NAME);
+	// B-563 (Q-561): what this guest's character earned goes back into its own save.
+	UGuestKeepSubsystem *Keep = GetGameInstance() ? GetGameInstance()->GetSubsystem<UGuestKeepSubsystem>() : nullptr;
+	const UWoRSaveGame *Copy = Keep && Keep->IsJoined() ? Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromMemory(Bytes)) : nullptr;
+	if (Copy)
+	{
+		Keep->FoldCheckpoint(Copy->Data, Wallet);
+	}
 }
 
 void AWoRPlayerState::OnSetUniqueId()

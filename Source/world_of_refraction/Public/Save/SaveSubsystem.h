@@ -164,6 +164,9 @@ public:
 	/** Slot Index's saved data and time played: the active slot's from memory, another's read from disk. False when
 	 *  the slot is empty or its save is out of date (D-060: it is wiped when loaded). */
 	bool ReadSlot(int32 Index, FWoRSaveData &OutData, double &OutPlaySeconds) const;
+	/** B-563: writes Data as slot Index (made when empty); the slot in play takes it in memory and is written now.
+	 *  False while a handed-over run is played (B-234b) or with no local player. */
+	bool WriteSlotData(int32 Index, const FWoRSaveData &Data);
 	/** The first slot below MaxSlots with no save; INDEX_NONE when every one holds a character. */
 	int32 FindFreeSlot(int32 MaxSlots) const;
 	/** Continue on a title slot: the game in memory is reset and slot Index is loaded in its place, as at the start;
