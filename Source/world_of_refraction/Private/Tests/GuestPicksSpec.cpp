@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "Character/CharacterData.h"
 #include "Character/PlayerBuild.h"
+#include "Party/Party.h"
 #include "Character/PlayerPicks.h"
 #include "Player/RunStateComponent.h"
 #include "UObject/Package.h"
@@ -56,6 +57,46 @@ void FGuestPicksSpec::Define()
 		if (!TestNotNull(TEXT("built"), Built)) return;
 		TestTrue(TEXT("the same object on the second join"), WoRPlayerBuild::Build(Guest, nullptr) == Built);
 		TestEqual(TEXT("named by what it is (D-228)"), Built->Name, FString(TEXT("Water Refractor")));
+	});
+
+	It("tags two players' characters of one kind with the player's name, and only then (D-229)", [this]()
+	{
+		const auto MakeMember = [](const FPlayerPicks &Picks)
+		{
+			FPartyMember Member;
+			Member.Picks = Picks;
+			UPackage *Package = GetTransientPackage();
+			Member.CharacterData = NewObject<UCharacterData>(Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(),
+																							*(FString(WoRPlayerBuild::BUILT_NAME) + TEXT("_TagSpec"))));
+			Member.CharacterData->Name = TEXT("Water Refractor");
+			return Member;
+		};
+		FPlayerPicks GuestPicks = MakePicks(TEXT("Water Refractor"));
+		GuestPicks.bGuest = true;
+		GuestPicks.GuestKey = TEXT("Rin");
+		FPlayerPicks RecruitPicks = MakePicks(TEXT("Water Spirit"));
+		RecruitPicks.bRecruit = true;
+		TArray<FPartyMember> Members = {MakeMember(MakePicks(TEXT("Water Refractor"))), MakeMember(RecruitPicks)};
+		FPartyMember Authored = MakeMember(MakePicks(TEXT("Water Refractor")));
+		Authored.CharacterData = NewObject<UCharacterData>(GetTransientPackage()); // not a built character: never renamed
+		Members[1].CharacterData->Name = TEXT("Water Spirit");
+		TestFalse(TEXT("solo: no tag"), WoRPlayerBuild::RetagSameNames(Members, TEXT("Ash")));
+		Members.Add(MakeMember(GuestPicks));
+		TestTrue(TEXT("a guest of the same kind: renamed"), WoRPlayerBuild::RetagSameNames(Members, TEXT("Ash")));
+		TestEqual(TEXT("the host's, by its player name"), Members[0].CharacterData->Name, FString(TEXT("Water Refractor (Ash)")));
+		TestEqual(TEXT("the guest's, by its own"), Members[2].CharacterData->Name, FString(TEXT("Water Refractor (Rin)")));
+		TestEqual(TEXT("a recruit keeps its name"), Members[1].CharacterData->Name, FString(TEXT("Water Spirit")));
+		TestFalse(TEXT("a second pass changes nothing"), WoRPlayerBuild::RetagSameNames(Members, TEXT("Ash")));
+		Members.RemoveAt(2);
+		WoRPlayerBuild::RetagSameNames(Members, TEXT("Ash"));
+		TestEqual(TEXT("the guest gone: no tag"), Members[0].CharacterData->Name, FString(TEXT("Water Refractor")));
+		Members.Add(MakeMember(GuestPicks));
+		WoRPlayerBuild::RetagSameNames(Members, FString());
+		TestEqual(TEXT("no online name: Host"), Members[0].CharacterData->Name, FString(TEXT("Water Refractor (Host)")));
+		Authored.CharacterData->Name = TEXT("Authored");
+		TArray<FPartyMember> WithAuthored = {MakeMember(MakePicks(TEXT("Water Refractor"))), Authored};
+		WoRPlayerBuild::RetagSameNames(WithAuthored, TEXT("Ash"));
+		TestEqual(TEXT("an authored character asset is never renamed"), Authored.CharacterData->Name, FString(TEXT("Authored")));
 	});
 
 	It("refuses a join with no picks, without a host", [this]()
