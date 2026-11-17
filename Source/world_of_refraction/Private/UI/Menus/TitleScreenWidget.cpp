@@ -14,6 +14,7 @@
 #include "Player/WoRHubController.h"
 #include "Save/SaveSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Character/PlayerPicks.h"
 #include "UI/Menus/CreditsScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/Menus/NewGameScreenWidget.h"
@@ -98,6 +99,23 @@ UTitleScreenWidget *UTitleScreenWidget::Open(APlayerController *PC)
 		return nullptr;
 	}
 	return Cast<UTitleScreenWidget>(Root->PushToMenu(UTitleScreenWidget::StaticClass()));
+}
+
+UTitleScreenWidget *UTitleScreenWidget::OpenToJoin(APlayerController *PC)
+{
+	UTitleScreenWidget *Title = Open(PC);
+	if (Title)
+	{
+		Title->bJoining = true;
+		Title->SelectedRow = 0;
+		// A guest's join shows no reset notice or deleted-save line; the plain title still shows the notice later.
+		GSaveResetNoticeShown &= Title->Panel != ETitlePanel::SaveReset;
+		Title->Panel = ETitlePanel::None;
+		Title->Status = FText::GetEmpty();
+		Title->Refresh();
+		UE_LOG(LogWoRUI, Log, TEXT("[Title] Opened to join a friend's game"));
+	}
+	return Title;
 }
 
 void UTitleScreenWidget::OpenAtLaunch(APlayerController *PC)
@@ -293,6 +311,7 @@ void UTitleScreenWidget::NativeOnActivated()
 void UTitleScreenWidget::NativeOnDeactivated()
 {
 	StopHold();
+	bJoining = false; // the root layout may hand this widget out again as the plain title
 	Super::NativeOnDeactivated();
 }
 
@@ -329,7 +348,7 @@ void UTitleScreenWidget::Refresh()
 		SlotSaves = WoRTitleScreen::SummarizeSlots(GetGameInstance());
 		bSlotsRead = true;
 	}
-	Rows = WoRTitleScreen::BuildSlotRows(SlotSaves);
+	Rows = bJoining ? WoRTitleScreen::BuildJoinRows(SlotSaves) : WoRTitleScreen::BuildSlotRows(SlotSaves);
 	SelectedRow = FMath::Clamp(SelectedRow, 0, Rows.Num() - 1);
 	const int32 LitSlot = Rows.IsValidIndex(SelectedRow) ? Rows[SelectedRow].Slot : INDEX_NONE;
 	const FTitleSaveSummary *LitSave = SlotSaves.FindByPredicate([LitSlot](const FTitleSaveSummary &Entry) { return Entry.Slot == LitSlot; });
@@ -402,6 +421,10 @@ void UTitleScreenWidget::Refresh()
 		PanelTitle->SetColorAndOpacity(FSlateColor(WarnColor));
 		PanelBody->SetText(WoRTitleScreen::GetDeleteWarning(Save));
 		WoRKeyHints::SetHint(HintsText, YesNoHints);
+	}
+	else if (bJoining)
+	{
+		WoRKeyHints::SetHint(HintsText, LOCTEXT("JoinHints", "{Arrows}  Move        {Confirm}  Join as this character        {Back}  Back"));
 	}
 	else if (Rows.IsValidIndex(SelectedRow) && Rows[SelectedRow].Id == ETitleScreenRow::Continue)
 	{
@@ -492,6 +515,11 @@ void UTitleScreenWidget::Confirm()
 	{
 	case ETitleScreenRow::Continue:
 	{
+		if (bJoining)
+		{
+			JoinAs(Row);
+			break;
+		}
 		// B-554 (D-229): the lit slot's character is loaded in place of the one in memory, then the hub opens.
 		USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 		if (Saves && !Saves->SwitchToSlot(Row.Slot))
@@ -504,6 +532,13 @@ void UTitleScreenWidget::Confirm()
 	case ETitleScreenRow::NewGame:
 		// B-554 (D-229): a new character gets its own slot (Begin finds a free one), so nothing is replaced. The
 		// NewGameConfirm panel (one save file, B-546) is no longer opened: OBSOLETE with StartOver.
+		if (bJoining)
+		{
+			APlayerController *PC = GetOwningPlayer();
+			DeactivateWidget(); // B-562: the new character's screen sends the join; Back there returns to the game
+			UNewGameScreenWidget::OpenToJoin(PC);
+			break;
+		}
 		UNewGameScreenWidget::Open(GetOwningPlayer());
 		break;
 	case ETitleScreenRow::Settings:
@@ -521,9 +556,25 @@ void UTitleScreenWidget::Confirm()
 	}
 }
 
+void UTitleScreenWidget::JoinAs(const FTitleScreenRow &Row)
+{
+	FPlayerPicks Picks;
+	if (!WoRTitleScreen::ReadSlotPicks(GetGameInstance(), Row.Slot, Picks))
+	{
+		// A save from before B-554 has no new-game picks to build the character from on the host.
+		UE_LOG(LogWoRUI, Warning, TEXT("[Title] Slot %d has no new-game picks: it can't join"), Row.Slot);
+		Status = LOCTEXT("NoPicksToJoin", "This character was made before characters could join. Make a new one with the +.");
+		Refresh();
+		return;
+	}
+	APlayerController *PC = GetOwningPlayer();
+	DeactivateWidget(); // the host picks the seat (D-150); its answer comes back as the seat, not to this screen
+	WoRTitleScreen::SendJoin(PC, Picks);
+}
+
 void UTitleScreenWidget::RequestDelete()
 {
-	if (Panel == ETitlePanel::None && Rows.IsValidIndex(SelectedRow) && Rows[SelectedRow].Id == ETitleScreenRow::Continue)
+	if (!bJoining && Panel == ETitlePanel::None && Rows.IsValidIndex(SelectedRow) && Rows[SelectedRow].Id == ETitleScreenRow::Continue)
 	{
 		ShowPanel(ETitlePanel::DeleteConfirm);
 	}
@@ -700,10 +751,14 @@ void UTitleScreenWidget::NativeOnFocusLost(const FFocusEvent &InFocusEvent)
 
 bool UTitleScreenWidget::NativeOnHandleBackAction()
 {
-	// The title never closes on Back; Back only takes a panel away (a yes / no's No).
+	// The title never closes on Back; Back only takes a panel away (a yes / no's No). B-562: opened to join, it closes.
 	if (Panel != ETitlePanel::None)
 	{
 		ShowPanel(ETitlePanel::None);
+	}
+	else if (bJoining)
+	{
+		DeactivateWidget();
 	}
 	return true;
 }
