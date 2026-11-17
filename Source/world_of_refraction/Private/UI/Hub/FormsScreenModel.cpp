@@ -78,12 +78,12 @@ FFormsScreenPage WoRFormsScreen::BuildPage(const UCharacterFormSubsystem &Forms,
 										   EPlayerBaseForm WornBody, TFunctionRef<bool(const UObject *)> Owns, TFunctionRef<bool(const UObject *)> Wears)
 {
 	FFormsScreenPage Page;
-	Page.Title = FText::Format(LOCTEXT("Title", "Spirit of {0}"), CharacterName);
+	Page.Title = FText::Format(LOCTEXT("Title", "Body · {0}"), CharacterName); // D-241: was "Spirit of {0}"
 	const FText Base = WoRGameNames::GetBaseFormName(WornBody);
-	Page.WearingLine = Worn ? FText::Format(LOCTEXT("WearingForm", "Wearing: {0} (over {1})"), Worn->FormName, Base)
+	Page.WearingLine = Worn ? FText::Format(LOCTEXT("WearingForm", "Wearing: {0} (over {1})"), WoRGameNames::FormatBodyOf(Worn->FormName), Base)
 							: FText::Format(LOCTEXT("Wearing", "Wearing: {0}"), Base);
 
-	// D-234: your own spirits first, Male Nobody then Female Nobody.
+	// D-234: your own bodies first (D-241: was spirits), Male Nobody then Female Nobody.
 	for (const EPlayerBaseForm Body : {EPlayerBaseForm::Manny, EPlayerBaseForm::Quinn})
 	{
 		FFormsScreenRow &Own = Page.Rows.AddDefaulted_GetRef();
@@ -94,7 +94,7 @@ FFormsScreenPage WoRFormsScreen::BuildPage(const UCharacterFormSubsystem &Forms,
 		Own.Progress = 1.0f;
 		Own.bUnlocked = true;
 		Own.bWorn = !Worn && WornBody == Body;
-		Own.Status = LOCTEXT("OwnStatus", "Your own spirit. A wears it (and takes a form off).");
+		Own.Status = LOCTEXT("OwnStatus", "Your own body. A wears it (and takes a form off).");
 	}
 
 	for (UCharacterFormData *Form : Forms.GetForms())
@@ -120,7 +120,7 @@ FFormsScreenPage WoRFormsScreen::BuildPage(const UCharacterFormSubsystem &Forms,
 		}
 		// Q-444: met once their meter has moved or you own one of their pieces.
 		Row.bMet = Row.bUnlocked || Row.Progress > 0.0f || bAnyKnown;
-		Row.Name = Row.bMet ? Form->FormName : LOCTEXT("Unmet", "???");
+		Row.Name = Row.bMet ? WoRGameNames::FormatBodyOf(Form->FormName) : LOCTEXT("Unmet", "???"); // D-241: "Body of Orthos"
 		Row.Status = Row.bUnlocked ? LOCTEXT("Unlocked", "Unlocked. A wears it; its bound gear works while you do.")
 									: LOCTEXT("Locked", "Locked. Wear their pieces in fights you win to fill the meter.");
 		if (!Row.bMet)
@@ -144,7 +144,7 @@ FFormsScreenPage WoRFormsScreen::BuildPage(UWorld *World, int32 MemberIndex)
 	if (!Forms)
 	{
 		FFormsScreenPage Page;
-		Page.Title = LOCTEXT("NoForms", "Spirit");
+		Page.Title = LOCTEXT("NoForms", "Body");
 		return Page;
 	}
 	const FLoadoutScreenMember *Player = FormsScreenBuild::GetMember(Members, MemberIndex); // B-558: the member shown
@@ -191,7 +191,7 @@ FFormsScreenPage WoRFormsScreen::BuildPage(UWorld *World, int32 MemberIndex)
 	if (MemberIndex > 0 && Player && Player != &Members[0]) // neither the player nor a Spirit (an older Lord, a co-op player)
 	{
 		FFormsScreenPage Page = BuildPage(*Forms, Name, nullptr, EPlayerBaseForm::Manny, Owns, Wears);
-		Page.WearingLine = LOCTEXT("NotRecruit", "Only you and the Spirits change spirit here.");
+		Page.WearingLine = LOCTEXT("NotRecruit", "Only you and the Spirits change body here.");
 		for (FFormsScreenRow &Row : Page.Rows)
 		{
 			Row.bWorn = false;
@@ -220,7 +220,7 @@ FText WoRFormsScreen::Wear(UWorld *World, const FFormsScreenRow &Row, int32 Memb
 		const EFormSwitchRefusal RecruitRefusal = Recruit ? Forms->CanWearForm(Row.Form) : EFormSwitchRefusal::None;
 		if (!Recruit || RecruitRefusal != EFormSwitchRefusal::None)
 		{
-			return Recruit ? CharacterFormSwitch::GetRefusalText(RecruitRefusal) : LOCTEXT("NotRecruit", "Only you and the Spirits change spirit here.");
+			return Recruit ? CharacterFormSwitch::GetRefusalText(RecruitRefusal) : LOCTEXT("NotRecruit", "Only you and the Spirits change body here.");
 		}
 		Recruit->SpiritForm = Row.bBaseBody || !Row.Form ? NAME_None : Row.Form->GetFName();
 		Recruit->SpiritBody = Row.bBaseBody ? Row.BaseBody : Recruit->SpiritBody;

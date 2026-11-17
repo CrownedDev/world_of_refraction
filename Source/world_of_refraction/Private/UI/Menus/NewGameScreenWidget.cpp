@@ -128,7 +128,7 @@ void UNewGameScreenWidget::BuildTree()
 	UVerticalBox *BodyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	AddToRow(Columns, BodyColumn, FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
 	BodyLabel = MakeText(WidgetTree, LineFontSize, DimColor, true);
-	BodyLabel->SetText(LOCTEXT("StartingSpirit", "Starting spirit")); // D-234
+	BodyLabel->SetText(LOCTEXT("StartingBody", "Starting body")); // D-241: was "Starting spirit"
 	AddToColumn(BodyColumn, BodyLabel, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	UHorizontalBox *BodyRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToColumn(BodyColumn, BodyRow);
