@@ -20,6 +20,7 @@
 #include "Player/TurnStateComponent.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "Character/PlayerBuild.h"
 #include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "BattleHUD"
@@ -160,7 +161,8 @@ FText BattleHUDView::GetCombatantName(const AActor *Actor)
 	const UCharacterDataComponent *CharComp = Actor->FindComponentByClass<UCharacterDataComponent>();
 	if (CharComp && CharComp->CharacterData && !CharComp->CharacterData->Name.IsEmpty())
 	{
-		return FText::FromString(CharComp->CharacterData->Name); // authored name (data asset)
+		// D-229: a player character reads You or its player's tag; anyone else its own name.
+		return WoRPlayerBuild::GetCardName(CharComp->CharacterData, CharComp->PartyMemberId, Actor->GetWorld());
 	}
 	return FText::FromString(Actor->GetName());
 }
