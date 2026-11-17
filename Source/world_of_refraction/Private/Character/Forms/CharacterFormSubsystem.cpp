@@ -144,10 +144,14 @@ bool UCharacterFormSubsystem::IsAtSwitchSpot() const
     return TrialRun && TrialRun->IsHubWorld(GetGameInstance()->GetWorld());
 }
 
+EFormSwitchRefusal UCharacterFormSubsystem::CanWearForm(const UCharacterFormData *Form) const
+{
+    return CharacterFormSwitch::CanSwitch(!Form || IsUnlocked(Form), IsInFight(), IsAtSwitchSpot());
+}
+
 EFormSwitchRefusal UCharacterFormSubsystem::TryWearForm(UCharacterFormData *Form)
 {
-    const bool bUnlocked = !Form || IsUnlocked(Form);
-    const EFormSwitchRefusal Refusal = CharacterFormSwitch::CanSwitch(bUnlocked, IsInFight(), IsAtSwitchSpot());
+    const EFormSwitchRefusal Refusal = CanWearForm(Form);
     if (Refusal != EFormSwitchRefusal::None)
     {
         UE_LOG(LogWoR, Log, TEXT("[CharacterForms] wear %s refused: %s"), *GetNameSafe(Form), *UEnum::GetValueAsString(Refusal));
