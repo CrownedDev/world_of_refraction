@@ -113,7 +113,16 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 						return Key == LeaderPath || Key.StartsWith(LeaderPath + TEXT("#"));
 					})
 					: nullptr;
-				if (Levels)
+				if (Member.bHasKeptLevels)
+				{
+					// B-555 (D-237): the levels kept from the last finished run (a run left open is settled as a quit,
+					// which keeps these).
+					Summary.bHasRunLevels = true;
+					Summary.RunMind = Member.KeptMind;
+					Summary.RunBody = Member.KeptBody;
+					Summary.RunSpirit = Member.KeptSpirit;
+				}
+				else if (Levels)
 				{
 					Summary.bHasRunLevels = true;
 					Summary.RunMind = Levels->Mind;
