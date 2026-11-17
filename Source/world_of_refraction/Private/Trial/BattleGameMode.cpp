@@ -37,6 +37,8 @@
 #include "Pool/PoolSubsystem.h"
 #include "Trial/DefeatRules.h"
 #include "Trial/EnemyKitRoll.h"
+#include "Trial/TrialPoolLook.h"
+#include "Character/PlayerBuild.h"
 #include "Inventory/InventoryComponent.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -53,6 +55,8 @@ namespace BattleGameModeConstants
     // everyone; these only keep deferred spawns from stacking at one point.
     constexpr float TEAM_X_OFFSET = 300.0f;
     constexpr float COMBATANT_Y_SPACING = 150.0f;
+    /** B-569: keeps the drop roll apart from the kit roll on the same run and fight. */
+    constexpr int32 DROP_SEED_SALT = 0x5D50;
 }
 
 ABattleGameMode::ABattleGameMode()
@@ -229,6 +233,7 @@ void ABattleGameMode::BootstrapCombat()
     // B-568 (D-225 stage 4): each enemy's kit from the trial's pool, seeded by the run and the fight.
     const TArray<FRolledEnemyKit> Kits = EnemyKitRoll::RollTeam(OpposingPartyData, EnemyKitRoll::MakeInput(TrialRun->GetActiveTrial(), TrialRun->GetPendingZone()),
                                                                 TrialRun->GetRunSeed(), EnemyKitRoll::MakeEncounterKey(TrialRun->GetPendingEncounterSources()));
+    FightUsed = TrialDrops::GatherUsed(Kits); // B-569: what a win's drops lean to
     for (int32 i = 0; i < OpposingPartyData.Num(); ++i)
     {
         const FVector Location = Origin + FVector(BattleGameModeConstants::TEAM_X_OFFSET,
@@ -585,6 +590,7 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
         {
             // B-073 (D-006): a win pays run Prisms now and adds to the run's tally (by the fight's rank).
             TrialRun->RecordFightReward(GetWorld(), TrialRun->GetPendingRank());
+            GrantFightDrops(*TrialRun); // B-569: before the pending fight is marked beaten (it reads its zone)
             TrialRun->MarkPendingEncounterBeaten();
             // B-362c (D-160 changed): a win no longer recovers the dropped Prisms; the pickup on the map does
             // (APrismDropPickup). WoRDefeat::RecoverPrisms is OBSOLETE.
@@ -800,6 +806,36 @@ bool ABattleGameMode::WasPartyUnhurt() const
     return !PartyStartHP.IsEmpty();
 }
 
+void ABattleGameMode::GrantFightDrops(UTrialRunSubsystem &TrialRun)
+{
+    DroppedLines.Reset();
+    const FEnemyKitRollInput Input = EnemyKitRoll::MakeInput(TrialRun.GetActiveTrial(), TrialRun.GetPendingZone());
+    if (Input.Pool.IsEmpty() || !Orchestrator.IsValid())
+    {
+        return; // no pool (outside a trial, or a trial with none): no drops
+    }
+    const int32 FightSeed = HashCombine(GetTypeHash(TrialRun.GetRunSeed()), GetTypeHash(EnemyKitRoll::MakeEncounterKey(TrialRun.GetPendingEncounterSources())));
+    int32 PlayerIndex = 0;
+    for (AActor *Member : Orchestrator->GetLocalParty())
+    {
+        const UCharacterDataComponent *CharComp = Member ? Member->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        if (!CharComp || !WoRPlayerBuild::IsPlayerCharacter(CharComp->CharacterData))
+        {
+            continue; // one drop per player (TrialPoolDesign §6): a recruit or an AI seat has none
+        }
+        // TODO: co-op (D-103): a guest's character gets its drop on the host's copy, kept by B-564's hand-back; unproven with two players.
+        // Seeded by the run, the fight and the player: a retried fight drops the same.
+        FRandomStream Roll(HashCombine(FightSeed, GetTypeHash(BattleGameModeConstants::DROP_SEED_SALT + PlayerIndex++)));
+        const FTrialDrop Drop = TrialDrops::Pick(Input.Pool, FightUsed, Input.TrialElement, Input.ZoneRange, Roll);
+        const bool bGiven = TrialDrops::Grant(Member, Drop);
+        UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Drop for %s: %s%s"), *GetNameSafe(Member), *TrialDrops::GetDropString(Drop), bGiven ? TEXT("") : TEXT(" (not given)"));
+        if (bGiven)
+        {
+            DroppedLines.Add(WoRTrialPoolLook::GetDroppedLine(TrialDrops::MakeView(Drop)));
+        }
+    }
+}
+
 bool ABattleGameMode::ShowResults(const FCombatResult &Result)
 {
     APlayerController *PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
@@ -827,6 +863,7 @@ bool ABattleGameMode::ShowResults(const FCombatResult &Result)
     ResultsWidget->AddToViewport(ResultsZOrder);
     ResultsWidget->OnContinue.AddDynamic(this, &ABattleGameMode::HandleResultsContinue);
     ResultsWidget->ShowResult(Result);
+    ResultsWidget->SetDroppedLines(DroppedLines); // B-569
 
     // GameOnly input keeps keys/clicks in the viewport; route them to the results widget.
     // The next level's controller resets input mode on the swap.
