@@ -18,7 +18,7 @@ namespace TrialLoot
 	/** The item's authored name (empty when Item isn't a lootable kind). */
 	FText GetItemName(const UObject *Item);
 
-	/** Every authored weapon, ring, spell and ability whose SourceTags match Pool (the asset
+	/** Every authored weapon, ring, spell, ability, prebuilt find, apparel and evolution (B-566) whose SourceTags match Pool (the asset
 	 *  registry, loaded on demand), sorted by path so a seeded roll repeats. Empty for an invalid Pool.
 	 *  TODO: this loads every equipment and skill asset to read its tags; filter on searchable
 	 *  asset-registry tags (or cache per pool) once the item count grows.
