@@ -1,7 +1,7 @@
 # Trial pool design: one pool, and the enemies built from it
 
-**Status:** design, in line with D-225 as it stands on 2026-11-17 (every addition to "All of the design's small questions are now answered"). Nothing here is built. It replaces `AssetOverhaulPlan.md` section 7 as the place to read this.
-**Marks:** *Ruled* = Crown's words in D-225 unless another entry is named. *Default* = proposed here, listed in section 10. Every number is a `// TODO` tunable.
+**Status:** design, in line with D-225 as it stands on 2026-11-17 (every addition, to "Gaps closed after the rewrite"). Every question for Crown is answered; section 10 holds build notes only. Nothing here is built. It replaces `AssetOverhaulPlan.md` section 7 as the place to read this.
+**Marks:** *Ruled* = Crown's words in D-225 unless another entry is named. *Default* = proposed here or in D-225, not yet objected to. Every number is a `// TODO` tunable.
 
 ## 1. The idea in five lines
 
@@ -10,6 +10,8 @@
 3. An enemy is **what it always has**, plus **whatever it takes from the pool, at any tier, inside its limits**.
 4. Enemies **follow the player's rules** (class and slots), so everyone is on equal footing.
 5. Each won fight gives **one drop per player**, 3 times likelier to be something the enemies used; the merchant's shelf is half the pool, half its own.
+
+**Why enemies carry gear you can win (Crown):** "we don't need a lore reason for it; the reason is the trials are a simulation".
 
 ## 2. A trial's pool
 
@@ -28,6 +30,8 @@
 
 **Crystals (ruled):** a trial gives **every element's** crystals, but leans to its own element: that element comes up more often and is likelier to come at a higher tier. The trial already has its element (`TrialData.h:40-43`); the two weights are named tunables. This now matches the deckbuilder, where crystals are in every pool (`wor-deckbuilder/docs/design/WoR_TCG_Series_Event_Pack_Economy.md` §1b).
 
+**Each zone has its own tier range (ruled).** The first zone holds only the pool's low tiers and later zones open the higher ones, so enemies and drops get stronger deeper in. The ranges follow the zones' tier guide, which exists today: zones 0 to 4 ask for F, D, C, B, A (`EnemyZone.h:23-25,63-65`). Proposed ranges (tunable): zone 0 F to E, zone 1 F to D, zone 2 F to C, zone 3 F to B, zone 4 F to A. A weak enemy with a strong piece is still possible, inside its zone's range.
+
 **The merchant (ruled):** a merchant has **its own pool** (things that never drop from enemies) and also draws from the trial's pool. The shelf is **half and half** (a named tunable). Today a trial vendor shows 8 lines rolled from its own authored list only (`Public/Merchant/MerchantStockRoll.h:16,56-59`). So: 4 lines from its own list, 4 from the trial's pool.
 
 **The deckbuilder's rule for enemies is the same shape** (§1b, an Event there is a trial here): "PvE enemy decks = the Event's shared cards + that character's bonded cards": the pool, plus what the enemy always has.
@@ -38,16 +42,18 @@
 
 **Part 1: what it always has.** A list of gear and skills on the enemy's template, for any enemy, not only a boss. A piece on the list has the tier it is given ("provide a low rank enemy with a D class weapon").
 
-**Part 2: what it takes from the pool.** Anything, at any tier the pool holds, inside six limits. Each is optional and **unset means any**.
+**Part 2: what it takes from the pool.** Anything, at any tier its zone's range holds, inside six limits. Each is optional and **unset means any**, with one exception: skills.
 
 | Limit | Unset means |
 |---|---|
 | Most weapons | As many as its class allows |
 | Most adapters | As many as its class allows |
-| Most skills | As many as its gear's slots hold |
+| Most skills | **3** (a named tunable): the one limit whose unset value is a number. The enemy's own limit raises or lowers it |
 | Which kinds (a weapon type, an element) | Any kind |
-| A tier range | Any tier in the pool |
+| A tier range | Any tier in its zone's range |
 | Evolution allowed | Yes |
+
+**Its crystals lean to the trial's element** (ruled), by the same weights as the drops, so a Fire trial's enemies are mostly Fire.
 
 **With nothing set at all,** the enemy wears what it was given and fills the rest of what its class can wear from the pool. So a Resonator enemy can carry five adapters, and every weapon combination a class allows can turn up.
 
@@ -68,7 +74,7 @@
 | **A ring's slots** | From its crystal's tier (D-226; `Private/Loadout/Entries/FRingLoadoutEntry.cpp:32-40`) |
 | **A weapon's slots** | Its own tier's, plus its crystal's (`FWeaponLoadoutEntry.cpp:34-45`) |
 | **A skill needs its gear** | A sword skill needs a sword, a Fire spell a Fire source (D-224) |
-| **Slots need not be filled** | Ruled |
+| **Slots need not be filled** | Ruled: 3 skills unless the enemy sets its own number, and never more than its slots |
 
 - **A dull enemy is fixed by a better piece, not by breaking the slot rule** (ruled). An F sword has one skill; give the enemy an E or D sword and it has two or three.
 - **What pillar points still do:** they are the enemy's own strength (`Public/Character/CharacterData.h:180-190`), and a skill whose Mind / Body / Spirit need the enemy falls short on plays weaker, by the existing gap rule (`Public/Skills/Definitions/WorldStatRequirements.h:39`). So a low enemy with a high sword hits less hard with it than a high enemy would. No new rule.
@@ -87,14 +93,17 @@
 
 | Rule | Status |
 |---|---|
-| **One drop per won fight, for each player** | Ruled |
+| **One drop per won fight, for each player: one thing of any kind** (a weapon, an adapter, a crystal, a skill, apparel or an evolution) | Ruled |
 | A boss always drops | Ruled |
+| **A boss's first defeat gives two things:** one thing guaranteed from its presets, of any kind (its always-has list: a skill, a weapon, an adapter and so on), and the normal drop. Later defeats give the one drop | Ruled |
+| A preset piece arrives as it was set up: prebuilt if it was, otherwise empty | Ruled |
+| A drop comes from the zone's tier range; crystals lean to the trial's element | Ruled |
 | What the enemies were using is **3 times likelier** than the rest of the pool (a named number) | Ruled |
-| **A dropped piece arrives empty:** no crystal, no skills. Crystals and skills are their own drops | Ruled |
+| **A dropped piece arrives empty:** no crystal, no skills | Ruled |
 | A piece set up as prebuilt drops prebuilt, crystal in slot 1 (D-231) | Ruled |
 | It drops **at the tier the enemy wore** | Ruled |
 | Apparel drops like weapons; merchant-only things never drop | Ruled |
-| Always-has pieces can drop; a boss drops one of its always-has skills the first time it is beaten | Default in D-225 (not changed) |
+| Always-has pieces can drop | Default in D-225 (not changed) |
 
 **A duplicate (ruled).** Duplicates are allowed, "since everything is tiered". When a drop is something the player already has, they choose one of three:
 1. **Replace** the one they have with it.
@@ -111,7 +120,7 @@ This covers everything in the inventory (weapons, adapters, evolutions, crystals
 
 | Variation | How it works |
 |---|---|
-| **Used in the field** | Used on an enemy before the fight. Costs EP. What that enemy type carries is remembered for the run |
+| **Used in the field** | Used on an enemy before the fight. Costs EP. It shows the full kit of the enemy it is used on, and remembers the type's shared part for the run |
 | **Always on** | Once owned, enemies show their gear as the player gets close |
 
 No such skill exists today. Default: the card shows no rank word, since "Elite", "Mini-boss" and "Boss" are never shown to the player (D-187).
@@ -120,37 +129,37 @@ No such skill exists today. Default: the card shows no rank word, since "Elite",
 
 Names are from the clean gear set (`AssetOverhaulPlan.md` §2). Skills are asset names (`docs/Audits/CharacterAssetDump.md:643-696,928`); shown names may differ. The enemies are made up to show the shape, not rulings.
 
-**1. A plain enemy, nothing set.** The Darkness enemy, a Refractor (one piece at most).
-- This run: an Adapter Ring with a C Emerald, so a "Wind Ring" with 4 slots: Bolt, Lance, Wave, Storm.
-- Another like it in the same trial: a Hand Axe (F) with Cross Cut. Any tier, any kind.
+**1. A plain enemy, nothing set.** The Darkness enemy, a Refractor (one piece at most), in zone 2 (F to C).
+- This run: an Adapter Ring with a C Emerald, so a "Wind Ring" with 4 slots. It fills the default 3: Bolt, Lance, Wave.
+- Another like it in the first zone (F to E): a Hand Axe (F), one slot, Cross Cut.
 
-**2. A low enemy with a high sword.** A Generic enemy at 1 1 1. Always has: Arming Sword at **B**. Limits: most weapons 1, most adapters 0.
-- Five slots: Lunge, Heavy Strike, Thrust, Quick Strike, Wrath Cut. It is weak (1 1 1), so skills it falls short on hit less hard.
-- Beat it and the Arming Sword is 3 times likelier to be the drop. It arrives at B, empty.
+**2. A low enemy with a high sword.** A Generic enemy at 1 1 1, in zone 1 (F to D). Always has: Arming Sword at **D**, the top of its zone. Limits: most weapons 1, most adapters 0.
+- Three slots, the default three skills: Lunge, Heavy Strike, Thrust. It is weak (1 1 1), so skills it falls short on hit less hard.
+- Beat it and the Arming Sword is 3 times likelier to be the drop. It arrives at D, empty, while the player's kit is F.
 
-**3. Three bandits (one template).** Always has: Hand Axe and Bearded Axe as a pair at E (2 slots), and Cross Cut. Limits: most adapters 0.
+**3. Three bandits (one template),** in the first zone. Always has: Hand Axe and Bearded Axe as a pair at E (2 slots), and Cross Cut. Limits: most adapters 0.
 - All three: the axes and Cross Cut.
 - Second slot, rolled per bandit: Smash, Whirlwind, Smash.
 
-**4. A Resonator enemy with five adapters.** Nothing given. Limit: most skills 6.
-- This run: an Arming Sword (D) and five Adapter Rings: Garnet C, Sapphire F, Citrine E, Amber F, Emerald B.
-- Those hold up to 16 skills (3 + 4 + 1 + 2 + 1 + 5). The limit keeps it to six: Lunge, Bolt, Missile, Wave, Storm, Might.
-- With no limit it would fill all 16; that is what the limit is for.
+**4. A Resonator enemy with five adapters,** in zone 3 (F to B). Nothing given.
+- This run: an Arming Sword (D) and five Adapter Rings: Garnet C, Garnet B, Citrine E, Amber F, Emerald F. Two are Garnet: a Fire trial leans that way.
+- Those hold up to 16 skills (3 + 4 + 5 + 2 + 1 + 1). With nothing set it fills 3: Lunge, Bolt, Storm.
+- Give it "most skills 6" and it carries six: Lunge, Bolt, Missile, Wave, Storm, Might.
 
 **5. One whole trial (Fire), its boss and its merchant.**
 
 | The trial's pool | The merchant's own pool |
 |---|---|
-| Weapons: Arming Sword, Round Shield, Hand Axe, Bearded Axe, F to B | Gale Force (evolution) |
+| Weapons: Arming Sword, Round Shield, Hand Axe, Bearded Axe, F to A (each zone opens a tier) | Gale Force (evolution) |
 | Adapter: Adapter Ring. Prebuilt: Phoenix Fire Ring | Mend, Restore, Cleanse (spells) |
 | Crystals: all five, Garnet more often and at higher tiers | An augment stone |
 | Skills: Lunge, Heavy Strike, Thrust, Quick Strike, Wrath Cut, Whirlwind, Cross Cut, Smash, Bolt, Missile, Lance, Wave, Storm, Might, Warding | |
 | Apparel: none yet (the clean set has no apparel piece) | |
 
-- **The boss.** Always has: Arming Sword (C) with Round Shield, a Phoenix Fire Ring (prebuilt), and Wrath Cut, Storm, Warding. Limit: most skills 5. This run it added Might and Lunge.
-- **Beating it:** always a drop. The first time, one of Wrath Cut, Storm or Warding for certain. If the ring drops, it arrives built, Phoenix Fire in slot 1.
+- **The boss,** in zone 4 (F to A). Always has: Arming Sword (A) with Round Shield, a Phoenix Fire Ring (prebuilt), and Wrath Cut, Storm, Warding. Limit: most skills 5. This run it added Might and Lunge.
+- **Beating it:** always a drop. The first time, two things: one of its presets for certain (the Arming Sword, the Round Shield, the Phoenix Fire Ring, Wrath Cut, Storm or Warding), and the normal drop. The sword or shield arrives empty, at A; the ring arrives built, Phoenix Fire in slot 1.
 - **The merchant's shelf this run:** 8 lines: 4 from the left column, 4 from the right. Healing spells and Gale Force can only be bought.
-- **A duplicate:** a second Arming Sword (C) drops while the player holds one at F. They choose: replace, add, or convert.
+- **A duplicate:** a second Arming Sword (D) drops while the player holds one at F. They choose: replace, add, or convert.
 
 ## 9. Today against new, and the stages
 
@@ -169,38 +178,32 @@ Names are from the clean gear set (`AssetOverhaulPlan.md` §2). Skills are asset
 | # | Stage | Crown sees | Tested by |
 |---|---|---|---|
 | 1 | **The look:** the kit card, the "dropped" line in the fight's reward, and the three-choice duplicate prompt; plain, with made-up contents | All three, in PIE | Crown's eye |
-| 2 | **The pool:** the trial's pool tag; evolutions and apparel readable; every element's crystals with the lean; the clean set tagged (editor) | `wor.Trial.Pool` lists the trial's pool | Specs |
-| 3 | **The enemy's parts:** the always-has list and the six limits on the template | A print button on the enemy | Specs: unset means any; the class and slot rules hold |
+| 2 | **The pool:** the trial's pool tag; evolutions and apparel readable; every element's crystals with the lean; each zone's tier range; the clean set tagged (editor) | `wor.Trial.Pool` lists the trial's pool, zone by zone | Specs |
+| 3 | **The enemy's parts:** the always-has list and the six limits on the template | A print button on the enemy | Specs: unset means any, skills 3; the class and slot rules hold |
 | 4 | **The roll:** each enemy's kit from the run seed; the enemy fights with it; the two enemies stop reading the old inventories | The same kit on a retry, another on a new run; three bandits alike in part | Specs with a fixed seed, then PIE |
 | 5 | **Drops:** one per fight per player, weighted, at the worn tier, empty unless prebuilt | Winning what an enemy used | Spec on the weight, then PIE |
 | 6 | **Duplicates:** the three choices; utility dismantle | The prompt on a real duplicate | Spec, then PIE |
 | 7 | **The merchant:** half and half | The shelf in a trial | Spec, then PIE |
 | 8 | **Seeing a kit:** the field variation, then the always-on one | Each, on an enemy | PIE |
 
-**Where the last old enemy data can go:** after stage 4 passes Crown's PIE check, the stopgap fill is removed and no enemy reads `DA_Inventory_Generic` or `DA_Test_Inventory`. That unblocks removal list group 3 (`docs/Audits/OldAssetRemovalList.md` §4): the two old inventories and the two baked pieces (`DA_Equipment_Generic_SAS`, `DA_Equipment_Generic_DualAxe`). `DA_Inventory_Generic` also waits for group 2 (the old Lords).
+**Where the last old enemy data can go:** after stage 4 passes Crown's PIE check, the stopgap fill is removed and no enemy reads `DA_Inventory_Generic` or `DA_Test_Inventory`. That unblocks removal list group 3 (`docs/Audits/OldAssetRemovalList.md` §4): the two old inventories and the two baked pieces (`DA_Equipment_Generic_SAS`, `DA_Equipment_Generic_DualAxe`). `DA_Inventory_Generic` also waits for group 2 (the old Lords). `DA_Ring_Adapter_C` goes with it, not before (D-225).
 
-## 10. Still open
+## 10. Build notes
 
-Crown has answered the earlier questions (D-225). What the new rules leave undecided:
+Nothing here waits on Crown. Each is a place where code or a written rule must change to match the rulings, with the fix proposed.
 
-| # | Question | Default, and why |
+| # | What | The fix |
 |---|---|---|
-| 1 | **Story: why do enemies carry gear you can win?** | Lore, so options only: (a) say nothing; (b) the trial arms what lives in it; (c) they are earlier challengers. Crown's alone; blocks nothing |
-| 2 | **With no skill limit, does an enemy fill every slot?** "Unset means any" and "slots need not be filled" both stand | **Yes, it fills them; a limit thins it** (example 4). Slay the Spire and Hades: a stronger enemy simply has more moves |
-| 3 | **Is the one drop a piece only, or can it be a crystal or a skill?** The ruling says "one piece", and also that crystals and skills are their own drops | **One drop of any kind.** Slay the Spire: one reward per fight, of mixed kinds; and skills must be winnable from enemies (D-224) |
-| 4 | **Do enemies' own crystals lean to the trial's element too?** The lean is ruled for what the trial gives | **Yes, the same weights,** so a Fire trial's enemies are mostly Fire. Hades: a region's enemies carry the region's theme |
-| 5 | **The field variation remembers "what that enemy type carries", but the open part differs per enemy** | **It remembers the type's shared part for the run, and shows the full kit of the enemy it is used on.** Monster Hunter's notes: the kind is learned, the one in front of you is looked at |
-| 6 | **A boss's first-kill skill and the one-drop rule** | **The sure skill is the boss's one drop that time.** Elden Ring: a boss gives its own thing once |
+| 1 | **The dropped tier against the pickup grade roll.** A fresh pickup of a flagged weapon, adapter or evolution rolls a random grade today (rule ER-38) | An enemy's drop is given at the tier the enemy wore and skips that roll (stage 5). Chests keep it. Update ER-38's row |
+| 2 | **A shop refuses a spell or ability the player already knows** (rule ER-20) | Duplicates are allowed now: the shop sells it, and the buyer gets the three choices like any duplicate (stage 6). Update ER-20's row |
+| 3 | **A co-op guest's skill "it already has keeps its own copy"** (Q-561, B-564) | Leave as built: this is the run-end hand-back into the guest's save, where nobody is there to choose. The three choices happen earlier, when the skill drops. Add that sentence to Q-561 |
+| 4 | **The seed wording.** D-225 says "the run's seeded random (BattleRandom)". BattleRandom is one stream per fight and is not sent to co-op clients (`docs/Architecture/BattleRandom.md`) | The kit roll and the drop pick use the run seed (section 5). Correct the words in D-225 when its row is next touched |
+| 5 | **An always-has piece given a tier outside its zone's range** | The given tier wins (it is authored on purpose), and the zone print warns, as it already does for an enemy placed below its zone's guide (`EnemyZone.h:67-77`) (stage 3) |
+| 6 | **Older lines inside D-225:** "based on total pillar points", the fallback table and the ladder are replaced by "Limits, not a ladder" but still in the entry | No code. Read the entry from the bottom up; this document is the reading copy |
 
-## Clashes found
+## Clashes
 
-1. **"One piece per won fight" against "crystals and skills are their own drops"** (both in D-225, same day). Question 3.
-2. **"Unset means any" against "slots need not be filled"**: with no limit, an enemy could carry 16 skills (example 4). Question 2.
-3. **The dropped tier against the pickup quality roll:** a fresh pickup of a flagged weapon, adapter or evolution rolls a random grade today (rule ER-38). A drop "at the tier the enemy wore" must skip that roll.
-4. **Duplicates against two built rules:** a shop refuses a spell or ability the player already knows (rule ER-20), and a co-op guest's "skill it already has keeps its own copy" (Q-561, B-564). Both need the three choices, or a word from Crown that they stay as they are.
-5. **D-225's wording "the run's seeded random (BattleRandom)":** two different things. BattleRandom is one stream per fight and is not sent to co-op clients (`docs/Architecture/BattleRandom.md`); the kit roll uses the run seed (section 5).
-6. **An enemy's fight tier is the average of its gear and skills** (`EnemyZone.h:67-71`), and a zone's guide expects F, D, C, B, A by distance to the boss (`EnemyZone.h:63-65`). With any-tier gear, a first-zone enemy can read well above its zone. The lever that exists: a zone can name its own, smaller pool, or the enemy a tier range.
-7. **Inside D-225 itself:** point (1) "based on total pillar points", the fallback table and the ladder are all replaced by "Limits, not a ladder". Not a live clash; the older lines are still in the entry.
+None open. The earlier ones are settled by D-225's "Gaps closed after the rewrite": the one drop is one thing of any kind; an unset skill limit is 3; each zone's tier range keeps enemies in line with the zone guide; a boss's first defeat gives two things (one of its presets, of any kind, and the normal drop).
 
 ## Changelog
 
@@ -208,3 +211,5 @@ Crown has answered the earlier questions (D-225). What the new rules leave undec
 |---|---|---|
 | 2026-11-17 | Created from D-225 and its additions; replaces `AssetOverhaulPlan.md` §7 as the reading copy | dev (docs only) |
 | 2026-11-17 | Brought in line with Crown's answers: limits not a ladder, the player's slot rules, shared template and per-enemy roll, one drop per fight, crystals lean to the trial's element, duplicates' three choices, the half-and-half shelf, two kit-skill variations, co-op guests keep what they earn | dev (docs only) |
+| 2026-11-17 | Gaps closed: one drop of any kind, 3 skills when unset, a tier range per zone, a boss's first defeat gives two things, the story answer; section 10 is build notes only | dev (docs only) |
+| 2026-11-17 | Crown's final wording: a boss's first defeat gives one thing from its presets, of any kind, plus the normal drop; a preset piece arrives as set up | dev (docs only) |
