@@ -36,6 +36,8 @@
 #include "Reaction/ReactionTrigger.h"
 #include "Pool/PoolSubsystem.h"
 #include "Trial/DefeatRules.h"
+#include "Trial/EnemyKitRoll.h"
+#include "Inventory/InventoryComponent.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "Save/SaveSubsystem.h"
@@ -224,11 +226,14 @@ void ABattleGameMode::BootstrapCombat()
     }
     // B-279d: an authored character fought as a mini-boss wears its form (any enemy whose character has one, §1b).
     const UCharacterFormSubsystem *Forms = GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>();
+    // B-568 (D-225 stage 4): each enemy's kit from the trial's pool, seeded by the run and the fight.
+    const TArray<FRolledEnemyKit> Kits = EnemyKitRoll::RollTeam(OpposingPartyData, EnemyKitRoll::MakeInput(TrialRun->GetActiveTrial(), TrialRun->GetPendingZone()),
+                                                                TrialRun->GetRunSeed(), EnemyKitRoll::MakeEncounterKey(TrialRun->GetPendingEncounterSources()));
     for (int32 i = 0; i < OpposingPartyData.Num(); ++i)
     {
         const FVector Location = Origin + FVector(BattleGameModeConstants::TEAM_X_OFFSET,
                                                   i * BattleGameModeConstants::COMBATANT_Y_SPACING, 0.0f);
-        if (APawn *Spawned = SpawnCombatant(EnemyPawnClass, OpposingPartyData[i], FTransform(Location)))
+        if (APawn *Spawned = SpawnCombatant(EnemyPawnClass, OpposingPartyData[i], FTransform(Location), FGuid(), &Kits[i]))
         {
             OpposingParty.Add(Spawned);
             OpposingRanks.Add(TrialRun->GetPendingEnemyRank(i));
@@ -419,7 +424,8 @@ void ABattleGameMode::ApplyFieldStrike(UTrialRunSubsystem &TrialRun, const TArra
            *UEnum::GetValueAsString(Strike.Physical), Strike.Buildup, Struck, OpposingParty.Num());
 }
 
-APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform, const FGuid &MemberId)
+APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform, const FGuid &MemberId,
+                                       const FRolledEnemyKit *Kit)
 {
     if (!Data)
     {
@@ -443,6 +449,11 @@ APawn *ABattleGameMode::SpawnCombatant(UClass *PawnClass, UCharacterData *Data, 
     {
         CharComp->CharacterData = Data;
         CharComp->PartyMemberId = MemberId; // B-360b: before BeginPlay, which reads the member's slot
+        UInventoryComponent *Inventory = Pawn->FindComponentByClass<UInventoryComponent>();
+        if (Kit && Kit->HasGear() && Inventory)
+        {
+            Inventory->SetRolledKit(*Kit); // B-568: worn from BeginPlay's inventory init
+        }
     }
     else
     {
