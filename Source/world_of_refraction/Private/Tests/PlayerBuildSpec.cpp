@@ -78,7 +78,7 @@ void FPlayerBuildSpec::Define()
 		{
 			return;
 		}
-		TestEqual(TEXT("the typed name"), Built->Name, FString(PLAYER_BUILD_TEST_NAME));
+		TestEqual(TEXT("named by what it is, the typed name ignored (D-228)"), Built->Name, FString(TEXT("Fire Refractor")));
 		TestTrue(TEXT("the picked class and element"), Built->CharacterClass == ECharacterClass::Caster && Built->InnateElement == ESpellElement::Fire);
 		TestEqual(TEXT("the class table's levels"), Built->WorldMindLevel, PLAYER_BUILD_TEST_LEVEL);
 		TestEqual(TEXT("action speed 0: the normal speed"), Built->ActionSpeed, 0);
@@ -137,7 +137,7 @@ void FPlayerBuildSpec::Define()
 
 		FWoRSaveData Data;
 		Data.Party = Saved;
-		TestEqual(TEXT("the title names the slot by the picks"), WoRTitleScreen::Summarize(Data, true, 0.0).LeaderName.ToString(), FString(PLAYER_BUILD_TEST_NAME));
+		TestEqual(TEXT("the title names the slot by its class (D-228), not the saved typed name"), WoRTitleScreen::Summarize(Data, true, 0.0).LeaderName.ToString(), FString(TEXT("Resonator")));
 	});
 
 	It("gives each character slot its own file and lists the filled slots, then the +", [this]()
