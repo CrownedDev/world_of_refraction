@@ -4,6 +4,7 @@
 
 #include "Character/Forms/CharacterFormData.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/Forms/SpiritLook.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/EquipmentDataBase.h"
@@ -13,6 +14,9 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/GearGive.h"
 #include "Inventory/InventoryComponent.h"
+#include "Party/Party.h"
+#include "Party/PartySessionSubsystem.h"
+#include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "UI/Menus/LoadoutScreenModel.h"
@@ -41,15 +45,41 @@ namespace FormsScreenBuild
 		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
 		return GameInstance ? GameInstance->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
 	}
+
+	/** B-558: the screen's members (the loadout screen's list: the local player first), MemberIndex clamped. */
+	const FLoadoutScreenMember *GetMember(const TArray<FLoadoutScreenMember> &Members, int32 MemberIndex)
+	{
+		return Members.IsEmpty() ? nullptr : &Members[FMath::Clamp(MemberIndex, 0, Members.Num() - 1)];
+	}
+
+	/** B-558 (D-238): the party's recruit at MemberIndex (it wears its own spirit), or null (the player, anyone else). */
+	FPartyMember *FindRecruit(UWorld *World, int32 MemberIndex)
+	{
+		const TArray<FLoadoutScreenMember> Members = WoRLoadoutScreen::BuildMembers(World);
+		const FLoadoutScreenMember *Member = MemberIndex > 0 ? GetMember(Members, MemberIndex) : nullptr;
+		const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+		const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		UParty *Party = Member && Member != &Members[0] && PartySession ? PartySession->GetLocalParty() : nullptr;
+		FPartyMember *Found = Party ? Party->Members.FindByPredicate([Member](const FPartyMember &Each)
+		{
+			return UPoolSubsystem::GetCharacterKey(Each) == Member->Key;
+		}) : nullptr;
+		return Found && Found->Picks.bRecruit ? Found : nullptr;
+	}
 }
 
 FFormsScreenPage WoRFormsScreen::BuildPage(const UCharacterFormSubsystem &Forms, const FText &CharacterName, TFunctionRef<bool(const UObject *)> Owns,
 										   TFunctionRef<bool(const UObject *)> Wears)
 {
+	return BuildPage(Forms, CharacterName, Forms.GetWornForm(), Forms.GetBaseForm(), Owns, Wears);
+}
+
+FFormsScreenPage WoRFormsScreen::BuildPage(const UCharacterFormSubsystem &Forms, const FText &CharacterName, const UCharacterFormData *Worn,
+										   EPlayerBaseForm WornBody, TFunctionRef<bool(const UObject *)> Owns, TFunctionRef<bool(const UObject *)> Wears)
+{
 	FFormsScreenPage Page;
 	Page.Title = FText::Format(LOCTEXT("Title", "Spirit of {0}"), CharacterName);
-	const UCharacterFormData *Worn = Forms.GetWornForm();
-	const FText Base = WoRGameNames::GetBaseFormName(Forms.GetBaseForm());
+	const FText Base = WoRGameNames::GetBaseFormName(WornBody);
 	Page.WearingLine = Worn ? FText::Format(LOCTEXT("WearingForm", "Wearing: {0} (over {1})"), Worn->FormName, Base)
 							: FText::Format(LOCTEXT("Wearing", "Wearing: {0}"), Base);
 
@@ -63,7 +93,7 @@ FFormsScreenPage WoRFormsScreen::BuildPage(const UCharacterFormSubsystem &Forms,
 		Own.Line = LOCTEXT("AlwaysYours", "always yours");
 		Own.Progress = 1.0f;
 		Own.bUnlocked = true;
-		Own.bWorn = !Worn && Forms.GetBaseForm() == Body;
+		Own.bWorn = !Worn && WornBody == Body;
 		Own.Status = LOCTEXT("OwnStatus", "Your own spirit. A wears it (and takes a form off).");
 	}
 
@@ -102,7 +132,12 @@ FFormsScreenPage WoRFormsScreen::BuildPage(const UCharacterFormSubsystem &Forms,
 	return Page;
 }
 
-FFormsScreenPage WoRFormsScreen::BuildPage(UWorld *World)
+int32 WoRFormsScreen::GetMemberCount(UWorld *World)
+{
+	return FMath::Max(1, WoRLoadoutScreen::BuildMembers(World).Num());
+}
+
+FFormsScreenPage WoRFormsScreen::BuildPage(UWorld *World, int32 MemberIndex)
 {
 	const UCharacterFormSubsystem *Forms = FormsScreenBuild::GetForms(World);
 	const TArray<FLoadoutScreenMember> Members = WoRLoadoutScreen::BuildMembers(World);
@@ -112,7 +147,7 @@ FFormsScreenPage WoRFormsScreen::BuildPage(UWorld *World)
 		Page.Title = LOCTEXT("NoForms", "Spirit");
 		return Page;
 	}
-	const FLoadoutScreenMember *Player = Members.IsEmpty() ? nullptr : &Members[0];
+	const FLoadoutScreenMember *Player = FormsScreenBuild::GetMember(Members, MemberIndex); // B-558: the member shown
 	UInventoryComponent *Inventory = Player ? WoRGive::FindMemberInventory(World, Player->Key) : nullptr;
 	TArray<FCharacterFormPiece> Equipped;
 	if (Inventory && Inventory->GetOwner())
@@ -148,10 +183,25 @@ FFormsScreenPage WoRFormsScreen::BuildPage(UWorld *World)
 	{
 		return Equipped.ContainsByPredicate([Asset](const FCharacterFormPiece &Piece) { return Piece.Asset == Asset; });
 	};
-	return BuildPage(*Forms, Player ? Player->Name : LOCTEXT("You", "you"), Owns, Wears);
+	const FText Name = Player ? Player->Name : LOCTEXT("You", "you");
+	if (const FPartyMember *Recruit = FormsScreenBuild::FindRecruit(World, MemberIndex))
+	{
+		return BuildPage(*Forms, Name, Recruit->SpiritForm.IsNone() ? nullptr : Forms->FindFormByName(Recruit->SpiritForm), Recruit->SpiritBody, Owns, Wears);
+	}
+	if (MemberIndex > 0 && Player && Player != &Members[0]) // neither the player nor a Spirit (an older Lord, a co-op player)
+	{
+		FFormsScreenPage Page = BuildPage(*Forms, Name, nullptr, EPlayerBaseForm::Manny, Owns, Wears);
+		Page.WearingLine = LOCTEXT("NotRecruit", "Only you and the Spirits change spirit here.");
+		for (FFormsScreenRow &Row : Page.Rows)
+		{
+			Row.bWorn = false;
+		}
+		return Page;
+	}
+	return BuildPage(*Forms, Name, Owns, Wears);
 }
 
-FText WoRFormsScreen::Wear(UWorld *World, const FFormsScreenRow &Row)
+FText WoRFormsScreen::Wear(UWorld *World, const FFormsScreenRow &Row, int32 MemberIndex)
 {
 	UCharacterFormSubsystem *Forms = FormsScreenBuild::GetForms(World);
 	if (!Forms)
@@ -161,6 +211,22 @@ FText WoRFormsScreen::Wear(UWorld *World, const FFormsScreenRow &Row)
 	if (!Row.bMet)
 	{
 		return LOCTEXT("WearUnmet", "You haven't met them yet.");
+	}
+	// B-558 (D-238): a recruit wears its spirit on its party member, by the player's unlocks and the same rules.
+	if (MemberIndex > 0)
+	{
+		// TODO: co-op (D-103): the party lives on the host and isn't replicated; a guest asks the host first.
+		FPartyMember *Recruit = World && World->GetNetMode() != NM_Client ? FormsScreenBuild::FindRecruit(World, MemberIndex) : nullptr;
+		const EFormSwitchRefusal RecruitRefusal = Recruit ? Forms->CanWearForm(Row.Form) : EFormSwitchRefusal::None;
+		if (!Recruit || RecruitRefusal != EFormSwitchRefusal::None)
+		{
+			return Recruit ? CharacterFormSwitch::GetRefusalText(RecruitRefusal) : LOCTEXT("NotRecruit", "Only you and the Spirits change spirit here.");
+		}
+		Recruit->SpiritForm = Row.bBaseBody || !Row.Form ? NAME_None : Row.Form->GetFName();
+		Recruit->SpiritBody = Row.bBaseBody ? Row.BaseBody : Recruit->SpiritBody;
+		UE_LOG(LogWoRUI, Log, TEXT("[FormsScreen] %s"), *WoRSpiritLook::GetMemberSpiritString(*Recruit));
+		WoRSpiritLook::DressMemberBodies(World, *Recruit);
+		return FText::GetEmpty();
 	}
 	const EFormSwitchRefusal Refusal = Forms->TryWearForm(Row.Form);
 	UE_LOG(LogWoRUI, Log, TEXT("[FormsScreen] wear %s: %s"), Row.bBaseBody ? *UEnum::GetValueAsString(Row.BaseBody) : *GetNameSafe(Row.Form),
@@ -174,9 +240,17 @@ FText WoRFormsScreen::Wear(UWorld *World, const FFormsScreenRow &Row)
 			   : LOCTEXT("BaseRefused", "Change your body in the hub or at a rest spot, outside a fight.");
 }
 
-FText WoRFormsScreen::SwitchBaseBody(UWorld *World)
+FText WoRFormsScreen::SwitchBaseBody(UWorld *World, int32 MemberIndex)
 {
 	UCharacterFormSubsystem *Forms = FormsScreenBuild::GetForms(World);
+	if (MemberIndex > 0) // B-558: a recruit's body is its own spirit row (Male / Female Nobody), worn like one
+	{
+		const FPartyMember *Recruit = FormsScreenBuild::FindRecruit(World, MemberIndex);
+		FFormsScreenRow Other;
+		Other.bBaseBody = true;
+		Other.BaseBody = Recruit && Recruit->SpiritBody == EPlayerBaseForm::Quinn ? EPlayerBaseForm::Manny : EPlayerBaseForm::Quinn;
+		return Wear(World, Other, MemberIndex);
+	}
 	const EPlayerBaseForm Other = Forms && Forms->GetBaseForm() == EPlayerBaseForm::Quinn ? EPlayerBaseForm::Manny : EPlayerBaseForm::Quinn;
 	return Forms && Forms->TrySetBaseForm(Other) ? FText::GetEmpty()
 												 : LOCTEXT("BaseRefused", "Change your body in the hub or at a rest spot, outside a fight.");
