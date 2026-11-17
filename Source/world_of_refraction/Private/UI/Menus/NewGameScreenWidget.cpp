@@ -269,7 +269,6 @@ void UNewGameScreenWidget::NativeOnActivated()
 	}
 	Status = FText::GetEmpty();
 	HoveredIndex = INDEX_NONE;
-	MadeCharacters = WoRNewGame::ReadMadeCharacters(GetGameInstance());
 	Refresh();
 	ShowCursorNextTick(); // D-233
 	UE_LOG(LogWoRUI, Log, TEXT("[NewGame] Opened"));
@@ -485,10 +484,6 @@ void UNewGameScreenWidget::Confirm()
 		if (bJoining)
 		{
 			Status = WoRNewGame::GetBeginRefusal(Pick);
-			if (Status.IsEmpty())
-			{
-				Status = WoRNewGame::GetKindRefusal(Pick, MadeCharacters); // D-229: a new character to join is one of a kind too
-			}
 			const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 			if (Status.IsEmpty() && Saves && Saves->FindFreeSlot(WoRTitleScreen::GetMaxSlots()) == INDEX_NONE)
 			{
@@ -586,10 +581,7 @@ void UNewGameScreenWidget::Refresh()
 		ClassLines[Index]->SetColorAndOpacity(FSlateColor(bPicked ? TextColor : DimColor));
 	}
 	BeginCard->SetBrushColor(Fill(Focus == ENewGameFocus::Begin, false, ENewGameFocus::Begin, 0));
-	// D-229: a kind already made stays in the lists; the Begin card says so, dimmed (Begin refuses it too).
-	const FText KindRefusal = WoRNewGame::GetKindRefusal(Pick, MadeCharacters);
-	BeginText->SetText(KindRefusal.IsEmpty() ? WoRNewGame::GetBeginLabel(Pick) : KindRefusal);
-	BeginText->SetColorAndOpacity(FSlateColor(KindRefusal.IsEmpty() ? TextColor : DimColor));
+	BeginText->SetText(WoRNewGame::GetBeginLabel(Pick)); // D-241: duplicates allowed again (D-229's one of each kind removed)
 	BodyLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Body ? CyanColor : DimColor));
 	ClassLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Class ? CyanColor : DimColor));
 	ElementLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Element ? CyanColor : DimColor));
