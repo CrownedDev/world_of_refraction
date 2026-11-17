@@ -265,6 +265,11 @@ FText WoRNewGame::GetClassLine(ECharacterClass Class)
 	return FText::GetEmpty();
 }
 
+FText WoRNewGame::GetCharacterName(const FPlayerPicks &Picks)
+{
+	return Picks.bRecruit ? FText::FromString(Picks.Name) : GetPanelTitle(Picks);
+}
+
 FText WoRNewGame::GetPanelTitle(const FNewGamePick &Pick)
 {
 	const FText ClassName = WoRGameNames::GetCharacterClassName(Pick.Class);
@@ -327,10 +332,6 @@ FText WoRNewGame::GetPanelFootnote(const FNewGamePick &Pick)
 
 FText WoRNewGame::GetBeginRefusal(const FNewGamePick &Pick)
 {
-	if (Pick.Name.TrimStartAndEnd().IsEmpty())
-	{
-		return LOCTEXT("NoName", "Type a name first.");
-	}
 	const int32 Picked = Pick.Class == ECharacterClass::Generic ? Pick.Weapons.Num() : Pick.Class == ECharacterClass::Resonator ? Pick.Crystals.Num() : 1;
 	if (Picked < GetPickCount(Pick.Class))
 	{
@@ -395,6 +396,7 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	// trial's exit below: a build renames the last player's copy away, and the run's end still looks it up by name.
 	FPartyMember Leader;
 	Leader.Picks = Pick;
+	Leader.Picks.Name = GetCharacterName(Pick).ToString(); // D-228: no typed name; a set Name marks the picks as made
 	const UCharacterData *PlayerAsset = PartySession->PlayerCharacter.IsNull() ? nullptr : PartySession->PlayerCharacter.LoadSynchronous();
 	// The player's pawn class, as EnsureLocalParty resolves it: the pawn standing in the world, else the config's.
 	const APawn *Pawn = PC->GetPawn();
@@ -423,7 +425,7 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	// The trial's exit ends a run under way, then travels to the hub on the next tick, where the player's pawn comes
 	// back as the picked character.
 	TrialRun->ExitTrial();
-	Leader.CharacterData = WoRPlayerBuild::Build(Pick, GI);
+	Leader.CharacterData = WoRPlayerBuild::Build(Leader.Picks, GI);
 	if (!Leader.CharacterData || !Saves->StartFreshGame(Leader, Pick.Body, Slot))
 	{
 		return LOCTEXT("NotStarted", "The new game didn't start."); // only if the build or the new slot failed (logged)
