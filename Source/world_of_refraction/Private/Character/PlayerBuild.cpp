@@ -20,6 +20,11 @@
 
 const TCHAR *WoRPlayerBuild::BUILT_NAME = TEXT("WoRPlayer");
 
+namespace
+{
+	constexpr int32 GUEST_NAME_MAX_LETTERS = 32; // a guest's typed name in its object name: the guest's word, so capped
+}
+
 UCharacterData *WoRPlayerBuild::BuildFrom(const FPlayerPicks &Picks, const UCharacterData *Template,
 										  const FClassElementNumbers *Numbers, int32 ActionSpeed, UInventoryData *Inventory,
 										  FName ObjectName)
@@ -59,7 +64,8 @@ UCharacterData *WoRPlayerBuild::BuildFrom(const FPlayerPicks &Picks, const UChar
 UCharacterData *WoRPlayerBuild::Build(const FPlayerPicks &Picks, const UGameInstance *GameInstance)
 {
 	// B-557: a recruit's name stands for its fixed row, so one already built (the hub's, before a load) is the same one.
-	if (UCharacterData *Recruit = Picks.bRecruit && Picks.IsSet() ? FindObjectFast<UCharacterData>(GetTransientPackage(), GetBuiltName(Picks)) : nullptr)
+	// B-561: so does a guest's (its picks are its name), so a guest that leaves and comes back keeps its pool key.
+	if (UCharacterData *Recruit = (Picks.bRecruit || Picks.bGuest) && Picks.IsSet() ? FindObjectFast<UCharacterData>(GetTransientPackage(), GetBuiltName(Picks)) : nullptr)
 	{
 		return Recruit;
 	}
@@ -115,6 +121,18 @@ UInventoryData *WoRPlayerBuild::MakeInventory(const FPlayerPicks &Picks, const U
 
 FName WoRPlayerBuild::GetBuiltName(const FPlayerPicks &Picks)
 {
+	if (Picks.bGuest)
+	{
+		// shortcut: two guests with the same name, class and element share a name (and gear), and a guest that comes back
+		// with other weapons or crystals under the same name keeps its first build; key it on a player id when that matters.
+		FString Name;
+		for (const TCHAR Letter : Picks.Name.Left(GUEST_NAME_MAX_LETTERS))
+		{
+			Name.AppendChar(FChar::IsAlnum(Letter) ? Letter : TEXT('_'));
+		}
+		return FName(FString::Printf(TEXT("%s_Guest_%s_%s_%s%s"), BUILT_NAME, *Name, *StaticEnum<ECharacterClass>()->GetNameStringByValue(static_cast<int64>(Picks.Class)),
+									 *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(Picks.Element)), Picks.bBrokenDarkness ? TEXT("_BD") : TEXT("")));
+	}
 	if (!Picks.bRecruit)
 	{
 		return FName(BUILT_NAME);

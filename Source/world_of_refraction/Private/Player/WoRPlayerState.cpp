@@ -3,6 +3,7 @@
 #include "Player/WoRPlayerState.h"
 
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/Forms/SpiritLook.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "GameFramework/GameStateBase.h"
@@ -92,6 +93,7 @@ namespace
 			}));
 }
 
+// OBSOLETE (B-558): the body paths moved to WoRSpiritLook::GetBodyMeshPath; delete in stage 6.
 namespace PlayerFormLook
 {
     // B-279b: the base bodies (Design/CharacterForms.md §1). // TODO: V's lighter void material once B-143 lands.
@@ -361,6 +363,29 @@ void AWoRPlayerState::ServerRequestJoin_Implementation(UCharacterData *Character
 	}
 }
 
+void AWoRPlayerState::RequestJoinWithPicks(const FPlayerPicks &Picks)
+{
+	if (HasAuthority())
+	{
+		ServerRequestJoinWithPicks_Implementation(Picks);
+	}
+	else
+	{
+		ServerRequestJoinWithPicks(Picks);
+	}
+}
+
+void AWoRPlayerState::ServerRequestJoinWithPicks_Implementation(const FPlayerPicks &Picks)
+{
+	// TODO: co-op trust (B-233+): the picks are the guest's word; the host builds from its own class table only.
+	URunStateComponent *Run = URunStateComponent::Find(this);
+	UE_CLOG(!Run, LogWoR, Warning, TEXT("[PlayerState] %s asked to join but there is no run state here"), *GetPlayerName());
+	if (Run)
+	{
+		Run->RequestJoinWithPicks(this, Picks);
+	}
+}
+
 void AWoRPlayerState::SetForm(UCharacterFormData *InWornForm, EPlayerBaseForm InBaseForm)
 {
 	if (!HasAuthority() || (WornForm == InWornForm && BaseForm == InBaseForm))
@@ -463,22 +488,16 @@ void AWoRPlayerState::ApplyFormLook()
 		return;
 	}
 	// B-547: one dress per pawn and look; the pawn set and the form's replication both ask for it on arrival.
+	// B-560 (D-238): the plain body takes the character's element or class colour (its data may arrive after the pawn).
+	const UCharacterDataComponent *CharacterComponent = Character->FindComponentByClass<UCharacterDataComponent>();
+	const FLinearColor Colour = WoRSpiritLook::GetBodyColour(CharacterComponent ? CharacterComponent->CharacterData : nullptr);
 	const bool bAlreadyDressed = DressedPawn.Get() == Character && DressedForm.Get() == Form && DressedBase == Base &&
+								 DressedColour == Colour &&
 								 DressedMesh.Get() == Mesh->GetSkeletalMeshAsset(); // something else swapped the mesh: dress again
 	if (!bAlreadyDressed)
 	{
-		bool bDressed = false;
-		if (Form)
-		{
-			bDressed = Form->DressMesh(*Mesh);
-		}
-		else if (USkeletalMesh *BaseMesh = LoadObject<USkeletalMesh>(nullptr, Base == EPlayerBaseForm::Quinn ? PlayerFormLook::QUINN_MESH : PlayerFormLook::MANNY_MESH))
-		{
-			Mesh->EmptyOverrideMaterials();
-			Mesh->SetSkeletalMesh(BaseMesh);
-			bDressed = true;
-		}
-		if (!bDressed)
+		// B-558: the dressing is shared with the recruits (WoRSpiritLook).
+		if (!WoRSpiritLook::Dress(*Mesh, Form, Base, &Colour))
 		{
 			UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] %s has no mesh to wear"), Form ? *Form->GetName() : *UEnum::GetValueAsString(Base));
 			return;
@@ -486,6 +505,7 @@ void AWoRPlayerState::ApplyFormLook()
 		DressedPawn = Character;
 		DressedForm = Form;
 		DressedBase = Base;
+		DressedColour = Colour;
 		DressedMesh = Mesh->GetSkeletalMeshAsset();
 		UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
 	}

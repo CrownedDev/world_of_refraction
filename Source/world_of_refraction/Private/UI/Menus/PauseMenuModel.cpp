@@ -97,6 +97,19 @@ TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, co
 	return Pages;
 }
 
+TArray<FPauseMenuPage> WoRPauseMenu::BuildPages(bool bInRun, bool bCanEndRun, const FText &TrackedLine, bool bHasFrontEnd, bool bCanJoin, bool bSeated)
+{
+	TArray<FPauseMenuPage> Pages = BuildPages(bInRun, bCanEndRun, TrackedLine, bHasFrontEnd);
+	if (bCanJoin)
+	{
+		Pages.Insert(MakePauseMenuPage(EPauseMenuPage::Join, LOCTEXT("Join", "Join the party"),
+						 LOCTEXT("JoinPreview", "Take a seat in your friend's party as one of your characters, or a new one."),
+						 bSeated ? LOCTEXT("JoinSeated", "You already play a member of this party.") : FText::GetEmpty()),
+					 FMath::Max(0, Pages.IndexOfByPredicate([](const FPauseMenuPage &Page) { return Page.Page == EPauseMenuPage::Quit; })));
+	}
+	return Pages;
+}
+
 FText WoRPauseMenu::GetQuitWarning(bool bInRun, bool bHasFrontEnd)
 {
 	return bInRun ? LOCTEXT("QuitWarningRun", "Quitting ends the run. You lose its Prisms and rewards. "

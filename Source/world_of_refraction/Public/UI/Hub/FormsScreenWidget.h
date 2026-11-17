@@ -38,6 +38,8 @@ public:
 	void PressWear();
 	/** Y: the other base body. */
 	void PressBaseBody();
+	/** B-558 (D-238): the next or previous party member's spirit (Z / C, LT / RT, as the loadout screen). */
+	void MoveMember(int32 Delta);
 
 	const FFormsScreenPage &GetPage() const { return Page; }
 	int32 GetSelectedRow() const { return SelectedRow; }
@@ -75,6 +77,7 @@ private:
 
 	FFormsScreenPage Page;
 	int32 SelectedRow = 0;
+	int32 MemberIndex = 0;
 	FText Message;
 
 	UPROPERTY(Transient)

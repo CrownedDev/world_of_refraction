@@ -57,6 +57,9 @@ public:
      *  hub / a rest spot (CharacterFormSwitch::CanSwitch); None when it was worn. */
     EFormSwitchRefusal TryWearForm(UCharacterFormData *Form);
 
+    /** B-558 (D-238): TryWearForm's rules without wearing it (a recruit wears its spirit on its party member). */
+    EFormSwitchRefusal CanWearForm(const UCharacterFormData *Form) const;
+
     UCharacterFormData *GetWornForm() const { return WornForm; }
 
     /** Manny or Quinn: the body under no skin. The player's pick; changes where skins do (Q-279b). */

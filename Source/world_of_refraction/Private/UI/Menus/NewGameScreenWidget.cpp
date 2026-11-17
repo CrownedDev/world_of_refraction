@@ -80,6 +80,17 @@ UNewGameScreenWidget *UNewGameScreenWidget::Open(APlayerController *PC)
 	return Cast<UNewGameScreenWidget>(Root->PushToMenu(UNewGameScreenWidget::StaticClass()));
 }
 
+UNewGameScreenWidget *UNewGameScreenWidget::OpenToJoin(APlayerController *PC)
+{
+	UNewGameScreenWidget *Screen = Open(PC);
+	if (Screen)
+	{
+		Screen->bJoining = true; // kept until it closes, so a late activation can't turn it into a real new game
+		UE_LOG(LogWoRUI, Log, TEXT("[NewGame] Opened to join a friend's game with a new character"));
+	}
+	return Screen;
+}
+
 TSharedRef<SWidget> UNewGameScreenWidget::RebuildWidget()
 {
 	if (WidgetTree && !WidgetTree->RootWidget)
@@ -245,6 +256,12 @@ void UNewGameScreenWidget::BuildTree()
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Arrows}  Move        {Confirm}  Select / pick        {Back}  Back"));
 	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
+}
+
+void UNewGameScreenWidget::NativeOnDeactivated()
+{
+	bJoining = false;
+	Super::NativeOnDeactivated();
 }
 
 void UNewGameScreenWidget::NativeOnActivated()
@@ -473,6 +490,18 @@ void UNewGameScreenWidget::Confirm()
 		}
 		break;
 	case ENewGameFocus::Begin:
+		if (bJoining)
+		{
+			Status = WoRNewGame::GetBeginRefusal(Pick);
+			if (Status.IsEmpty())
+			{
+				APlayerController *PC = GetOwningPlayer();
+				DeactivateWidget(); // B-562: the host builds it and picks the seat (D-150)
+				WoRTitleScreen::SendJoin(PC, Pick);
+				return;
+			}
+			break;
+		}
 		Status = WoRNewGame::Begin(GetOwningPlayer(), Pick);
 		if (Status.IsEmpty())
 		{

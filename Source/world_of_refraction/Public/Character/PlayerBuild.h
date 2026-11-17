@@ -42,7 +42,8 @@ namespace WoRPlayerBuild
 														  const FClassElementNumbers *Numbers);
 
 	/** B-557 (D-238): the object name Build gives these picks: BUILT_NAME for the player, BUILT_NAME_Recruit_<class>_
-	 *  <element> for a hub recruit (bRecruit), so a recruit never takes the player's name and a load finds it again. */
+	 *  <element> for a hub recruit (bRecruit), so a recruit never takes the player's name and a load finds it again.
+	 *  B-561: BUILT_NAME_Guest_<name>_<class>_<element> for a co-op guest (bGuest). */
 	WORLD_OF_REFRACTION_API FName GetBuiltName(const FPlayerPicks &Picks);
 
 	/** B-557 (D-238): the class table's recruit row for this character's class (a Refractor: and element, Broken

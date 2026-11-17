@@ -5,8 +5,10 @@
 #include "Character/CharacterData.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Player/WoRPlayerState.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveGame.h"
 #include "Trial/LevelDropPlacement.h"
@@ -81,6 +83,44 @@ TArray<FTitleScreenRow> WoRTitleScreen::BuildSlotRows(const TArray<FTitleSaveSum
 		Rows.Add(*Button);
 	}
 	return Rows;
+}
+
+TArray<FTitleScreenRow> WoRTitleScreen::BuildJoinRows(const TArray<FTitleSaveSummary> &Slots, int32 MaxSlots)
+{
+	TArray<FTitleScreenRow> Rows = BuildSlotRows(Slots, MaxSlots);
+	Rows.RemoveAll([](const FTitleScreenRow &Row) { return Row.bButton; });
+	return Rows;
+}
+
+bool WoRTitleScreen::FindSavedPicks(const FWoRSaveData &Data, FPlayerPicks &OutPicks)
+{
+	const FSavedPartyMember *Member = Data.Party.Members.FindByPredicate([](const FSavedPartyMember &Saved) { return Saved.Picks.IsSet(); });
+	if (Member)
+	{
+		OutPicks = Member->Picks;
+	}
+	return Member != nullptr;
+}
+
+bool WoRTitleScreen::ReadSlotPicks(const UGameInstance *GameInstance, int32 Slot, FPlayerPicks &OutPicks)
+{
+	const USaveSubsystem *Saves = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
+	FWoRSaveData Data;
+	double PlaySeconds = 0.0;
+	return Saves && Saves->ReadSlot(Slot, Data, PlaySeconds) && FindSavedPicks(Data, OutPicks);
+}
+
+bool WoRTitleScreen::SendJoin(APlayerController *PC, const FPlayerPicks &Picks)
+{
+	AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr;
+	if (!Player || !Picks.IsSet())
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[Title] Join not sent: %s"), Player ? TEXT("no character picked") : TEXT("no player state"));
+		return false;
+	}
+	UE_LOG(LogWoRUI, Log, TEXT("[Title] Asking the host to join as %s"), *Picks.Name);
+	Player->RequestJoinWithPicks(Picks);
+	return true;
 }
 
 FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled)

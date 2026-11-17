@@ -20,6 +20,7 @@
 #include "Party/Party.h"
 #include "Player/WoRFrontEndGameMode.h"
 #include "Player/WoRHubController.h"
+#include "Player/WoRPlayerState.h"
 #include "Save/SaveSubsystem.h"
 #include "TimerManager.h"
 #include "UI/Menus/InventoryScreenWidget.h"
@@ -27,6 +28,7 @@
 #include "UI/Menus/JournalScreenWidget.h"
 #include "UI/Menus/CharacterSheetWidget.h"
 #include "UI/Menus/SettingsScreenWidget.h"
+#include "UI/Menus/TitleScreenWidget.h"
 #include "UI/Menus/LoadoutV2ScreenWidget.h"
 #include "UI/Hub/FormsScreenWidget.h"
 #include "UI/Party/PartyControlWidget.h"
@@ -139,7 +141,7 @@ void UPauseMenuWidget::BuildTree()
 	AddToColumn(Main, Body, FMargin(0.0f, HeaderGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 	UVerticalBox *PagesBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	const int32 PageCount = WoRPauseMenu::BuildPages(false, true).Num();
+	const int32 PageCount = WoRPauseMenu::BuildPages(false, true, FText::GetEmpty(), false, /*bCanJoin=*/true, false).Num(); // the most rows
 	for (int32 Index = 0; Index < PageCount; ++Index)
 	{
 		UBorder *Row = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
@@ -295,8 +297,10 @@ void UPauseMenuWidget::RefreshData()
 	const UWorld *World = GetWorld();
 	const FPauseMenuHeader Header = WoRPauseMenu::BuildHeader(World);
 	bInRun = Header.bInRun;
-	Pages = WoRPauseMenu::BuildPages(bInRun, !World || World->GetNetMode() != NM_Client, WoRPauseMenu::GetTrackedLine(World),
-									   WoRFrontEnd::HasFrontEnd(World ? World->GetGameInstance() : nullptr));
+	const bool bGuest = World && World->GetNetMode() == NM_Client;
+	const AWoRPlayerState *Player = GetOwningPlayer() ? GetOwningPlayer()->GetPlayerState<AWoRPlayerState>() : nullptr;
+	Pages = WoRPauseMenu::BuildPages(bInRun, !bGuest, WoRPauseMenu::GetTrackedLine(World),
+									   WoRFrontEnd::HasFrontEnd(World ? World->GetGameInstance() : nullptr), bGuest, Player && Player->HasAnyClaim());
 
 	if (TitleText && SubtitleText)
 	{
@@ -315,9 +319,13 @@ void UPauseMenuWidget::RefreshData()
 			ChipLabels[Index]->SetText(Header.Chips[Index].Label);
 		}
 	}
-	for (int32 Index = 0; Index < PageLabels.Num() && Index < Pages.Num(); ++Index)
+	for (int32 Index = 0; Index < PageLabels.Num(); ++Index)
 	{
-		PageLabels[Index]->SetText(Pages[Index].Label);
+		PauseMenuStyle::SetShown(PageRows[Index], Pages.IsValidIndex(Index)); // B-562: the Join row is a guest's only
+		if (Pages.IsValidIndex(Index))
+		{
+			PageLabels[Index]->SetText(Pages[Index].Label);
+		}
 	}
 	PauseMenuStyle::SetShown(ExtractNote, bInRun && bShowHelp);
 
@@ -449,6 +457,9 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 		break;
 	case EPauseMenuPage::Party:
 		UPartyScreenWidget::Open(GetOwningPlayer()); // B-458, over this menu: Back returns here
+		break;
+	case EPauseMenuPage::Join:
+		UTitleScreenWidget::OpenToJoin(GetOwningPlayer()); // B-562, over this menu: Back returns here
 		break;
 	case EPauseMenuPage::Quit:
 		if (bConfirmingQuit && !IsHoldToConfirmOn())
@@ -611,7 +622,7 @@ FReply UPauseMenuWidget::NativeOnKeyUp(const FGeometry &InGeometry, const FKeyEv
 
 int32 UPauseMenuWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 {
-	for (int32 Index = 0; Index < PageRows.Num(); ++Index)
+	for (int32 Index = 0; Index < PageRows.Num() && Index < Pages.Num(); ++Index) // a hidden row keeps its old geometry
 	{
 		if (PageRows[Index] && PageRows[Index]->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
 		{

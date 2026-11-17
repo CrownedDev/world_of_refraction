@@ -167,7 +167,7 @@ void UFormsScreenWidget::RefreshData()
 {
 	using namespace FormsScreenStyle;
 
-	Page = WoRFormsScreen::BuildPage(GetWorld());
+	Page = WoRFormsScreen::BuildPage(GetWorld(), MemberIndex);
 	SelectedRow = Page.Rows.Num() > 0 ? FMath::Clamp(SelectedRow, 0, Page.Rows.Num() - 1) : 0;
 	if (TitleText)
 	{
@@ -275,14 +275,22 @@ void UFormsScreenWidget::PressWear()
 {
 	if (Page.Rows.IsValidIndex(SelectedRow))
 	{
-		Message = WoRFormsScreen::Wear(GetWorld(), Page.Rows[SelectedRow]);
+		Message = WoRFormsScreen::Wear(GetWorld(), Page.Rows[SelectedRow], MemberIndex);
 		RefreshData();
 	}
 }
 
 void UFormsScreenWidget::PressBaseBody()
 {
-	Message = WoRFormsScreen::SwitchBaseBody(GetWorld());
+	Message = WoRFormsScreen::SwitchBaseBody(GetWorld(), MemberIndex);
+	RefreshData();
+}
+
+void UFormsScreenWidget::MoveMember(int32 Delta)
+{
+	const int32 Count = WoRFormsScreen::GetMemberCount(GetWorld());
+	MemberIndex = (MemberIndex + Delta + Count) % Count;
+	Message = FText::GetEmpty();
 	RefreshData();
 }
 
@@ -293,6 +301,14 @@ FReply UFormsScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FK
 	if (IsUpKey(Key) || IsDownKey(Key))
 	{
 		MoveSelection(IsDownKey(Key) ? 1 : -1);
+		return FReply::Handled();
+	}
+	if (IsSubTabPrevKey(Key) || IsSubTabNextKey(Key))
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			MoveMember(IsSubTabNextKey(Key) ? 1 : -1);
+		}
 		return FReply::Handled();
 	}
 	if (IsConfirmKey(Key) || IsSecondActionKey(Key))
