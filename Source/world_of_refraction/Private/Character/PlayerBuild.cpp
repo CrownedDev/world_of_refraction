@@ -2,6 +2,8 @@
 
 #include "Character/PlayerBuild.h"
 
+#include "Algo/Count.h"
+
 #include "Character/CharacterData.h"
 #include "Character/PlayerPicks.h"
 #include "Engine/GameInstance.h"
@@ -17,6 +19,8 @@
 #include "UI/Menus/NewGameScreenModel.h"
 #include "UObject/Package.h"
 #include "WoRLog.h"
+
+#define LOCTEXT_NAMESPACE "WoRPlayerBuild"
 
 const TCHAR *WoRPlayerBuild::BUILT_NAME = TEXT("WoRPlayer");
 
@@ -149,6 +153,33 @@ const FPlayerPicks *WoRPlayerBuild::FindRecruitPicks(const UCharacterData &Chara
 	return Table ? Table->FindRecruit(Character.CharacterClass, Character.InnateElement, Character.bBrokenDarknessInnate) : nullptr;
 }
 
+bool WoRPlayerBuild::RetagSameNames(TArrayView<FPartyMember> Members, const FString &HostTag)
+{
+	const auto IsPlayerCharacter = [](const FPartyMember &Member) { return IsBuilt(Member.CharacterData) && Member.Picks.IsSet() && !Member.Picks.bRecruit; };
+	bool bChanged = false;
+	for (const FPartyMember &Member : Members)
+	{
+		if (!IsPlayerCharacter(Member))
+		{
+			continue;
+		}
+		const FText KindName = WoRNewGame::GetCharacterName(Member.Picks);
+		const bool bClash = Algo::CountIf(Members, [&](const FPartyMember &Other)
+		{
+			return IsPlayerCharacter(Other) && WoRNewGame::GetCharacterName(Other.Picks).EqualTo(KindName);
+		}) > 1;
+		const FString &Tag = Member.Picks.bGuest ? Member.Picks.GuestKey : HostTag;
+		const FText TagText = Tag.IsEmpty() ? (Member.Picks.bGuest ? LOCTEXT("GuestTag", "Guest") : LOCTEXT("HostTag", "Host")) : FText::FromString(Tag);
+		const FString Shown = bClash ? FText::Format(LOCTEXT("TaggedName", "{0} ({1})"), KindName, TagText).ToString() : KindName.ToString();
+		if (Member.CharacterData->Name != Shown)
+		{
+			Member.CharacterData->Name = Shown;
+			bChanged = true;
+		}
+	}
+	return bChanged;
+}
+
 bool WoRPlayerBuild::IsBuilt(const UCharacterData *Character)
 {
 	return Character && Character->GetOuter() == GetTransientPackage() && Character->GetName().StartsWith(BUILT_NAME);
@@ -180,3 +211,5 @@ static FAutoConsoleCommandWithWorld GPlayerBuildPrintCommand(
 		UE_LOG(LogWoR, Log, TEXT("[PlayerBuild] Leader: %s"), Leader ? *WoRPlayerBuild::GetBuiltString(Leader->CharacterData) : TEXT("no party"));
 	}));
 #endif
+
+#undef LOCTEXT_NAMESPACE

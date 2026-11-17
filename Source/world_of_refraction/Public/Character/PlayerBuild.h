@@ -17,6 +17,7 @@ class UGameInstance;
 class UInventoryData;
 class UClassDefaultLoadoutData;
 struct FClassElementNumbers;
+struct FPartyMember;
 struct FPlayerPicks;
 
 namespace WoRPlayerBuild
@@ -53,6 +54,12 @@ namespace WoRPlayerBuild
 
 	/** A character made by BuildFrom (its name starts with BUILT_NAME and it lives in the transient package). */
 	WORLD_OF_REFRACTION_API bool IsBuilt(const UCharacterData *Character);
+
+	/** D-229 (Crown): two players' characters of one kind read apart by the player's tag: a built player character
+	 *  (picks set, not a recruit) that shares its kind name with another is named "Fire Refractor (tag)", the tag its
+	 *  GuestKey for a guest and HostTag for the host's own; with no clash, the kind name alone. True when a name
+	 *  changed. */
+	WORLD_OF_REFRACTION_API bool RetagSameNames(TArrayView<FPartyMember> Members, const FString &HostTag);
 
 	/** Debug: the built character's name, class, element, levels, action speed and inventory, one line. */
 	WORLD_OF_REFRACTION_API FString GetBuiltString(const UCharacterData *Character);
