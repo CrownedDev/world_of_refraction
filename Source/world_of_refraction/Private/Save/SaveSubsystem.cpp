@@ -8,6 +8,8 @@
 #include "Combat/Camera/CombatCameraTypes.h" // ETurnViewStyle (B-398)
 #include "UI/Settings/TextSizeSetting.h" // B-453d
 #include "Character/CharacterData.h"
+#include "Character/PlayerBuild.h" // B-554
+#include "Misc/ConfigCacheIni.h" // B-554: the last played slot
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Character/CombatCharacter.h"
 #include "Currency/CurrencyComponent.h"
@@ -506,6 +508,7 @@ void USaveSubsystem::HandleLocalPlayerAdded(ULocalPlayer *LocalPlayer)
 {
 	if (!IsBoundToPlayer() && !bPlayingHostCopy) // B-234b review: a handed-over run keeps the host's copy
 	{
+		ActiveSlot = ReadLastSlot(); // B-554 (D-229): the last played character
 		LoadForPlayer(LocalPlayer);
 	}
 }
@@ -523,17 +526,17 @@ void USaveSubsystem::HandleLocalPlayerRemoved(ULocalPlayer *LocalPlayer)
 void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 {
 	UWoRSaveGame *Loaded = Cast<UWoRSaveGame>(
-		ULocalPlayerSaveGame::LoadOrCreateSaveGameForLocalPlayer(UWoRSaveGame::StaticClass(), LocalPlayer, SLOT_NAME));
+		ULocalPlayerSaveGame::LoadOrCreateSaveGameForLocalPlayer(UWoRSaveGame::StaticClass(), LocalPlayer, GetSlotName(ActiveSlot)));
 	if (!Loaded)
 	{
-		UE_LOG(LogWoR, Error, TEXT("[Save] Could not load or create slot '%s'"), SLOT_NAME);
+		UE_LOG(LogWoR, Error, TEXT("[Save] Could not load or create slot '%s'"), *GetSlotName(ActiveSlot));
 		return;
 	}
 	AddPlayTime(); // the clock starts again for the loaded slot
 	SaveGame = Loaded;
 	if (!Loaded->WasLoaded())
 	{
-		UE_LOG(LogWoR, Log, TEXT("[Save] No save in slot '%s': starting fresh"), SLOT_NAME);
+		UE_LOG(LogWoR, Log, TEXT("[Save] No save in slot '%s': starting fresh"), *GetSlotName(ActiveSlot));
 		return;
 	}
 
@@ -552,7 +555,7 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	GI->GetSubsystem<UFieldSkillUnlockSubsystem>()->Restore(Data.FieldUnlocks); // B-214b: after the store, which it scans
 	WoRTextSize::Apply(GetTextSizeLevel(), this); // B-453d: the player's text size from the start
 	UE_LOG(LogWoR, Log, TEXT("[Save] Loaded slot '%s' (version %d): party %s, %d pool entries, wallet %s"),
-		   SLOT_NAME, Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
+		   *GetSlotName(ActiveSlot), Loaded->GetSavedDataVersion(), bParty ? TEXT("restored") : TEXT("not restored"), PoolEntries,
 		   Data.Wallet.bHasWallet ? TEXT("banked") : TEXT("empty"));
 
 	// B-208: a saved run waits for the first game world. B-408a (Q-408): from the own slot it is settled as a quit there;
@@ -748,9 +751,9 @@ void USaveSubsystem::EndHandedOverRun()
 	}
 	// Review (save safety): the own slot is written now, so a quit or crash before the hub keeps the run's gains (the
 	// exit save and the shutdown save still go to the copy's slot). Memory is not touched until the hub.
-	UWoRSaveGame *Own = LoadOwnSaveGame(SLOT_NAME);
+	UWoRSaveGame *Own = LoadOwnSaveGame(GetSlotName(ActiveSlot));
 	bool bWritten = false;
-	if (Own && BuildOwnSaveFrom(SLOT_NAME, Own->Data) && Own->GetLocalPlayer() && !bWritesStopped)
+	if (Own && BuildOwnSaveFrom(GetSlotName(ActiveSlot), Own->Data) && Own->GetLocalPlayer() && !bWritesStopped)
 	{
 		bWritten = Own->SaveGameToSlotForLocalPlayer();
 	}
@@ -793,7 +796,7 @@ void USaveSubsystem::HandleOwnSaveReturnWorld(const FActorsInitializedParams &Pa
 
 bool USaveSubsystem::ReturnToOwnSave()
 {
-	return ReturnToOwnSaveFrom(SLOT_NAME);
+	return ReturnToOwnSaveFrom(GetSlotName(ActiveSlot));
 }
 
 bool USaveSubsystem::ReturnToOwnSaveFrom(const FString &SlotName)
@@ -1012,7 +1015,7 @@ bool USaveSubsystem::WriteSlot(bool bAsync)
 	}
 	const bool bStarted = bAsync ? SaveGame->AsyncSaveGameToSlotForLocalPlayer() : SaveGame->SaveGameToSlotForLocalPlayer();
 	UE_LOG(LogWoR, Log, TEXT("[Save] %s save to '%s': %d member(s), %d pool entries, %d balance(s)"),
-		   bAsync ? TEXT("Async") : TEXT("Sync"), SLOT_NAME, SaveGame->Data.Party.Members.Num(),
+		   bAsync ? TEXT("Async") : TEXT("Sync"), *GetSlotName(ActiveSlot), SaveGame->Data.Party.Members.Num(),
 		   SaveGame->Data.Pool.Num(), SaveGame->Data.Wallet.Balances.Num());
 	return bStarted;
 }
@@ -1021,14 +1024,14 @@ void USaveSubsystem::DeleteSave()
 {
 	const ULocalPlayer *Player = SaveGame->GetLocalPlayer();
 	const int32 UserIndex = Player ? Player->GetPlatformUserIndex() : 0;
-	UGameplayStatics::DeleteGameInSlot(SLOT_NAME, UserIndex);
+	UGameplayStatics::DeleteGameInSlot(GetSlotName(ActiveSlot), UserIndex);
 	SaveGame->ResetToDefault();
 	PlayClock = FPlatformTime::Seconds();
 	bWritesStopped = true;
-	UE_LOG(LogWoR, Warning, TEXT("[Save] Slot '%s' deleted; no automatic saves until the next start (or wor.Save.Now)"), SLOT_NAME);
+	UE_LOG(LogWoR, Warning, TEXT("[Save] Slot '%s' deleted; no automatic saves until the next start (or wor.Save.Now)"), *GetSlotName(ActiveSlot));
 }
 
-bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm BaseForm)
+bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm BaseForm, int32 Slot)
 {
 	UGameInstance *GI = GetGameInstance();
 	if (bPlayingHostCopy || !GI || !Leader.IsValidMember())
@@ -1038,6 +1041,53 @@ bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm 
 		return false;
 	}
 
+	ResetGameInMemory(BaseForm);
+	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
+	FPartyMember Member = Leader;
+	Member.bPlayerControlled = true;
+	if (!Member.MemberId.IsValid())
+	{
+		Member.MemberId = FGuid::NewGuid();
+	}
+	// No leader yet: the next level's CreateSoloParty / EnsureLocalParty binds the player and names the party.
+	const UParty *Party = PartySession->RestoreLocalParty(FText::GetEmpty(), /*bLetAIFinish=*/false, {Member});
+
+	// B-554 (D-229): the new character gets its own slot; the one played before keeps its file.
+	if (Slot != INDEX_NONE && Slot != ActiveSlot)
+	{
+		AddPlayTime();
+		const ULocalPlayer *Local = IsBoundToPlayer() ? SaveGame->GetLocalPlayer() : nullptr;
+		UWoRSaveGame *NewSlot = Local ? Cast<UWoRSaveGame>(ULocalPlayerSaveGame::CreateNewSaveGameForLocalPlayer(UWoRSaveGame::StaticClass(), Local, GetSlotName(Slot)))
+									  : nullptr;
+		if (NewSlot)
+		{
+			SaveGame = NewSlot;
+		}
+		ActiveSlot = Slot;
+		if (Local)
+		{
+			WriteLastSlot(Slot);
+		}
+	}
+
+	bWritesStopped = false;
+	PlayClock = FPlatformTime::Seconds();
+	bool bWritten = false;
+	if (IsBoundToPlayer())
+	{
+		SaveGame->ResetToDefault();
+		SaveGame->Data.Party = CaptureParty(Party, /*bKeepVitals=*/false);
+		SaveGame->Data.Forms.BaseForm = static_cast<uint8>(BaseForm);
+		bWritten = WriteSlot(/*bAsync=*/false);
+	}
+	UE_LOG(LogWoR, Display, TEXT("[Save] New game in slot '%s': %s, base %s (written %s)"), *GetSlotName(ActiveSlot),
+		   *GetNameSafe(Member.CharacterData), *UEnum::GetValueAsString(BaseForm), bWritten ? TEXT("yes") : TEXT("no"));
+	return Party != nullptr;
+}
+
+void USaveSubsystem::ResetGameInMemory(EPlayerBaseForm BaseForm)
+{
+	UGameInstance *GI = GetGameInstance();
 	FWorldDelegates::OnWorldInitializedActors.Remove(WorldActorsInitializedHandle);
 	WorldActorsInitializedHandle.Reset();
 	PendingRun = FSavedRun();
@@ -1072,29 +1122,118 @@ bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm 
 	GI->GetSubsystem<UCurseSubsystem>()->Restore(Fresh.Curses);
 	GI->GetSubsystem<UHiddenCounterSubsystem>()->Restore(Fresh.Counters);
 	GI->GetSubsystem<UFieldSkillUnlockSubsystem>()->Restore(Fresh.FieldUnlocks);
+}
 
-	FPartyMember Member = Leader;
-	Member.bPlayerControlled = true;
-	if (!Member.MemberId.IsValid())
+FString USaveSubsystem::GetSlotName(int32 Index)
+{
+	return Index <= 0 ? FString(SLOT_NAME) : FString::Printf(TEXT("%s_%d"), SLOT_NAME, Index);
+}
+
+int32 USaveSubsystem::GetSlotUserIndex() const
+{
+	const ULocalPlayer *Local = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
+	return Local ? Local->GetPlatformUserIndex() : 0;
+}
+
+bool USaveSubsystem::HasSaveInSlot(int32 Index) const
+{
+	if (Index == ActiveSlot && IsBoundToPlayer())
 	{
-		Member.MemberId = FGuid::NewGuid();
+		return HasSave();
 	}
-	// No leader yet: the next level's CreateSoloParty / EnsureLocalParty binds the player and names the party.
-	const UParty *Party = PartySession->RestoreLocalParty(FText::GetEmpty(), /*bLetAIFinish=*/false, {Member});
+	return Index >= 0 && UGameplayStatics::DoesSaveGameExist(GetSlotName(Index), GetSlotUserIndex());
+}
 
+bool USaveSubsystem::ReadSlot(int32 Index, FWoRSaveData &OutData, double &OutPlaySeconds) const
+{
+	if (Index == ActiveSlot && IsBoundToPlayer())
+	{
+		OutData = GetData();
+		OutPlaySeconds = GetPlaySeconds();
+		return HasSave();
+	}
+	if (!HasSaveInSlot(Index))
+	{
+		return false;
+	}
+	const UWoRSaveGame *Read = Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromSlot(GetSlotName(Index), GetSlotUserIndex()));
+	if (!Read || Read->GetSavedDataVersion() < WoRSaveVersion::MIN_SUPPORTED)
+	{
+		return false; // D-060: an out-of-date save is wiped when it is loaded
+	}
+	OutData = Read->Data;
+	OutPlaySeconds = Read->Data.PlaySeconds;
+	return true;
+}
+
+int32 USaveSubsystem::FindFreeSlot(int32 MaxSlots) const
+{
+	for (int32 Index = 0; Index < MaxSlots; ++Index)
+	{
+		if (!HasSaveInSlot(Index))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+bool USaveSubsystem::SwitchToSlot(int32 Index)
+{
+	ULocalPlayer *Local = GetGameInstance() ? GetGameInstance()->GetFirstGamePlayer() : nullptr;
+	if (bPlayingHostCopy || !Local || Index < 0)
+	{
+		return false;
+	}
+	WriteLastSlot(Index);
+	if (Index == ActiveSlot && IsBoundToPlayer())
+	{
+		return true;
+	}
+	// The slot left behind was written as it stood (the title is reached at the start, or after the game menu's quit).
+	AddPlayTime();
+	ResetGameInMemory(EPlayerBaseForm::Manny); // the load puts the slot's own body back
+	ActiveSlot = Index;
 	bWritesStopped = false;
-	PlayClock = FPlatformTime::Seconds();
-	bool bWritten = false;
-	if (IsBoundToPlayer())
+	LoadForPlayer(Local);
+	UE_LOG(LogWoR, Log, TEXT("[Save] Switched to slot '%s'"), *GetSlotName(Index));
+	return true;
+}
+
+void USaveSubsystem::DeleteSlot(int32 Index)
+{
+	if (Index == ActiveSlot)
 	{
-		SaveGame->ResetToDefault();
-		SaveGame->Data.Party = CaptureParty(Party, /*bKeepVitals=*/false);
-		SaveGame->Data.Forms.BaseForm = static_cast<uint8>(BaseForm);
-		bWritten = WriteSlot(/*bAsync=*/false);
+		DeleteSave();
+		return;
 	}
-	UE_LOG(LogWoR, Display, TEXT("[Save] New game: %s, base %s (written %s)"), *GetNameSafe(Member.CharacterData),
-		   *UEnum::GetValueAsString(BaseForm), bWritten ? TEXT("yes") : TEXT("no"));
-	return Party != nullptr;
+	UGameplayStatics::DeleteGameInSlot(GetSlotName(Index), GetSlotUserIndex());
+	UE_LOG(LogWoR, Warning, TEXT("[Save] Slot '%s' deleted"), *GetSlotName(Index));
+}
+
+namespace
+{
+	const TCHAR *SAVE_CONFIG_SECTION = TEXT("WoR.Save");
+	const TCHAR *LAST_SLOT_KEY = TEXT("LastSlot");
+}
+
+int32 USaveSubsystem::ReadLastSlot()
+{
+	int32 Last = 0;
+	if (GConfig)
+	{
+		GConfig->GetInt(SAVE_CONFIG_SECTION, LAST_SLOT_KEY, Last, GGameUserSettingsIni);
+	}
+	return FMath::Max(0, Last);
+}
+
+void USaveSubsystem::WriteLastSlot(int32 Index)
+{
+	if (GConfig)
+	{
+		GConfig->SetInt(SAVE_CONFIG_SECTION, LAST_SLOT_KEY, Index, GGameUserSettingsIni);
+		GConfig->Flush(/*bRemoveFromCache=*/false, GGameUserSettingsIni);
+	}
 }
 
 void USaveSubsystem::BankWallet(const UCurrencyComponent *Wallet)
@@ -1315,6 +1454,7 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.GuardStyle = Member.GuardStyle; // B-392 (D-170)
 		Out.GuardWeaponId = Member.GuardWeaponId;
 		Out.ParryElementPriority = Member.ParryElementPriority; // B-393 (D-170)
+		Out.Picks = Member.Picks; // B-554 (D-228)
 		// B-507 (D-221, v40): the field skill, the field attack pick and the weapon in hand are saved on the worn-gear record.
 		if (bKeepVitals)
 		{
@@ -1660,7 +1800,9 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 	for (const FSavedPartyMember &In : Saved.Members)
 	{
 		FPartyMember Member;
-		Member.CharacterData = In.CharacterData.ResolveAs<UCharacterData>();
+		Member.Picks = In.Picks; // B-554 (D-228): a built player is built again from its picks
+		Member.CharacterData = In.Picks.IsSet() ? WoRPlayerBuild::Build(In.Picks, PartySession.GetGameInstance())
+												: In.CharacterData.ResolveAs<UCharacterData>();
 		Member.PawnClass = TSoftClassPtr<ACombatCharacter>(FSoftObjectPath(In.PawnClass.ToString()));
 		if (!Member.IsValidMember())
 		{
