@@ -161,6 +161,8 @@ public:
     /** B-184: the map encounters the pending fight came from (every team caught). Call before
      *  EnterEncounter; a win marks them all beaten. */
     void SetPendingEncounterSources(const TArray<FName> &EncounterIds) { PendingEncounterSources = EncounterIds; }
+    /** B-568: part of each enemy's kit seed (EnemyKitRoll::MakeEncounterKey). */
+    const TArray<FName> &GetPendingEncounterSources() const { return PendingEncounterSources; }
 
     /** B-224b (Q-224c): each opposing member's own rank for its HP, parallel to the opposing party. Call before
      *  EnterEncounter. A fight entered without it (a map feature's boss) gives every enemy the fight's rank. */
