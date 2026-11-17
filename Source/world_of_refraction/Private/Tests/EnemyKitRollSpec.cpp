@@ -77,20 +77,36 @@ void FEnemyKitRollSpec::Define()
 		Given.Tier = EItemTier::D_Tier;
 		Enemy->EnemyKit.Pieces = {Given};
 		Enemy->EnemyKit.Skills = {SwordSkill};
-		Enemy->EnemyKit.bLimitWeapons = true;
-		Enemy->EnemyKit.MostWeapons = 1;
+		Enemy->EnemyKit.bLimitGear = true; // the design's example 2: most gear 1, weapons only
+		Enemy->EnemyKit.MostGear = 1;
+		Enemy->EnemyKit.Kinds = {EEnemyKitKind::Weapon};
 		for (int32 Occurrence = 0; Occurrence < TRIES; ++Occurrence)
 		{
 			Input.Seed = EnemyKitRoll::MakeSeed(RUN_SEED, TEXT("A"), Enemy, Occurrence);
 			const FRolledEnemyKit Kit = EnemyKitRoll::Roll(*Enemy, Input);
 			TestTrue(TEXT("the sword at D, first"), Kit.Pieces.Num() > 0 && Kit.Pieces[0].Piece == Sword && Kit.Pieces[0].Tier == EItemTier::D_Tier && Kit.Pieces[0].bAlwaysHas);
-			TestEqual(TEXT("most weapons 1"), CountWeapons(Kit), 1);
-			TestTrue(TEXT("a Generic: at most one adapter"), Kit.Pieces.Num() - CountWeapons(Kit) <= 1);
+			TestEqual(TEXT("most gear 1: the sword alone"), Kit.Pieces.Num(), 1);
 			TestTrue(TEXT("the always-has skill first"), Kit.Abilities.Num() > 0 && Kit.Abilities[0] == SwordSkill);
 			TestFalse(TEXT("no axe skill without an axe"), Kit.Abilities.Contains(AxeSkill));
 			const int32 Skills = Kit.Abilities.Num() + Kit.Spells.Num();
 			TestTrue(TEXT("skills: at most 3 and the slots"), Skills <= EnemyKitRules::DEFAULT_MOST_SKILLS && Skills <= EnemyKitRoll::GetSlotCount(Kit));
 		}
+	});
+
+	It("fills what its class carries when nothing is set, and takes only the kinds it lists", [this]()
+	{
+		for (int32 Occurrence = 0; Occurrence < TRIES; ++Occurrence)
+		{
+			Input.Seed = EnemyKitRoll::MakeSeed(RUN_SEED, TEXT("A"), Enemy, Occurrence);
+			const FRolledEnemyKit Kit = EnemyKitRoll::Roll(*Enemy, Input);
+			TestEqual(TEXT("a Generic: 3 pieces"), Kit.Pieces.Num(), 3);
+			TestTrue(TEXT("at most 2 weapons"), CountWeapons(Kit) <= 2);
+		}
+		Enemy->EnemyKit.Kinds = {EEnemyKitKind::Adapter};
+		Input.Seed = EnemyKitRoll::MakeSeed(RUN_SEED, TEXT("A"), Enemy, 0);
+		const FRolledEnemyKit Adapters = EnemyKitRoll::Roll(*Enemy, Input);
+		TestEqual(TEXT("adapters only: its class's one adapter, no weapon"), Adapters.Pieces.Num(), 1);
+		TestEqual(TEXT("no weapon"), CountWeapons(Adapters), 0);
 	});
 
 	It("socketing only crystals of its elements, and spells only through them", [this]()

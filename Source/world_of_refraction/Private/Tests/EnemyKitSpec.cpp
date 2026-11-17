@@ -27,9 +27,13 @@ void FEnemyKitSpec::Define()
 	It("leaves everything to the class and the zone when nothing is set, except skills: 3", [this]()
 	{
 		const FEnemyKit Kit;
-		TestEqual(TEXT("a Generic: 2 weapons"), EnemyKitRules::GetMostWeapons(Kit, ECharacterClass::Generic), 2);
-		TestEqual(TEXT("a Generic: 1 adapter"), EnemyKitRules::GetMostAdapters(Kit, ECharacterClass::Generic), 1);
-		TestEqual(TEXT("a Resonator: 5 adapters"), EnemyKitRules::GetMostAdapters(Kit, ECharacterClass::Resonator), 5);
+		TestEqual(TEXT("a Generic: 2 weapons"), EnemyKitRules::GetMostOfKind(Kit, ECharacterClass::Generic, EEnemyKitKind::Weapon), 2);
+		TestEqual(TEXT("a Generic: 1 adapter"), EnemyKitRules::GetMostOfKind(Kit, ECharacterClass::Generic, EEnemyKitKind::Adapter), 1);
+		TestEqual(TEXT("a Generic: 3 pieces"), EnemyKitRules::GetMostGear(Kit, ECharacterClass::Generic), 3);
+		TestEqual(TEXT("a Resonator: 5 adapters"), EnemyKitRules::GetMostOfKind(Kit, ECharacterClass::Resonator, EEnemyKitKind::Adapter), 5);
+		TestEqual(TEXT("a Resonator: 6 pieces (1 weapon, 5 adapters)"), EnemyKitRules::GetMostGear(Kit, ECharacterClass::Resonator), 6);
+		TestEqual(TEXT("a Refractor: 1 piece"), EnemyKitRules::GetMostGear(Kit, ECharacterClass::Caster), 1);
+		TestTrue(TEXT("any kind, an evolution too"), EnemyKitRules::AllowsKind(Kit, EEnemyKitKind::Evolution));
 		TestEqual(TEXT("skills: 3"), EnemyKitRules::GetMostSkills(Kit, 16), EnemyKitRules::DEFAULT_MOST_SKILLS);
 		TestTrue(TEXT("any weapon type"), EnemyKitRules::AllowsWeaponType(Kit, EWeaponType::Axe));
 		TestTrue(TEXT("any element"), EnemyKitRules::AllowsElement(Kit, ESpellElement::Water));
@@ -41,11 +45,14 @@ void FEnemyKitSpec::Define()
 	It("narrows with its own limits, never past the class or the slots", [this]()
 	{
 		FEnemyKit Kit;
-		Kit.bLimitWeapons = true;
-		Kit.MostWeapons = 1;
-		TestEqual(TEXT("most weapons 1"), EnemyKitRules::GetMostWeapons(Kit, ECharacterClass::Generic), 1);
-		Kit.MostWeapons = 9;
-		TestEqual(TEXT("the class still caps it"), EnemyKitRules::GetMostWeapons(Kit, ECharacterClass::Generic), 2);
+		Kit.bLimitGear = true;
+		Kit.MostGear = 1;
+		TestEqual(TEXT("most gear 1"), EnemyKitRules::GetMostGear(Kit, ECharacterClass::Generic), 1);
+		Kit.MostGear = 9;
+		TestEqual(TEXT("the class still caps it"), EnemyKitRules::GetMostGear(Kit, ECharacterClass::Generic), 3);
+		Kit.Kinds = {EEnemyKitKind::Weapon};
+		TestEqual(TEXT("weapons only: no adapter"), EnemyKitRules::GetMostOfKind(Kit, ECharacterClass::Generic, EEnemyKitKind::Adapter), 0);
+		TestFalse(TEXT("weapons only: no evolution"), EnemyKitRules::AllowsKind(Kit, EEnemyKitKind::Evolution));
 		Kit.bLimitSkills = true;
 		Kit.MostSkills = 6;
 		TestEqual(TEXT("six skills with 16 slots"), EnemyKitRules::GetMostSkills(Kit, 16), 6);
@@ -75,9 +82,12 @@ void FEnemyKitSpec::Define()
 		Kit.Pieces = {MakePiece(nullptr, EItemTier::F_Tier)};
 		TestTrue(TEXT("an empty piece"), EnemyKitRules::CheckAlwaysHas(Kit, ECharacterClass::Generic).Num() > 0);
 		Kit.Pieces = {MakePiece(Sword, EItemTier::D_Tier)};
-		Kit.bLimitWeapons = true;
-		Kit.MostWeapons = 0;
-		TestTrue(TEXT("an always-has sword past its own weapon limit"), EnemyKitRules::CheckAlwaysHas(Kit, ECharacterClass::Generic).Num() > 0);
+		Kit.bLimitGear = true;
+		Kit.MostGear = 0;
+		TestTrue(TEXT("an always-has sword past its own most gear"), EnemyKitRules::CheckAlwaysHas(Kit, ECharacterClass::Generic).Num() > 0);
+		Kit.bLimitGear = false;
+		Kit.Kinds = {EEnemyKitKind::Adapter};
+		TestTrue(TEXT("an always-has sword of a kind it leaves out"), EnemyKitRules::CheckAlwaysHas(Kit, ECharacterClass::Generic).Num() > 0);
 	});
 
 	It("warns when a given tier is outside the zone's range, and keeps it", [this]()
