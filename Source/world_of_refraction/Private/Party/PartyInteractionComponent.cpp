@@ -69,16 +69,25 @@ void UPartyInteractionComponent::BeginPlay()
 	TriggerSphere->OnComponentBeginOverlap.AddDynamic(this, &UPartyInteractionComponent::OnTriggerBeginOverlap);
 	TriggerSphere->OnComponentEndOverlap.AddDynamic(this, &UPartyInteractionComponent::OnTriggerEndOverlap);
 
-	// B-558 (D-238): a recruit already in the party shows the spirit it wears.
+	// B-558 (D-238): a recruit shows the spirit it wears; B-560: out of the party, its starting body in its colour.
 	UCharacterData *Recruit = GetOwnerCharacterData();
 	const UPartySessionSubsystem *PartySession = GetPartySession();
 	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
 	const int32 Slot = Party && Recruit ? PartySession->GetMemberSlotByData(Recruit) : INDEX_NONE;
-	ACharacter *Body = Cast<ACharacter>(GetOwner());
-	if (Body && Party && Party->Members.IsValidIndex(Slot))
+	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UCharacterDataComponent *DataComponent = GetOwner()->FindComponentByClass<UCharacterDataComponent>();
+	const FPlayerPicks *Row = DataComponent && DataComponent->CharacterData ? WoRPlayerBuild::FindRecruitPicks(*DataComponent->CharacterData, GI) : nullptr;
+	FPartyMember Standing;
+	if (Row && Recruit)
 	{
-		const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
-		WoRSpiritLook::DressMember(*Body, Party->Members[Slot], GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr);
+		Standing.Picks = *Row;
+		Standing.CharacterData = Recruit;
+		Standing.SpiritBody = Row->Body;
+	}
+	const FPartyMember &Shown = Party && Party->Members.IsValidIndex(Slot) ? Party->Members[Slot] : Standing;
+	if (ACharacter *Body = Cast<ACharacter>(GetOwner()))
+	{
+		WoRSpiritLook::DressMember(*Body, Shown, GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr);
 	}
 }
 

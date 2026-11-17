@@ -465,12 +465,16 @@ void AWoRPlayerState::ApplyFormLook()
 		return;
 	}
 	// B-547: one dress per pawn and look; the pawn set and the form's replication both ask for it on arrival.
+	// B-560 (D-238): the plain body takes the character's element or class colour (its data may arrive after the pawn).
+	const UCharacterDataComponent *CharacterComponent = Character->FindComponentByClass<UCharacterDataComponent>();
+	const FLinearColor Colour = WoRSpiritLook::GetBodyColour(CharacterComponent ? CharacterComponent->CharacterData : nullptr);
 	const bool bAlreadyDressed = DressedPawn.Get() == Character && DressedForm.Get() == Form && DressedBase == Base &&
+								 DressedColour == Colour &&
 								 DressedMesh.Get() == Mesh->GetSkeletalMeshAsset(); // something else swapped the mesh: dress again
 	if (!bAlreadyDressed)
 	{
-		// B-558: the dressing is shared with the recruits (WoRSpiritLook); the player's body is always the plain one.
-		if (!WoRSpiritLook::Dress(*Mesh, Form, Base, /*OwnLook=*/nullptr))
+		// B-558: the dressing is shared with the recruits (WoRSpiritLook).
+		if (!WoRSpiritLook::Dress(*Mesh, Form, Base, &Colour))
 		{
 			UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] %s has no mesh to wear"), Form ? *Form->GetName() : *UEnum::GetValueAsString(Base));
 			return;
@@ -478,6 +482,7 @@ void AWoRPlayerState::ApplyFormLook()
 		DressedPawn = Character;
 		DressedForm = Form;
 		DressedBase = Base;
+		DressedColour = Colour;
 		DressedMesh = Mesh->GetSkeletalMeshAsset();
 		UE_LOG(LogWoR, Log, TEXT("[CharacterForms] %s dressed as %s"), *GetNameSafe(Character), *GetNameSafe(Mesh->GetSkeletalMeshAsset()));
 	}
