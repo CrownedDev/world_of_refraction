@@ -5,6 +5,7 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/PlayerBuild.h"
 #include "Character/CombatCharacter.h"
 #include "Combat/Grid/CombatGridConstants.h"
 #include "Engine/GameInstance.h"
@@ -452,6 +453,12 @@ bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter
 	FPartyMember Member;
 	Member.PawnClass = PawnClass;
 	Member.CharacterData = Data;
+	// B-557 (D-238): a built recruit keeps its picks, so a load builds it again and a trial lays them over its kit.
+	const FPlayerPicks *RecruitPicks = WoRPlayerBuild::IsBuilt(Data) ? WoRPlayerBuild::FindRecruitPicks(*Data, GetGameInstance()) : nullptr;
+	if (RecruitPicks && RecruitPicks->bRecruit && Data->GetFName() == WoRPlayerBuild::GetBuiltName(*RecruitPicks)) // not the player's own build
+	{
+		Member.Picks = *RecruitPicks;
+	}
 	Member.MemberId = FGuid::NewGuid();
 	Member.bKeyedByMember = GetMemberSlotByData(Data) != INDEX_NONE;
 	PullPickFromRecord(GetGameInstance(), Member); // D-221 (B-506): a benched character comes back with its wheel pick
