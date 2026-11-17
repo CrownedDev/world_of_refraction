@@ -346,6 +346,11 @@ void UTrialRunSubsystem::FinishRun()
     // damage. Pairs with SetAllMembersFull above.
     if (UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>())
     {
+        // B-555 (D-237): a quit (or a closed game) keeps the levels from before the run.
+        if (!bAbandoned)
+        {
+            KeepRunLevels();
+        }
         // B-076 (D-026): characters found in the trial leave with it.
         PartySession->DismissRunMembers();
         PartySession->ClearAllMemberVitals();
@@ -643,6 +648,65 @@ int32 UTrialRunSubsystem::LoseRunPoints(FName CharacterKey, int32 MaxPoints)
     return Taken;
 }
 
+void UTrialRunSubsystem::KeepRunLevels()
+{
+    UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+    // TODO(D-103 co-op): only this machine's party keeps its levels; a guest's members keep theirs in stage 5.
+    UParty *Party = IsRunActive() && PartySession ? PartySession->GetLocalParty() : nullptr;
+    if (!Party)
+    {
+        return;
+    }
+    for (FPartyMember &Member : Party->Members)
+    {
+        if (Member.bRunOnly || !Member.CharacterData)
+        {
+            continue;
+        }
+        const FRunLevels *Levels = RunLevels.Find(UPoolSubsystem::GetCharacterKey(Member));
+        Member.KeptMind = Levels ? Levels->Mind : 0;
+        Member.KeptBody = Levels ? Levels->Body : 0;
+        Member.KeptSpirit = Levels ? Levels->Spirit : 0;
+        Member.bHasKeptLevels = true;
+        UE_LOG(LogTemp, Log, TEXT("[TrialRun] %s keeps Mind / Body / Spirit +%d / +%d / +%d (D-237)"), *Member.CharacterData->GetName(),
+               Member.KeptMind, Member.KeptBody, Member.KeptSpirit);
+    }
+}
+
+int32 UTrialRunSubsystem::TakeWipePoints(FName CharacterKey, int32 Points, FRandomStream &Stream)
+{
+    FRunLevels *Levels = RunLevels.Find(CharacterKey);
+    int32 Taken = 0;
+    while (Levels && Taken < Points)
+    {
+        TArray<EWorldPillar, TInlineAllocator<3>> Losable;
+        for (const EWorldPillar Pillar : {EWorldPillar::Mind, EWorldPillar::Body, EWorldPillar::Spirit})
+        {
+            if (Levels->Get(Pillar) > 0 || Levels->GetOver(Pillar) > 0)
+            {
+                Losable.Add(Pillar);
+            }
+        }
+        if (Losable.IsEmpty())
+        {
+            break;
+        }
+        const EWorldPillar Pillar = Losable[Stream.RandHelper(Losable.Num())];
+        int32 &Over = Levels->OverFor(Pillar);
+        if (Over > 0)
+        {
+            --Over; // D-237 default: a pillar's over-cap points go first
+        }
+        else
+        {
+            --Levels->For(Pillar);
+        }
+        ++Taken;
+    }
+    UE_CLOG(Taken > 0, LogTemp, Log, TEXT("[TrialRun] Wipe: %s lost %d run point(s)"), *CharacterKey.ToString(), Taken);
+    return Taken;
+}
+
 int32 UTrialRunSubsystem::DropPrisms(int32 Amount)
 {
     const int32 LostForGood = DroppedPrisms;
@@ -829,6 +893,16 @@ FString UTrialRunSubsystem::GetRunLevelsString() const
         if (!RunLevels.Contains(Pair.Key))
         {
             Out += FString::Printf(TEXT("\n  %s: %d to place"), *FPaths::GetBaseFilename(Pair.Key.ToString()), Pair.Value);
+        }
+    }
+    // B-555 (D-237): what each member keeps in the hub from its last run.
+    const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+    if (const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr)
+    {
+        for (const FPartyMember &Member : Party->Members)
+        {
+            Out += FString::Printf(TEXT("\n  kept by %s: Mind +%d, Body +%d, Spirit +%d%s"), *GetNameSafe(Member.CharacterData.Get()),
+                                   Member.KeptMind, Member.KeptBody, Member.KeptSpirit, Member.bHasKeptLevels ? TEXT("") : TEXT(" (no run ended yet)"));
         }
     }
     return Out;
