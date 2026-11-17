@@ -10,6 +10,8 @@
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Equipment/Crystals/CrystalType.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "Loadout/ClassDefaultLoadoutData.h"
 #include "Loadout/LoadoutRules.h"
 #include "Memory/HiddenCounterSubsystem.h"
 #include "Party/Party.h"
@@ -95,6 +97,18 @@ void FNewGameScreenSpec::Define()
 		TestTrue(TEXT("a sword and a shield are two entries"), WoRNewGame::GetWeaponChoices().Contains(EWeaponType::Sword) && WoRNewGame::GetWeaponChoices().Contains(EWeaponType::Shield));
 		TestEqual(TEXT("nine crystal types"), WoRNewGame::GetCrystalChoices().Num(), 9);
 		TestEqual(TEXT("the class choices (the default most slots)"), WoRNewGame::GetClassChoiceCount(), NEW_GAME_TEST_CLASS_CHOICES);
+	});
+
+	It("B-559: offers only the weapon types the class table gives a weapon for", [this]()
+	{
+		UClassDefaultLoadoutData *Table = NewObject<UClassDefaultLoadoutData>(GetTransientPackage());
+		TestEqual(TEXT("no pick weapons yet: every type"), WoRNewGame::GetWeaponChoicesFor(Table).Num(), static_cast<int32>(EWeaponType::Shield) + 1);
+		Table->PickWeapons.Add(EWeaponType::Axe, nullptr); // a row with no weapon gives nothing, so it is not offered
+		TestEqual(TEXT("only empty rows: still every type"), WoRNewGame::GetWeaponChoicesFor(Table).Num(), static_cast<int32>(EWeaponType::Shield) + 1);
+		Table->PickWeapons.Add(EWeaponType::Shield, NewObject<UWeaponData>(GetTransientPackage()));
+		Table->PickWeapons.Add(EWeaponType::Sword, NewObject<UWeaponData>(GetTransientPackage()));
+		const TArray<EWeaponType> Choices = WoRNewGame::GetWeaponChoicesFor(Table);
+		TestTrue(TEXT("the sword, then the shield, in type order"), Choices.Num() == 2 && Choices[0] == EWeaponType::Sword && Choices[1] == EWeaponType::Shield);
 	});
 
 	It("B-546: two picks for a Generic or a Resonator, the oldest giving way; Begin wants a name and both picks", [this]()

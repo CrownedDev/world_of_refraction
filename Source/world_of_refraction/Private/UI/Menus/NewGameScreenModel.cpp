@@ -8,6 +8,7 @@
 #include "Engine/GameInstance.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "GameFramework/PlayerController.h"
+#include "Loadout/ClassDefaultLoadoutData.h"
 #include "Loadout/LoadoutRules.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -51,18 +52,27 @@ const TArray<FNewGameRefractorChoice> &WoRNewGame::GetRefractorChoices()
 	return Choices;
 }
 
-const TArray<EWeaponType> &WoRNewGame::GetWeaponChoices()
+TArray<EWeaponType> WoRNewGame::GetWeaponChoicesFor(const UClassDefaultLoadoutData *Table)
 {
-	static const TArray<EWeaponType> Weapons = []()
+	TArray<EWeaponType> All;
+	TArray<EWeaponType> Stocked;
+	for (int32 Value = 0; Value <= static_cast<int32>(EWeaponType::Shield); ++Value)
 	{
-		TArray<EWeaponType> Out;
-		for (int32 Value = 0; Value <= static_cast<int32>(EWeaponType::Shield); ++Value)
+		const EWeaponType Type = static_cast<EWeaponType>(Value);
+		All.Add(Type);
+		if (Table && Table->PickWeapons.FindRef(Type))
 		{
-			Out.Add(static_cast<EWeaponType>(Value));
+			Stocked.Add(Type);
 		}
-		return Out;
-	}();
-	return Weapons;
+	}
+	// Nothing stocked (no table, no rows, only empty rows): every type, so a Generic can still finish the screen.
+	return Stocked.IsEmpty() ? All : Stocked;
+}
+
+TArray<EWeaponType> WoRNewGame::GetWeaponChoices()
+{
+	const TSoftObjectPtr<UClassDefaultLoadoutData> &Table = GetDefault<UTrialRunSubsystem>()->GetClassDefaultLoadouts();
+	return GetWeaponChoicesFor(Table.IsNull() ? nullptr : Table.LoadSynchronous());
 }
 
 const TArray<ECrystalType> &WoRNewGame::GetCrystalChoices()
