@@ -238,7 +238,7 @@ void UInviteScreenWidget::RefreshData()
 	RefreshSelection();
 }
 
-void UInviteScreenWidget::RefreshSelection()
+void UInviteScreenWidget::RefreshSelection(bool bScrollIntoView)
 {
 	using namespace InviteScreenStyle;
 
@@ -256,7 +256,7 @@ void UInviteScreenWidget::RefreshSelection()
 			Frame->SetBrushColor(bSeatsSide && Index == SeatRow ? FocusColor : PlateColor);
 		}
 	}
-	if (!bSeatsSide && FriendList && FriendWidgets.IsValidIndex(FriendRow) && FriendWidgets[FriendRow].Frame.IsValid())
+	if (bScrollIntoView && !bSeatsSide && FriendList && FriendWidgets.IsValidIndex(FriendRow) && FriendWidgets[FriendRow].Frame.IsValid())
 	{
 		FriendList->ScrollWidgetIntoView(FriendWidgets[FriendRow].Frame.Get(), /*AnimateScroll=*/false);
 	}
@@ -373,18 +373,37 @@ FReply UInviteScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
-	// The first click lights a row; a click on the lit row is A, so a stray click doesn't send or stop anything.
+	// A click on the lit row is A; on another row (the keys moved the light, the mouse stood still) it only lights it.
 	if (bSeats == bSeatsSide && Row == GetSelectedRow())
 	{
 		PressAction();
 	}
 	else
 	{
-		bSeatsSide = bSeats;
-		(bSeats ? SeatRow : FriendRow) = Row;
-		RefreshSelection();
+		LightRow(bSeats, Row);
 	}
 	return FReply::Handled();
+}
+
+void UInviteScreenWidget::LightRow(bool bSeats, int32 Row)
+{
+	bSeatsSide = bSeats;
+	(bSeats ? SeatRow : FriendRow) = Row;
+	Message = FText::GetEmpty();
+	WoRMenuStyle::SetShown(MessageText, false);
+	RefreshSelection(/*bScrollIntoView=*/false);
+}
+
+FReply UInviteScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	bool bSeats = false;
+	int32 Row = INDEX_NONE;
+	// Only a moving mouse lights a row, so a resting cursor doesn't fight the keys.
+	if (!InMouseEvent.GetCursorDelta().IsZero() && FindRowUnder(InMouseEvent, bSeats, Row) && (bSeats != bSeatsSide || Row != GetSelectedRow()))
+	{
+		LightRow(bSeats, Row);
+	}
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
 
 #if !UE_BUILD_SHIPPING
