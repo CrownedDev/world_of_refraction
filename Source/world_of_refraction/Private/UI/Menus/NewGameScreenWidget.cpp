@@ -118,20 +118,11 @@ void UNewGameScreenWidget::BuildTree()
 	Subheading->SetText(LOCTEXT("Subheading", "placeholder heading"));
 	AddToColumn(Main, Subheading, FMargin(0.0f, LineGap, 0.0f, SectionGap));
 
-	// B-546 (D-228 Q6): the player types their name.
-	UHorizontalBox *NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	NameLabel = MakeText(WidgetTree, LineFontSize, DimColor, true);
-	NameLabel->SetText(LOCTEXT("Name", "Name"));
-	AddToRow(NameRow, NameLabel, FMargin(0.0f, 0.0f, SectionGap, 0.0f), VAlign_Center);
-	NameBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("NewGameNameBox"));
-	NameBox->SetHintText(LOCTEXT("NameHint", "Type a name"));
-	NameBox->OnTextChanged.AddDynamic(this, &UNewGameScreenWidget::HandleNameChanged);
-	NameBox->OnTextCommitted.AddDynamic(this, &UNewGameScreenWidget::HandleNameCommitted);
-	AddToRow(NameRow, MakeSized(WidgetTree, NameBoxWidth, 0.0f, NameBox), FMargin(0.0f), VAlign_Center);
-	AddToColumn(Main, NameRow, FMargin(0.0f, 0.0f, 0.0f, HeadingGap - SectionGap));
+	// D-228 (Crown, 2026-11-17): no typed name; the character is named by its class and element (WoRNewGame::GetCharacterName).
+	// OBSOLETE: NameLabel / NameBox and the name handlers stay unbuilt until Crown's PIE pass, then go.
 
 	UHorizontalBox *Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToColumn(Main, Columns);
+	AddToColumn(Main, Columns, FMargin(0.0f, HeadingGap - SectionGap, 0.0f, 0.0f)); // the name row's gap, kept
 
 	// Body: the starting spirit, Male Nobody (Manny) or Female Nobody (Quinn) (D-234).
 	UVerticalBox *BodyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -278,6 +269,7 @@ void UNewGameScreenWidget::NativeOnActivated()
 	}
 	Status = FText::GetEmpty();
 	HoveredIndex = INDEX_NONE;
+	MadeCharacters = WoRNewGame::ReadMadeCharacters(GetGameInstance());
 	Refresh();
 	ShowCursorNextTick(); // D-233
 	UE_LOG(LogWoRUI, Log, TEXT("[NewGame] Opened"));
@@ -359,8 +351,7 @@ void UNewGameScreenWidget::MoveUp()
 	switch (Focus)
 	{
 	case ENewGameFocus::Body:
-		Focus = ENewGameFocus::Name;
-		break;
+		break; // D-228: the body pair is the top row now (no name box)
 	case ENewGameFocus::Class:
 		if (GetClassIndex() > 0)
 		{
@@ -494,6 +485,10 @@ void UNewGameScreenWidget::Confirm()
 		if (bJoining)
 		{
 			Status = WoRNewGame::GetBeginRefusal(Pick);
+			if (Status.IsEmpty())
+			{
+				Status = WoRNewGame::GetKindRefusal(Pick, MadeCharacters); // D-229: a new character to join is one of a kind too
+			}
 			const USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
 			if (Status.IsEmpty() && Saves && Saves->FindFreeSlot(WoRTitleScreen::GetMaxSlots()) == INDEX_NONE)
 			{
@@ -591,12 +586,18 @@ void UNewGameScreenWidget::Refresh()
 		ClassLines[Index]->SetColorAndOpacity(FSlateColor(bPicked ? TextColor : DimColor));
 	}
 	BeginCard->SetBrushColor(Fill(Focus == ENewGameFocus::Begin, false, ENewGameFocus::Begin, 0));
-	BeginText->SetText(WoRNewGame::GetBeginLabel(Pick));
+	// D-229: a kind already made stays in the lists; the Begin card says so, dimmed (Begin refuses it too).
+	const FText KindRefusal = WoRNewGame::GetKindRefusal(Pick, MadeCharacters);
+	BeginText->SetText(KindRefusal.IsEmpty() ? WoRNewGame::GetBeginLabel(Pick) : KindRefusal);
+	BeginText->SetColorAndOpacity(FSlateColor(KindRefusal.IsEmpty() ? TextColor : DimColor));
 	BodyLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Body ? CyanColor : DimColor));
 	ClassLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Class ? CyanColor : DimColor));
 	ElementLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Element ? CyanColor : DimColor));
 	ElementLabel->SetText(WoRNewGame::GetPicksLabel(Pick.Class));
-	NameLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Name ? CyanColor : DimColor));
+	if (NameLabel) // OBSOLETE (D-228): never built now
+	{
+		NameLabel->SetColorAndOpacity(FSlateColor(Focus == ENewGameFocus::Name ? CyanColor : DimColor));
+	}
 
 	const bool bRefractor = Pick.Class == ECharacterClass::Caster;
 	SetShown(PanelMark, bRefractor);

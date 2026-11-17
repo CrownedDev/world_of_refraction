@@ -35,6 +35,7 @@ namespace
 }
 
 const FName WoRSpiritLook::TINT_PARAMETER(TEXT("Tint"));
+const TArray<FName> WoRSpiritLook::CHEST_LIGHT_PARAMETERS = {TEXT("LogoLayer0_Color"), TEXT("LogoLayer1_Color"), TEXT("LogoLayer2_Color")};
 
 FLinearColor WoRSpiritLook::GetBodyColour(const UCharacterData *Character)
 {
@@ -65,6 +66,10 @@ bool WoRSpiritLook::Dress(USkeletalMeshComponent &Mesh, const UCharacterFormData
 		if (UMaterialInstanceDynamic *Material = Mesh.CreateAndSetMaterialInstanceDynamic(Index))
 		{
 			Material->SetVectorParameterValue(TINT_PARAMETER, *Tint);
+			for (const FName &ChestLight : CHEST_LIGHT_PARAMETERS)
+			{
+				Material->SetVectorParameterValue(ChestLight, *Tint);
+			}
 		}
 	}
 	return true;

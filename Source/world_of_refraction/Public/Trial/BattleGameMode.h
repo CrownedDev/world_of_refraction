@@ -28,6 +28,7 @@ class UCombatResultsWidget;
 class UFightTriggers;
 class UStatusBuildupManager;
 struct FFieldStrike;
+struct FRolledEnemyKit;
 class UTrialRunSubsystem;
 
 UCLASS()
@@ -70,8 +71,10 @@ private:
 
     /** Deferred-spawn a pawn and assign Data BEFORE FinishSpawning, so
      *  UCharacterDataComponent::BeginPlay initializes from the right asset. B-360b: MemberId (a party member's) is
-     *  stamped the same way, so the pawn reads its own slot; invalid for an enemy. */
-    APawn *SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform, const FGuid &MemberId = FGuid());
+     *  stamped the same way, so the pawn reads its own slot; invalid for an enemy. B-568: an enemy's rolled Kit, when it
+     *  has gear, is handed to its inventory the same way. */
+    APawn *SpawnCombatant(UClass *PawnClass, UCharacterData *Data, const FTransform &SpawnTransform, const FGuid &MemberId = FGuid(),
+                          const FRolledEnemyKit *Kit = nullptr);
 
 public:
     /** B-214f: Strike's buildup on each of Enemies, as a hit from Source (the party's first member). Returns how many

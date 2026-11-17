@@ -183,8 +183,19 @@ void URunStateComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void URunStateComponent::HandlePartyChanged(UParty * /*Party*/)
+void URunStateComponent::HandlePartyChanged(UParty *Party)
 {
+	// D-229: two players' characters of one kind read apart by the player's tag (the online name, PlayerState); a
+	// rename sends the change once more so every reader shows it (the second pass changes nothing).
+	const APlayerController *Leader = Party ? Party->ResolveLeader(GetWorld()) : nullptr;
+	const FString HostTag = Leader && Leader->PlayerState ? Leader->PlayerState->GetPlayerName() : FString();
+	UPartySessionSubsystem *PartySession = GetWorld() && GetWorld()->GetGameInstance() ? GetWorld()->GetGameInstance()->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	if (Party && PartySession && WoRPlayerBuild::RetagSameNames(Party->Members, HostTag))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[RunState] Same-kind characters renamed with their player's tag (host tag %s)"), *HostTag);
+		PartySession->OnPartyChanged.Broadcast(Party);
+		return;
+	}
 	RefreshRoster();
 }
 
@@ -518,6 +529,7 @@ bool URunStateComponent::RequestJoinWithPicks(APlayerState *Joiner, const FPlaye
 	}
 	FPlayerPicks Guest = Picks;
 	Guest.bGuest = true; // its own name on the host, never the host player's
+	Guest.GuestKey = Joiner->GetPlayerName(); // D-228: the typed name is gone; the joining player's name keys its build
 	Guest.bRecruit = false;
 	const UWorld *World = GetWorld();
 	UCharacterData *Built = WoRPlayerBuild::Build(Guest, World ? World->GetGameInstance() : nullptr);

@@ -12,6 +12,7 @@ FString UTrialData::GetTrialDataString() const
 {
     FString Output = FString::Printf(TEXT("TRIAL: %s (%s)\n"), *Name.ToString(), *GetName());
     Output += FString::Printf(TEXT("  Element: %s\n"), *UEnum::GetValueAsString(Element));
+    Output += FString::Printf(TEXT("  Pool: %s\n"), Pool.IsValid() ? *Pool.ToString() : TEXT("(none)"));
     Output += FString::Printf(TEXT("  Level: %s\n"), Level.IsNull() ? TEXT("(none)") : *Level.ToString());
     Output += FString::Printf(TEXT("  Encounter level: %s\n"),
                               EncounterLevel.IsNull() ? TEXT("(none)") : *EncounterLevel.ToString());

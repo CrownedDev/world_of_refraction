@@ -73,7 +73,8 @@ public:
 
 	/** B-328b: every encounter on the map (an actor with a UEncounterComponent) placed below its zone's guide, one line
 	 *  each (DescribePlacementBelowGuide); the pawn's own CharacterData stands for an encounter with no EncounterData.
-	 *  Empty when every placement fits. Shown by wor.Trial.PrintZones. */
+	 *  Empty when every placement fits. Shown by wor.Trial.PrintZones. B-567: also one line per encounter whose enemies
+	 *  always have a piece outside the zone's tier range (EnemyKitRules::DescribeOutsideZoneRange). */
 	static TArray<FString> FindEncountersBelowGuide(const UWorld *World);
 
 	FString GetEnemyZoneString() const;

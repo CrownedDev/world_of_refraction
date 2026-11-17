@@ -35,6 +35,7 @@ class UCharacterData;
 class UCrystalInventoryComponent;
 class UEvolutionInventoryComponent;
 class UPoolSubsystem;
+struct FRolledEnemyKit;
 
 /** Fired on EVERY inventory mutation (grant / removal / equip / bulk-load).
  *  The foundation change signal (InstanceBasedRuntimeLayer_Design.md #10) —
@@ -84,6 +85,10 @@ public:
     /** Initialize inventory from CharacterData template */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Setup")
     void InitializeFromCharacterData(UCharacterData *CharacterData);
+
+    /** B-568 (D-225 stage 4): an enemy's kit for this fight, set before BeginPlay (ABattleGameMode::SpawnCombatant).
+     *  The next init wears it instead of the authored inventory (ApplyRolledKit), then forgets it. */
+    void SetRolledKit(const FRolledEnemyKit &Kit);
 
     /** DRAW the run inventory FROM the account pool instead of the authored asset
      *  (Pool Draw step 2). Mirrors InitializeFromInventoryAsset's CLEAR + POPULATE,
@@ -699,6 +704,13 @@ private:
      *  CharacterData->Inventory (a UInventoryData asset). Sole loadout-init
      *  path — InitializeFromCharacterData delegates here when Inventory is set. */
     void InitializeFromInventoryAsset(UCharacterData *CharacterData);
+
+    /** B-568: owned pieces, learned skills and one lore loadout from Kit, replacing the authored ones. The authored
+     *  default loadout's innate spells and Broken Darkness pools are kept. */
+    void ApplyRolledKit(const UCharacterData &CharacterData, const FRolledEnemyKit &Kit);
+
+    /** Transient: set by SetRolledKit, used and cleared by the next init in the same frame (FinishSpawning). */
+    TSharedPtr<FRolledEnemyKit> RolledKit;
 
 protected:
     virtual void BeginPlay() override;

@@ -24,7 +24,9 @@ namespace
 
 	bool SamePicksCharacter(const FPlayerPicks &A, const FPlayerPicks &B)
 	{
-		return A.Name == B.Name && A.Class == B.Class && A.Element == B.Element && A.bBrokenDarkness == B.bBrokenDarkness;
+		// D-228: the name is now the kind name, so two guests of one kind differ only by their player name (GuestKey).
+		const bool bSameKey = A.GuestKey.IsEmpty() || B.GuestKey.IsEmpty() || A.GuestKey == B.GuestKey;
+		return bSameKey && A.Name == B.Name && A.Class == B.Class && A.Element == B.Element && A.bBrokenDarkness == B.bBrokenDarkness;
 	}
 
 	FAutoConsoleCommandWithWorld GPrintGuestKeep(

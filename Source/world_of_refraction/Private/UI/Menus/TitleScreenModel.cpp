@@ -120,13 +120,15 @@ bool WoRTitleScreen::SendJoin(APlayerController *PC, const FPlayerPicks &Picks, 
 		return false;
 	}
 	UGuestKeepSubsystem *Keep = PC->GetGameInstance() ? PC->GetGameInstance()->GetSubsystem<UGuestKeepSubsystem>() : nullptr;
-	if (!Keep || !Keep->BeginJoin(Slot, Picks, Player->GetWallet()))
+	FPlayerPicks Joining = Picks;
+	Joining.GuestKey = Player->GetPlayerName(); // D-228: as the host keys it (RequestJoinWithPicks), so the host copy finds it
+	if (!Keep || !Keep->BeginJoin(Slot, Joining, Player->GetWallet()))
 	{
 		UE_LOG(LogWoRUI, Warning, TEXT("[Title] Join not sent: %s has no save slot to keep what it earns"), *Picks.Name);
 		return false;
 	}
 	UE_LOG(LogWoRUI, Log, TEXT("[Title] Asking the host to join as %s"), *Picks.Name);
-	Player->RequestJoinWithPicks(Picks);
+	Player->RequestJoinWithPicks(Joining);
 	return true;
 }
 
@@ -140,11 +142,11 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 	Summary.bLastRunLost = bHasSave && (Data.Run.bHasRun || bRunSettled);
 	for (const FSavedPartyMember &Member : Data.Party.Members)
 	{
-		// B-554 (D-228): a built player's name is its picks' (its saved path is the built copy's, not an asset).
+		// B-554 (D-228): a built player is named by its picks, its class and element (its saved path is the built copy's).
 		const UCharacterData *Character = Member.Picks.IsSet() ? nullptr : Member.CharacterData.ResolveAs<UCharacterData>();
 		if (Character || Member.Picks.IsSet())
 		{
-			const FText Name = FText::FromString(Member.Picks.IsSet() ? Member.Picks.Name : Character->Name);
+			const FText Name = Member.Picks.IsSet() ? WoRNewGame::GetCharacterName(Member.Picks) : FText::FromString(Character->Name);
 			Summary.PartyNames.Add(Name);
 			if (Summary.LeaderName.IsEmpty()) // the first resolved member leads (B-529)
 			{

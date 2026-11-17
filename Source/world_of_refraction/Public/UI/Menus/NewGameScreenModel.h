@@ -16,6 +16,7 @@
 
 class APlayerController;
 class UCharacterData;
+class UGameInstance;
 class UClassDefaultLoadoutData;
 
 /** B-554: the screen's pick is the saved picks struct (Character/PlayerPicks.h). */
@@ -74,6 +75,9 @@ namespace WoRNewGame
 	WORLD_OF_REFRACTION_API FText GetClassLine(ECharacterClass Class);
 	/** The side panel's title: "Darkness Refractor", "Broken Darkness Refractor", "Generic". */
 	WORLD_OF_REFRACTION_API FText GetPanelTitle(const FNewGamePick &Pick);
+	/** D-228 (Crown, 2026-11-17): a character is named by what it is, its class and element (GetPanelTitle); a hub
+	 *  recruit keeps its row's name. A name typed in an older save is ignored. */
+	WORLD_OF_REFRACTION_API FText GetCharacterName(const FPlayerPicks &Picks);
 	/** The side panel's first paragraph. */
 	WORLD_OF_REFRACTION_API FText GetAbout(const FNewGamePick &Pick);
 	/** What that element's full status bar does, in a line (Rules SB-19 to SB-28). Empty for a non-element. */
@@ -82,7 +86,14 @@ namespace WoRNewGame
 	WORLD_OF_REFRACTION_API FText GetPanelFootnote(const FNewGamePick &Pick);
 	/** "Begin as Darkness Refractor", "Begin as a Generic". */
 	WORLD_OF_REFRACTION_API FText GetBeginLabel(const FNewGamePick &Pick);
-	/** B-546: why Begin can't run yet (no name; a Generic's or Resonator's picks short); empty when it can. */
+	/** D-229 (Crown): one character of each kind per player: the same class and, for a Refractor, the same element
+	 *  and Broken Darkness. A Generic's weapons and a Resonator's crystals don't make another kind. */
+	WORLD_OF_REFRACTION_API bool IsSameKind(const FPlayerPicks &A, const FPlayerPicks &B);
+	/** D-229: this player's own characters, one per filled save slot (a recruit's or guest's picks are not one). */
+	WORLD_OF_REFRACTION_API TArray<FPlayerPicks> ReadMadeCharacters(const UGameInstance *GameInstance);
+	/** D-229: why this kind can't be made ("You already have a Fire Refractor."), empty when Made has none of it. */
+	WORLD_OF_REFRACTION_API FText GetKindRefusal(const FNewGamePick &Pick, TConstArrayView<FPlayerPicks> Made);
+	/** B-546: why Begin can't run yet (a Generic's or Resonator's picks short); empty when it can. */
 	WORLD_OF_REFRACTION_API FText GetBeginRefusal(const FNewGamePick &Pick);
 
 	/** The first of Choices that this pick starts as: its class matches and, for a Refractor, its innate element and

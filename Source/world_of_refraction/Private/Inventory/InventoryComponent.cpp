@@ -12,6 +12,10 @@
 #include "Character/CharacterData.h"
 #include "Inventory/InventoryData.h"
 #include "Loadout/FSavedLoadout.h"
+#include "Loadout/WornGear.h"      // B-568: the rolled kit's loadout
+#include "Trial/EnemyKit.h"        // B-567c: FitInnateBudget
+#include "Trial/EnemyKitRoll.h"    // B-568
+#include "WoRLog.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Currency/EconomyService.h"            // B-534: IsOutOfCombat
 #include "Equipment/Durability/GearRepair.h"     // B-534: PlanRestore
@@ -2950,6 +2954,8 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
         UE_LOG(LogTemp, Warning,
                TEXT("[InventoryComponent] Character '%s' has no Inventory asset - inventory will be empty"),
                *CharacterData->Name);
+        UE_CLOG(RolledKit.IsValid(), LogWoRLoadout, Warning, TEXT("[InventoryComponent] %s: its rolled kit is not worn (B-568 needs an Inventory asset)"), *CharacterData->Name);
+        RolledKit.Reset();
         return;
     }
 
@@ -3146,6 +3152,13 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
         ActiveLoadoutIndex = 0;
     }
 
+    // B-568 (D-225 stage 4): an enemy with a rolled kit fights with it; the authored pieces, skills and loadouts above
+    // are replaced (OBSOLETE for trial enemies once Crown's PIE pass on B-568 holds; kept for fights without a pool).
+    if (const TSharedPtr<FRolledEnemyKit> Kit = MoveTemp(RolledKit); Kit && Kit->HasGear() && !CharacterData->IsPlayerOrigin())
+    {
+        ApplyRolledKit(*CharacterData, *Kit);
+    }
+
     const int32 CrystalStacks = CrystalInv ? CrystalInv->GetStackCount() : 0;
     const int32 EvolutionCount = EvolutionInv ? EvolutionInv->Num() : 0;
 
@@ -3166,6 +3179,111 @@ void UInventoryComponent::InitializeFromInventoryAsset(UCharacterData *Character
     // One signal for the whole bulk (re)load — NOT per entry. InitializeFromCharacterData
     // delegates here, so this single broadcast covers the seed path too (no double-fire).
     BroadcastInventoryChanged(EInventoryChangeType::Loaded);
+}
+
+void UInventoryComponent::SetRolledKit(const FRolledEnemyKit &Kit)
+{
+    RolledKit = MakeShared<FRolledEnemyKit>(Kit);
+}
+
+void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, const FRolledEnemyKit &Kit)
+{
+    using namespace WornGearLayout;
+    const FCombatLoadout *Authored = SavedLoadouts.IsValidIndex(ActiveLoadoutIndex) ? &SavedLoadouts[ActiveLoadoutIndex] : nullptr;
+    FWornGear Worn;
+    if (Authored)
+    {
+        // B-567c: the authored innate spells (and Broken Darkness pools) that fit its innate budget, in order.
+        int32 Spent = 0;
+        const int32 Discount = CharacterData.GetAuthoredSpellDiscount();
+        const int32 Budget = EnemyKitRules::GetMostInnate(CharacterData);
+        Worn.InnateSpells.Append(EnemyKitRules::FitInnateBudget(Authored->InnateSpells, Budget, Discount, Spent));
+        for (const FBDElementSpellPool &Pool : Authored->BDSpellPools)
+        {
+            FBDElementSpellPool &Kept = Worn.BDSpellPools.Add_GetRef(Pool);
+            Kept.Spells = EnemyKitRules::FitInnateBudget(Pool.Spells, Budget, Discount, Spent);
+        }
+    }
+    Spells.LearnedSpells.Empty();
+    Abilities.LearnedAbilities.Empty();
+    Weapons.Empty();
+    Rings.Empty();
+
+    // Placed by WornGearLayout: weapons first and second; adapters from the adapter places, or first with no weapon.
+    TArray<FGuid> WeaponIDs;
+    TArray<FGuid> AdapterIDs;
+    TMap<FGuid, const FRolledKitPiece *> PieceOf;
+    for (const FRolledKitPiece &Piece : Kit.Pieces)
+    {
+        const FRuntimeAttachedItem Socket = EnemyKitRoll::MakeSocket(Piece);
+        // Added directly, not through AddGearEntry: an enemy's two of one piece is no duplicate prompt, and it has no pool.
+        if (UWeaponData *Weapon = Cast<UWeaponData>(Piece.Piece))
+        {
+            FWeaponInventoryEntry &Entry = Weapons.Add_GetRef(FWeaponInventoryEntry::CreateFromWeapon(Weapon));
+            Entry.PersistentID = FGuid::NewGuid();
+            Entry.Tier = Piece.Tier;
+            Entry.AttachedItem = Socket;
+            WeaponIDs.Add(Entry.PersistentID);
+            PieceOf.Add(Entry.PersistentID, &Piece);
+        }
+        else if (URingData *Ring = Cast<URingData>(Piece.Piece))
+        {
+            FRingInventoryEntry &Entry = Rings.Add_GetRef(FRingInventoryEntry::CreateFromRing(Ring));
+            Entry.PersistentID = FGuid::NewGuid();
+            Entry.Tier = Piece.Tier;
+            Entry.AttachedItem = Socket;
+            AdapterIDs.Add(Entry.PersistentID);
+            PieceOf.Add(Entry.PersistentID, &Piece);
+        }
+    }
+    const auto Place = [&Worn, &PieceOf](int32 Index, const FGuid &ID)
+    {
+        if (Worn.Equipment.Num() <= Index)
+        {
+            Worn.Equipment.SetNum(Index + 1);
+        }
+        FLoadoutSlot &Entry = Worn.Equipment[Index];
+        Entry.GearID = ID;
+        Entry.AssignedAbilities = PieceOf[ID]->Abilities; // the roll's picks, piece by piece (B-567c)
+        Entry.SpellOverrides = PieceOf[ID]->Spells;
+        Entry.SpellOverrides.RemoveAll([&Worn](const USpellData *Spell) { return Worn.InnateSpells.Contains(Spell); }); // innate already
+    };
+    int32 NextAdapter = FIRST_ADAPTER_INDEX;
+    for (int32 i = 0; i < AdapterIDs.Num(); ++i)
+    {
+        Place(WeaponIDs.IsEmpty() && i == 0 ? PRIMARY_INDEX : NextAdapter++, AdapterIDs[i]);
+    }
+    for (int32 i = 0; i < WeaponIDs.Num(); ++i)
+    {
+        Place(i == 0 ? PRIMARY_INDEX : SECONDARY_INDEX, WeaponIDs[i]);
+    }
+    Worn.ActiveGearID = WeaponIDs.IsEmpty() ? FGuid() : WeaponIDs[0];
+
+    for (UAbilityData *Ability : Kit.Abilities)
+    {
+        LearnAbility(Ability);
+    }
+    for (USpellData *Spell : Kit.Spells)
+    {
+        LearnSpell(Spell);
+    }
+    const UEvolutionInventoryComponent *OwnedEvolutions = GetOwner() ? GetOwner()->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+    FCombatLoadout Loadout = FCombatLoadout::CreateFromWornGear(Worn, CharacterData.CharacterClass, this, OwnedEvolutions);
+    Loadout.bLore = true;
+    // The roll places each skill by the player's slot rules; a rule it doesn't model (a weapon pair) can leave one out.
+    const TArray<UAbilityData *> SlottedAbilities = Loadout.GetAllAbilities();
+    const TArray<USpellData *> SlottedSpells = Loadout.GetAllSpells();
+    for (const UAbilityData *Ability : Kit.Abilities)
+    {
+        UE_CLOG(!SlottedAbilities.Contains(Ability), LogWoRLoadout, Warning, TEXT("[InventoryComponent] %s: rolled %s found no slot"), *CharacterData.GetName(), *GetNameSafe(Ability));
+    }
+    for (const USpellData *Spell : Kit.Spells)
+    {
+        UE_CLOG(!SlottedSpells.Contains(Spell), LogWoRLoadout, Warning, TEXT("[InventoryComponent] %s: rolled %s found no slot"), *CharacterData.GetName(), *GetNameSafe(Spell));
+    }
+    SavedLoadouts = {Loadout};
+    ActiveLoadoutIndex = 0;
+    UE_LOG(LogWoRLoadout, Log, TEXT("[InventoryComponent] %s wears its rolled kit: %s"), *CharacterData.GetName(), *EnemyKitRoll::GetRolledKitString(Kit));
 }
 
 void UInventoryComponent::InitializeFromPool(UPoolSubsystem *Pool)

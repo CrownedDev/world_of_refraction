@@ -2,6 +2,7 @@
 
 #include "UI/Menus/NewGameScreenModel.h"
 
+#include "Algo/AnyOf.h"
 #include "Character/CharacterData.h"
 #include "Character/PlayerBuild.h"
 #include "Character/CombatCharacter.h"
@@ -13,6 +14,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Save/SaveSubsystem.h"
+#include "Save/WoRSaveTypes.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Menus/TitleScreenModel.h"
 #include "WoRGameNames.h"
@@ -265,6 +267,11 @@ FText WoRNewGame::GetClassLine(ECharacterClass Class)
 	return FText::GetEmpty();
 }
 
+FText WoRNewGame::GetCharacterName(const FPlayerPicks &Picks)
+{
+	return Picks.bRecruit ? FText::FromString(Picks.Name) : GetPanelTitle(Picks);
+}
+
 FText WoRNewGame::GetPanelTitle(const FNewGamePick &Pick)
 {
 	const FText ClassName = WoRGameNames::GetCharacterClassName(Pick.Class);
@@ -325,12 +332,39 @@ FText WoRNewGame::GetPanelFootnote(const FNewGamePick &Pick)
 		: LOCTEXT("GenericFootnote", "You start holding both weapons. Every pick is F tier.");
 }
 
+bool WoRNewGame::IsSameKind(const FPlayerPicks &A, const FPlayerPicks &B)
+{
+	return A.Class == B.Class && (A.Class != ECharacterClass::Caster || (A.Element == B.Element && A.bBrokenDarkness == B.bBrokenDarkness));
+}
+
+TArray<FPlayerPicks> WoRNewGame::ReadMadeCharacters(const UGameInstance *GameInstance)
+{
+	TArray<FPlayerPicks> Made;
+	const USaveSubsystem *Saves = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
+	for (int32 Slot = 0; Saves && Slot < WoRTitleScreen::GetMaxSlots(); ++Slot)
+	{
+		FWoRSaveData Data;
+		double PlaySeconds = 0.0;
+		// The slot's own character: the first member with picks that is not a recruit or a guest, wherever it stands.
+		const FSavedPartyMember *Own = Saves->ReadSlot(Slot, Data, PlaySeconds)
+			? Data.Party.Members.FindByPredicate([](const FSavedPartyMember &Member) { return Member.Picks.IsSet() && !Member.Picks.bRecruit && !Member.Picks.bGuest; })
+			: nullptr;
+		if (Own)
+		{
+			Made.Add(Own->Picks);
+		}
+	}
+	return Made;
+}
+
+FText WoRNewGame::GetKindRefusal(const FNewGamePick &Pick, TConstArrayView<FPlayerPicks> Made)
+{
+	const bool bMade = Algo::AnyOf(Made, [&Pick](const FPlayerPicks &Character) { return IsSameKind(Character, Pick); });
+	return bMade ? FText::Format(LOCTEXT("KindMade", "You already have a {0}."), GetCharacterName(Pick)) : FText::GetEmpty();
+}
+
 FText WoRNewGame::GetBeginRefusal(const FNewGamePick &Pick)
 {
-	if (Pick.Name.TrimStartAndEnd().IsEmpty())
-	{
-		return LOCTEXT("NoName", "Type a name first.");
-	}
 	const int32 Picked = Pick.Class == ECharacterClass::Generic ? Pick.Weapons.Num() : Pick.Class == ECharacterClass::Resonator ? Pick.Crystals.Num() : 1;
 	if (Picked < GetPickCount(Pick.Class))
 	{
@@ -379,6 +413,12 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	{
 		return Refusal;
 	}
+	const FText KindRefusal = GetKindRefusal(Pick, ReadMadeCharacters(GI)); // D-229: in code, not only on the screen
+	if (!KindRefusal.IsEmpty())
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[NewGame] Not begun: %s"), *KindRefusal.ToString());
+		return KindRefusal;
+	}
 	if (Saves->IsPlayingHostCopy())
 	{
 		return LOCTEXT("FriendsRun", "A new game can't start during a friend's run.");
@@ -395,6 +435,7 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	// trial's exit below: a build renames the last player's copy away, and the run's end still looks it up by name.
 	FPartyMember Leader;
 	Leader.Picks = Pick;
+	Leader.Picks.Name = GetCharacterName(Pick).ToString(); // D-228: no typed name; a set Name marks the picks as made
 	const UCharacterData *PlayerAsset = PartySession->PlayerCharacter.IsNull() ? nullptr : PartySession->PlayerCharacter.LoadSynchronous();
 	// The player's pawn class, as EnsureLocalParty resolves it: the pawn standing in the world, else the config's.
 	const APawn *Pawn = PC->GetPawn();
@@ -423,7 +464,7 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	// The trial's exit ends a run under way, then travels to the hub on the next tick, where the player's pawn comes
 	// back as the picked character.
 	TrialRun->ExitTrial();
-	Leader.CharacterData = WoRPlayerBuild::Build(Pick, GI);
+	Leader.CharacterData = WoRPlayerBuild::Build(Leader.Picks, GI);
 	if (!Leader.CharacterData || !Saves->StartFreshGame(Leader, Pick.Body, Slot))
 	{
 		return LOCTEXT("NotStarted", "The new game didn't start."); // only if the build or the new slot failed (logged)

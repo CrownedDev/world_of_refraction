@@ -14,7 +14,11 @@
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
 #include "Trial/PrebuiltFindData.h"
+#include "Trial/TrialPool.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "HAL/IConsoleManager.h"
 #include "WoRLog.h"
 
@@ -33,6 +37,10 @@ const FGameplayTagContainer *TrialLoot::GetSourceTags(const UObject *Item)
 	if (const UPrebuiltFindData *Find = Cast<UPrebuiltFindData>(Item))
 	{
 		return &Find->SourceTags;
+	}
+	if (const UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(Item))
+	{
+		return &Evolution->SourceTags; // B-566 (D-225): evolutions are in the pool
 	}
 	return nullptr;
 }
@@ -57,6 +65,10 @@ FText TrialLoot::GetItemName(const UObject *Item)
 		return Find->Evolution ? FText::Format(LOCTEXT("FindWithSocket", "{0} with {1}"), Piece, FText::FromString(Find->Evolution->ItemName))
 							   : Piece;
 	}
+	if (const UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(Item))
+	{
+		return FText::FromString(Evolution->ItemName);
+	}
 	return FText::GetEmpty();
 }
 
@@ -68,7 +80,7 @@ TArray<UObject *> TrialLoot::GatherPool(const FGameplayTag &Pool)
 		return Matches;
 	}
 	const IAssetRegistry &Registry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-	for (const UClass *LootClass : {UEquipmentDataBase::StaticClass(), USkillDataBase::StaticClass(), UPrebuiltFindData::StaticClass()})
+	for (const UClass *LootClass : {UEquipmentDataBase::StaticClass(), USkillDataBase::StaticClass(), UPrebuiltFindData::StaticClass(), UEvolutionItemData::StaticClass()})
 	{
 		TArray<FAssetData> Assets;
 		Registry.GetAssetsByClass(LootClass->GetClassPathName(), Assets, /*bSearchSubClasses=*/true);
@@ -100,14 +112,19 @@ FString TrialLoot::GetPoolString(const FGameplayTag &Pool)
 }
 
 #if !UE_BUILD_SHIPPING
-static FAutoConsoleCommand GTrialLootPoolCommand(
+static FAutoConsoleCommandWithWorldAndArgs GTrialLootPoolCommand(
 	TEXT("wor.Trial.Pool"),
-	TEXT("wor.Trial.Pool <tag> - list the items a loot pool (source tag) can roll, e.g. wor.Trial.Pool Source.Zone.Tier1"),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString> &Args)
+	TEXT("wor.Trial.Pool [tag] - list the items a loot pool (source tag) can roll, e.g. wor.Trial.Pool Source.Zone.Tier1; with no tag, the active trial's pool zone by zone (B-566)"),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
 	{
-		const FGameplayTag Pool = Args.Num() > 0
-									  ? FGameplayTag::RequestGameplayTag(FName(*Args[0]), /*ErrorIfNotFound=*/false)
-									  : FGameplayTag();
+		if (Args.Num() == 0)
+		{
+			const UGameInstance *Game = World ? World->GetGameInstance() : nullptr;
+			const UTrialRunSubsystem *Run = Game ? Game->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+			UE_LOG(LogWoREconomy, Log, TEXT("%s"), *TrialPool::GetTrialPoolString(Run ? Run->GetActiveTrial() : nullptr, World));
+			return;
+		}
+		const FGameplayTag Pool = FGameplayTag::RequestGameplayTag(FName(*Args[0]), /*ErrorIfNotFound=*/false);
 		UE_LOG(LogWoREconomy, Log, TEXT("%s"), *TrialLoot::GetPoolString(Pool));
 	}));
 #endif
@@ -118,7 +135,7 @@ UObject *TrialLoot::PickFromPool(const TArray<UObject *> &Candidates, const FGam
 	for (UObject *Candidate : Candidates)
 	{
 		const FGameplayTagContainer *Tags = GetSourceTags(Candidate);
-		if (Pool.IsValid() && Tags && Tags->HasTag(Pool))
+		if (Pool.IsValid() && Tags && Tags->HasTag(Pool) && CanGrant(Candidate))
 		{
 			Eligible.Add(Candidate);
 		}
@@ -182,6 +199,12 @@ namespace
 	}
 }
 
+bool TrialLoot::CanGrant(const UObject *Item)
+{
+	return Cast<UWeaponData>(Item) || Cast<URingData>(Item) || Cast<USpellData>(Item) || Cast<UAbilityData>(Item) ||
+		   Cast<UEvolutionItemData>(Item) || Cast<UPrebuiltFindData>(Item);
+}
+
 bool TrialLoot::GrantTo(AActor *Owner, UObject *Item)
 {
 	UInventoryComponent *Inventory = Owner ? Owner->FindComponentByClass<UInventoryComponent>() : nullptr;
@@ -204,6 +227,10 @@ bool TrialLoot::GrantTo(AActor *Owner, UObject *Item)
 	if (UAbilityData *Ability = Cast<UAbilityData>(Item))
 	{
 		return Inventory->LearnAbility(Ability);
+	}
+	if (UEvolutionItemData *Evolution = Cast<UEvolutionItemData>(Item))
+	{
+		return Inventory->AddEvolutionInstance(Evolution); // B-566: a loose evolution, as a prebuilt find's is added
 	}
 	if (const UPrebuiltFindData *Find = Cast<UPrebuiltFindData>(Item))
 	{

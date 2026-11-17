@@ -17,6 +17,7 @@ class UGameInstance;
 class UInventoryData;
 class UClassDefaultLoadoutData;
 struct FClassElementNumbers;
+struct FPartyMember;
 struct FPlayerPicks;
 
 namespace WoRPlayerBuild
@@ -43,7 +44,8 @@ namespace WoRPlayerBuild
 
 	/** B-557 (D-238): the object name Build gives these picks: BUILT_NAME for the player, BUILT_NAME_Recruit_<class>_
 	 *  <element> for a hub recruit (bRecruit), so a recruit never takes the player's name and a load finds it again.
-	 *  B-561: BUILT_NAME_Guest_<name>_<class>_<element> for a co-op guest (bGuest). */
+	 *  B-561: BUILT_NAME_Guest_<key>_<class>_<element> for a co-op guest (bGuest): its GuestKey, the joining player's
+	 *  name (D-228, 2026-11-17; an older save's guest without one: its typed name). */
 	WORLD_OF_REFRACTION_API FName GetBuiltName(const FPlayerPicks &Picks);
 
 	/** B-557 (D-238): the class table's recruit row for this character's class (a Refractor: and element, Broken
@@ -52,6 +54,12 @@ namespace WoRPlayerBuild
 
 	/** A character made by BuildFrom (its name starts with BUILT_NAME and it lives in the transient package). */
 	WORLD_OF_REFRACTION_API bool IsBuilt(const UCharacterData *Character);
+
+	/** D-229 (Crown): two players' characters of one kind read apart by the player's tag: a built player character
+	 *  (picks set, not a recruit) that shares its kind name with another is named "Fire Refractor (tag)", the tag its
+	 *  GuestKey for a guest and HostTag for the host's own; with no clash, the kind name alone. True when a name
+	 *  changed. */
+	WORLD_OF_REFRACTION_API bool RetagSameNames(TArrayView<FPartyMember> Members, const FString &HostTag);
 
 	/** Debug: the built character's name, class, element, levels, action speed and inventory, one line. */
 	WORLD_OF_REFRACTION_API FString GetBuiltString(const UCharacterData *Character);

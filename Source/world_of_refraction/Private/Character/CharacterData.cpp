@@ -48,6 +48,12 @@ EDataValidationResult UCharacterData::IsDataValid(FDataValidationContext &Contex
 {
     EDataValidationResult Result = Super::IsDataValid(Context);
 
+    // B-567: an always-has list the class can't carry.
+    for (const FString &Problem : EnemyKitRules::CheckAlwaysHas(EnemyKit, CharacterClass))
+    {
+        Context.AddWarning(FText::FromString(FString::Printf(TEXT("Enemy kit: %s"), *Problem)));
+    }
+
     // Validate name
     if (Name.IsEmpty())
     {
@@ -116,4 +122,10 @@ int32 UCharacterData::GetAuthoredSpellDiscount() const
 void UCharacterData::PrintCharacterData()
 {
     UCharacterDataDebug::LogCharacterStats(this);
+}
+
+void UCharacterData::PrintEnemyKit() const
+{
+    UE_LOG(LogTemp, Log, TEXT("[EnemyKit] %s: %s | innate budget now %d points"), *GetName(), *EnemyKitRules::GetEnemyKitString(EnemyKit, CharacterClass),
+           EnemyKitRules::GetMostInnate(*this));
 }

@@ -2,6 +2,8 @@
 
 #include "Character/PlayerBuild.h"
 
+#include "Algo/Count.h"
+
 #include "Character/CharacterData.h"
 #include "Character/PlayerPicks.h"
 #include "Engine/GameInstance.h"
@@ -18,11 +20,13 @@
 #include "UObject/Package.h"
 #include "WoRLog.h"
 
+#define LOCTEXT_NAMESPACE "WoRPlayerBuild"
+
 const TCHAR *WoRPlayerBuild::BUILT_NAME = TEXT("WoRPlayer");
 
 namespace
 {
-	constexpr int32 GUEST_NAME_MAX_LETTERS = 32; // a guest's typed name in its object name: the guest's word, so capped
+	constexpr int32 GUEST_NAME_MAX_LETTERS = 32; // a guest's player name in its object name: the guest's word, so capped
 }
 
 UCharacterData *WoRPlayerBuild::BuildFrom(const FPlayerPicks &Picks, const UCharacterData *Template,
@@ -41,7 +45,7 @@ UCharacterData *WoRPlayerBuild::BuildFrom(const FPlayerPicks &Picks, const UChar
 		Older->Rename(*Away.ToString(), Package, REN_DontCreateRedirectors | REN_NonTransactional);
 	}
 	UCharacterData *Built = DuplicateObject<UCharacterData>(Template, Package, ObjectName);
-	Built->Name = Picks.Name;
+	Built->Name = WoRNewGame::GetCharacterName(Picks).ToString(); // D-228: named by what it is
 	Built->CharacterClass = Picks.Class;
 	const bool bCaster = Picks.Class == ECharacterClass::Caster;
 	Built->InnateElement = bCaster ? Picks.Element : (Numbers ? Numbers->Element : Template->InnateElement);
@@ -123,10 +127,10 @@ FName WoRPlayerBuild::GetBuiltName(const FPlayerPicks &Picks)
 {
 	if (Picks.bGuest)
 	{
-		// shortcut: two guests with the same name, class and element share a name (and gear), and a guest that comes back
-		// with other weapons or crystals under the same name keeps its first build; key it on a player id when that matters.
+		// shortcut: two guests with the same player name, class and element share a name (and gear), and a guest that
+		// comes back with other weapons or crystals keeps its first build; key it on an online id when that matters.
 		FString Name;
-		for (const TCHAR Letter : Picks.Name.Left(GUEST_NAME_MAX_LETTERS))
+		for (const TCHAR Letter : (Picks.GuestKey.IsEmpty() ? Picks.Name : Picks.GuestKey).Left(GUEST_NAME_MAX_LETTERS))
 		{
 			Name.AppendChar(FChar::IsAlnum(Letter) ? Letter : TEXT('_'));
 		}
@@ -147,6 +151,33 @@ const FPlayerPicks *WoRPlayerBuild::FindRecruitPicks(const UCharacterData &Chara
 	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	const UClassDefaultLoadoutData *Table = TrialRun && !TrialRun->GetClassDefaultLoadouts().IsNull() ? TrialRun->GetClassDefaultLoadouts().LoadSynchronous() : nullptr;
 	return Table ? Table->FindRecruit(Character.CharacterClass, Character.InnateElement, Character.bBrokenDarknessInnate) : nullptr;
+}
+
+bool WoRPlayerBuild::RetagSameNames(TArrayView<FPartyMember> Members, const FString &HostTag)
+{
+	const auto IsPlayerCharacter = [](const FPartyMember &Member) { return IsBuilt(Member.CharacterData) && Member.Picks.IsSet() && !Member.Picks.bRecruit; };
+	bool bChanged = false;
+	for (const FPartyMember &Member : Members)
+	{
+		if (!IsPlayerCharacter(Member))
+		{
+			continue;
+		}
+		const FText KindName = WoRNewGame::GetCharacterName(Member.Picks);
+		const bool bClash = Algo::CountIf(Members, [&](const FPartyMember &Other)
+		{
+			return IsPlayerCharacter(Other) && WoRNewGame::GetCharacterName(Other.Picks).EqualTo(KindName);
+		}) > 1;
+		const FString &Tag = Member.Picks.bGuest ? Member.Picks.GuestKey : HostTag;
+		const FText TagText = Tag.IsEmpty() ? (Member.Picks.bGuest ? LOCTEXT("GuestTag", "Guest") : LOCTEXT("HostTag", "Host")) : FText::FromString(Tag);
+		const FString Shown = bClash ? FText::Format(LOCTEXT("TaggedName", "{0} ({1})"), KindName, TagText).ToString() : KindName.ToString();
+		if (Member.CharacterData->Name != Shown)
+		{
+			Member.CharacterData->Name = Shown;
+			bChanged = true;
+		}
+	}
+	return bChanged;
 }
 
 bool WoRPlayerBuild::IsBuilt(const UCharacterData *Character)
@@ -180,3 +211,5 @@ static FAutoConsoleCommandWithWorld GPlayerBuildPrintCommand(
 		UE_LOG(LogWoR, Log, TEXT("[PlayerBuild] Leader: %s"), Leader ? *WoRPlayerBuild::GetBuiltString(Leader->CharacterData) : TEXT("no party"));
 	}));
 #endif
+
+#undef LOCTEXT_NAMESPACE

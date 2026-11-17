@@ -104,6 +104,8 @@ private:
 	ENewGameFocus Focus = ENewGameFocus::Class;
 	int32 PickCursor = 0;
 	FText Status;
+	/** D-229: this player's characters, read once per open; a kind among them is refused on the Begin card. */
+	TArray<FPlayerPicks> MadeCharacters;
 	/** D-233: what the mouse is over, lit with the hover colour (INDEX_NONE: nothing). */
 	ENewGameFocus HoveredPart = ENewGameFocus::Body;
 	int32 HoveredIndex = INDEX_NONE;
