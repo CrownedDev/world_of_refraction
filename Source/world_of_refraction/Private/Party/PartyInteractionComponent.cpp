@@ -85,6 +85,9 @@ void UPartyInteractionComponent::BeginPlay()
 		Standing.SpiritBody = Row->Body;
 	}
 	const FPartyMember &Shown = Party && Party->Members.IsValidIndex(Slot) ? Party->Members[Slot] : Standing;
+	// Without a class-table row the recruit is not dressed: its Blueprint's own body and colour stay (no tint).
+	UE_CLOG(Recruit && !Row, LogTemp, Warning, TEXT("[PartyInteraction] %s (%s): no recruit row in the class table, so it keeps its Blueprint look"),
+			*GetNameSafe(GetOwner()), *GetNameSafe(Recruit));
 	if (ACharacter *Body = Cast<ACharacter>(GetOwner()))
 	{
 		WoRSpiritLook::DressMember(*Body, Shown, GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr);
