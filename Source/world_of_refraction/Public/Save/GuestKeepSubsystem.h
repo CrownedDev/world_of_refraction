@@ -56,6 +56,12 @@ public:
 	static const FSavedPartyMember *FindGuestMember(const FWoRSaveData &HostCopy, const FPlayerPicks &Picks);
 	/** Gives Member's kept levels to Own's character (its first member with picks). False: nothing to give. */
 	static bool FoldKeptLevels(FWoRSaveData &Own, const FSavedPartyMember &Member);
+	/** B-564: the pool key of a saved member, as UPoolSubsystem::GetCharacterKey gives it for the built or loaded
+	 *  character (a picks member: the transient built object's path; #MemberId for a later copy). */
+	static FName GetSavedMemberKey(const FSavedPartyMember &Member);
+	/** B-564 (D-219, D-221, D-224): the host's hub gear owned by GuestKey, and the skills GuestKey learned, added to
+	 *  Own under OwnKey (owned, not worn: the guest puts them on in its own game). Returns how many came over. */
+	static int32 FoldGearAndSkills(FWoRSaveData &Own, const FWoRSaveData &HostCopy, FName GuestKey, FName OwnKey);
 	/** A fresh save holding only the character made from Picks (the load builds it, B-554). */
 	static FWoRSaveData MakeNewCharacterSave(const FPlayerPicks &Picks);
 
