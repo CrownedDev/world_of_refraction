@@ -89,7 +89,17 @@ namespace
 
 FCrystalId TrialPool::PickCrystal(ESpellElement TrialElement, const FTrialTierRange &Range, FRandomStream &Roll)
 {
-	const TArray<ECrystalType> &Crystals = GetPoolCrystals();
+	return PickCrystal(TrialElement, Range, Roll, [](ECrystalType) { return true; });
+}
+
+FCrystalId TrialPool::PickCrystal(ESpellElement TrialElement, const FTrialTierRange &Range, FRandomStream &Roll, TFunctionRef<bool(ECrystalType)> Allowed)
+{
+	TArray<ECrystalType> Crystals = GetPoolCrystals();
+	Crystals.RemoveAll([&Allowed](ECrystalType Type) { return !Allowed(Type); });
+	if (Crystals.IsEmpty() || Range.Min > Range.Max)
+	{
+		return FCrystalId();
+	}
 	TArray<float> TypeWeights;
 	for (const ECrystalType Type : Crystals)
 	{
