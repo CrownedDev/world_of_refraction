@@ -29,8 +29,12 @@ namespace TrialLoot
 	/** Debug: the pool's item count and names (console: wor.Trial.Pool <tag>). */
 	FString GetPoolString(const FGameplayTag &Pool);
 
-	/** One of the Candidates whose tags match Pool, picked by a roll seeded with Seed; null when
-	 *  none match. TODO: weight the roll (drop chance, Luck) like the enemy-kit draw (§7.9). */
+	/** B-566: a kind GrantTo can give (weapon, ring, spell, ability, evolution, prebuilt find). Apparel is listed in a
+	 *  pool but not given until drops (stage 5). */
+	bool CanGrant(const UObject *Item);
+
+	/** One of the Candidates whose tags match Pool and that CanGrant, picked by a roll seeded with Seed; null when
+	 *  none match (a chest never lands on something it can't give). TODO: weight the roll (drop chance, Luck) like the enemy-kit draw (§7.9). */
 	UObject *PickFromPool(const TArray<UObject *> &Candidates, const FGameplayTag &Pool, int32 Seed);
 
 	/** Put Item into Owner's inventory (a weapon or ring added, a spell or ability learned).

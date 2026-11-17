@@ -6,6 +6,7 @@
 
 #include "Combat/Encounter/EnemyZone.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
+#include "Equipment/Apparel/ApparelData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Misc/AutomationTest.h"
 #include "Trial/TrialData.h"
@@ -98,6 +99,8 @@ void FTrialPoolSpec::Define()
 		Evolution->ItemName = TEXT("Gale Force");
 		TestNotNull(TEXT("its tags"), TrialLoot::GetSourceTags(Evolution));
 		TestEqual(TEXT("its name"), TrialLoot::GetItemName(Evolution).ToString(), FString(TEXT("Gale Force")));
+		TestTrue(TEXT("a chest can give it"), TrialLoot::CanGrant(Evolution));
+		TestFalse(TEXT("an apparel piece is not given yet (stage 5)"), TrialLoot::CanGrant(NewObject<UApparelData>()));
 	});
 }
 

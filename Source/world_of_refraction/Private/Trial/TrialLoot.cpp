@@ -135,7 +135,7 @@ UObject *TrialLoot::PickFromPool(const TArray<UObject *> &Candidates, const FGam
 	for (UObject *Candidate : Candidates)
 	{
 		const FGameplayTagContainer *Tags = GetSourceTags(Candidate);
-		if (Pool.IsValid() && Tags && Tags->HasTag(Pool))
+		if (Pool.IsValid() && Tags && Tags->HasTag(Pool) && CanGrant(Candidate))
 		{
 			Eligible.Add(Candidate);
 		}
@@ -197,6 +197,12 @@ namespace
 		}
 		Inventory.RefreshLoadoutsFromOwned(PieceID); // the flags to the pool and any loadout copy
 	}
+}
+
+bool TrialLoot::CanGrant(const UObject *Item)
+{
+	return Cast<UWeaponData>(Item) || Cast<URingData>(Item) || Cast<USpellData>(Item) || Cast<UAbilityData>(Item) ||
+		   Cast<UEvolutionItemData>(Item) || Cast<UPrebuiltFindData>(Item);
 }
 
 bool TrialLoot::GrantTo(AActor *Owner, UObject *Item)
