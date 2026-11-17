@@ -20,6 +20,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Character/PlayerPicks.h"
 #include "Trial/TrialGate.h"
 #include "RunStateComponent.generated.h"
 
@@ -54,6 +55,10 @@ struct WORLD_OF_REFRACTION_API FRunJoinRequest
 	/** Empty: the leader's pawn class. */
 	UPROPERTY(BlueprintReadOnly, Category = "Run State")
 	TSoftClassPtr<ACombatCharacter> PawnClass;
+
+	/** B-561 (stage 5): a guest's own character, built from these picks on the host; its member keeps them. */
+	UPROPERTY(BlueprintReadOnly, Category = "Run State")
+	FPlayerPicks Picks;
 };
 
 /** B-232d: one character's pillar levels waiting to be placed this run, as replicated. */
@@ -150,6 +155,10 @@ public:
 	/** Server: Joiner asks for a seat with Character. Refused (false, logged) with no free AI seat (the party is full),
 	 *  a character already in the party (B-360b lifts this), or during a fight. One request per player. */
 	bool RequestJoin(APlayerState *Joiner, UCharacterData *Character, TSoftClassPtr<ACombatCharacter> PawnClass);
+
+	/** B-561 (stage 5): RequestJoin with a character built here from the guest's picks (bGuest set: its own name).
+	 *  False when the picks are unset or the build fails, or as RequestJoin. */
+	bool RequestJoinWithPicks(APlayerState *Joiner, const FPlayerPicks &Picks);
 	/** Server, the host's choice: the request of PlayerId takes AI seat ReplaceSlot (its member's gear and pouch go to
 	 *  the host), the joiner claims its character, the roster follows. False (logged) when refused. */
 	bool AcceptJoin(int32 PlayerId, int32 ReplaceSlot);

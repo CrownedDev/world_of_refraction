@@ -79,6 +79,10 @@ public:
 	 *  server it goes straight to the run state; a client sends ServerRequestJoin. Console: `wor.Party.RequestJoin`. */
 	void RequestJoin(UCharacterData *Character);
 
+	/** B-561 (stage 5, D-229): ask the host for a seat with your own character, sent as its picks (one of your character
+	 *  slots or a new one); the host builds it under a guest name. Server: straight to the run state. */
+	void RequestJoinWithPicks(const FPlayerPicks &Picks);
+
 	/** B-232e: a client asks the host to recruit the character RecruitOwner plays (a found character in a run; the
 	 *  host's UPartyInteractionComponent::InviteForClient runs it, invites only). */
 	UFUNCTION(Server, Reliable)
@@ -220,6 +224,9 @@ private:
 
 	UFUNCTION(Server, Reliable)
 	void ServerRequestJoin(UCharacterData *Character);
+
+	UFUNCTION(Server, Reliable)
+	void ServerRequestJoinWithPicks(const FPlayerPicks &Picks);
 
 	/** The local player's form changed in UCharacterFormSubsystem: send it on. */
 	UFUNCTION()

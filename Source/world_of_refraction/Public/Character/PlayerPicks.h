@@ -51,6 +51,10 @@ struct WORLD_OF_REFRACTION_API FPlayerPicks
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Picks")
 	bool bRecruit = false;
 
+	/** B-561 (stage 5): a co-op guest's character, built on the host under a guest name of its own (never the host's). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Picks")
+	bool bGuest = false;
+
 	/** A built player: these picks make its character data. */
 	bool IsSet() const { return !Name.IsEmpty(); }
 };

@@ -363,6 +363,29 @@ void AWoRPlayerState::ServerRequestJoin_Implementation(UCharacterData *Character
 	}
 }
 
+void AWoRPlayerState::RequestJoinWithPicks(const FPlayerPicks &Picks)
+{
+	if (HasAuthority())
+	{
+		ServerRequestJoinWithPicks_Implementation(Picks);
+	}
+	else
+	{
+		ServerRequestJoinWithPicks(Picks);
+	}
+}
+
+void AWoRPlayerState::ServerRequestJoinWithPicks_Implementation(const FPlayerPicks &Picks)
+{
+	// TODO: co-op trust (B-233+): the picks are the guest's word; the host builds from its own class table only.
+	URunStateComponent *Run = URunStateComponent::Find(this);
+	UE_CLOG(!Run, LogWoR, Warning, TEXT("[PlayerState] %s asked to join but there is no run state here"), *GetPlayerName());
+	if (Run)
+	{
+		Run->RequestJoinWithPicks(this, Picks);
+	}
+}
+
 void AWoRPlayerState::SetForm(UCharacterFormData *InWornForm, EPlayerBaseForm InBaseForm)
 {
 	if (!HasAuthority() || (WornForm == InWornForm && BaseForm == InBaseForm))
