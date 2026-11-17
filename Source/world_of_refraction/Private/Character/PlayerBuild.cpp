@@ -22,7 +22,7 @@ const TCHAR *WoRPlayerBuild::BUILT_NAME = TEXT("WoRPlayer");
 
 namespace
 {
-	constexpr int32 GUEST_NAME_MAX_LETTERS = 32; // a guest's typed name in its object name: the guest's word, so capped
+	constexpr int32 GUEST_NAME_MAX_LETTERS = 32; // a guest's player name in its object name: the guest's word, so capped
 }
 
 UCharacterData *WoRPlayerBuild::BuildFrom(const FPlayerPicks &Picks, const UCharacterData *Template,
@@ -41,7 +41,7 @@ UCharacterData *WoRPlayerBuild::BuildFrom(const FPlayerPicks &Picks, const UChar
 		Older->Rename(*Away.ToString(), Package, REN_DontCreateRedirectors | REN_NonTransactional);
 	}
 	UCharacterData *Built = DuplicateObject<UCharacterData>(Template, Package, ObjectName);
-	Built->Name = Picks.Name;
+	Built->Name = WoRNewGame::GetCharacterName(Picks).ToString(); // D-228: named by what it is
 	Built->CharacterClass = Picks.Class;
 	const bool bCaster = Picks.Class == ECharacterClass::Caster;
 	Built->InnateElement = bCaster ? Picks.Element : (Numbers ? Numbers->Element : Template->InnateElement);
@@ -123,10 +123,10 @@ FName WoRPlayerBuild::GetBuiltName(const FPlayerPicks &Picks)
 {
 	if (Picks.bGuest)
 	{
-		// shortcut: two guests with the same name, class and element share a name (and gear), and a guest that comes back
-		// with other weapons or crystals under the same name keeps its first build; key it on a player id when that matters.
+		// shortcut: two guests with the same player name, class and element share a name (and gear), and a guest that
+		// comes back with other weapons or crystals keeps its first build; key it on an online id when that matters.
 		FString Name;
-		for (const TCHAR Letter : Picks.Name.Left(GUEST_NAME_MAX_LETTERS))
+		for (const TCHAR Letter : (Picks.GuestKey.IsEmpty() ? Picks.Name : Picks.GuestKey).Left(GUEST_NAME_MAX_LETTERS))
 		{
 			Name.AppendChar(FChar::IsAlnum(Letter) ? Letter : TEXT('_'));
 		}

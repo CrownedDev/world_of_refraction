@@ -37,7 +37,14 @@ void FGuestPicksSpec::Define()
 		TestNotEqual(TEXT("not a recruit's"), GuestName, WoRPlayerBuild::GetBuiltName(Recruit));
 		FPlayerPicks Spaced = MakePicks(TEXT("Ash Grey!"));
 		Spaced.bGuest = true;
-		TestFalse(TEXT("a typed name's spaces and marks don't reach the object name"), WoRPlayerBuild::GetBuiltName(Spaced).ToString().Contains(TEXT(" ")));
+		TestFalse(TEXT("an older save's typed name: its spaces and marks don't reach the object name"), WoRPlayerBuild::GetBuiltName(Spaced).ToString().Contains(TEXT(" ")));
+		FPlayerPicks Keyed = Guest;
+		Keyed.GuestKey = TEXT("Player 2");
+		const FString KeyedName = WoRPlayerBuild::GetBuiltName(Keyed).ToString();
+		TestTrue(TEXT("D-228: the joining player's name keys it, not the typed name"), KeyedName.Contains(TEXT("Player_2")) && !KeyedName.Contains(TEXT("Ash")));
+		FPlayerPicks Other = Keyed;
+		Other.GuestKey = TEXT("Player 3");
+		TestNotEqual(TEXT("two guests of the same kind are told apart"), WoRPlayerBuild::GetBuiltName(Other), WoRPlayerBuild::GetBuiltName(Keyed));
 	});
 
 	It("finds a guest's character again rather than building it twice (it keeps its pool key)", [this]()
@@ -48,7 +55,7 @@ void FGuestPicksSpec::Define()
 		UCharacterData *Built = WoRPlayerBuild::BuildFrom(Guest, Template, nullptr, 0, nullptr, WoRPlayerBuild::GetBuiltName(Guest));
 		if (!TestNotNull(TEXT("built"), Built)) return;
 		TestTrue(TEXT("the same object on the second join"), WoRPlayerBuild::Build(Guest, nullptr) == Built);
-		TestEqual(TEXT("its name is the guest's typed name"), Built->Name, FString(TEXT("Rin")));
+		TestEqual(TEXT("named by what it is (D-228)"), Built->Name, FString(TEXT("Water Refractor")));
 	});
 
 	It("refuses a join with no picks, without a host", [this]()

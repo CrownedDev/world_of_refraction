@@ -120,20 +120,35 @@ void FNewGameScreenSpec::Define()
 		TestTrue(TEXT("the third drops the first"), Pick.Weapons.Num() == 2 && !WoRNewGame::IsPicked(Pick, 0) && WoRNewGame::IsPicked(Pick, 2));
 		WoRNewGame::TogglePick(Pick, 2);
 		TestFalse(TEXT("a second press drops it"), WoRNewGame::IsPicked(Pick, 2));
-		TestFalse(TEXT("no name: refused"), WoRNewGame::GetBeginRefusal(Pick).IsEmpty());
-		Pick.Name = TEXT("Ash");
 		TestFalse(TEXT("one weapon: refused"), WoRNewGame::GetBeginRefusal(Pick).IsEmpty());
 		WoRNewGame::TogglePick(Pick, 0);
-		TestTrue(TEXT("a name and two weapons: Begin may run"), WoRNewGame::GetBeginRefusal(Pick).IsEmpty());
+		TestTrue(TEXT("two weapons and no name (D-228): Begin may run"), WoRNewGame::GetBeginRefusal(Pick).IsEmpty());
 		FNewGamePick Resonator = MakePick(ECharacterClass::Resonator);
-		Resonator.Name = TEXT("Ash");
 		WoRNewGame::TogglePick(Resonator, 0);
 		WoRNewGame::TogglePick(Resonator, 6);
 		TestTrue(TEXT("two crystal types, 3 of each in the line"),
 				 WoRNewGame::GetBeginRefusal(Resonator).IsEmpty() && WoRNewGame::GetPicksLine(Resonator).ToString().Contains(FString::FromInt(WoRNewGame::STARTING_CRYSTALS_PER_TYPE)));
 		FNewGamePick Refractor = MakePick(ECharacterClass::Caster);
-		Refractor.Name = TEXT("Ash");
 		TestTrue(TEXT("a Refractor's one pick is always made"), WoRNewGame::GetBeginRefusal(Refractor).IsEmpty());
+	});
+
+	It("names a character by what it is, its class and element, never a typed name (D-228)", [this]()
+	{
+		FNewGamePick Pick = MakePick(ECharacterClass::Caster);
+		Pick.Name = TEXT("Ash"); // an older save's typed name
+		Pick.Element = ESpellElement::Fire;
+		TestEqual(TEXT("Fire Refractor"), WoRNewGame::GetCharacterName(Pick).ToString(), FString(TEXT("Fire Refractor")));
+		Pick.Element = ESpellElement::Reality;
+		TestEqual(TEXT("Reality reads as Unknown"), WoRNewGame::GetCharacterName(Pick).ToString(), FString(TEXT("Unknown Refractor")));
+		Pick.Element = ESpellElement::Darkness;
+		Pick.bBrokenDarkness = true;
+		TestEqual(TEXT("Broken Darkness Refractor"), WoRNewGame::GetCharacterName(Pick).ToString(), FString(TEXT("Broken Darkness Refractor")));
+		TestEqual(TEXT("Generic"), WoRNewGame::GetCharacterName(MakePick(ECharacterClass::Generic)).ToString(), FString(TEXT("Generic")));
+		TestEqual(TEXT("Resonator"), WoRNewGame::GetCharacterName(MakePick(ECharacterClass::Resonator)).ToString(), FString(TEXT("Resonator")));
+		FPlayerPicks Recruit = MakePick(ECharacterClass::Caster);
+		Recruit.Name = TEXT("Fire Spirit");
+		Recruit.bRecruit = true;
+		TestEqual(TEXT("a recruit keeps its row's name"), WoRNewGame::GetCharacterName(Recruit).ToString(), FString(TEXT("Fire Spirit")));
 	});
 
 	It("starts as the character whose class, and a Refractor's element and Broken Darkness, match", [this]()
@@ -153,7 +168,7 @@ void FNewGameScreenSpec::Define()
 		TestTrue(TEXT("B-546: Broken Darkness starts as the born one"), WoRNewGame::FindStartCharacter(Choices, BrokenDarkness) == BornBD);
 	});
 
-	It("moves between the name, body, class, the class's picks and Begin", [this]()
+	It("moves between the body, class, the class's picks and Begin", [this]()
 	{
 		UNewGameScreenWidget *Screen = NewObject<UNewGameScreenWidget>();
 		TestTrue(TEXT("opens on the class, as a Darkness Refractor"),
@@ -178,8 +193,7 @@ void FNewGameScreenSpec::Define()
 		Screen->MoveSide(-1);
 		TestTrue(TEXT("Left from the class: the body cards, on its left (B-539)"), Screen->GetFocus() == ENewGameFocus::Body);
 		Screen->MoveUp();
-		TestTrue(TEXT("B-546: Up from the body: the name"), Screen->GetFocus() == ENewGameFocus::Name);
-		Screen->MoveDown();
+		TestTrue(TEXT("D-228: Up from the body stays there (no name box)"), Screen->GetFocus() == ENewGameFocus::Body);
 		Screen->MoveDown();
 		Screen->MoveUp();
 		Screen->MoveSide(1);

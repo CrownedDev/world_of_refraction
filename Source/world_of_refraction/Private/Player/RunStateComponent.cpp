@@ -518,6 +518,7 @@ bool URunStateComponent::RequestJoinWithPicks(APlayerState *Joiner, const FPlaye
 	}
 	FPlayerPicks Guest = Picks;
 	Guest.bGuest = true; // its own name on the host, never the host player's
+	Guest.GuestKey = Joiner->GetPlayerName(); // D-228: the typed name is gone; the joining player's name keys its build
 	Guest.bRecruit = false;
 	const UWorld *World = GetWorld();
 	UCharacterData *Built = WoRPlayerBuild::Build(Guest, World ? World->GetGameInstance() : nullptr);
