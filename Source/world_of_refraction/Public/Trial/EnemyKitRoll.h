@@ -46,7 +46,7 @@ struct FRolledEnemyKit
 	/** In pick order: the always-has skills first. */
 	TArray<TObjectPtr<UAbilityData>> Abilities;
 	TArray<TObjectPtr<USpellData>> Spells;
-	/** How many of its authored innate spells it keeps (EnemyKitRules::GetMostInnate). */
+	/** Its innate budget in points (EnemyKitRules::GetMostInnate), for the print; ApplyRolledKit reads the rule itself. */
 	int32 MostInnate = 0;
 
 	bool HasGear() const { return Pieces.Num() > 0; }

@@ -126,6 +126,6 @@ void UCharacterData::PrintCharacterData()
 
 void UCharacterData::PrintEnemyKit() const
 {
-    UE_LOG(LogTemp, Log, TEXT("[EnemyKit] %s: %s | innate places now %d"), *GetName(), *EnemyKitRules::GetEnemyKitString(EnemyKit, CharacterClass),
+    UE_LOG(LogTemp, Log, TEXT("[EnemyKit] %s: %s | innate budget now %d points"), *GetName(), *EnemyKitRules::GetEnemyKitString(EnemyKit, CharacterClass),
            EnemyKitRules::GetMostInnate(*this));
 }

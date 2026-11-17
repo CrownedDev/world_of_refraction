@@ -13,6 +13,7 @@
 #include "Inventory/InventoryData.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Loadout/WornGear.h"      // B-568: the rolled kit's loadout
+#include "Trial/EnemyKit.h"        // B-567c: FitInnateBudget
 #include "Trial/EnemyKitRoll.h"    // B-568
 #include "WoRLog.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
@@ -3091,9 +3092,16 @@ void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, co
     FWornGear Worn;
     if (Authored)
     {
-        // B-567c: the innate spells it keeps, up to its innate limit (D-240's places when unset).
-        Worn.InnateSpells.Append(Authored->InnateSpells.GetData(), FMath::Min(Authored->InnateSpells.Num(), Kit.MostInnate));
-        Worn.BDSpellPools = Authored->BDSpellPools;
+        // B-567c: the authored innate spells (and Broken Darkness pools) that fit its innate budget, in order.
+        int32 Spent = 0;
+        const int32 Discount = CharacterData.GetAuthoredSpellDiscount();
+        const int32 Budget = EnemyKitRules::GetMostInnate(CharacterData);
+        Worn.InnateSpells.Append(EnemyKitRules::FitInnateBudget(Authored->InnateSpells, Budget, Discount, Spent));
+        for (const FBDElementSpellPool &Pool : Authored->BDSpellPools)
+        {
+            FBDElementSpellPool &Kept = Worn.BDSpellPools.Add_GetRef(Pool);
+            Kept.Spells = EnemyKitRules::FitInnateBudget(Pool.Spells, Budget, Discount, Spent);
+        }
     }
     Spells.LearnedSpells.Empty();
     Abilities.LearnedAbilities.Empty();
@@ -3137,6 +3145,7 @@ void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, co
         Entry.GearID = ID;
         Entry.AssignedAbilities = PieceOf[ID]->Abilities; // the roll's picks, piece by piece (B-567c)
         Entry.SpellOverrides = PieceOf[ID]->Spells;
+        Entry.SpellOverrides.RemoveAll([&Worn](const USpellData *Spell) { return Worn.InnateSpells.Contains(Spell); }); // innate already
     };
     int32 NextAdapter = FIRST_ADAPTER_INDEX;
     for (int32 i = 0; i < AdapterIDs.Num(); ++i)
