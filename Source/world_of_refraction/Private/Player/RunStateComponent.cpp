@@ -8,6 +8,7 @@
 
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/PlayerBuild.h"
 #include "Combat/TurnManager.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "TimerManager.h"
@@ -502,8 +503,34 @@ bool URunStateComponent::RequestJoin(APlayerState *Joiner, UCharacterData *Chara
 	Request.PlayerId = Joiner->GetPlayerId();
 	Request.Character = Character;
 	Request.PawnClass = PawnClass;
+	Request.Picks = FPlayerPicks(); // B-561: set again by RequestJoinWithPicks; a plain request carries none
 	UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d (%s) asks to join with %s; free AI seats: %d. Host: wor.Party.AcceptJoin %d <slot> (or wor.UI.JoinSeat)"),
 		   Request.PlayerId, *Joiner->GetPlayerName(), *GetNameSafe(Character), GetFreeAISeats().Num(), Request.PlayerId);
+	return true;
+}
+
+bool URunStateComponent::RequestJoinWithPicks(APlayerState *Joiner, const FPlayerPicks &Picks)
+{
+	if (!GetOwner() || !GetOwner()->HasAuthority() || !Joiner || !Picks.IsSet())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[RunState] Join with picks refused: %s"), !Picks.IsSet() ? TEXT("no picks") : TEXT("not the host"));
+		return false;
+	}
+	FPlayerPicks Guest = Picks;
+	Guest.bGuest = true; // its own name on the host, never the host player's
+	Guest.bRecruit = false;
+	const UWorld *World = GetWorld();
+	UCharacterData *Built = WoRPlayerBuild::Build(Guest, World ? World->GetGameInstance() : nullptr);
+	if (!Built || !RequestJoin(Joiner, Built, TSoftClassPtr<ACombatCharacter>()))
+	{
+		UE_CLOG(!Built, LogWoR, Warning, TEXT("[RunState] Join with picks refused for player %d: the character could not be built"), Joiner->GetPlayerId());
+		return false;
+	}
+	if (FRunJoinRequest *Request = JoinRequests.FindByPredicate([Joiner](const FRunJoinRequest &R) { return R.PlayerId == Joiner->GetPlayerId(); }))
+	{
+		Request->Picks = Guest;
+		UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d's request is its own character: %s"), Joiner->GetPlayerId(), *WoRPlayerBuild::GetBuiltString(Built));
+	}
 	return true;
 }
 
@@ -576,6 +603,14 @@ bool URunStateComponent::AcceptJoin(int32 PlayerId, int32 ReplaceSlot)
 	if (Party && Party->Members.IsValidIndex(ReplaceSlot))
 	{
 		JoinerState->ClaimMember(Party->Members[ReplaceSlot].MemberId);
+	}
+	// B-561 (stage 5): a guest's built character keeps its picks, so the host's save builds it again and a trial lays
+	// them over its kit (the party is the host's own, the session's local party).
+	UParty *Seated = Request.Picks.IsSet() && PartySession ? PartySession->GetLocalParty() : nullptr;
+	if (Seated && Seated->Members.IsValidIndex(ReplaceSlot))
+	{
+		Seated->Members[ReplaceSlot].Picks = Request.Picks;
+		Seated->Members[ReplaceSlot].SpiritBody = Request.Picks.Body;
 	}
 	RefreshRoster();
 	UE_LOG(LogWoR, Log, TEXT("[RunState] Player %d joined: %s took slot %d"), PlayerId, *GetNameSafe(Request.Character), ReplaceSlot);
