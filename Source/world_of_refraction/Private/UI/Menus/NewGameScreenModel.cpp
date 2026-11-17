@@ -381,15 +381,16 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 		return LOCTEXT("SlotsFull", "Every character slot is in use: delete one on the title first.");
 	}
 
-	// B-554 (D-228): the player is built from the picks (the shared player asset, the class table, the picks).
+	// B-554 (D-228): the player is built from the picks (the shared player asset, the class table, the picks), after the
+	// trial's exit below: a build renames the last player's copy away, and the run's end still looks it up by name.
 	FPartyMember Leader;
 	Leader.Picks = Pick;
-	Leader.CharacterData = WoRPlayerBuild::Build(Pick, GI);
+	const UCharacterData *PlayerAsset = PartySession->PlayerCharacter.IsNull() ? nullptr : PartySession->PlayerCharacter.LoadSynchronous();
 	// The player's pawn class, as EnsureLocalParty resolves it: the pawn standing in the world, else the config's.
 	const APawn *Pawn = PC->GetPawn();
 	Leader.PawnClass = Pawn && Pawn->IsA<ACombatCharacter>() ? TSoftClassPtr<ACombatCharacter>(Pawn->GetClass()->GetPathName())
 															  : PartySession->DefaultSoloPawnClass;
-	if (!Leader.CharacterData)
+	if (!PlayerAsset)
 	{
 		UE_LOG(LogWoRUI, Warning, TEXT("[NewGame] %s not built (UPartySessionSubsystem::PlayerCharacter)"), *GetPanelTitle(Pick).ToString());
 		return FText::Format(LOCTEXT("NoCharacter", "{0} can't be started yet: no character is set up for it."), GetPanelTitle(Pick));
@@ -405,14 +406,17 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	}
 
 	// The old game's saves stop first: the trial's exit below saves it (async), and that write must not land after the
-	// new game's. StartFreshGame resumes writes. B-554: the old character's file stays (its own slot).
+	// new game's. StartFreshGame resumes writes. B-554: the old character's file stays (its own slot); it was written
+	// when the game menu's quit came back to the title (WoRPauseMenu::Quit), so the stop only keeps the title world's
+	// capture off it.
 	Saves->StopWrites();
 	// The trial's exit ends a run under way, then travels to the hub on the next tick, where the player's pawn comes
 	// back as the picked character.
 	TrialRun->ExitTrial();
-	if (!Saves->StartFreshGame(Leader, Pick.Body, Slot))
+	Leader.CharacterData = WoRPlayerBuild::Build(Pick, GI);
+	if (!Leader.CharacterData || !Saves->StartFreshGame(Leader, Pick.Body, Slot))
 	{
-		return LOCTEXT("NotStarted", "The new game didn't start."); // not reached: Begin checked what StartFreshGame refuses
+		return LOCTEXT("NotStarted", "The new game didn't start."); // only if the build or the new slot failed (logged)
 	}
 	UE_LOG(LogWoRUI, Display, TEXT("[NewGame] Begin as %s (%s), %s"), *GetPanelTitle(Pick).ToString(),
 		   *Leader.CharacterData->GetName(), *UEnum::GetValueAsString(Pick.Body));

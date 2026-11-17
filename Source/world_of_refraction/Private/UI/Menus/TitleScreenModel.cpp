@@ -105,7 +105,7 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 				// The run keys a character by its path, "#member id" after it for a copy (UPoolSubsystem::GetCharacterKey);
 				// a built player's path is its fixed built name (WoRPlayerBuild::BUILT_NAME).
 				// shortcut: the first entry for the leader's path.
-				const FString LeaderPath = Member.CharacterData.Path.ToString();
+				const FString LeaderPath = Character ? Character->GetPathName() : Member.CharacterData.Path.ToString();
 				const FSavedRunLevels *Levels = Data.Run.bHasRun
 					? Data.Run.RunLevels.FindByPredicate([&LeaderPath](const FSavedRunLevels &Entry)
 					{

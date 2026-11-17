@@ -543,6 +543,15 @@ void USaveSubsystem::LoadForPlayer(ULocalPlayer *LocalPlayer)
 	const FWoRSaveData &Data = Loaded->Data;
 	UGameInstance *GI = GetGameInstance();
 	const bool bParty = Data.Party.bHasParty && RestoreParty(Data.Party, *GI->GetSubsystem<UPartySessionSubsystem>());
+	// B-554 review: a built player that could not be built again (no player asset) must not be saved away as an empty party.
+	auto CountBuilt = [](const auto &Members) { return Members.FilterByPredicate([](const auto &Member) { return Member.Picks.IsSet(); }).Num(); };
+	const UParty *Restored = GI->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty();
+	if (CountBuilt(Data.Party.Members) > (Restored && bParty ? CountBuilt(Restored->Members) : 0))
+	{
+		bWritesStopped = true;
+		UE_LOG(LogWoR, Error, TEXT("[Save] Slot '%s': a player built from picks could not be built again (UPartySessionSubsystem PlayerCharacter); no automatic saves, so the file is kept as it is"),
+			   *GetSlotName(ActiveSlot));
+	}
 	const int32 PoolEntries = RestorePool(Data.Pool, *GI->GetSubsystem<UPoolSubsystem>());
 	UCharacterFormSubsystem *Forms = GI->GetSubsystem<UCharacterFormSubsystem>();
 	Forms->RestoreProgress(Data.Forms.Progress);
@@ -1041,6 +1050,21 @@ bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm 
 		return false;
 	}
 
+	// B-554 (D-229): the new character gets its own slot; the one played before keeps its file. The new slot is made
+	// first: if it can't be, nothing changes (writing the new game through the old slot's object would overwrite it).
+	const bool bNewSlot = Slot != INDEX_NONE && Slot != ActiveSlot;
+	const ULocalPlayer *Local = IsBoundToPlayer() ? SaveGame->GetLocalPlayer() : nullptr;
+	UWoRSaveGame *NewSlot = bNewSlot && Local
+		? Cast<UWoRSaveGame>(ULocalPlayerSaveGame::CreateNewSaveGameForLocalPlayer(UWoRSaveGame::StaticClass(), Local, GetSlotName(Slot)))
+		: nullptr;
+	if (bNewSlot && Local && !NewSlot)
+	{
+		UE_LOG(LogWoR, Error, TEXT("[Save] New game not started: slot '%s' could not be made"), *GetSlotName(Slot));
+		return false;
+	}
+	// The player's settings (text size, turn view...) go with them to the new character.
+	const FSavedSettings KeptSettings = SaveGame ? SaveGame->Data.Settings : FSavedSettings();
+
 	ResetGameInMemory(BaseForm);
 	UPartySessionSubsystem *PartySession = GI->GetSubsystem<UPartySessionSubsystem>();
 	FPartyMember Member = Leader;
@@ -1052,22 +1076,15 @@ bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm 
 	// No leader yet: the next level's CreateSoloParty / EnsureLocalParty binds the player and names the party.
 	const UParty *Party = PartySession->RestoreLocalParty(FText::GetEmpty(), /*bLetAIFinish=*/false, {Member});
 
-	// B-554 (D-229): the new character gets its own slot; the one played before keeps its file.
-	if (Slot != INDEX_NONE && Slot != ActiveSlot)
+	if (bNewSlot)
 	{
 		AddPlayTime();
-		const ULocalPlayer *Local = IsBoundToPlayer() ? SaveGame->GetLocalPlayer() : nullptr;
-		UWoRSaveGame *NewSlot = Local ? Cast<UWoRSaveGame>(ULocalPlayerSaveGame::CreateNewSaveGameForLocalPlayer(UWoRSaveGame::StaticClass(), Local, GetSlotName(Slot)))
-									  : nullptr;
 		if (NewSlot)
 		{
 			SaveGame = NewSlot;
-		}
-		ActiveSlot = Slot;
-		if (Local)
-		{
 			WriteLastSlot(Slot);
 		}
+		ActiveSlot = Slot;
 	}
 
 	bWritesStopped = false;
@@ -1076,6 +1093,7 @@ bool USaveSubsystem::StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm 
 	if (IsBoundToPlayer())
 	{
 		SaveGame->ResetToDefault();
+		SaveGame->Data.Settings = KeptSettings;
 		SaveGame->Data.Party = CaptureParty(Party, /*bKeepVitals=*/false);
 		SaveGame->Data.Forms.BaseForm = static_cast<uint8>(BaseForm);
 		bWritten = WriteSlot(/*bAsync=*/false);
@@ -1185,17 +1203,26 @@ bool USaveSubsystem::SwitchToSlot(int32 Index)
 	{
 		return false;
 	}
-	WriteLastSlot(Index);
 	if (Index == ActiveSlot && IsBoundToPlayer())
 	{
+		WriteLastSlot(Index);
 		return true;
 	}
-	// The slot left behind was written as it stood (the title is reached at the start, or after the game menu's quit).
+	// The slot left behind was written as it stood (the title is reached at the start, or after the game menu's quit,
+	// which saves first: WoRPauseMenu::Quit).
 	AddPlayTime();
 	ResetGameInMemory(EPlayerBaseForm::Manny); // the load puts the slot's own body back
 	ActiveSlot = Index;
 	bWritesStopped = false;
 	LoadForPlayer(Local);
+	if (!SaveGame || SaveGame->GetSaveSlotName() != GetSlotName(Index))
+	{
+		// The load failed: SaveGame is still the slot left behind, and memory is empty; never write that over it.
+		bWritesStopped = true;
+		UE_LOG(LogWoR, Error, TEXT("[Save] Could not switch to slot '%s'; no automatic saves until the next start"), *GetSlotName(Index));
+		return false;
+	}
+	WriteLastSlot(Index);
 	UE_LOG(LogWoR, Log, TEXT("[Save] Switched to slot '%s'"), *GetSlotName(Index));
 	return true;
 }
