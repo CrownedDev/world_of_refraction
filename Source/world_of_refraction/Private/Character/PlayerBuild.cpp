@@ -9,15 +9,19 @@
 #include "Engine/GameInstance.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryData.h"
 #include "Loadout/ClassDefaultLoadoutData.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Player/WoRPlayerState.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "UI/Menus/NewGameScreenModel.h"
 #include "UObject/Package.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "WoRPlayerBuild"
@@ -26,6 +30,7 @@ const TCHAR *WoRPlayerBuild::BUILT_NAME = TEXT("WoRPlayer");
 
 namespace
 {
+	const TCHAR *const RECRUIT_NAME_PART = TEXT("_Recruit_"); // GetBuiltName's recruit part
 	constexpr int32 GUEST_NAME_MAX_LETTERS = 32; // a guest's player name in its object name: the guest's word, so capped
 }
 
@@ -155,18 +160,18 @@ const FPlayerPicks *WoRPlayerBuild::FindRecruitPicks(const UCharacterData &Chara
 
 bool WoRPlayerBuild::RetagSameNames(TArrayView<FPartyMember> Members, const FString &HostTag)
 {
-	const auto IsPlayerCharacter = [](const FPartyMember &Member) { return IsBuilt(Member.CharacterData) && Member.Picks.IsSet() && !Member.Picks.bRecruit; };
+	const auto IsPlayerMember = [](const FPartyMember &Member) { return IsBuilt(Member.CharacterData) && Member.Picks.IsSet() && !Member.Picks.bRecruit; };
 	bool bChanged = false;
 	for (const FPartyMember &Member : Members)
 	{
-		if (!IsPlayerCharacter(Member))
+		if (!IsPlayerMember(Member))
 		{
 			continue;
 		}
 		const FText KindName = WoRNewGame::GetCharacterName(Member.Picks);
 		const bool bClash = Algo::CountIf(Members, [&](const FPartyMember &Other)
 		{
-			return IsPlayerCharacter(Other) && WoRNewGame::GetCharacterName(Other.Picks).EqualTo(KindName);
+			return IsPlayerMember(Other) && WoRNewGame::GetCharacterName(Other.Picks).EqualTo(KindName);
 		}) > 1;
 		const FString &Tag = Member.Picks.bGuest ? Member.Picks.GuestKey : HostTag;
 		const FText TagText = Tag.IsEmpty() ? (Member.Picks.bGuest ? LOCTEXT("GuestTag", "Guest") : LOCTEXT("HostTag", "Host")) : FText::FromString(Tag);
@@ -178,6 +183,53 @@ bool WoRPlayerBuild::RetagSameNames(TArrayView<FPartyMember> Members, const FStr
 		}
 	}
 	return bChanged;
+}
+
+bool WoRPlayerBuild::IsPlayerCharacter(const UCharacterData *Character)
+{
+	return IsBuilt(Character) && !Character->GetName().StartsWith(FString(BUILT_NAME) + RECRUIT_NAME_PART);
+}
+
+FText WoRPlayerBuild::MakeCardName(const UCharacterData &Character, bool bPlayerCharacter, bool bViewersOwn, const FString &OwnerTag)
+{
+	if (!bPlayerCharacter)
+	{
+		return FText::FromString(Character.Name);
+	}
+	if (bViewersOwn)
+	{
+		return WoRGameNames::GetYouWord();
+	}
+	return OwnerTag.IsEmpty() ? LOCTEXT("NoTag", "Player") : FText::FromString(OwnerTag);
+}
+
+FText WoRPlayerBuild::GetCardName(const UCharacterData *Character, const FGuid &MemberId, const UWorld *World)
+{
+	if (!Character)
+	{
+		return FText::GetEmpty();
+	}
+	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+	const AWoRPlayerState *Owner = nullptr;
+	for (int32 Index = 0; GameState && !Owner && Index < GameState->PlayerArray.Num(); ++Index)
+	{
+		const AWoRPlayerState *Player = Cast<AWoRPlayerState>(GameState->PlayerArray[Index]);
+		if (Player && ((MemberId.IsValid() && Player->ClaimsMember(MemberId)) || Player->ClaimsCharacter(Character)))
+		{
+			Owner = Player;
+		}
+	}
+	const APlayerController *Viewer = World ? World->GetFirstPlayerController() : nullptr;
+	// Unclaimed: the viewer's own only when alone (solo); with other players it may be theirs, so neutral until a claim arrives.
+	const bool bAlone = !GameState || GameState->PlayerArray.Num() <= 1;
+	const bool bViewersOwn = Owner ? Viewer && Viewer->PlayerState == Owner : bAlone;
+	return MakeCardName(*Character, IsPlayerCharacter(Character), bViewersOwn, Owner ? Owner->GetPlayerName() : FString());
+}
+
+FText WoRPlayerBuild::GetDetailLine(const UCharacterData *Character)
+{
+	// D-229: the kind name the character is built with ("Fire Refractor"); the wording waits on Crown's Spirit/Body rename.
+	return IsPlayerCharacter(Character) ? FText::FromString(Character->Name) : FText::GetEmpty();
 }
 
 bool WoRPlayerBuild::IsBuilt(const UCharacterData *Character)

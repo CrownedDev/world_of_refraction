@@ -14,9 +14,11 @@
 
 class UCharacterData;
 class UGameInstance;
+class UWorld;
 class UInventoryData;
 class UClassDefaultLoadoutData;
 struct FClassElementNumbers;
+struct FGuid;
 struct FPartyMember;
 struct FPlayerPicks;
 
@@ -55,7 +57,24 @@ namespace WoRPlayerBuild
 	/** A character made by BuildFrom (its name starts with BUILT_NAME and it lives in the transient package). */
 	WORLD_OF_REFRACTION_API bool IsBuilt(const UCharacterData *Character);
 
-	/** D-229 (Crown): two players' characters of one kind read apart by the player's tag: a built player character
+	/** D-229 (Crown): a player's own character, built from picks and not a hub recruit. */
+	WORLD_OF_REFRACTION_API bool IsPlayerCharacter(const UCharacterData *Character);
+
+	/** D-229 (Crown, "How a player's card reads"): a player character's card reads "You" to its own player and its
+	 *  player's gamer tag to everyone else ("Player" with none); a recruit or an enemy reads its own name. */
+	WORLD_OF_REFRACTION_API FText MakeCardName(const UCharacterData &Character, bool bPlayerCharacter, bool bViewersOwn,
+											   const FString &OwnerTag);
+
+	/** D-229: MakeCardName for World's local viewer. The owner is the player claiming MemberId (else Character); none
+	 *  claims it, or the first local player does: the viewer's own. The tag is the owner's PlayerState name. */
+	WORLD_OF_REFRACTION_API FText GetCardName(const UCharacterData *Character, const FGuid &MemberId, const UWorld *World);
+
+	/** D-229: the detail line under a player character's name: its kind name ("Fire Refractor"). Empty for a recruit or
+	 *  an enemy. */
+	WORLD_OF_REFRACTION_API FText GetDetailLine(const UCharacterData *Character);
+
+	/** OBSOLETE (D-229, replaced by GetCardName: each viewer reads You or the tag; no longer called, delete after PIE).
+	 *  Two players' characters of one kind read apart by the player's tag: a built player character
 	 *  (picks set, not a recruit) that shares its kind name with another is named "Fire Refractor (tag)", the tag its
 	 *  GuestKey for a guest and HostTag for the host's own; with no clash, the kind name alone. True when a name
 	 *  changed. */
