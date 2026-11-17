@@ -14,7 +14,7 @@ Crown, 2026-11-17 (Q-561): a guest in a friend's game keeps what its character e
 - What counts as earned:
   - **Currencies:** every player's own wallet is already paid in full (D-046, D-103), so the guest keeps its wallet's change since it connected. Gold is run-only (B-178) and never banked.
   - **Kept levels (D-237):** taken from a settled host save (no run open), and they replace the last ones.
-  - **Gear (D-219) and skills (D-224):** B-564.
+  - **Gear (D-219, D-221):** the host's hub gear owned by the guest's member (its starting kit there is not copied), owned, not worn. **Skills (D-224):** its learned skills, no duplicates. B-564: `FoldGearAndSkills`, `GetSavedMemberKey`. If that slot is loaded in play, the live pool is reloaded from it.
 
 ## Integration points
 - `AWoRPlayerState::ClientInitialize` → `NoteReportedWallet`.
@@ -27,7 +27,9 @@ Crown, 2026-11-17 (Q-561): a guest in a friend's game keeps what its character e
 - Unproven without a second client: the hooks on a real client.
 - On a disconnect the local controller may already be gone at `EndPlay`. The wallet change since the last checkpoint is then lost; the last checkpoint's fold still stands.
 - The wallet counted at connect is the slot in play's (B-425). Joining as another slot counts only the change, never that balance.
-- Gear and skills come in B-564.
+- Kept gear is not worn on arrival (the guest's worn record points at its own pieces). Kept found evolutions come too, whether owned by the member or in one of its sockets (loose when the socket was its starting kit's).
+- A learned skill the character already has keeps its own copy (matched by its asset).
+- With the slot in play, the live pool is emptied and restored from the folded save, as a load and the return to the own save do. On a guest's machine its own pool doesn't change during a visit, so nothing unsaved is lost; a live loadout holding old pointers is refreshed by the next level load.
 - D-064: this is per co-op visit, not per fight: the local player's link to its own save, on its own machine. A visit starts with each new server connection (`NoteReportedWallet`); a seamless travel keeps the same connection. A wallet not replicated yet (empty) is not folded.
 - The new character's slot is written when the join is sent, so a refused join still leaves it on the title.
 
@@ -35,3 +37,4 @@ Crown, 2026-11-17 (Q-561): a guest in a friend's game keeps what its character e
 | Date | Change | Branch |
 |---|---|---|
 | 2026-11-17 | B-563: created. The visit, the wallet change, kept levels, the new character's slot, `WriteSlotData`. Spec `WoR.Coop.GuestKeep`. | `feature/B-563-guest-keeps-earnings` |
+| 2026-11-17 | B-564: gear and skills. `FoldGearAndSkills` (hub gear owned by the guest's member, learned skills), `GetSavedMemberKey`; the live pool is reloaded when the slot is in play. | `feature/B-564-guest-keeps-gear-skills` |
