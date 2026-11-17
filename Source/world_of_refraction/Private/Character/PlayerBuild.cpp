@@ -10,6 +10,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryData.h"
 #include "Loadout/ClassDefaultLoadoutData.h"
+#include "Loadout/FSavedLoadout.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -71,12 +72,40 @@ UCharacterData *WoRPlayerBuild::Build(const FPlayerPicks &Picks, const UGameInst
 	const bool bNumbers = Table && Table->FindNumbers(Picks.Class, Picks.Element, Picks.bBrokenDarkness, Numbers, ActionSpeed);
 	UE_CLOG(!bNumbers, LogWoR, Warning, TEXT("[PlayerBuild] No class table row for %s: the player asset's numbers stay"),
 			*UEnum::GetValueAsString(Picks.Class));
-	// shortcut: the start character's inventory (innate spells, starting gear) until stage 4 sets the gear from the picks.
-	const UCharacterData *Start = WoRNewGame::FindStartCharacter(PartySession->NewGameCharacters, Picks);
+	// B-556 (stage 4): the player's own inventory from the picks and the table (no table: the shared asset's).
+	UInventoryData *Inventory = Table ? MakeInventory(Picks, *Table, bNumbers ? &Numbers : nullptr) : Template->Inventory;
 	UCharacterData *Built = BuildFrom(Picks, Template, bNumbers ? &Numbers : nullptr, bNumbers ? ActionSpeed : Template->ActionSpeed,
-									  Start ? Start->Inventory : Template->Inventory, FName(BUILT_NAME));
+									  Inventory, FName(BUILT_NAME));
 	UE_LOG(LogWoR, Log, TEXT("[PlayerBuild] %s"), *GetBuiltString(Built));
 	return Built;
+}
+
+UInventoryData *WoRPlayerBuild::MakeInventory(const FPlayerPicks &Picks, const UClassDefaultLoadoutData &Table, const FClassElementNumbers *Numbers)
+{
+	UPackage *Package = GetTransientPackage();
+	UInventoryData *Inventory = NewObject<UInventoryData>(Package, MakeUniqueObjectName(Package, UInventoryData::StaticClass(), TEXT("WoRPlayerInventory")));
+	// Minted once, on the first draw or trial (UPoolSubsystem::SeedStartingGear); the crystals banked once (BankStartingItems).
+	Inventory->StartingGear = Table.MakePickedGear(Picks, /*Base=*/nullptr);
+	Inventory->CrystalStock = UClassDefaultLoadoutData::GetPickedCrystals(Picks);
+	// The innate list and pools a pawn's first draw reads: the inventory's active authored loadout.
+	FSavedLoadout Loadout;
+	Loadout.LoadoutName = TEXT("Innate");
+	for (USpellData *Spell : Numbers ? Numbers->InnateSpells : TArray<TObjectPtr<USpellData>>())
+	{
+		Loadout.InnateSpells.Add(FSpellRef(Spell));
+	}
+	for (const FBDElementSpellPool &Pool : Numbers ? Numbers->BDSpellPools : TArray<FBDElementSpellPool>())
+	{
+		FSavedBDElementSpellPool &Saved = Loadout.BDSpellPools.AddDefaulted_GetRef();
+		Saved.Element = Pool.Element;
+		for (USpellData *Spell : Pool.Spells)
+		{
+			Saved.Spells.Add(FSpellRef(Spell));
+		}
+	}
+	Inventory->SavedLoadouts.Add(Loadout);
+	Inventory->DefaultActiveLoadoutIndex = 0;
+	return Inventory;
 }
 
 bool WoRPlayerBuild::IsBuilt(const UCharacterData *Character)
