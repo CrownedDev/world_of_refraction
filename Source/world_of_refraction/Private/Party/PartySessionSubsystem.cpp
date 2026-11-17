@@ -14,6 +14,7 @@
 #include "Player/WoRPlayerState.h"
 #include "Party/Party.h"
 #include "Pool/PoolSubsystem.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "Combat/TurnManager.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -512,8 +513,15 @@ bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> Paw
 		Member.bAISeat = true;
 		Member.bPlayerControlled = false; // OBSOLETE mirror, kept for the save
 	}
-	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s joins for this run only, ungeared%s"), *Data->Name,
+	// B-552 (D-239): picked up inside a run, it starts from scratch on its class kit (ungeared without a run layer).
+	UTrialRunSubsystem *TrialRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+	const bool bOnKit = TrialRun && TrialRun->StartRecruitOnKit(Data, UPoolSubsystem::GetCharacterKey(Member));
+	UE_LOG(LogTemp, Log, TEXT("[PartySession] %s joins for this run only, %s%s"), *Data->Name, bOnKit ? TEXT("on its class kit") : TEXT("ungeared"),
 		   Member.bAISeat ? TEXT(", as an AI seat (multiplayer)") : TEXT(""));
+	if (bOnKit)
+	{
+		PullWheelPicksFromPool(); // the kit cleared its pick
+	}
 	OnPartyChanged.Broadcast(GetLocalParty());
 	return true;
 }

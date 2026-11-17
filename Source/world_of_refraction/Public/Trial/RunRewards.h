@@ -33,6 +33,8 @@ struct WORLD_OF_REFRACTION_API FRunPayout
 		return *this;
 	}
 	bool IsEmpty() const { return HubGold <= 0 && GearEssence <= 0 && SkillEssence <= 0; }
+	/** B-550 (D-235): both parts pay the one Dormant Essence balance; the tally keeps their own numbers. */
+	int32 GetDormantEssence() const { return GearEssence + SkillEssence; }
 };
 
 namespace RunRewards
@@ -76,6 +78,6 @@ namespace RunRewards
 	/** Server: pays Payout into every player's wallet (D-103: each in full). Returns how many were paid. */
 	WORLD_OF_REFRACTION_API int32 PayRunEndToPlayers(UWorld *World, const FRunPayout &Payout);
 
-	/** Debug: "120 Gold, 6 Gear Essence, 6 Skill Essence". */
+	/** Debug: "120 Gold, 12 Dormant Essence". */
 	WORLD_OF_REFRACTION_API FString GetPayoutString(const FRunPayout &Payout);
 }

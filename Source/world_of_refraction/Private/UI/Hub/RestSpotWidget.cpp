@@ -224,8 +224,8 @@ void URestSpotWidget::Refresh()
 	{
 		PayoutText->SetVisibility(bOnClient || !bCanLeave ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 		const FRunPayout Earned = Run ? Run->GetRunEndPayout() : FRunPayout();
-		PayoutText->SetText(FText::Format(LOCTEXT("Earned", "Earned so far: {0} Gold, {1} Gear Essence, {2} Skill Essence (leaving now pays {3}%)."),
-										  FText::AsNumber(Earned.HubGold), FText::AsNumber(Earned.GearEssence), FText::AsNumber(Earned.SkillEssence),
+		PayoutText->SetText(FText::Format(LOCTEXT("EarnedDormant", "Earned so far: {0} Gold, {1} Dormant Essence (leaving now pays {2}%)."),
+										  FText::AsNumber(Earned.HubGold), FText::AsNumber(Earned.GetDormantEssence()),
 										  FText::AsNumber(FMath::RoundToInt(RunRewards::LEAVE_EARLY_SHARE * 100.0f))));
 	}
 	if (ConfirmText)

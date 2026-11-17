@@ -138,8 +138,7 @@ int32 RunRewards::PayRunEndToPlayers(UWorld *World, const FRunPayout &Payout)
 	const int32 Paid = ForEachPlayerWallet(World, [&Payout](UCurrencyComponent &Wallet)
 	{
 		const TPair<ECurrencyType, int32> Parts[] = {{ECurrencyType::Prisms, Payout.HubGold}, // hub Gold (D-159 naming)
-													 {ECurrencyType::GearEssence, Payout.GearEssence},
-													 {ECurrencyType::SkillEssence, Payout.SkillEssence}};
+													 {ECurrencyType::GearEssence, Payout.GetDormantEssence()}}; // B-550
 		for (const TPair<ECurrencyType, int32> &Part : Parts)
 		{
 			if (Part.Value > 0)
@@ -174,5 +173,5 @@ float RunRewards::PayoutMultiplierForBonus(float BonusPercent)
 
 FString RunRewards::GetPayoutString(const FRunPayout &Payout)
 {
-	return FString::Printf(TEXT("%d Gold, %d Gear Essence, %d Skill Essence"), Payout.HubGold, Payout.GearEssence, Payout.SkillEssence);
+	return FString::Printf(TEXT("%d Gold, %d Dormant Essence"), Payout.HubGold, Payout.GetDormantEssence());
 }

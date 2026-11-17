@@ -93,7 +93,7 @@ void FRunRewardsSpec::Define()
 			const FRunPayout Payout = Run->GetRunEndPayout();
 			TestEqual(TEXT("paid to the one player"), Run->PayRunEnd(TestWorld->GetWorld()), 1);
 			TestEqual(TEXT("hub Gold at the end"), Wallet->GetBalance(ECurrencyType::Prisms), HubBefore + Payout.HubGold);
-			TestEqual(TEXT("Gear Essence at the end"), Wallet->GetBalance(ECurrencyType::GearEssence), Payout.GearEssence);
+			TestEqual(TEXT("Dormant Essence at the end (B-550)"), Wallet->GetBalance(ECurrencyType::GearEssence), Payout.GetDormantEssence());
 			TestTrue(TEXT("hub Gold buys in the hub afterwards"), Wallet->CanAfford(ECurrencyType::Prisms, Payout.HubGold));
 			TestEqual(TEXT("paid once"), Run->PayRunEnd(TestWorld->GetWorld()), 0);
 		});

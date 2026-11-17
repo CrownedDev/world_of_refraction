@@ -1150,7 +1150,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			// B-476e: the piece's HP / Defence / Amp lines are among its details. TODO: its effects' text.
 			for (const FLoadoutScreenDetail &Detail : Row->Details)
 			{
-				BoxText.Add({FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Detail.Label, Detail.Value), false});
+				BoxText.Add({Detail.Label.IsEmpty() ? Detail.Value : FText::Format(LOCTEXT("BoxStat", "{0}   {1}"), Detail.Label, Detail.Value), false});
 			}
 			if (!bSimpleView)
 			{

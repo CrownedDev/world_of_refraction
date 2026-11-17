@@ -124,7 +124,7 @@ FPauseMenuHeader WoRPauseMenu::BuildHeader(const UWorld *World)
 	const auto AddBalances = [&Header, Wallet, World]()
 	{
 		for (const ECurrencyType Currency : {UEconomyService::GetPlaceCurrency(World), ECurrencyType::Diamond, ECurrencyType::GearEssence,
-											 ECurrencyType::SkillEssence, ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence})
+											 ECurrencyType::ElementalEssence, ECurrencyType::PillarEssence}) // B-550: one Dormant chip
 		{
 			Header.Chips.Add({FText::AsNumber(Wallet ? Wallet->GetBalance(Currency) : 0), WoRGameNames::GetCurrencyName(Currency)});
 		}

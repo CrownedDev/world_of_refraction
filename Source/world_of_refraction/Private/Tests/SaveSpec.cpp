@@ -403,6 +403,30 @@ void FSaveSpec::Define()
 		TestFalse(TEXT("Data gone"), Loaded->Data.Party.bHasParty);
 	});
 
+	It("adds an older save's Gear and Skill essence into Dormant Essence, once (B-550, D-235)", [this]()
+	{
+		FWoRTestWorld World;
+		if (!World.Create()) return;
+		FSavedWallet Older;
+		Older.bHasWallet = true;
+		for (const TPair<ECurrencyType, int32> &Part : {TPair<ECurrencyType, int32>(ECurrencyType::GearEssence, GEAR_ESSENCE),
+														 TPair<ECurrencyType, int32>(ECurrencyType::SkillEssence, SKILL_ESSENCE)})
+		{
+			FSavedBalance &Balance = Older.Balances.AddDefaulted_GetRef();
+			Balance.Currency = static_cast<uint8>(Part.Key);
+			Balance.Amount = Part.Value;
+		}
+		UCurrencyComponent *Wallet = FWoRTestWorld::AddComponent<UCurrencyComponent>(World.GetWorld()->SpawnActor<AActor>());
+		USaveSubsystem::ApplyWallet(Older, Wallet);
+		USaveSubsystem::ApplyWallet(Older, Wallet);
+		TestEqual(TEXT("both added, not doubled by a second apply"), Wallet->GetGearEssence(), GEAR_ESSENCE + SKILL_ESSENCE);
+		const FSavedWallet Saved = USaveSubsystem::CaptureWallet(Wallet);
+		TestFalse(TEXT("only Dormant (GearEssence) is banked"), Saved.Balances.ContainsByPredicate([](const FSavedBalance &Balance)
+		{
+			return Balance.Currency == static_cast<uint8>(ECurrencyType::SkillEssence);
+		}));
+	});
+
 	It("keeps every value whose SaveGame tag went, through the explicit save structs (D-059)", [this]()
 	{
 		FWoRTestWorld Before;
@@ -439,8 +463,8 @@ void FSaveSpec::Define()
 		USaveSubsystem::ApplyWallet(Loaded->Data.Wallet, Fresh);
 		TestEqual(TEXT("Prisms"), Fresh->GetBalance(ECurrencyType::Prisms), PRISMS);
 		TestEqual(TEXT("Diamonds"), Fresh->GetBalance(ECurrencyType::Diamond), DIAMONDS);
-		TestEqual(TEXT("Gear essence"), Fresh->GetGearEssence(), GEAR_ESSENCE);
-		TestEqual(TEXT("Skill essence"), Fresh->GetSkillEssence(), SKILL_ESSENCE);
+		TestEqual(TEXT("Dormant essence: both added (B-550)"), Fresh->GetGearEssence(), GEAR_ESSENCE + SKILL_ESSENCE);
+		TestEqual(TEXT("Skill essence reads the same balance"), Fresh->GetSkillEssence(), GEAR_ESSENCE + SKILL_ESSENCE);
 		TestEqual(TEXT("Elemental essence"), Fresh->GetElementalEssence(), ELEMENTAL_ESSENCE);
 
 		UPoolSubsystem *NewPool = After.GetSubsystem<UPoolSubsystem>();

@@ -253,6 +253,36 @@ void UTrialRunSubsystem::StartRunGearAndGold()
     }
 }
 
+bool UTrialRunSubsystem::StartRecruitOnKit(const UCharacterData *Data, FName CharacterKey)
+{
+    UPoolSubsystem *Pool = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
+    if (!Data || CharacterKey.IsNone() || !Pool || !Pool->IsRunLayerActive())
+    {
+        return false;
+    }
+    const FClassDefaultLoadout *Kit = FindClassDefaults(Data->CharacterClass);
+    if (!Kit)
+    {
+        return false; // FindClassDefaults logs why; the recruit keeps what it wears
+    }
+    // As a first draw reads it (B-529): the template's active authored loadout gives the innate list and pools.
+    const UInventoryData *Start = Data->Inventory;
+    if (!Pool->GetWornGear(CharacterKey) && Start && !Start->SavedLoadouts.IsEmpty())
+    {
+        const FSavedLoadout &Authored = Start->SavedLoadouts[FMath::Clamp(Start->DefaultActiveLoadoutIndex, 0, Start->SavedLoadouts.Num() - 1)];
+        Pool->SetWornGear(CharacterKey, FCombatLoadout::CreateFromSavedLoadout(Authored).ToWornGear(Data->CharacterClass));
+    }
+    Pool->ResetClassDefaultKit(CharacterKey, *Kit);
+    for (const FGuid &ID : Pool->WearClassDefaultKit(CharacterKey, *Kit))
+    {
+        Pool->TakeOnRun(ID);
+    }
+    // shortcut: its skills are left as today (a run recruit's go to the host when it leaves, D-152); a fresh recruit has
+    // no run skills. Snapshot them as BeginKitRunSkills does if a returning character must drop learned ones.
+    UE_LOG(LogWoRLoadout, Log, TEXT("[TrialRun] %s joins the run from scratch on its class kit (D-239)"), *Data->GetName());
+    return true;
+}
+
 void UTrialRunSubsystem::SetGateChoice(int32 InVariationIndex, ETrialDifficulty InDifficulty)
 {
     VariationIndex = InVariationIndex;

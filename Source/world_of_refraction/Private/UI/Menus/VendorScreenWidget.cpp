@@ -549,7 +549,7 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 		Lines.Add(Row.KindLine);
 		for (const FLoadoutScreenDetail &Detail : Row.Details)
 		{
-			Lines.Add(FText::Format(LOCTEXT("DetailLine", "{0}:  {1}"), Detail.Label, Detail.Value));
+			Lines.Add(Detail.Label.IsEmpty() ? Detail.Value : FText::Format(LOCTEXT("DetailLine", "{0}:  {1}"), Detail.Label, Detail.Value));
 		}
 		if (!Row.Note.IsEmpty() && !EffectIcon)
 		{

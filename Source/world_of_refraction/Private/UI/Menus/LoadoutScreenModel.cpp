@@ -187,7 +187,7 @@ namespace LoadoutScreenBuild
 		}
 		const ESpellElement Element = Gear.AttachedItem.GetElement();
 		AddDetail(Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
-		AddDetail(Row, LOCTEXT("DetailDurability", "Wear"), FormatDurability(Gear.AttachedItem));
+		AddDetail(Row, FText::GetEmpty(), FormatDurability(Gear.AttachedItem)); // D-231: the wear number alone, no word
 		return Row;
 	}
 
@@ -837,7 +837,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 		Choice.Row.KindLine = Element == ESpellElement::None ? Kind : FText::Format(LOCTEXT("KindAndType", "{0} · {1}"), Kind, WoRGameNames::GetElementName(Element));
 		Choice.Row.Tier = WoRGameNames::GetTierLetter(Stack.Key.Tier);
 		AddDetail(Choice.Row, LOCTEXT("DetailElement", "Element"), Element == ESpellElement::None ? FText::GetEmpty() : WoRGameNames::GetElementName(Element));
-		AddDetail(Choice.Row, LOCTEXT("DetailDurability", "Wear"), FormatDurability(Choice.Attachment));
+		AddDetail(Choice.Row, FText::GetEmpty(), FormatDurability(Choice.Attachment)); // D-231: the number alone
 		AddDetail(Choice.Row, LOCTEXT("DetailCarried", "Carried"), FText::AsNumber(Stack.Value));
 		Finish(Choice, false);
 	}
