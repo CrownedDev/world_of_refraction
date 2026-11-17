@@ -137,7 +137,9 @@ void FPlayerBuildSpec::Define()
 
 		FWoRSaveData Data;
 		Data.Party = Saved;
-		TestEqual(TEXT("the title names the slot by its class (D-228), not the saved typed name"), WoRTitleScreen::Summarize(Data, true, 0.0).LeaderName.ToString(), FString(TEXT("Resonator")));
+		const FTitleSaveSummary Summary = WoRTitleScreen::Summarize(Data, true, 0.0);
+		TestTrue(TEXT("the title names the slot by its body and class (D-241), not the saved typed name"),
+				 Summary.LeaderName.ToString() == TEXT("Male Nobody") && Summary.LeaderSpirit.ToString() == TEXT("Resonator"));
 	});
 
 	It("gives each character slot its own file and lists the filled slots, then the +", [this]()
