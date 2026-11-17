@@ -47,6 +47,9 @@ protected:
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	/** B-553 (D-233): the member tab under a moving mouse lights (hover colour); the click still picks it. */
+	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual void NativeOnMouseLeave(const FPointerEvent &InMouseEvent) override;
 
 private:
 	/** A pillar's widgets: its level pips and its sub-stat lines, built once and refilled. */
@@ -76,6 +79,10 @@ private:
 	UWidget *BuildResistancePanel();
 	void Refresh();
 	int32 FindMemberTabUnder(const FPointerEvent &MouseEvent) const;
+	/** Colours the member tabs (current, hovered, plain) without rebuilding the page. */
+	void PaintMemberTabs();
+	void SetHoveredTab(int32 Tab);
+	int32 HoveredTab = INDEX_NONE;
 
 	TArray<FPauseMenuMember> Members;
 	FCharacterSheetPage Page;

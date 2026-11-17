@@ -214,6 +214,8 @@ protected:
 	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent &InMouseEvent) override;
+	/** B-553 (D-233): the wheel moves the lit line, as Up / Down do. */
+	virtual FReply NativeOnMouseWheel(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual bool NativeOnHandleBackAction() override;
 
 private:

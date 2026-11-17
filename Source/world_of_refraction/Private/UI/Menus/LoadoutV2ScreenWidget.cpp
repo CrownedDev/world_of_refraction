@@ -1472,6 +1472,16 @@ void ULoadoutV2ScreenWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEven
 	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
+FReply ULoadoutV2ScreenWidget::NativeOnMouseWheel(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	if (bRenaming || InMouseEvent.GetWheelDelta() == 0.0f)
+	{
+		return Super::NativeOnMouseWheel(InGeometry, InMouseEvent);
+	}
+	MoveSelection(InMouseEvent.GetWheelDelta() > 0.0f ? -1 : 1); // wheel up: the line above, as Up
+	return FReply::Handled();
+}
+
 FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
 	if (bRenaming || InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)

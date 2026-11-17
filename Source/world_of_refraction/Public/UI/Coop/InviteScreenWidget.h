@@ -51,6 +51,8 @@ protected:
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	/** B-553 (D-233): a moving mouse lights the friend, seat or Host row under it, as Up / Down do. */
+	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 
 private:
 	/** One row's widgets, made once and refilled (never rebuilt). */
@@ -64,7 +66,10 @@ private:
 	void BuildTree();
 	FRowWidgets BuildRow(UPanelWidget *List, float Width);
 	void RefreshData();
-	void RefreshSelection();
+	/** bScrollIntoView false: the mouse lit the row, so the list mustn't move under the cursor. */
+	void RefreshSelection(bool bScrollIntoView = true);
+	/** Lights a row (a click, or B-553's hover); the message about the old row goes. */
+	void LightRow(bool bSeats, int32 Row);
 	void HandleFriendsRead();
 	/** Which side and row the mouse is over; false when none. */
 	bool FindRowUnder(const FPointerEvent &MouseEvent, bool &bOutSeats, int32 &OutRow) const;

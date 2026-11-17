@@ -49,9 +49,14 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+	/** B-553 (D-233): a moving mouse lights the choice under it; a click picks it and invites, as A does. */
+	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 
 private:
 	void Refresh();
+	/** The shown choice row under the cursor, or INDEX_NONE. */
+	int32 FindChoiceUnder(const FPointerEvent &MouseEvent) const;
 	/** The lit choice's text: "Invite for this run" or "Invite: <name> steps out". */
 	FText GetChoiceText(int32 Choice) const;
 

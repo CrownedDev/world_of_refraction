@@ -50,8 +50,14 @@ public:
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+	/** B-553 (D-233): while answering, a moving mouse lights the seat under it; a click gives it, as A does. */
+	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
+	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 
 private:
+	/** The shown seat row under the cursor, or INDEX_NONE. */
+	int32 FindSeatUnder(const FPointerEvent &MouseEvent) const;
+
 	struct FSeatWidgets
 	{
 		TWeakObjectPtr<UBorder> Frame;
@@ -123,6 +129,8 @@ private:
 	FDelegateHandle RequestsChangedHandle;
 	uint32 HoldBindingHandle = 0;
 	bool bFocused = false;
+	/** B-553: the controller Focus showed the cursor for (keyboard and mouse); ReleaseKeys hides it again, card or not. */
+	TWeakObjectPtr<APlayerController> CursorShownFor;
 
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> AnswerAction;

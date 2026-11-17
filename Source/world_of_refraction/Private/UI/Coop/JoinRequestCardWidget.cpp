@@ -100,8 +100,8 @@ TSharedRef<SWidget> UJoinRequestCardWidget::RebuildWidget()
 		ReplaceText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
 		NoteText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
 		MessageText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
-		HintText = MakeHintText(WidgetTree, LineFontSize, CyanColor); // B-481: Card.Hints is a key-hint pattern
-		HintText->SetAutoWrapText(true);
+		// B-481: Card.Hints is a key-hint pattern; B-553: drawn as caps, so a click on Refuse or Close does what the key does.
+		HintText = MakeHintBar(WidgetTree, LineFontSize, CyanColor, /*bBar=*/false);
 		AddToColumn(Column, ReplaceText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 		AddToColumn(Column, NoteText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 		AddToColumn(Column, MessageText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
@@ -233,6 +233,46 @@ FReply UJoinRequestCardWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 	return FReply::Handled();
 }
 
+int32 UJoinRequestCardWidget::FindSeatUnder(const FPointerEvent &MouseEvent) const
+{
+	const int32 Count = bFocused ? FMath::Min(Card.Seats.Num(), SeatWidgets.Num()) : 0; // idle, the card is not answered
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		const UBorder *Frame = SeatWidgets[Index].Frame.Get();
+		if (Frame && Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+FReply UJoinRequestCardWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	// Only a moving mouse picks a seat, so a resting cursor doesn't fight the keys.
+	const int32 Seat = InMouseEvent.GetCursorDelta().IsZero() ? INDEX_NONE : FindSeatUnder(InMouseEvent);
+	if (Seat != INDEX_NONE && Seat != SeatRow)
+	{
+		MoveSelection(Seat - SeatRow);
+	}
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+}
+
+FReply UJoinRequestCardWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	const int32 Seat = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton ? FindSeatUnder(InMouseEvent) : INDEX_NONE;
+	if (Seat == INDEX_NONE)
+	{
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	}
+	if (Seat != SeatRow)
+	{
+		MoveSelection(Seat - SeatRow);
+	}
+	PressGive();
+	return FReply::Handled();
+}
+
 bool UJoinRequestCardPresenter::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
 	return WorldType == EWorldType::Game || WorldType == EWorldType::PIE;
@@ -325,6 +365,11 @@ void UJoinRequestCardPresenter::Focus()
 	FInputModeUIOnly InputMode;
 	InputMode.SetWidgetToFocus(Shown->TakeWidget());
 	PC->SetInputMode(InputMode);
+	if (!PC->ShouldShowMouseCursor() && !WoRKeyHints::IsGamepad(Shown)) // B-553: the mouse can answer too
+	{
+		PC->SetShowMouseCursor(true);
+		CursorShownFor = PC;
+	}
 	UE_LOG(LogWoRUI, Log, TEXT("[JoinRequestCard] Answering"));
 	Sync();
 }
@@ -349,6 +394,11 @@ bool UJoinRequestCardPresenter::ReleaseKeys()
 	{
 		PC->SetInputMode(FInputModeGameOnly());
 	}
+	if (APlayerController *CursorPC = CursorShownFor.Get())
+	{
+		CursorPC->SetShowMouseCursor(false);
+	}
+	CursorShownFor.Reset();
 	return true;
 }
 

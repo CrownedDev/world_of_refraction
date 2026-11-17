@@ -258,6 +258,45 @@ FReply URecruitCardWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FK
 	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
 }
 
+int32 URecruitCardWidget::FindChoiceUnder(const FPointerEvent &MouseEvent) const
+{
+	const int32 Count = FMath::Min(GetChoiceCount(), ChoiceRows.Num());
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		if (ChoiceRows[Index] && ChoiceRows[Index]->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+FReply URecruitCardWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	// Only a moving mouse picks a choice, so a resting cursor doesn't fight the keys.
+	const int32 Choice = InMouseEvent.GetCursorDelta().IsZero() ? INDEX_NONE : FindChoiceUnder(InMouseEvent);
+	if (Choice != INDEX_NONE && Choice != SelectedChoice)
+	{
+		MoveSelection(Choice - SelectedChoice);
+	}
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+}
+
+FReply URecruitCardWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	const int32 Choice = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton ? FindChoiceUnder(InMouseEvent) : INDEX_NONE;
+	if (Choice == INDEX_NONE)
+	{
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	}
+	if (Choice != SelectedChoice)
+	{
+		MoveSelection(Choice - SelectedChoice);
+	}
+	PressInvite();
+	return FReply::Handled();
+}
+
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GRecruitCardOpenCommand(
 	TEXT("wor.UI.RecruitCard"),
