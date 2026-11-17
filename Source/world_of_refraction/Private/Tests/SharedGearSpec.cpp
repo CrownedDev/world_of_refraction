@@ -275,6 +275,27 @@ void FSharedGearSpec::Define()
 				  Member->SavedLoadouts[0].PrimaryWeapon.WeaponEntry.PersistentID);
 	});
 
+	It("keeps a swapped-out member's worn sword from the recruit who takes its place (B-552, D-239)", [this]()
+	{
+		if (!Pool) return;
+		UInventoryComponent *First = SpawnMember(0, true, true);
+		if (!First || !TestEqual(TEXT("One sword"), Pool->GetOwnedWeapons().Num(), 1)) return;
+		const FGuid SwordID = Pool->GetOwnedWeapons()[0].PersistentID;
+		const FName FirstKey = UPoolSubsystem::GetCharacterKey(Members[0]);
+		TestEqual(TEXT("The first member wears it"), Pool->GetWearer(SwordID), FirstKey);
+
+		// The first steps out; a run recruit, who sees the whole armoury, joins in its place.
+		UParty *Party = TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty();
+		Party->Members.RemoveAt(0);
+		Party->Members[0].bRunOnly = true;
+		UInventoryComponent *Recruit = SpawnMember(1, false, false);
+		if (!Recruit) return;
+		TestTrue(TEXT("The recruit sees the sword"), Recruit->Weapons.ContainsByPredicate([SwordID](const FWeaponInventoryEntry &E) { return E.PersistentID == SwordID; }));
+		TestTrue(TEXT("It counts as worn by another"), Recruit->IsWornByOtherMember(SwordID));
+		TestFalse(TEXT("The recruit doesn't take it"), ActiveWeaponID(Recruit) == SwordID);
+		TestEqual(TEXT("The swapped-out member still wears it"), Pool->GetWearer(SwordID), FirstKey);
+	});
+
 	It("leaves a character outside the party on its own gear", [this]()
 	{
 		if (!Pool) return;
