@@ -8,6 +8,7 @@
 #include "GameFramework/GameStateBase.h"
 #include "GameFramework/PlayerState.h"
 #include "HAL/IConsoleManager.h"
+#include "Character/PlayerBuild.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/RunStateComponent.h"
@@ -109,7 +110,7 @@ FJoinRequestCard WoRJoinRequestCard::BuildCard(UWorld *World, bool bFocused)
 		const FPartyMember *Member = Party && Party->Members.IsValidIndex(Slot) ? &Party->Members[Slot] : nullptr;
 		FJoinRequestSeatRow &Row = Seats.AddDefaulted_GetRef();
 		Row.Slot = Slot;
-		Row.Name = Member && Member->CharacterData ? FText::FromString(Member->CharacterData->Name)
+		Row.Name = Member && Member->CharacterData ? WoRPlayerBuild::GetMemberListName(*Member, Party->Members, World) // D-241
 												   : FText::Format(LOCTEXT("SlotName", "Slot {0}"), Slot);
 		Row.Status = GetSeatStatus(Member && !Run->GetHeldFor(Member->MemberId).IsEmpty());
 	}

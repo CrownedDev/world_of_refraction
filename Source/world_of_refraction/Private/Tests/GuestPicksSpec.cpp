@@ -120,6 +120,33 @@ void FGuestPicksSpec::Define()
 		TestEqual(TEXT("no world: the Spirit line only"), WoRPlayerBuild::GetDetailLine(Player, FGuid(), nullptr).ToString(), FString(TEXT("Spirit of Fire")));
 	});
 
+	It("names party members in a list as the cards, with identity lines when one player has two (D-241)", [this]()
+	{
+		UPackage *Package = GetTransientPackage();
+		const auto MakeMember = [Package](const TCHAR *Part, ESpellElement Element, const TCHAR *Name)
+		{
+			FPartyMember Member;
+			Member.CharacterData = NewObject<UCharacterData>(Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(),
+																							  *(FString(WoRPlayerBuild::BUILT_NAME) + Part)));
+			Member.CharacterData->Name = Name;
+			Member.CharacterData->CharacterClass = ECharacterClass::Caster;
+			Member.CharacterData->InnateElement = Element;
+			return Member;
+		};
+		const FPartyMember Fire = MakeMember(TEXT("_ListSpec"), ESpellElement::Fire, TEXT("Fire Refractor"));
+		const FPartyMember Recruit = MakeMember(TEXT("_Recruit_ListSpec"), ESpellElement::Water, TEXT("Water Spirit"));
+		const TArray<FPartyMember> One = {Fire, Recruit};
+		TestEqual(TEXT("one of their own: You"), WoRPlayerBuild::GetMemberListName(Fire, One, nullptr).ToString(), FString(TEXT("You")));
+		TestEqual(TEXT("a recruit: its own name"), WoRPlayerBuild::GetMemberListName(Recruit, One, nullptr).ToString(), FString(TEXT("Water Spirit")));
+		const FPartyMember Earth = MakeMember(TEXT("_ListSpec"), ESpellElement::Earth, TEXT("Earth Refractor"));
+		const TArray<FPartyMember> Two = {Fire, Earth, Recruit};
+		const FString FireName = WoRPlayerBuild::GetMemberListName(Fire, Two, nullptr).ToString();
+		const FString EarthName = WoRPlayerBuild::GetMemberListName(Earth, Two, nullptr).ToString();
+		TestTrue(TEXT("two of their own: told apart by Spirit of"), FireName.StartsWith(TEXT("You")) && FireName.Contains(TEXT("Spirit of Fire"))
+																	   && EarthName.Contains(TEXT("Spirit of Earth")));
+		TestEqual(TEXT("the recruit still its own name"), WoRPlayerBuild::GetMemberListName(Recruit, Two, nullptr).ToString(), FString(TEXT("Water Spirit")));
+	});
+
 	It("reads a character as Spirit of over Body of (D-241)", [this]()
 	{
 		TestEqual(TEXT("a Refractor: its element"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Caster, ESpellElement::Fire, false).ToString(), FString(TEXT("Fire")));

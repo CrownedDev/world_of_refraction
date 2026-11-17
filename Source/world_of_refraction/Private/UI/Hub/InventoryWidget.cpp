@@ -13,6 +13,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Character/PlayerBuild.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
@@ -154,8 +155,7 @@ TArray<TPair<FName, FText>> UInventoryWidget::GatherMembers() const
 		{
 			if (Member.CharacterData)
 			{
-				// TODO: character names are FString assets; FText with B-127 (D-061).
-				Members.Emplace(UPoolSubsystem::GetCharacterKey(Member), FText::FromString(Member.CharacterData->Name));
+				Members.Emplace(UPoolSubsystem::GetCharacterKey(Member), WoRPlayerBuild::GetMemberListName(Member, Party->Members, GetWorld())); // D-241
 			}
 		}
 	}

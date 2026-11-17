@@ -274,6 +274,24 @@ FText WoRPlayerBuild::GetDetailLine(const UCharacterData *Character, const FGuid
 	return MakeIdentityLines(GetSpiritName(Character->CharacterClass, Character->InnateElement, Character->bBrokenDarknessInnate), Body);
 }
 
+FText WoRPlayerBuild::GetMemberListName(const FPartyMember &Member, TConstArrayView<FPartyMember> Members, const UWorld *World)
+{
+	const FText Name = GetCardName(Member.CharacterData, Member.MemberId, World);
+	if (!IsPlayerCharacter(Member.CharacterData))
+	{
+		return Name;
+	}
+	bool bViewersOwn = false;
+	const AWoRPlayerState *Owner = FindClaimingPlayer(Member.CharacterData, Member.MemberId, World, bViewersOwn);
+	const int32 SameOwner = Algo::CountIf(Members, [Owner, World](const FPartyMember &Other)
+	{
+		bool bOtherOwn = false;
+		return IsPlayerCharacter(Other.CharacterData) && FindClaimingPlayer(Other.CharacterData, Other.MemberId, World, bOtherOwn) == Owner;
+	});
+	// D-241: one player's two characters read alike by name alone; their identity lines tell them apart.
+	return SameOwner > 1 ? FText::Format(LOCTEXT("NameAndIdentity", "{0}\n{1}"), Name, GetDetailLine(Member.CharacterData, Member.MemberId, World)) : Name;
+}
+
 
 bool WoRPlayerBuild::IsBuilt(const UCharacterData *Character)
 {

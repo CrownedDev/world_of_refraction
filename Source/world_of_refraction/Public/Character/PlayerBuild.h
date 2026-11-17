@@ -86,6 +86,10 @@ namespace WoRPlayerBuild
 	 *  viewer's own character only (another player's body isn't known here). Empty for a recruit or an enemy. */
 	WORLD_OF_REFRACTION_API FText GetDetailLine(const UCharacterData *Character, const FGuid &MemberId, const UWorld *World);
 
+	/** D-241: a party member's name in a list (pickers, seats): GetCardName ("You", the gamer tag, a recruit's own name);
+	 *  when the same player has more than one character in Members, its identity lines under it to tell them apart. */
+	WORLD_OF_REFRACTION_API FText GetMemberListName(const FPartyMember &Member, TConstArrayView<FPartyMember> Members, const UWorld *World);
+
 	/** OBSOLETE (D-229, replaced by GetCardName: each viewer reads You or the tag; no longer called, delete after PIE).
 	 *  Two players' characters of one kind read apart by the player's tag: a built player character
 	 *  (picks set, not a recruit) that shares its kind name with another is named "Fire Refractor (tag)", the tag its

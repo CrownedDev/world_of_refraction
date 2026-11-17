@@ -14,6 +14,7 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
+#include "Character/PlayerBuild.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Trial/LevelDropPlacement.h"
@@ -150,6 +151,15 @@ const FPartyMember *ULevelDropWidget::SelectedMember() const
 	return Members.IsValidIndex(MemberIndex) ? Members[MemberIndex] : nullptr;
 }
 
+FText ULevelDropWidget::MemberNameOf(const FPartyMember &Member) const
+{
+	// D-241: You, the gamer tag or a recruit's name, as the cards and pickers.
+	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	return WoRPlayerBuild::GetMemberListName(Member, Party ? TConstArrayView<FPartyMember>(Party->Members) : TConstArrayView<FPartyMember>(), GetWorld());
+}
+
 void ULevelDropWidget::Refresh()
 {
 	if (!WaitingText || !MemberText || !StatusLine)
@@ -157,8 +167,9 @@ void ULevelDropWidget::Refresh()
 		return;
 	}
 	const FPartyMember *Member = SelectedMember();
+	const FText MemberName = Member ? MemberNameOf(*Member) : FText::GetEmpty();
 	// B-223b: each character places its own levels; Next member steps through whose levels these are.
-	WaitingText->SetText(Member ? FText::Format(LOCTEXT("Waiting", "{0}'s pillar levels to place: {1}"), FText::FromString(Member->CharacterData->Name),
+	WaitingText->SetText(Member ? FText::Format(LOCTEXT("WaitingFor", "Pillar levels to place ({0}): {1}"), MemberName,
 												FText::AsNumber(URunStateComponent::GetUnspentLevels(this, UPoolSubsystem::GetCharacterKey(*Member))))
 								: LOCTEXT("WaitingNone", "No party member"));
 
@@ -176,7 +187,7 @@ void ULevelDropWidget::Refresh()
 			const int32 Over = WoRLevelDrops::GetOverCap(World, *Member, Pillar);
 			return Over > 0 ? FText::Format(LOCTEXT("PillarOverCap", "{0} (+{1} extra)"), Level, FText::AsNumber(Over)) : Level;
 		};
-		MemberText->SetText(FText::Format(LOCTEXT("MemberRow", "{0}: {1} {2}, {3} {4}, {5} {6}"), FText::FromString(Member->CharacterData->Name),
+		MemberText->SetText(FText::Format(LOCTEXT("MemberRow", "{0}: {1} {2}, {3} {4}, {5} {6}"), MemberName,
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Mind), PillarLevel(EWorldPillar::Mind),
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Body), PillarLevel(EWorldPillar::Body),
 										  WoRLevelDrops::GetPillarName(EWorldPillar::Spirit), PillarLevel(EWorldPillar::Spirit)));
@@ -202,7 +213,7 @@ void ULevelDropWidget::HandleBuyClicked()
 		return;
 	}
 	const FText Refusal = WoRRestSpot::TryBuyPointHere(GetWorld(), *Member);
-	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Bought", "{0}: +1 point to place"), FText::FromString(Member->CharacterData->Name)) : Refusal;
+	StatusText = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Bought", "{0}: +1 point to place"), MemberNameOf(*Member)) : Refusal;
 	Refresh();
 }
 
@@ -226,7 +237,7 @@ void ULevelDropWidget::Place(EWorldPillar Pillar)
 	}
 	const FText Refusal = WoRLevelDrops::TryPlaceLevel(GetWorld(), *Member, Pillar);
 	StatusText = Refusal.IsEmpty()
-					 ? FText::Format(LOCTEXT("Placed", "{0} +1 {1}"), FText::FromString(Member->CharacterData->Name), WoRLevelDrops::GetPillarName(Pillar))
+					 ? FText::Format(LOCTEXT("Placed", "{0} +1 {1}"), MemberNameOf(*Member), WoRLevelDrops::GetPillarName(Pillar))
 					 : Refusal;
 	Refresh();
 	UE_LOG(LogTemp, Log, TEXT("%s"), *GetLevelDropWidgetString());
