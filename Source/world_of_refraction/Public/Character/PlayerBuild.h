@@ -32,7 +32,7 @@ namespace WoRPlayerBuild
 													  UInventoryData *Inventory, FName ObjectName);
 
 	/** BuildFrom with the game's own assets: the player asset, the class table and an inventory made from the picks
-	 *  (MakeInventory). Null, with a warning, when the picks are unset or the player asset is missing. */
+	 *  (MakeInventory). A recruit (B-557) already built under its name is returned as it is, never built twice. Null, with a warning, when the picks are unset or the player asset is missing. */
 	WORLD_OF_REFRACTION_API UCharacterData *Build(const FPlayerPicks &Picks, const UGameInstance *GameInstance);
 
 	/** B-556 (D-228, stage 4): the built player's own inventory: the picked pieces as its starting gear (no base kit),
@@ -40,6 +40,14 @@ namespace WoRPlayerBuild
 	 *  Broken Darkness pools (Numbers null: none). Transient. */
 	WORLD_OF_REFRACTION_API UInventoryData *MakeInventory(const FPlayerPicks &Picks, const UClassDefaultLoadoutData &Table,
 														  const FClassElementNumbers *Numbers);
+
+	/** B-557 (D-238): the object name Build gives these picks: BUILT_NAME for the player, BUILT_NAME_Recruit_<class>_
+	 *  <element> for a hub recruit (bRecruit), so a recruit never takes the player's name and a load finds it again. */
+	WORLD_OF_REFRACTION_API FName GetBuiltName(const FPlayerPicks &Picks);
+
+	/** B-557 (D-238): the class table's recruit row for this character's class (a Refractor: and element, Broken
+	 *  Darkness), or null (no row: the character stays as it is). */
+	WORLD_OF_REFRACTION_API const FPlayerPicks *FindRecruitPicks(const UCharacterData &Character, const UGameInstance *GameInstance);
 
 	/** A character made by BuildFrom (its name starts with BUILT_NAME and it lives in the transient package). */
 	WORLD_OF_REFRACTION_API bool IsBuilt(const UCharacterData *Character);

@@ -13,6 +13,7 @@
 #include "Loadout/FSavedLoadout.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "WoRGameNames.h"
 #include "WoRLog.h"
 
 bool UClassDefaultLoadoutData::FindNumbers(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness,
@@ -90,6 +91,53 @@ int32 UClassDefaultLoadoutData::FillFrom(const TArray<UCharacterData *> &Sources
 		UE_LOG(LogWoRLoadout, Log, TEXT("[ClassTable] %s filled from %s"), *UEnum::GetDisplayValueAsText(Source->CharacterClass).ToString(), *Source->GetName());
 	}
 	return Written;
+}
+
+#define LOCTEXT_NAMESPACE "ClassDefaultLoadout"
+
+const FPlayerPicks *UClassDefaultLoadoutData::FindRecruit(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness) const
+{
+	return Recruits.FindByPredicate([Class, Element, bBrokenDarkness](const FPlayerPicks &Row)
+	{
+		return Row.Class == Class && (Class != ECharacterClass::Caster || (Row.Element == Element && Row.bBrokenDarkness == bBrokenDarkness));
+	});
+}
+
+TArray<FPlayerPicks> UClassDefaultLoadoutData::MakeDefaultRecruits()
+{
+	const auto Make = [](ECharacterClass Class, const FText &Name)
+	{
+		FPlayerPicks Row;
+		Row.Name = Name.ToString();
+		Row.Class = Class;
+		Row.bRecruit = true;
+		return Row;
+	};
+	TArray<FPlayerPicks> Rows;
+	FPlayerPicks &Generic = Rows.Add_GetRef(Make(ECharacterClass::Generic, LOCTEXT("GenericSpirit", "Generic Spirit")));
+	Generic.Weapons = {EWeaponType::Sword, EWeaponType::Shield};
+	FPlayerPicks &Resonator = Rows.Add_GetRef(Make(ECharacterClass::Resonator, LOCTEXT("ResonatorSpirit", "Resonator Spirit")));
+	Resonator.Crystals = {ECrystalType::Garnet, ECrystalType::Sapphire};
+	const FText SpiritFormat = LOCTEXT("ElementSpirit", "{0} Spirit");
+	for (uint8 Value = static_cast<uint8>(ESpellElement::Fire); Value < static_cast<uint8>(ESpellElement::None); ++Value)
+	{
+		const ESpellElement Element = static_cast<ESpellElement>(Value);
+		FPlayerPicks &Refractor = Rows.Add_GetRef(Make(ECharacterClass::Caster, FText::Format(SpiritFormat, WoRGameNames::GetElementName(Element))));
+		Refractor.Element = Element;
+	}
+	FPlayerPicks &Broken = Rows.Add_GetRef(Make(ECharacterClass::Caster, LOCTEXT("BrokenDarknessSpirit", "Broken Darkness Spirit")));
+	Broken.Element = ESpellElement::Darkness;
+	Broken.bBrokenDarkness = true;
+	return Rows;
+}
+
+#undef LOCTEXT_NAMESPACE
+
+void UClassDefaultLoadoutData::FillRecruits()
+{
+	Recruits = MakeDefaultRecruits();
+	MarkPackageDirty();
+	UE_LOG(LogWoRLoadout, Display, TEXT("[ClassTable] %d recruit row(s) filled; set each Body (Starting spirit), then save"), Recruits.Num());
 }
 
 void UClassDefaultLoadoutData::FillFromSources()
@@ -176,6 +224,14 @@ FString UClassDefaultLoadoutData::GetDefaultsString() const
 	{
 		Out += FString::Printf(TEXT("\n    %s: %s (tier %s)"), *UEnum::GetDisplayValueAsText(Pair.Key).ToString(), *GetNameSafe(Pair.Value.Get()),
 							   Pair.Value ? *UEnum::GetDisplayValueAsText(Pair.Value->Tier).ToString() : TEXT("-"));
+	}
+	// B-557: the recruit rows.
+	Out += FString::Printf(TEXT("\n  Recruits: %d"), Recruits.Num());
+	for (const FPlayerPicks &Recruit : Recruits)
+	{
+		Out += FString::Printf(TEXT("\n    %s: %s %s%s, body %s"), *Recruit.Name, *UEnum::GetDisplayValueAsText(Recruit.Class).ToString(),
+							   *UEnum::GetDisplayValueAsText(Recruit.Element).ToString(), Recruit.bBrokenDarkness ? TEXT(" (BD)") : TEXT(""),
+							   *UEnum::GetDisplayValueAsText(Recruit.Body).ToString());
 	}
 	return Out;
 }

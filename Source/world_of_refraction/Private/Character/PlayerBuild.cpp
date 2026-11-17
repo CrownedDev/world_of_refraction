@@ -58,6 +58,11 @@ UCharacterData *WoRPlayerBuild::BuildFrom(const FPlayerPicks &Picks, const UChar
 
 UCharacterData *WoRPlayerBuild::Build(const FPlayerPicks &Picks, const UGameInstance *GameInstance)
 {
+	// B-557: a recruit's name stands for its fixed row, so one already built (the hub's, before a load) is the same one.
+	if (UCharacterData *Recruit = Picks.bRecruit && Picks.IsSet() ? FindObjectFast<UCharacterData>(GetTransientPackage(), GetBuiltName(Picks)) : nullptr)
+	{
+		return Recruit;
+	}
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	const UCharacterData *Template = PartySession && !PartySession->PlayerCharacter.IsNull() ? PartySession->PlayerCharacter.LoadSynchronous() : nullptr;
@@ -75,7 +80,7 @@ UCharacterData *WoRPlayerBuild::Build(const FPlayerPicks &Picks, const UGameInst
 	// B-556 (stage 4): the player's own inventory from the picks and the table (no table: the shared asset's).
 	UInventoryData *Inventory = Table ? MakeInventory(Picks, *Table, bNumbers ? &Numbers : nullptr) : Template->Inventory;
 	UCharacterData *Built = BuildFrom(Picks, Template, bNumbers ? &Numbers : nullptr, bNumbers ? ActionSpeed : Template->ActionSpeed,
-									  Inventory, FName(BUILT_NAME));
+									  Inventory, GetBuiltName(Picks));
 	UE_LOG(LogWoR, Log, TEXT("[PlayerBuild] %s"), *GetBuiltString(Built));
 	return Built;
 }
@@ -106,6 +111,24 @@ UInventoryData *WoRPlayerBuild::MakeInventory(const FPlayerPicks &Picks, const U
 	Inventory->SavedLoadouts.Add(Loadout);
 	Inventory->DefaultActiveLoadoutIndex = 0;
 	return Inventory;
+}
+
+FName WoRPlayerBuild::GetBuiltName(const FPlayerPicks &Picks)
+{
+	if (!Picks.bRecruit)
+	{
+		return FName(BUILT_NAME);
+	}
+	return FName(FString::Printf(TEXT("%s_Recruit_%s_%s%s"), BUILT_NAME, *StaticEnum<ECharacterClass>()->GetNameStringByValue(static_cast<int64>(Picks.Class)),
+								 *StaticEnum<ESpellElement>()->GetNameStringByValue(static_cast<int64>(Picks.Element)),
+								 Picks.bBrokenDarkness ? TEXT("_BD") : TEXT("")));
+}
+
+const FPlayerPicks *WoRPlayerBuild::FindRecruitPicks(const UCharacterData &Character, const UGameInstance *GameInstance)
+{
+	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	const UClassDefaultLoadoutData *Table = TrialRun && !TrialRun->GetClassDefaultLoadouts().IsNull() ? TrialRun->GetClassDefaultLoadouts().LoadSynchronous() : nullptr;
+	return Table ? Table->FindRecruit(Character.CharacterClass, Character.InnateElement, Character.bBrokenDarknessInnate) : nullptr;
 }
 
 bool WoRPlayerBuild::IsBuilt(const UCharacterData *Character)
