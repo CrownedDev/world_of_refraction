@@ -65,8 +65,15 @@ bool EnemyKitRules::GetKind(const UObject *Item, EEnemyKitKind &OutKind)
 int32 EnemyKitRules::GetMostGear(const FEnemyKit &Kit, ECharacterClass Class)
 {
 	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
-	const int32 ClassItems = Limits.MaxItems == LoadoutClassTable::NO_LIMIT ? Limits.MaxWeapons + Limits.MaxAdapters : Limits.MaxItems;
-	return Kit.bLimitGear ? FMath::Min(ClassItems, Kit.MostGear) : ClassItems;
+	const bool bKindsUncapped = Limits.MaxWeapons == LoadoutClassTable::NO_LIMIT || Limits.MaxAdapters == LoadoutClassTable::NO_LIMIT;
+	const int32 ClassItems = Limits.MaxItems != LoadoutClassTable::NO_LIMIT ? Limits.MaxItems
+							 : bKindsUncapped                               ? LoadoutClassTable::NO_LIMIT
+																			: Limits.MaxWeapons + Limits.MaxAdapters;
+	if (!Kit.bLimitGear)
+	{
+		return ClassItems;
+	}
+	return ClassItems == LoadoutClassTable::NO_LIMIT ? Kit.MostGear : FMath::Min(ClassItems, Kit.MostGear);
 }
 
 int32 EnemyKitRules::GetMostOfKind(const FEnemyKit &Kit, ECharacterClass Class, EEnemyKitKind Kind)
@@ -228,7 +235,7 @@ FString EnemyKitRules::GetEnemyKitString(const FEnemyKit &Kit, ECharacterClass C
 	}
 	FString Output = FString::Printf(TEXT("Always has: %s | skills: %s"), Pieces.IsEmpty() ? TEXT("nothing") : *FString::Join(Pieces, TEXT(", ")),
 									 Skills.IsEmpty() ? TEXT("none") : *FString::Join(Skills, TEXT(", ")));
-	Output += FString::Printf(TEXT(" | most gear %d (weapons %s, adapters %s), skills %d (before slots)"), GetMostGear(Kit, Class),
+	Output += FString::Printf(TEXT(" | most gear %s (weapons %s, adapters %s), skills %d (before slots)"), *GetLimitString(GetMostGear(Kit, Class)),
 							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Weapon)),
 							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Adapter)), Kit.bLimitSkills ? Kit.MostSkills : DEFAULT_MOST_SKILLS);
 	Output += FString::Printf(TEXT(" | kinds %s | weapon types %s | elements %s | tiers %s"), Kinds.IsEmpty() ? TEXT("any") : *FString::Join(Kinds, TEXT(", ")),

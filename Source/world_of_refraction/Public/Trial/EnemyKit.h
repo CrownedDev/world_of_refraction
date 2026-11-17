@@ -106,7 +106,8 @@ namespace EnemyKitRules
 
 	/** The kind of an always-has or pool item (a prebuilt find by its piece); false when it is no gear. */
 	WORLD_OF_REFRACTION_API bool GetKind(const UObject *Item, EEnemyKitKind &OutKind);
-	/** The class's item count (a Resonator's: its weapons and adapters), lowered by the kit's most gear. */
+	/** The class's item count (a Resonator's: its weapons and adapters), lowered by the kit's most gear; NO_LIMIT when
+	 *  neither caps it. */
 	WORLD_OF_REFRACTION_API int32 GetMostGear(const FEnemyKit &Kit, ECharacterClass Class);
 	/** How many of Kind the class carries (NO_LIMIT: no own cap); 0 when the kit leaves the kind out. Apparel and
 	 *  evolutions: NO_LIMIT here (an evolution still counts toward most gear). */
