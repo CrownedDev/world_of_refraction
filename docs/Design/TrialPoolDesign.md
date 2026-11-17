@@ -42,16 +42,15 @@
 
 **Part 1: what it always has.** A list of gear and skills on the enemy's template, for any enemy, not only a boss. A piece on the list has the tier it is given ("provide a low rank enemy with a D class weapon").
 
-**Part 2: what it takes from the pool.** Anything, at any tier its zone's range holds, inside six limits. Each is optional and **unset means any**, with one exception: skills.
+**Part 2: what it takes from the pool.** Anything, at any tier its zone's range holds, inside five limits (Crown, 2026-11-17: most weapons, most adapters and evolution allowed merged into most gear and the kinds). Each is optional and **unset means any**, with one exception: skills.
 
 | Limit | Unset means |
 |---|---|
-| Most weapons | As many as its class allows |
-| Most adapters | As many as its class allows |
+| Most gear (its slot count: weapons, adapters and an evolution together; apparel has its own place) | As many as its class carries. The class decides which kinds fit and caps them: a Generic 2 weapons and 1 adapter, a Refractor 1 item, a Resonator 1 weapon and 5 adapters |
 | Most skills | **3** (a named tunable): the one limit whose unset value is a number. The enemy's own limit raises or lowers it |
-| Which kinds (a weapon type, an element) | Any kind |
+| Which kinds (weapon, adapter, evolution, apparel; and which weapon types) | Any kind. An evolution is allowed when its kind is |
+| Which elements (its crystals and spells) | Any element |
 | A tier range | Any tier in its zone's range |
-| Evolution allowed | Yes |
 
 **Its crystals lean to the trial's element** (ruled), by the same weights as the drops, so a Fire trial's enemies are mostly Fire.
 
@@ -133,11 +132,11 @@ Names are from the clean gear set (`AssetOverhaulPlan.md` §2). Skills are asset
 - This run: an Adapter Ring with a C Emerald, so a "Wind Ring" with 4 slots. It fills the default 3: Bolt, Lance, Wave.
 - Another like it in the first zone (F to E): a Hand Axe (F), one slot, Cross Cut.
 
-**2. A low enemy with a high sword.** A Generic enemy at 1 1 1, in zone 1 (F to D). Always has: Arming Sword at **D**, the top of its zone. Limits: most weapons 1, most adapters 0.
+**2. A low enemy with a high sword.** A Generic enemy at 1 1 1, in zone 1 (F to D). Always has: Arming Sword at **D**, the top of its zone. Limits: most gear 1, kinds weapon.
 - Three slots, the default three skills: Lunge, Heavy Strike, Thrust. It is weak (1 1 1), so skills it falls short on hit less hard.
 - Beat it and the Arming Sword is 3 times likelier to be the drop. It arrives at D, empty, while the player's kit is F.
 
-**3. Three bandits (one template),** in the first zone. Always has: Hand Axe and Bearded Axe as a pair at E (2 slots), and Cross Cut. Limits: most adapters 0.
+**3. Three bandits (one template),** in the first zone. Always has: Hand Axe and Bearded Axe as a pair at E (2 slots), and Cross Cut. Limits: kinds weapon.
 - All three: the axes and Cross Cut.
 - Second slot, rolled per bandit: Smash, Whirlwind, Smash.
 
@@ -166,7 +165,7 @@ Names are from the clean gear set (`AssetOverhaulPlan.md` §2). Skills are asset
 | Part | Today | New |
 |---|---|---|
 | The pool | A tag query for chests and zones | The trial names its pool; evolutions, apparel and crystals join it |
-| An enemy's kit | Old loadouts in a shared inventory, plus the stopgap fill | Always-has and six limits on the template |
+| An enemy's kit | Old loadouts in a shared inventory, plus the stopgap fill | Always-has and five limits on the template |
 | The roll | None | Once per run, per enemy, from the run seed |
 | Enemy drops | Pillar levels only | One per fight per player, weighted 3 to 1 |
 | A duplicate | Refused in a shop (rule ER-20) or converted (ER-63) | Three choices; utility stacks and can be dismantled |
@@ -179,7 +178,7 @@ Names are from the clean gear set (`AssetOverhaulPlan.md` §2). Skills are asset
 |---|---|---|---|
 | 1 | **The look:** the kit card, the "dropped" line in the fight's reward, and the three-choice duplicate prompt; plain, with made-up contents | All three, in PIE | Crown's eye |
 | 2 | **The pool:** the trial's pool tag; evolutions and apparel readable; every element's crystals with the lean; each zone's tier range; the clean set tagged (editor) | `wor.Trial.Pool` lists the trial's pool, zone by zone | Specs |
-| 3 | **The enemy's parts:** the always-has list and the six limits on the template | A print button on the enemy | Specs: unset means any, skills 3; the class and slot rules hold |
+| 3 | **The enemy's parts:** the always-has list and the limits on the template (five since B-567b) | A print button on the enemy | Specs: unset means any, skills 3; the class and slot rules hold |
 | 4 | **The roll:** each enemy's kit from the run seed; the enemy fights with it; the two enemies stop reading the old inventories | The same kit on a retry, another on a new run; three bandits alike in part | Specs with a fixed seed, then PIE |
 | 5 | **Drops:** one per fight per player, weighted, at the worn tier, empty unless prebuilt | Winning what an enemy used | Spec on the weight, then PIE |
 | 6 | **Duplicates:** the three choices; utility dismantle | The prompt on a real duplicate | Spec, then PIE |
