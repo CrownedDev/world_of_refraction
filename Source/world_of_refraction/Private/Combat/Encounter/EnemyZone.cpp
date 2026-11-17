@@ -10,6 +10,7 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "HAL/IConsoleManager.h"
+#include "Trial/EnemyKit.h"
 
 namespace EnemyZoneInternal
 {
