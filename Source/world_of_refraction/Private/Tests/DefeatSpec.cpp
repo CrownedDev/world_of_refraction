@@ -124,16 +124,21 @@ void FDefeatSpec::Define()
 		TestTrue(TEXT("Body and Spirit tie: Body"), DefeatRules::PickPillarToLose(0, 2, 2, Pillar) && Pillar == EWorldPillar::Body);
 	});
 
-	It("a wipe at any rank leaves pillar points alone and counts the wipe (D-160)", [this]()
+	// B-555 (D-237 replaces D-160's no-points rule): each member loses WIPE_POINTS_LOST run points per wipe, at any rank.
+	It("a wipe at any rank takes two run points from each member while it has any, and counts the wipe (D-237)", [this]()
 	{
 		if (!TestNotNull(TEXT("Run"), Run)) return;
+		TArray<int32> Taken;
 		for (const EEncounterRank Rank : {EEncounterRank::Normal, EEncounterRank::MiniBoss, EEncounterRank::Boss})
 		{
-			const WoRDefeat::FWipeResult Result = WoRDefeat::ApplyWipe(TestWorld->GetWorld(), Rank, {DEFEAT_RICH_KEY, DEFEAT_POOR_KEY});
-			TestEqual(TEXT("no points taken"), Result.PointsTaken, 0);
+			Taken.Add(WoRDefeat::ApplyWipe(TestWorld->GetWorld(), Rank, {DEFEAT_RICH_KEY, DEFEAT_POOR_KEY}).PointsTaken);
 		}
-		TestEqual(TEXT("the rich member kept all"), Run->GetRunEarnedLevels(DEFEAT_RICH_KEY, EWorldPillar::Mind), DEFEAT_RICH_MEMBER_MIND);
-		TestEqual(TEXT("the poor member kept all"), Run->GetRunEarnedLevels(DEFEAT_POOR_KEY, EWorldPillar::Body), DEFEAT_POOR_MEMBER_BODY);
+		// Rich: 3 Mind -> 1 -> 0; poor: 1 Body -> 0. Each has one pillar to lose from, so the rolls can't miss.
+		TestEqual(TEXT("first wipe: two from the rich, the poor's last one"), Taken[0], DefeatRules::WIPE_POINTS_LOST + DEFEAT_POOR_MEMBER_BODY);
+		TestEqual(TEXT("second wipe: the rich member's last"), Taken[1], DEFEAT_RICH_MEMBER_MIND - DefeatRules::WIPE_POINTS_LOST);
+		TestEqual(TEXT("third wipe: nothing left to take"), Taken[2], 0);
+		TestEqual(TEXT("never below the base"), Run->GetRunEarnedLevels(DEFEAT_RICH_KEY, EWorldPillar::Mind), 0);
+		TestEqual(TEXT("the poor member too"), Run->GetRunEarnedLevels(DEFEAT_POOR_KEY, EWorldPillar::Body), 0);
 		TestEqual(TEXT("three wipes"), Run->GetRunWipes(), 3);
 		TestEqual(TEXT("one boss loss"), Run->GetRunMainBossLosses(), 1);
 	});

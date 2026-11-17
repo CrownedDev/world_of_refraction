@@ -31,6 +31,8 @@ namespace DefeatRules
 	inline constexpr int32 POINTS_LOST_NORMAL = 1;
 	inline constexpr int32 POINTS_LOST_MINI_BOSS = 2;
 	inline constexpr int32 POINTS_LOST_MAIN_BOSS = 0;
+	/** B-555 (D-237): run pillar points a wipe takes from each member, each rolled on its own pillar. A tunable. */
+	inline constexpr int32 WIPE_POINTS_LOST = 2;
 	/** The run ends after this many wipes in all (every wipe counts, a main-boss loss too: Q-155 point 4). */
 	inline constexpr int32 MAX_WIPES_PER_RUN = 5;
 	/** The run ends after this many losses to the main boss. */
@@ -86,7 +88,7 @@ namespace WoRDefeat
 	/** What a wipe did. */
 	struct WORLD_OF_REFRACTION_API FWipeResult
 	{
-		/** OBSOLETE (B-362b): always 0. */
+		/** B-555 (D-237): run pillar points taken from the party (DefeatRules::WIPE_POINTS_LOST each, while it has any). */
 		int32 PointsTaken = 0;
 		/** B-362b: the run Prisms dropped at this fight, and the earlier drop's, lost for good. */
 		int32 PrismsDropped = 0;

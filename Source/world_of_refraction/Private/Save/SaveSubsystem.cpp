@@ -1472,6 +1472,10 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.HeadStartMind = Member.HeadStartMind; // B-348b
 		Out.HeadStartBody = Member.HeadStartBody;
 		Out.HeadStartSpirit = Member.HeadStartSpirit;
+		Out.KeptMind = Member.KeptMind; // B-555 (D-237)
+		Out.KeptBody = Member.KeptBody;
+		Out.KeptSpirit = Member.KeptSpirit;
+		Out.bHasKeptLevels = Member.bHasKeptLevels;
 		Out.bBrokenDarkness = Member.bBrokenDarkness; // B-348c: beyond the run
 		Out.bRunOnly = Member.bRunOnly;
 		Out.RunWeapon = Member.RunWeapon;
@@ -1844,6 +1848,10 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 		Member.HeadStartMind = In.HeadStartMind; // B-348b
 		Member.HeadStartBody = In.HeadStartBody;
 		Member.HeadStartSpirit = In.HeadStartSpirit;
+		Member.KeptMind = In.KeptMind; // B-555 (D-237)
+		Member.KeptBody = In.KeptBody;
+		Member.KeptSpirit = In.KeptSpirit;
+		Member.bHasKeptLevels = In.bHasKeptLevels;
 		Member.bBrokenDarkness = In.bBrokenDarkness; // B-348c
 		Member.RunStrain = In.RunStrain;
 		Member.bRunOnly = In.bRunOnly;

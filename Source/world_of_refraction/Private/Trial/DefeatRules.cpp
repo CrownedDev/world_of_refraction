@@ -46,6 +46,13 @@ namespace WoRDefeat
 		Result.bRunEnds = Run->RecordWipe(Rank);
 		Result.Wipes = Run->GetRunWipes();
 		Result.MainBossLosses = Run->GetRunMainBossLosses();
+		// B-555 (D-237): each member loses run points at the wipe, so the rest of the run is played with fewer. Seeded by
+		// the run and the wipe, so every machine rolls the same pillars.
+		FRandomStream Stream(HashCombine(GetTypeHash(Run->GetRunSeed()), GetTypeHash(Result.Wipes)));
+		for (const FName &Key : MemberKeys)
+		{
+			Result.PointsTaken += Run->TakeWipePoints(Key, DefeatRules::WIPE_POINTS_LOST, Stream);
+		}
 		// D-160: the run's Prisms drop here instead of pillar points (every rank alike, the main boss too).
 		Result.PrismsDropped = DropPrisms(*Run, DefeatLocalWallet(World), Result.PrismsLostForGood);
 		// B-235 (D-160 co-op): every other player drops their own Prisms at the same spot.
@@ -70,8 +77,8 @@ namespace WoRDefeat
 			UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 			Result.Revived = PartySession ? PartySession->ReviveFallenMembers() : 0;
 		}
-		UE_LOG(LogTemp, Log, TEXT("[Defeat] Wipe by a %s enemy: %d Prism(s) dropped (%d lost for good), %d member(s), %d revived, rest spot '%s'%s"),
-			   *UEnum::GetValueAsString(Rank), Result.PrismsDropped, Result.PrismsLostForGood, MemberKeys.Num(), Result.Revived,
+		UE_LOG(LogTemp, Log, TEXT("[Defeat] Wipe by a %s enemy: %d Prism(s) dropped (%d lost for good), %d member(s), %d run point(s) lost, %d revived, rest spot '%s'%s"),
+			   *UEnum::GetValueAsString(Rank), Result.PrismsDropped, Result.PrismsLostForGood, MemberKeys.Num(), Result.PointsTaken, Result.Revived,
 			   *Run->GetLastRestSpot().ToString(), Result.bRunEnds ? TEXT("; the run ends") : TEXT(""));
 		return Result;
 	}

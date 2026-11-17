@@ -127,6 +127,19 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	int32 HeadStartSpirit = 0;
 
+	/** B-555 (D-237, save v44 with B-554): the levels kept from the last run (FPartyMember::Kept*). */
+	UPROPERTY()
+	int32 KeptMind = 0;
+
+	UPROPERTY()
+	int32 KeptBody = 0;
+
+	UPROPERTY()
+	int32 KeptSpirit = 0;
+
+	UPROPERTY()
+	bool bHasKeptLevels = false;
+
 	/** B-348c (save v21, shared with B-348b: both landed in dev together, before any v21 save existed): the member is in Broken Darkness (persistent until reverted, Q-348b), and the
 	 *  run's strain (written only with a saved run, like the carried vitals). */
 	UPROPERTY()
