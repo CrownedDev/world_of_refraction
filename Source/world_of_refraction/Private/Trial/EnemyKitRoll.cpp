@@ -166,7 +166,8 @@ FRolledEnemyKit EnemyKitRoll::Roll(const UCharacterData &Template, const FEnemyK
 			Candidates.Add(Piece);
 		}
 	}
-	while (Range.Min <= Range.Max)
+	const bool bRangeMeets = Range.Min <= Range.Max; // else nothing from the pool (Q-567)
+	while (bRangeMeets)
 	{
 		const int32 Weapons = CountWeapons(Kit);
 		const int32 Adapters = Kit.Pieces.Num() - Weapons;
@@ -190,7 +191,7 @@ FRolledEnemyKit EnemyKitRoll::Roll(const UCharacterData &Template, const FEnemyK
 	// 3. A crystal in each empty adapter.
 	for (FRolledKitPiece &Piece : Kit.Pieces)
 	{
-		RollCrystal(Piece, Limits, Input, Range.Min <= Range.Max ? Range : Input.ZoneRange, Roll);
+		RollCrystal(Piece, Limits, Input, bRangeMeets ? Range : Input.ZoneRange, Roll); // an always-has adapter still gets one
 	}
 
 	// 4. Skills: the always-has ones, then ones the gear can use, up to the skill limit and the slots.

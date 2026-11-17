@@ -2852,6 +2852,8 @@ void UInventoryComponent::InitializeFromCharacterData(UCharacterData *CharacterD
         UE_LOG(LogTemp, Warning,
                TEXT("[InventoryComponent] Character '%s' has no Inventory asset - inventory will be empty"),
                *CharacterData->Name);
+        UE_CLOG(RolledKit.IsValid(), LogWoRLoadout, Warning, TEXT("[InventoryComponent] %s: its rolled kit is not worn (B-568 needs an Inventory asset)"), *CharacterData->Name);
+        RolledKit.Reset();
         return;
     }
 
@@ -3157,6 +3159,17 @@ void UInventoryComponent::ApplyRolledKit(const UCharacterData &CharacterData, co
     FCombatLoadout Loadout = FCombatLoadout::CreateFromWornGear(Worn, CharacterData.CharacterClass, this, OwnedEvolutions);
     Loadout.bLore = true;
     Loadout.FillEmptyPicksFromKnown(TArray<UAbilityData *>(Kit.Abilities), TArray<USpellData *>(Kit.Spells));
+    // The roll matches skills to gear by weapon type and element only; a slot rule it doesn't model leaves one unslotted.
+    const TArray<UAbilityData *> SlottedAbilities = Loadout.GetAllAbilities();
+    const TArray<USpellData *> SlottedSpells = Loadout.GetAllSpells();
+    for (const UAbilityData *Ability : Kit.Abilities)
+    {
+        UE_CLOG(!SlottedAbilities.Contains(Ability), LogWoRLoadout, Warning, TEXT("[InventoryComponent] %s: rolled %s found no slot"), *CharacterData.GetName(), *GetNameSafe(Ability));
+    }
+    for (const USpellData *Spell : Kit.Spells)
+    {
+        UE_CLOG(!SlottedSpells.Contains(Spell), LogWoRLoadout, Warning, TEXT("[InventoryComponent] %s: rolled %s found no slot"), *CharacterData.GetName(), *GetNameSafe(Spell));
+    }
     SavedLoadouts = {Loadout};
     ActiveLoadoutIndex = 0;
     UE_LOG(LogWoRLoadout, Log, TEXT("[InventoryComponent] %s wears its rolled kit: %s"), *CharacterData.GetName(), *EnemyKitRoll::GetRolledKitString(Kit));

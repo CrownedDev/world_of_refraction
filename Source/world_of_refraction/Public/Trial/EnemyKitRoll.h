@@ -14,6 +14,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Skills/Definitions/ESpellElement.h"
 #include "Trial/TrialPool.h"
 
 class UAbilityData;
@@ -22,7 +23,6 @@ class UEquipmentDataBase;
 class USpellData;
 class UTrialData;
 struct FEncounterZoneInfo;
-enum class ESpellElement : uint8;
 
 /** One worn piece: a weapon or an adapter asset at its tier, with its socket. */
 struct FRolledKitPiece
@@ -50,7 +50,7 @@ struct FEnemyKitRollInput
 {
 	/** TrialLoot::GatherPool of the fight's pool tag (TrialPool::GetPoolTag). */
 	TArray<UObject *> Pool;
-	ESpellElement TrialElement;
+	ESpellElement TrialElement = ESpellElement::Generic;
 	FTrialTierRange ZoneRange;
 	int32 Seed = 0;
 };
