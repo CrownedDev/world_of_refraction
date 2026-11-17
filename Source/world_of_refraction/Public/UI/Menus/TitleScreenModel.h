@@ -95,8 +95,10 @@ namespace WoRTitleScreen
 	/** B-562: FindSavedPicks on this player's own save slot, read from its own disk (USaveSubsystem::ReadSlot). */
 	WORLD_OF_REFRACTION_API bool ReadSlotPicks(const UGameInstance *GameInstance, int32 Slot, FPlayerPicks &OutPicks);
 	/** B-562: PC's player asks the host for a seat as Picks (AWoRPlayerState::RequestJoinWithPicks). False: no player
-	 *  state or no picks; the host's answer is its own (D-150: it picks the seat). */
-	WORLD_OF_REFRACTION_API bool SendJoin(APlayerController *PC, const FPlayerPicks &Picks);
+	 *  state or no picks; the host's answer is its own (D-150: it picks the seat). B-563: Slot is the character's own
+	 *  save slot, where what it earns goes back (INDEX_NONE: a new character, saved to a free slot first; false with
+	 *  none free). */
+	WORLD_OF_REFRACTION_API bool SendJoin(APlayerController *PC, const FPlayerPicks &Picks, int32 Slot);
 
 	/** bRunSettled: the save subsystem already settled a run this session (WasClosedRunSettled), so Data holds none. */
 	WORLD_OF_REFRACTION_API FTitleSaveSummary Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled = false);

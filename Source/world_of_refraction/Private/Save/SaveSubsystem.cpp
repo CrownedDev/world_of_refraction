@@ -1184,6 +1184,30 @@ bool USaveSubsystem::ReadSlot(int32 Index, FWoRSaveData &OutData, double &OutPla
 	return true;
 }
 
+bool USaveSubsystem::WriteSlotData(int32 Index, const FWoRSaveData &Data)
+{
+	const ULocalPlayer *Local = IsBoundToPlayer() ? SaveGame->GetLocalPlayer() : nullptr;
+	if (bPlayingHostCopy || !Local || Index == INDEX_NONE || (Index == ActiveSlot && bWritesStopped))
+	{
+		UE_LOG(LogWoR, Warning, TEXT("[Save] Slot %d not written: %s"), Index, bPlayingHostCopy ? TEXT("a handed-over run is played") : TEXT("no local player"));
+		return false;
+	}
+	if (Index == ActiveSlot)
+	{
+		SaveGame->Data = Data;
+		return WriteSlot(/*bAsync=*/false);
+	}
+	UWoRSaveGame *Other = Cast<UWoRSaveGame>(ULocalPlayerSaveGame::CreateNewSaveGameForLocalPlayer(UWoRSaveGame::StaticClass(), Local, GetSlotName(Index)));
+	if (!Other)
+	{
+		return false;
+	}
+	Other->Data = Data;
+	const bool bWritten = Other->SaveGameToSlotForLocalPlayer();
+	UE_LOG(LogWoR, Log, TEXT("[Save] Slot '%s' written from outside play: %s"), *GetSlotName(Index), bWritten ? TEXT("yes") : TEXT("no"));
+	return bWritten;
+}
+
 int32 USaveSubsystem::FindFreeSlot(int32 MaxSlots) const
 {
 	for (int32 Index = 0; Index < MaxSlots; ++Index)
