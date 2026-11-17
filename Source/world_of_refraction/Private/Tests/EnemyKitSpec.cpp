@@ -74,6 +74,10 @@ void FEnemyKitSpec::Define()
 		TestTrue(TEXT("a Generic: three weapons are too many"), EnemyKitRules::CheckAlwaysHas(Kit, ECharacterClass::Generic).Num() > 0);
 		Kit.Pieces = {MakePiece(nullptr, EItemTier::F_Tier)};
 		TestTrue(TEXT("an empty piece"), EnemyKitRules::CheckAlwaysHas(Kit, ECharacterClass::Generic).Num() > 0);
+		Kit.Pieces = {MakePiece(Sword, EItemTier::D_Tier)};
+		Kit.bLimitWeapons = true;
+		Kit.MostWeapons = 0;
+		TestTrue(TEXT("an always-has sword past its own weapon limit"), EnemyKitRules::CheckAlwaysHas(Kit, ECharacterClass::Generic).Num() > 0);
 	});
 
 	It("warns when a given tier is outside the zone's range, and keeps it", [this]()

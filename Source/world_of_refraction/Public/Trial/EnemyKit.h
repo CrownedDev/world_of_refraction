@@ -108,8 +108,8 @@ namespace EnemyKitRules
 	/** The zone's range, narrowed by the kit's own; Min above Max when the two don't meet (nothing to take). */
 	WORLD_OF_REFRACTION_API FTrialTierRange GetTierRange(const FEnemyKit &Kit, const FTrialTierRange &ZoneRange);
 
-	/** Problems with the always-has list against the class (too many weapons or adapters, a piece of an unknown kind);
-	 *  empty when it fits. */
+	/** Problems with the always-has list against the class and the kit's own limits (too many weapons, adapters or
+	 *  skills, a weapon type left out, an upside-down tier range, a piece of an unknown kind); empty when it fits. */
 	WORLD_OF_REFRACTION_API TArray<FString> CheckAlwaysHas(const FEnemyKit &Kit, ECharacterClass Class);
 	/** One line per always-has piece whose tier is outside Zone's range (the given tier wins; TrialPoolDesign §10 note
 	 *  5), else empty. */

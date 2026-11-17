@@ -108,7 +108,7 @@ TArray<FString> EnemyKitRules::CheckAlwaysHas(const FEnemyKit &Kit, ECharacterCl
 	const int32 Weapons = CountKind(Kit, EKitPieceKind::Weapon);
 	const int32 Adapters = CountKind(Kit, EKitPieceKind::Adapter);
 	const int32 Items = Weapons + Adapters + CountKind(Kit, EKitPieceKind::Evolution);
-	if (Weapons > Limits.MaxWeapons)
+	if (Limits.MaxWeapons != LoadoutClassTable::NO_LIMIT && Weapons > Limits.MaxWeapons)
 	{
 		Problems.Add(FString::Printf(TEXT("%d weapons; its class carries %d"), Weapons, Limits.MaxWeapons));
 	}
@@ -120,11 +120,36 @@ TArray<FString> EnemyKitRules::CheckAlwaysHas(const FEnemyKit &Kit, ECharacterCl
 	{
 		Problems.Add(FString::Printf(TEXT("%d items; its class carries %d"), Items, Limits.MaxItems));
 	}
+	// The kit's own limits, which the always-has list counts toward (Q-567).
+	if (Kit.bLimitWeapons && Weapons > Kit.MostWeapons)
+	{
+		Problems.Add(FString::Printf(TEXT("%d weapons always; its own limit is %d"), Weapons, Kit.MostWeapons));
+	}
+	if (Kit.bLimitAdapters && Adapters > Kit.MostAdapters)
+	{
+		Problems.Add(FString::Printf(TEXT("%d adapters always; its own limit is %d"), Adapters, Kit.MostAdapters));
+	}
+	const int32 MostSkills = Kit.bLimitSkills ? Kit.MostSkills : DEFAULT_MOST_SKILLS;
+	if (Kit.Skills.Num() > MostSkills)
+	{
+		Problems.Add(FString::Printf(TEXT("%d skills always; most skills is %d"), Kit.Skills.Num(), MostSkills));
+	}
+	if (Kit.bLimitTiers && Kit.MinTier > Kit.MaxTier)
+	{
+		Problems.Add(TEXT("its tier range is upside down (min above max)"));
+	}
 	for (int32 Index = 0; Index < Kit.Pieces.Num(); ++Index)
 	{
-		if (GetKind(Kit.Pieces[Index].Item) == EKitPieceKind::Unknown)
+		const UObject *Item = Kit.Pieces[Index].Item;
+		if (GetKind(Item) == EKitPieceKind::Unknown)
 		{
 			Problems.Add(FString::Printf(TEXT("piece %d is empty or not gear"), Index));
+		}
+		const UPrebuiltFindData *Find = Cast<UPrebuiltFindData>(Item);
+		const UWeaponData *Weapon = Cast<UWeaponData>(Find ? Find->Piece.Get() : Item);
+		if (Weapon && !AllowsWeaponType(Kit, Weapon->WeaponType))
+		{
+			Problems.Add(FString::Printf(TEXT("piece %d is a weapon type its own limit leaves out"), Index));
 		}
 	}
 	return Problems;
@@ -136,7 +161,11 @@ FString EnemyKitRules::DescribeOutsideZoneRange(const FString &Label, const FEnc
 	TArray<FString> Outside;
 	for (const UCharacterData *Enemy : Roster)
 	{
-		for (const FEnemyKitPiece &Piece : Enemy ? Enemy->EnemyKit.Pieces : TArray<FEnemyKitPiece>())
+		if (!Enemy)
+		{
+			continue;
+		}
+		for (const FEnemyKitPiece &Piece : Enemy->EnemyKit.Pieces)
 		{
 			if (Piece.Item && !Range.Contains(Piece.Tier))
 			{
