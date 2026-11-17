@@ -61,7 +61,7 @@ void FJoinMenuSpec::Define()
 	{
 		FPlayerPicks Picks;
 		Picks.Name = TEXT("Ash");
-		TestFalse(TEXT("no player"), WoRTitleScreen::SendJoin(nullptr, Picks));
+		TestFalse(TEXT("no player"), WoRTitleScreen::SendJoin(nullptr, Picks, 0));
 	});
 
 	It("shows the game menu's Join row to a guest only, before Quit, refused once seated", [this]()
