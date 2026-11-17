@@ -298,6 +298,10 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool AddWeapon(UWeaponData *Weapon);
 
+    /** B-569 (D-225 stage 5): a won fight's drop, a weapon or an adapter at Tier (the tier the enemy wore), empty and
+     *  without the pickup grade roll (rule ER-38). False when Piece is neither or the inventory can't take it. */
+    bool AddDroppedGear(UEquipmentDataBase *Piece, EItemTier Tier);
+
     /** Remove a weapon from inventory */
     UFUNCTION(BlueprintCallable, Category = "Inventory|Weapons")
     bool RemoveWeapon(int32 WeaponIndex);
@@ -682,7 +686,7 @@ private:
     /** B-251 (DRY audit A13): the weapon / ring acquisition (mint the owned ID, the pickup roll, pool push,
      *  broadcast) and removal, once for both entry types. */
     template <class TEntry>
-    bool AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const UEquipmentDataBase &Asset);
+    bool AddGearEntry(TArray<TEntry> &Gear, TEntry Entry, const UEquipmentDataBase &Asset, bool bPickupRoll = true);
     template <class TEntry>
     bool RemoveGearAt(TArray<TEntry> &Gear, int32 Index);
 
