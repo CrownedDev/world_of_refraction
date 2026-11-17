@@ -6,7 +6,7 @@
 // character select: each filled slot shows its character's name and its last run's Mind / Body / Spirit levels; the
 // next empty slot is a +; nothing after it, and no + once the slots are full (GetMaxSlots, one configurable value).
 // Settings, Credits and Quit are buttons along the bottom. No New Game row and no Join a friend (joining is from the
-// game menu). One save file for now (stage 3 makes one per character), so slot 1 is today's save.
+// game menu). B-554 (stage 3): one save file per character (USaveSubsystem's slots); a slot row continues its own.
 // Debug: wor.UI.PrintTitle logs GetTitleScreenString.
 
 #pragma once
@@ -40,6 +40,8 @@ struct FTitleScreenRow
 	bool bButton = false;
 	/** Why the row can't be used yet; empty when it can. */
 	FText Refusal;
+	/** B-554: a filled slot's save slot (USaveSubsystem::GetSlotName); INDEX_NONE on the + and the buttons. */
+	int32 Slot = INDEX_NONE;
 
 	bool CanUse() const { return Refusal.IsEmpty(); }
 };
@@ -62,6 +64,8 @@ struct FTitleSaveSummary
 	int32 RunMind = 0;
 	int32 RunBody = 0;
 	int32 RunSpirit = 0;
+	/** B-554: the save slot it was read from (INDEX_NONE: not a slot's). */
+	int32 Slot = INDEX_NONE;
 };
 
 namespace WoRTitleScreen
@@ -78,11 +82,16 @@ namespace WoRTitleScreen
 	/** The filled slot (with a save), the + while a slot is free, then the Settings, Credits and Quit buttons.
 	 *  MaxSlots INDEX_NONE: GetMaxSlots. */
 	WORLD_OF_REFRACTION_API TArray<FTitleScreenRow> BuildRows(const FTitleSaveSummary &Save, int32 MaxSlots = INDEX_NONE);
+	/** B-554: a row per filled slot (in slot order, each with its Slot), the + while fewer than MaxSlots, then the
+	 *  buttons. */
+	WORLD_OF_REFRACTION_API TArray<FTitleScreenRow> BuildSlotRows(const TArray<FTitleSaveSummary> &Slots, int32 MaxSlots = INDEX_NONE);
 
 	/** bRunSettled: the save subsystem already settled a run this session (WasClosedRunSettled), so Data holds none. */
 	WORLD_OF_REFRACTION_API FTitleSaveSummary Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled = false);
 	/** The game instance's save (USaveSubsystem). */
 	WORLD_OF_REFRACTION_API FTitleSaveSummary SummarizeSave(const UGameInstance *GameInstance);
+	/** B-554 (D-229): every filled slot below GetMaxSlots, in slot order (the active one as SummarizeSave says). */
+	WORLD_OF_REFRACTION_API TArray<FTitleSaveSummary> SummarizeSlots(const UGameInstance *GameInstance);
 
 	/** "14 h", or "25 min" under an hour. */
 	WORLD_OF_REFRACTION_API FText GetPlayTimeText(double PlaySeconds);

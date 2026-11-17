@@ -123,8 +123,10 @@ public:
 	 *  forms, journal, quests, curses, counters, field unlocks, a run waiting to resume, carried Gold, the local wallet),
 	 *  Leader becomes the party's only member with BaseForm as the body, writes resume and the slot is written with
 	 *  just that. The level change after it (UTrialRunSubsystem::ExitTrial) rebuilds the world. False, and nothing
-	 *  changed, while a handed-over run is played or for a member with no CharacterData. */
-	bool StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm BaseForm);
+	 *  changed, while a handed-over run is played or for a member with no CharacterData.
+	 *  B-554 (D-229): Slot (not INDEX_NONE) is the character slot the new game is written to; it becomes the active and
+	 *  last played slot. INDEX_NONE: the active slot. */
+	bool StartFreshGame(const FPartyMember &Leader, EPlayerBaseForm BaseForm, int32 Slot = INDEX_NONE);
 
 	/** PlayerState EndPlay: bank the wallet's persistent balances and carry its run Gold. */
 	void BankWallet(const UCurrencyComponent *Wallet);
@@ -149,6 +151,29 @@ public:
 	int32 GetWipedFromVersion() const;
 	/** Time played: the saved total and this session's time not saved yet. */
 	double GetPlaySeconds() const;
+
+	// ==================== CHARACTER SLOTS (B-554, D-229) ====================
+	// One save file per character. The active slot is the one this game reads and writes; the last played one is kept
+	// in GameUserSettings ([WoR.Save] LastSlot) and loaded at the start.
+
+	/** Slot Index's file: SLOT_NAME for the first, "<SLOT_NAME>_<Index>" after it. */
+	static FString GetSlotName(int32 Index);
+	int32 GetActiveSlot() const { return ActiveSlot; }
+	/** Slot Index has a save file on disk (the active slot: a save was loaded or written). */
+	bool HasSaveInSlot(int32 Index) const;
+	/** Slot Index's saved data and time played: the active slot's from memory, another's read from disk. False when
+	 *  the slot is empty or its save is out of date (D-060: it is wiped when loaded). */
+	bool ReadSlot(int32 Index, FWoRSaveData &OutData, double &OutPlaySeconds) const;
+	/** The first slot below MaxSlots with no save; INDEX_NONE when every one holds a character. */
+	int32 FindFreeSlot(int32 MaxSlots) const;
+	/** Continue on a title slot: the game in memory is reset and slot Index is loaded in its place, as at the start;
+	 *  it becomes the last played. The active slot: nothing reloads. False without a local player, or while a
+	 *  handed-over run is played. */
+	bool SwitchToSlot(int32 Index);
+	/** Slot Index's file is deleted. The active slot: as DeleteSave (the game in memory stays until the next load). */
+	void DeleteSlot(int32 Index);
+	/** Automatic saves stop until StartFreshGame (the new game screen's Begin), with nothing deleted. */
+	void StopWrites() { bWritesStopped = true; }
 
 	// ==================== SETTINGS (B-398) ====================
 
@@ -266,6 +291,17 @@ private:
 	bool bWritesStopped = false;
 	/** B-467: FPlatformTime::Seconds when play time was last added to the save data. */
 	double PlayClock = 0.0;
+
+	/** B-554 (D-229): the character slot this game reads and writes. */
+	int32 ActiveSlot = 0;
+	/** B-554: everything a save holds goes back to a new game's in memory (party, pool, forms on BaseForm, journal,
+	 *  quests, curses, counters, field unlocks, a run waiting to resume, carried Gold, the local wallet). */
+	void ResetGameInMemory(EPlayerBaseForm BaseForm);
+	/** B-554: the last played slot, kept in GameUserSettings (0 when none). */
+	static int32 ReadLastSlot();
+	static void WriteLastSlot(int32 Index);
+	/** B-554: the platform user the slots are written for (the first local player's, else 0). */
+	int32 GetSlotUserIndex() const;
 
 	/** B-234b: set by AdoptCheckpoint; WriteSlot writes the copy's slot instead of this player's own. Stays set while the
 	 *  handed-over run lasts (Q-234b (2)): the game in memory holds the old host's party and armoury, so this player's

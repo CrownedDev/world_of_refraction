@@ -165,6 +165,11 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	EParryElementPriority ParryElementPriority = EParryElementPriority::Weapon;
 
+	/** B-554 (D-228, save v44): the player's new-game picks (FPartyMember::Picks). Set: the load builds the character
+	 *  from them (CharacterData then holds the built copy's transient path, which is not read). */
+	UPROPERTY()
+	FPlayerPicks Picks;
+
 	// D-221 (B-507, save v40): the field skill, the field attack pick and the weapon in hand moved to the member's
 	// worn-gear record (FSavedPool::WornGear).
 

@@ -19,6 +19,7 @@
 #include "Combat/Defense/EGuardStyle.h"
 #include "Combat/Defense/EParryElementPriority.h"
 #include "Field/FieldSkillTypes.h"
+#include "Character/PlayerPicks.h"
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Party.generated.h"
@@ -208,6 +209,11 @@ struct FPartyMember
 	 *  through UPartySessionSubsystem::SetMemberActiveWeapon. Saved; unset: the loadout's own choice. */
 	UPROPERTY()
 	FGuid ActiveWeaponId;
+
+	/** B-554 (D-228): the player's new-game picks. Set: CharacterData was built from them (WoRPlayerBuild), and a load
+	 *  builds it again from them (the built copy has no asset to save). Unset: an authored character. Saved. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	FPlayerPicks Picks;
 
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 

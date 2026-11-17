@@ -284,6 +284,7 @@ void UTitleScreenWidget::NativeOnActivated()
 	const bool bShowReset = Saves && Saves->WasWiped() && !GSaveResetNoticeShown;
 	GSaveResetNoticeShown |= bShowReset;
 	Panel = bShowReset ? ETitlePanel::SaveReset : ETitlePanel::None;
+	bSlotsRead = false; // B-554: the slots are read again each time the title opens
 	Refresh();
 	ShowCursorNextTick(); // D-233
 	UE_LOG(LogWoRUI, Log, TEXT("[Title] Opened%s"), bShowReset ? TEXT(" (the save was reset: notice shown)") : TEXT(""));
@@ -323,9 +324,16 @@ void UTitleScreenWidget::Refresh()
 {
 	using namespace TitleScreenStyle;
 
-	Save = WoRTitleScreen::SummarizeSave(GetGameInstance());
-	Rows = WoRTitleScreen::BuildRows(Save);
+	if (!bSlotsRead)
+	{
+		SlotSaves = WoRTitleScreen::SummarizeSlots(GetGameInstance());
+		bSlotsRead = true;
+	}
+	Rows = WoRTitleScreen::BuildSlotRows(SlotSaves);
 	SelectedRow = FMath::Clamp(SelectedRow, 0, Rows.Num() - 1);
+	const int32 LitSlot = Rows.IsValidIndex(SelectedRow) ? Rows[SelectedRow].Slot : INDEX_NONE;
+	const FTitleSaveSummary *LitSave = SlotSaves.FindByPredicate([LitSlot](const FTitleSaveSummary &Entry) { return Entry.Slot == LitSlot; });
+	Save = LitSave ? *LitSave : WoRTitleScreen::SummarizeSave(GetGameInstance());
 
 	const int32 Slots = GetSlotCount();
 	if (Slots > RowBoxes.Num() && !RowBoxes.IsEmpty())
@@ -483,17 +491,20 @@ void UTitleScreenWidget::Confirm()
 	switch (Row.Id)
 	{
 	case ETitleScreenRow::Continue:
+	{
+		// B-554 (D-229): the lit slot's character is loaded in place of the one in memory, then the hub opens.
+		USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+		if (Saves && !Saves->SwitchToSlot(Row.Slot))
+		{
+			UE_LOG(LogWoRUI, Warning, TEXT("[Title] Slot %d not loaded: continuing the character in memory"), Row.Slot);
+		}
 		Leave();
 		break;
+	}
 	case ETitleScreenRow::NewGame:
-		if (Save.bHasSave)
-		{
-			ShowPanel(ETitlePanel::NewGameConfirm); // one save file until stage 3: a new character replaces it
-		}
-		else
-		{
-			UNewGameScreenWidget::Open(GetOwningPlayer()); // B-469: nothing to lose; Begin starts the game
-		}
+		// B-554 (D-229): a new character gets its own slot (Begin finds a free one), so nothing is replaced. The
+		// NewGameConfirm panel (one save file, B-546) is no longer opened: OBSOLETE with StartOver.
+		UNewGameScreenWidget::Open(GetOwningPlayer());
 		break;
 	case ETitleScreenRow::Settings:
 		USettingsScreenWidget::Open(GetOwningPlayer());
@@ -596,6 +607,8 @@ void UTitleScreenWidget::UpdateHold(float DeltaSeconds)
 	}
 }
 
+// OBSOLETE (B-554, D-229): the + no longer asks to start over (a new character gets its own slot); delete with the
+// NewGameConfirm panel and the hold once Crown's PIE pass of B-554 is done.
 void UTitleScreenWidget::StartOver()
 {
 	USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
@@ -616,13 +629,13 @@ void UTitleScreenWidget::StartOver()
 void UTitleScreenWidget::DeleteCharacter()
 {
 	USaveSubsystem *Saves = GetGameInstance() ? GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
-	if (Saves && Saves->IsBoundToPlayer())
+	if (Saves && Saves->IsBoundToPlayer() && Save.Slot != INDEX_NONE)
 	{
-		Saves->DeleteSave(); // one save file until stage 3: the slot's character is the save
-		GTitleSaveDeletedThisLaunch = true;
-		Status = GetSaveDeletedText();
-		UE_LOG(LogWoRUI, Warning, TEXT("[Title] Slot deleted: %s"), *Save.LeaderName.ToString());
+		Saves->DeleteSlot(Save.Slot); // B-554 (D-229): that character's own file
+		Status = FText::Format(LOCTEXT("CharacterDeleted", "{0} is deleted."), Save.LeaderName);
+		UE_LOG(LogWoRUI, Warning, TEXT("[Title] Slot %d deleted: %s"), Save.Slot, *Save.LeaderName.ToString());
 	}
+	bSlotsRead = false;
 	SelectedRow = 0;
 	ShowPanel(ETitlePanel::None);
 }

@@ -42,14 +42,30 @@ bool WoRTitleScreen::ShouldOpenAtStart(bool bEnabled, bool bAutomationTesting, c
 
 TArray<FTitleScreenRow> WoRTitleScreen::BuildRows(const FTitleSaveSummary &Save, int32 MaxSlots)
 {
+	TArray<FTitleSaveSummary> Slots;
+	if (Save.bHasSave)
+	{
+		Slots.Add(Save);
+	}
+	return BuildSlotRows(Slots, MaxSlots);
+}
+
+TArray<FTitleScreenRow> WoRTitleScreen::BuildSlotRows(const TArray<FTitleSaveSummary> &Saves, int32 MaxSlots)
+{
 	const int32 Slots = MaxSlots == INDEX_NONE ? GetMaxSlots() : MaxSlots;
 	TArray<FTitleScreenRow> Rows;
 	int32 Filled = 0;
-	if (Save.bHasSave)
+	for (const FTitleSaveSummary &Save : Saves)
 	{
+		if (!Save.bHasSave || Filled >= Slots)
+		{
+			continue;
+		}
 		// B-546 (Crown): a slot shows the name and the last run's levels, nothing else.
 		const FText Name = Save.LeaderName.IsEmpty() ? LOCTEXT("Continue", "Continue") : Save.LeaderName;
-		Rows.Add({ETitleScreenRow::Continue, Name, GetRunLevelsText(Save)});
+		FTitleScreenRow Row{ETitleScreenRow::Continue, Name, GetRunLevelsText(Save)};
+		Row.Slot = Save.Slot;
+		Rows.Add(Row);
 		++Filled;
 	}
 	if (Filled < Slots)
@@ -77,15 +93,19 @@ FTitleSaveSummary WoRTitleScreen::Summarize(const FWoRSaveData &Data, bool bHasS
 	Summary.bLastRunLost = bHasSave && (Data.Run.bHasRun || bRunSettled);
 	for (const FSavedPartyMember &Member : Data.Party.Members)
 	{
-		if (const UCharacterData *Character = Member.CharacterData.ResolveAs<UCharacterData>())
+		// B-554 (D-228): a built player's name is its picks' (its saved path is the built copy's, not an asset).
+		const UCharacterData *Character = Member.Picks.IsSet() ? nullptr : Member.CharacterData.ResolveAs<UCharacterData>();
+		if (Character || Member.Picks.IsSet())
 		{
-			Summary.PartyNames.Add(FText::FromString(Character->Name));
+			const FText Name = FText::FromString(Member.Picks.IsSet() ? Member.Picks.Name : Character->Name);
+			Summary.PartyNames.Add(Name);
 			if (Summary.LeaderName.IsEmpty()) // the first resolved member leads (B-529)
 			{
-				Summary.LeaderName = FText::FromString(Character->Name);
-				// The run keys a character by its asset path, "#member id" after it for a copy (UPoolSubsystem::GetCharacterKey).
-				// shortcut: the first entry for the leader's asset; stage 3's built character gets its own key.
-				const FString LeaderPath = Character->GetPathName();
+				Summary.LeaderName = Name;
+				// The run keys a character by its path, "#member id" after it for a copy (UPoolSubsystem::GetCharacterKey);
+				// a built player's path is its fixed built name (WoRPlayerBuild::BUILT_NAME).
+				// shortcut: the first entry for the leader's path.
+				const FString LeaderPath = Character ? Character->GetPathName() : Member.CharacterData.Path.ToString();
 				const FSavedRunLevels *Levels = Data.Run.bHasRun
 					? Data.Run.RunLevels.FindByPredicate([&LeaderPath](const FSavedRunLevels &Entry)
 					{
@@ -118,6 +138,41 @@ FTitleSaveSummary WoRTitleScreen::SummarizeSave(const UGameInstance *GameInstanc
 	FTitleSaveSummary Summary = Summarize(Saves->GetData(), Saves->HasSave(), Saves->GetPlaySeconds(), Saves->WasClosedRunSettled());
 	Summary.bLastRunLost = Saves->HasSave() && (bOwnRunInSave || Saves->WasClosedRunSettled());
 	return Summary;
+}
+
+TArray<FTitleSaveSummary> WoRTitleScreen::SummarizeSlots(const UGameInstance *GameInstance)
+{
+	TArray<FTitleSaveSummary> Slots;
+	const USaveSubsystem *Saves = GameInstance ? GameInstance->GetSubsystem<USaveSubsystem>() : nullptr;
+	if (!Saves)
+	{
+		return Slots;
+	}
+	const int32 MaxSlots = GetMaxSlots();
+	for (int32 Index = 0; Index < MaxSlots; ++Index)
+	{
+		FTitleSaveSummary Summary;
+		if (Index == Saves->GetActiveSlot() && Saves->IsBoundToPlayer())
+		{
+			Summary = SummarizeSave(GameInstance);
+		}
+		else
+		{
+			FWoRSaveData Data;
+			double PlaySeconds = 0.0;
+			if (!Saves->ReadSlot(Index, Data, PlaySeconds))
+			{
+				continue;
+			}
+			Summary = Summarize(Data, /*bHasSave=*/true, PlaySeconds);
+		}
+		if (Summary.bHasSave)
+		{
+			Summary.Slot = Index;
+			Slots.Add(Summary);
+		}
+	}
+	return Slots;
 }
 
 FText WoRTitleScreen::GetPlayTimeText(double PlaySeconds)
@@ -171,9 +226,13 @@ FString WoRTitleScreen::GetTitleScreenString(const UGameInstance *GameInstance)
 		Out += FString::Printf(TEXT(" (a version %d save was reset)"), Saves->GetWipedFromVersion());
 	}
 	Out += FString::Printf(TEXT(", most slots %d"), GetMaxSlots());
-	for (const FTitleScreenRow &Row : BuildRows(Save))
+	for (const FTitleScreenRow &Row : BuildSlotRows(SummarizeSlots(GameInstance)))
 	{
 		Out += FString::Printf(TEXT("\n  %s%s"), Row.bButton ? TEXT("[button] ") : TEXT(""), *Row.Label.ToString());
+		if (Row.Slot != INDEX_NONE)
+		{
+			Out += FString::Printf(TEXT(" (slot %d)"), Row.Slot);
+		}
 		if (!Row.Line.IsEmpty())
 		{
 			Out += FString::Printf(TEXT("  |  %s"), *Row.Line.ToString());

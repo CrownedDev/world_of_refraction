@@ -107,7 +107,11 @@ private:
 	bool IsYesNoPanel() const { return Panel == ETitlePanel::NewGameConfirm || Panel == ETitlePanel::DeleteConfirm; }
 
 	TArray<FTitleScreenRow> Rows;
+	/** B-554: the lit slot's save (the + and the buttons: the active slot's), for the panels and the log. */
 	FTitleSaveSummary Save;
+	/** B-554 (D-229): every filled slot, read from disk when the title opens and after a delete (not on every move). */
+	TArray<FTitleSaveSummary> SlotSaves;
+	bool bSlotsRead = false;
 	int32 SelectedRow = 0;
 	ETitlePanel Panel = ETitlePanel::None;
 	/** B-546: a yes / no panel opens on No. */

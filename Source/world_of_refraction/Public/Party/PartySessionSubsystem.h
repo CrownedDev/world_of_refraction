@@ -67,6 +67,11 @@ public:
 	UPROPERTY(Config)
 	TArray<TSoftObjectPtr<UCharacterData>> NewGameCharacters;
 
+	/** B-554 (D-228): the shared player asset (DA_Character_Player) every built player is copied from
+	 *  (WoRPlayerBuild). Its own name and class are never read: the picks set them. */
+	UPROPERTY(Config)
+	TSoftObjectPtr<UCharacterData> PlayerCharacter;
+
 	/** The local player's Trial Party. Pure query — null when none exists yet.
 	 *  Use EnsureLocalParty when you need one to exist. */
 	UFUNCTION(BlueprintPure, Category = "Party")
