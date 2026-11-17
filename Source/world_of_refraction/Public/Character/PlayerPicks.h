@@ -47,6 +47,10 @@ struct WORLD_OF_REFRACTION_API FPlayerPicks
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Picks")
 	TArray<ECrystalType> Crystals;
 
+	/** B-557 (D-238): a hub recruit's fixed picks (UClassDefaultLoadoutData::Recruits), built under its own name. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Picks")
+	bool bRecruit = false;
+
 	/** A built player: these picks make its character data. */
 	bool IsSet() const { return !Name.IsEmpty(); }
 };

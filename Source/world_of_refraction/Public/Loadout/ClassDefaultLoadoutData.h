@@ -194,6 +194,23 @@ public:
 	 *  type. Empty for the other classes. */
 	static TMap<FCrystalId, int32> GetPickedCrystals(const FPlayerPicks &Picks);
 
+	/** B-557 (D-238, stage 4b): the hub's walk-up recruits, each the shared character with fixed picks (bRecruit set):
+	 *  name, Starting spirit, class, a Refractor's element, a Generic's weapons, a Resonator's crystals. A placed recruit
+	 *  finds its row by its old asset's class and element (FindRecruit); none: it stays its old asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Recruits", meta = (TitleProperty = "Name"))
+	TArray<FPlayerPicks> Recruits;
+
+	/** B-557: the recruit row for a class (a Refractor: and its element and Broken Darkness), or null. */
+	const FPlayerPicks *FindRecruit(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness) const;
+
+	/** B-557 (D-238 defaults): the 12 recruits as Spirits: Generic (Sword and Shield), Resonator (Garnet and Sapphire),
+	 *  and a Refractor per element with Broken Darkness and Reality, each named by its element or class, on Male Nobody. */
+	static TArray<FPlayerPicks> MakeDefaultRecruits();
+
+	/** The editor step: Recruits = MakeDefaultRecruits() and mark the asset dirty; set each Body, then save. */
+	UFUNCTION(CallInEditor, Category = "Recruits")
+	void FillRecruits();
+
 	/** B-549: the characters FillFromSources reads (today's Lords). Transient, so the table keeps no hold on them. */
 	UPROPERTY(EditAnywhere, Transient, Category = "Class table|Fill")
 	TArray<TObjectPtr<UCharacterData>> FillSources;
