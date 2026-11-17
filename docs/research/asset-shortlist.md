@@ -159,3 +159,90 @@ The caster heroes (Gideon, Muriel, Fey, Zinx) are useful for spell casts. Parago
   - **Making a Paragon sequel, remake or re-creation without Epic's written permission** (Epic's content terms as quoted in the same forum thread).
 - **Unclear:** one forum user saw "UE4 based products" on an older listing and asked Epic about UE5. The listing now names UE 5.0–5.3. No formal Epic answer was found.
 - **Correction:** section 2 said a Paragon hero "can only ever be a placeholder". **That was too strict.** On these sources a Paragon body may ship as a look in an Unreal game, renamed (no "Paragon", and safer not to use the hero's own name) and not presented as Paragon. Whether it should is a style question (it is not anime), and the licence wording should be read on the Fab page before shipping.
+
+## 5. Two weapons, and sword and shield, as templates (D-242)
+
+### 5.1 The two-weapon and shield sets we own
+
+Counts are from file names. "Kept" leaves out Paragon's `_MSA` and additive copies. Root motion (RM) or in place (IP) is from the `_RM` / `_IP` suffix. **Editor:** whether a clip really fits its label.
+
+| Set | Pairing it covers | Files (kept) | Idle | Basic attacks | Heavier / skill | Block | Hit | Death | Note |
+|---|---|---|---|---|---|---|---|---|---|
+| CombatMaster **DSAS V1** | Sword and shield | 150 (147, IP) | 3 | 6 combos + slashes, kick (~98) | (combo enders) | 1 | 0 | 0 | The Light Hit's source |
+| CombatMaster **DSAS V2** | Sword and shield | 146 (IP) | 2 | ~48 | — | **~44** (block moves and turns) | 16 | 0 | The best guard set |
+| CombatMaster DSAS V3 | Sword and shield | 76 (**RM only**) | — | 3 combos | — | — | — | — | Root motion: needs an in-place pass |
+| CombatMaster Handsome SAS | Sword and shield | 25 | 1 | 13 | 2 | 0 | 4 | 1 | Small, complete |
+| CombatMaster **Handsome Twin Sword** | Two swords | 51 | 2 | 20 slashes, 6 stabs, combo | (jump attacks) | 2 | 6 | 0 | Real two-sword set |
+| CombatMaster Dynamic Twin Axe | Two axes | 58 (**RM only**) | 4 | 4 combos | — | 8 (start, loop, hit, end) | 8 | 0 | Needs an in-place pass |
+| CombatMaster Dynamic Hand to Hand (V1 RM, V2) | Gauntlets | 50 + 64 | 2 | 5 combos + common attacks | — | — | — | — | Only V2 has some in-place clips |
+| Paragon **Kallari** | Two daggers | 188 (172) | 22 | 12 | 7 | 3 (block, evade) | 7 | 6 | The most complete dual set |
+| Paragon **Countess** | Two blades (daggers or swords) | 230 (189) | 20 | 21 | 15 | 0 | 6 | 1 | |
+| Paragon **TwinBlast** | Two guns | 254 (225) | 23 | 15 (left and right shots) | 22 | 0 | 7 | 2 | |
+| Paragon **Grux** | Two maces (hammers) | 108 (104) | 18 | 12 (four-strike combo) | 1 | 0 | 8 | 2 | |
+| Paragon **Khaimera** | Claw blades (gauntlets) | 146 (130) | 26 | 13 | 6 | 0 | 6 | 2 | |
+| Paragon **Crunch** | Fists (gauntlets) | 144 (128) | 25 | 16 | 24 | 0 | 7 | 1 | |
+| Paragon **Steel** | Shield (with a fist) | 186 (162) | 11 | 24 (bash) | 27 | 3 (block idle) | 11 | 2 | Shield-first: few weapon swings |
+| Paragon **Terra** | Axe and shield | 135 (107) | 19 | 11 | 1 | 0 | 7 | 1 | Weapon-and-shield in one hero |
+| Paragon Yin | Sword and whip (**editor**) | 163 (134) | 21 | 17 | 17 | 0 | 7 | 2 | A possible mixed pair |
+
+**Gaps:**
+- No set for a **mixed pair** (sword and axe).
+- **Two axes and two-sword skill moves** exist only as root motion or a small set.
+- Death clips are missing from most CombatMaster sets; a generic death would serve all.
+- StylizedWeapons' own clips are only the bow string's draw. No other set on disk is a pair.
+
+### 5.2 How the game treats a pair today
+
+- **One weapon for slots.** A pair is one entry; the main hand's sockets serve it; a weapon and a shield count as one weapon and keep the main hand's slots (CL-23b, D-211, D-224 Q8).
+- **Same type only.** Each weapon has an `EWeaponHandling` (single only / dual only / either) and **two stance entries** (alone, paired); the pair uses the **first-chosen** weapon's paired stance (D-209). Wield mode is visual only (CL-23).
+- **The attack** in the field is one swing per weapon type (D-215); in battle the skills belong to the loadout (D-224).
+
+**What a pair template needs beside a single-weapon one:**
+1. **Which hand each piece sits in:** a main-hand socket and an off-hand socket, and for a shield a forearm socket (not the hand).
+2. **A pair stance:** idle and guard poses that hold both pieces.
+3. **Pair attack montages** that move both hands, with hit and trail notifies on **both** pieces, or only the main hand's.
+4. **Block clips:** a shield's guard differs from a two-blade parry.
+5. **A rule for what the off hand does in a skill:** carried, or part of the swing.
+
+**Two options for Crown:**
+- **(a) Every pair uses the main hand's single template; the off-hand piece is just carried.** No new animation work; it looks wrong for pairs (an idle off hand), but works for every pairing at once.
+- **(b) Named pair templates where a real set exists, else (a).** Named:
+  - **Sword and shield:** DSAS V1 and V2; Terra for an axe and shield.
+  - **Two swords:** Handsome Twin Sword.
+  - **Two daggers:** Kallari.
+  - **Two guns:** TwinBlast.
+  - **Two maces or hammers:** Grux.
+  - **Gauntlets:** Crunch, or CombatMaster hand to hand.
+
+  **Falls back to (a):**
+  - Two axes, until the twin-axe set gets an in-place pass.
+  - Mixed pairs, which are not allowed yet anyway (D-209).
+  - Two spears, staves, scythes or bows (two-handed types, which shouldn't pair).
+
+**The evidence favours (b).** It matches D-209's stance-per-pairing idea and the games below, and with (a) as the fallback nothing is ever blocked.
+
+### 5.3 How other games do it
+
+- **Monster Hunter:** Sword and Shield and Dual Blades are **separate weapon types** among its 14, each with its own moves ([Icy Veins, Wilds list](https://www.icy-veins.com/monster-hunter-wilds/weapon-type-list)).
+- **Dark Souls 3:** paired weapons are **one item** with one moveset ([Fextralife](https://eldenring.wiki.fextralife.com/paired+weapons)).
+- **Elden Ring:** two weapons **of the same type** switch to a "power stance" moveset automatically, and paired weapons take one slot ([Den of Geek](https://www.denofgeek.com/games/elden-ring-dark-souls-2-best-feature-powerstancing-dual-wielding), [wiki.gg](https://eldenring.wiki.gg/wiki/Paired_Weapons)). It is liked; mixing types (a longsword and a dagger) gives no special moves.
+- **Our D-209** already reads like Elden Ring's rule (same type, the pair has its own stance). Option (b) is that rule with Paragon and CombatMaster supplying the stance and swings.
+
+## 6. Paragon heroes not on disk
+
+**What we have is the free animation-only pack.** Our folder (`ParagonAnimations`, 5,370 files in `<Hero>Manny` folders) matches the free Fab pack "Paragon animations retargeted to Manny" by a third-party seller: "Animation sequences only", about 5,300 animations, £0 ([listing](https://www.fab.com/listings/e6de87b1-b755-478d-9228-a9eb89ff4411), checked 2026-11-17). Its page does not list which heroes it includes, so I could not confirm whether the missing heroes were left out by that pack or only by our import.
+
+**Heroes Epic released free but not on disk** (from the 2018 release coverage plus memory of Paragon's roster; the full official list could not be opened: [80.lv](https://80.lv/articles/final-round-of-free-paragon-assets-valued-at-over-5-million), [CG Channel](https://www.cgchannel.com/2018/09/get-free-paragon-ue4-character-and-environment-assets)):
+
+| Hero | Weapon | Could help with | Sure |
+|---|---|---|---|
+| **Sevarog** | Giant hammer ([Game Informer](https://gameinformer.com/games/paragon/b/playstation4/archive/2016/03/29/playable-hero-sevarog-arrives-in-latest-update.aspx)) | **Two-handed hammer**, the gap Grux leaves (maces) | Medium |
+| Shinbi | Melee with spirit wolves (weapon not confirmed) | Possibly sword or dagger | Low |
+| Rampage | Giant fists, thrown rocks | Gauntlets (a heavy variant) | Medium |
+| Howitzer | Long-range mech, artillery | Gun (heavy) at best | Low |
+| Iggy & Scorch | Fire turrets and thrown molotovs ([PC Gamer](https://www.pcgamer.com/iggy-scorch-join-paragons-roster-of-heroes/)) | None of the twelve (a caster) | Medium |
+| Boris | Announced, never shipped in the game; released as an asset | Not known | Low |
+
+- **Spear and scythe:** **no missing hero clearly fills them** either. Serath (on disk) remains the only weak scythe lead.
+- **A second dual or shield set:** none of the missing heroes adds one. The best addition is **Sevarog for a two-handed hammer**.
+- **Where they exist:** these heroes come **inside Epic's full hero packs** ("Paragon: Sevarog" etc.: model, skins, animations, Animation Blueprint) on **their own skeletons**. Their animations would need retargeting to Manny, unlike the pack we already have. Whether any animation-only Manny copy exists for them: **not verified**.
