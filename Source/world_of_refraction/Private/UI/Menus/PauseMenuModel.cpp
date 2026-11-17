@@ -25,6 +25,7 @@
 #include "Trial/TrialData.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "Character/PlayerBuild.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -185,7 +186,7 @@ TArray<FPauseMenuMember> WoRPauseMenu::BuildParty(const UWorld *World)
 			continue;
 		}
 		FPauseMenuMember Row;
-		Row.Name = FText::FromString(Data->Name);
+		Row.Name = WoRPlayerBuild::GetCardName(Data, Member.MemberId, World); // D-229: You or the player's tag
 		const FText ClassName = WoRGameNames::GetCharacterClassName(Data->CharacterClass);
 		Row.ClassLine = Data->HasInnateElement() ? FText::Format(LOCTEXT("ElementAndClass", "{0} {1}"),
 																  WoRGameNames::GetElementName(Data->GetElement()), ClassName)

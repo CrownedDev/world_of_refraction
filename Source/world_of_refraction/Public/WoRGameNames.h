@@ -117,6 +117,11 @@ namespace WoRGameNames
     /** B-544 (D-236): the hub's place name, "The Hub" (was "Void Realm" with a "The hub" subtitle). */
     WORLD_OF_REFRACTION_API FText GetHubPlaceName();
 
+    /** D-229 (Crown): the local player's own character card reads "You". */
+    WORLD_OF_REFRACTION_API FText GetYouWord();
+    /** D-229: "Your turn" (the turn title for the viewer's own character). */
+    WORLD_OF_REFRACTION_API FText GetYourTurnText();
+
     /** B-388: "Secret" (the Hidden kind's player-facing name, D-196), "Main", "Side". */
     WORLD_OF_REFRACTION_API FText GetQuestKindName(EQuestKind Kind);
 

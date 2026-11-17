@@ -336,7 +336,7 @@ void UHubHUDWidget::RefreshPartyStrip()
 	const UGameInstance *GameInstance = GetGameInstance();
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	const TArray<FBattleHUDCard> Cards =
-		WoRHubHUD::BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr, WoRHubHUD::FindPlayedMemberSlot(GetOwningPlayerPawn()));
+		WoRHubHUD::BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr, WoRHubHUD::FindPlayedMemberSlot(GetOwningPlayerPawn()), GetWorld());
 	for (int32 Index = 0; Index < PartyCards.Num(); ++Index)
 	{
 		FBattleHUDCard &Card = PartyCards[Index];
@@ -349,6 +349,7 @@ void UHubHUDWidget::RefreshPartyStrip()
 		// The model's data into the card that holds the widgets (built once).
 		const FBattleHUDCard &Data = Cards[Index];
 		Card.Name = Data.Name;
+		Card.DetailLine = Data.DetailLine; // D-229
 		Card.bAlive = Data.bAlive;
 		Card.HPFraction = Data.HPFraction;
 		Card.HPLine = Data.HPLine;

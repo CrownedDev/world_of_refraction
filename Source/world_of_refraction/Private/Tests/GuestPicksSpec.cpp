@@ -99,6 +99,27 @@ void FGuestPicksSpec::Define()
 		TestEqual(TEXT("an authored character asset is never renamed"), Authored.CharacterData->Name, FString(TEXT("Authored")));
 	});
 
+	It("reads a card as You for its own player, the gamer tag for another, and a recruit by its name (D-229)", [this]()
+	{
+		UPackage *Package = GetTransientPackage();
+		UCharacterData *Player = NewObject<UCharacterData>(Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(),
+																						  *(FString(WoRPlayerBuild::BUILT_NAME) + TEXT("_CardSpec"))));
+		Player->Name = TEXT("Fire Refractor");
+		Player->CharacterClass = ECharacterClass::Caster;
+		Player->InnateElement = ESpellElement::Fire;
+		UCharacterData *Recruit = NewObject<UCharacterData>(Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(),
+																						   *(FString(WoRPlayerBuild::BUILT_NAME) + TEXT("_Recruit_CardSpec"))));
+		Recruit->Name = TEXT("Fire Spirit");
+		TestTrue(TEXT("a built player is a player character; a recruit is not"),
+				 WoRPlayerBuild::IsPlayerCharacter(Player) && !WoRPlayerBuild::IsPlayerCharacter(Recruit));
+		TestEqual(TEXT("own: You"), WoRPlayerBuild::MakeCardName(*Player, true, true, TEXT("Rin")).ToString(), FString(TEXT("You")));
+		TestEqual(TEXT("another player's: its tag, no brackets"), WoRPlayerBuild::MakeCardName(*Player, true, false, TEXT("Rin")).ToString(), FString(TEXT("Rin")));
+		TestEqual(TEXT("a recruit: its own name"), WoRPlayerBuild::MakeCardName(*Recruit, false, true, TEXT("Rin")).ToString(), FString(TEXT("Fire Spirit")));
+		TestEqual(TEXT("no world (solo): You"), WoRPlayerBuild::GetCardName(Player, FGuid(), nullptr).ToString(), FString(TEXT("You")));
+		TestEqual(TEXT("the detail line: the kind name"), WoRPlayerBuild::GetDetailLine(Player).ToString(), FString(TEXT("Fire Refractor")));
+		TestTrue(TEXT("a recruit: no detail line"), WoRPlayerBuild::GetDetailLine(Recruit).IsEmpty());
+	});
+
 	It("refuses a join with no picks, without a host", [this]()
 	{
 		URunStateComponent *Run = NewObject<URunStateComponent>(GetTransientPackage());

@@ -21,6 +21,7 @@
 #include "UI/Menus/PauseMenuModel.h"
 #include "UI/WoRIconTable.h"
 #include "UI/WoRKeyHintText.h"
+#include "Character/PlayerBuild.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -91,7 +92,7 @@ FText WoRHubHUD::BuildQuestLine(const UWorld *World)
 	return WoRPauseMenu::IsInRun(World) ? WoRPauseMenu::GetTrackedLine(World) : FText::GetEmpty();
 }
 
-TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party, int32 PlayedSlot)
+TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party, int32 PlayedSlot, const UWorld *World)
 {
 	TArray<FBattleHUDCard> Cards;
 	if (!Party)
@@ -120,7 +121,8 @@ TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party, int32 Pla
 		}
 		FBattleHUDCard &Card = Cards.AddDefaulted_GetRef();
 		Card.bParty = true;
-		Card.Name = FText::FromString(Data->Name);
+		Card.Name = WoRPlayerBuild::GetCardName(Data, Member.MemberId, World); // D-229
+		Card.DetailLine = WoRPlayerBuild::GetDetailLine(Data);
 		Card.bAlive = !Member.IsFallen();
 		const int32 MaxHP = Data->CalculateMaxHealth();
 		const int32 MaxEP = Data->CalculateMaxEnergy();
@@ -222,7 +224,7 @@ FString WoRHubHUD::GetHubHUDString(const UWorld *World)
 	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
 	const UPartySessionSubsystem *PartySession = GameInstance ? GameInstance->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	FString Party;
-	for (const FBattleHUDCard &Card : BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr, FindPlayedMemberSlot(PC ? PC->GetPawn() : nullptr)))
+	for (const FBattleHUDCard &Card : BuildPartyStrip(PartySession ? PartySession->GetLocalParty() : nullptr, FindPlayedMemberSlot(PC ? PC->GetPawn() : nullptr), World))
 	{
 		Party += FString::Printf(TEXT("%s%s %s %s"), Party.IsEmpty() ? TEXT("") : TEXT(", "), *Card.Name.ToString(), *Card.HPLine.ToString(), *Card.EPLine.ToString());
 	}

@@ -498,6 +498,16 @@ FText GetHubPlaceName()
     return LOCTEXT("HubPlaceName", "The Hub");
 }
 
+FText GetYouWord()
+{
+    return LOCTEXT("You", "You");
+}
+
+FText GetYourTurnText()
+{
+    return LOCTEXT("YourTurn", "Your turn");
+}
+
 FText GetCurrencyName(ECurrencyType Currency)
 {
     switch (Currency)

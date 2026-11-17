@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/Combat/TurnOrderSlotWidget.h"
+#include "UI/Combat/Battle/BattleHUDView.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Components/Border.h"
@@ -30,18 +31,9 @@ void UTurnOrderSlotWidget::InitialiseSlot_Implementation(AActor *InActor, int32 
 	}
 	SetVisibility(ESlateVisibility::HitTestInvisible);
 
-	FString DisplayName = InActor->GetName();
-	if (const UCharacterDataComponent *CharComp = InActor->FindComponentByClass<UCharacterDataComponent>())
-	{
-		if (CharComp->CharacterData)
-		{
-			DisplayName = CharComp->CharacterData->Name;
-		}
-	}
-
 	if (NameText)
 	{
-		NameText->SetText(FText::FromString(DisplayName));
+		NameText->SetText(BattleHUDView::GetCombatantName(InActor)); // D-229: You or the player's tag, as the card
 	}
 	if (TurnNumberText)
 	{
