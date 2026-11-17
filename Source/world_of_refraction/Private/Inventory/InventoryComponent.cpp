@@ -2142,8 +2142,10 @@ bool UInventoryComponent::IsWornByOtherMemberOf(const FGuid &PersistentID, const
         return false;
     }
     const FName Wearer = Pool->GetWearer(PersistentID);
-    // A wearer who left the party has released it (UPartySessionSubsystem); only a current member counts.
-    return !Wearer.IsNone() && Wearer != SharedGearKey && Party.Contains(Wearer);
+    // B-552 (D-239): a benched or swapped-out character keeps what it wears; only a run recruit that left freed its own
+    // (UPartySessionSubsystem's ReleaseRunMember). Party is kept for the callers; any other wearer counts.
+    (void)Party;
+    return !Wearer.IsNone() && Wearer != SharedGearKey;
 }
 
 TArray<FWeaponInventoryEntry> UInventoryComponent::GetSelectableWeapons() const
@@ -2190,8 +2192,8 @@ TArray<FText> UInventoryComponent::ClaimActiveSharedGear()
     for (const TPair<FGuid, const UObject *> &Piece : Worn)
     {
         const FName Wearer = Pool->GetWearer(Piece.Key);
-        const UCharacterData *const *Other = Wearer != SharedGearKey ? Party.Find(Wearer) : nullptr;
-        if (!Other)
+        // B-552 (D-239): a wearer out of the party keeps it too (benched or swapped out).
+        if (Wearer.IsNone() || Wearer == SharedGearKey)
         {
             Pool->SetWearer(Piece.Key, SharedGearKey);
             Kept.Add(Piece.Key);
@@ -2209,7 +2211,8 @@ TArray<FText> UInventoryComponent::ClaimActiveSharedGear()
         FPoolGearClash &Clash = Clashes.AddDefaulted_GetRef();
         Clash.GearID = Piece.Key;
         Clash.ItemName = GetGearDisplayName(Piece.Value);
-        Clash.WearerName = FText::FromString(*Other ? (*Other)->Name : Wearer.ToString());
+        const UCharacterData *const *Other = Party.Find(Wearer);
+        Clash.WearerName = FText::FromString(Other && *Other ? (*Other)->Name : Wearer.ToString());
         Clash.LoserKey = SharedGearKey;
         Clash.LoserName = SelfName;
         Taken.Add(FText::Format(LOCTEXT("WornByOther", "{0} (worn by {1})"), Clash.ItemName, Clash.WearerName));
