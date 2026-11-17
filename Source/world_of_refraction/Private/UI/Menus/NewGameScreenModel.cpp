@@ -205,7 +205,7 @@ FText WoRNewGame::GetPicksLabel(ECharacterClass Class)
 	case ECharacterClass::Resonator:
 		return LOCTEXT("PicksCrystals", "Two crystal types");
 	default:
-		return LOCTEXT("Element", "Element");
+		return LOCTEXT("SpiritOfLabel", "Spirit of"); // D-241: was "Element"; the plain element names under it
 	}
 }
 

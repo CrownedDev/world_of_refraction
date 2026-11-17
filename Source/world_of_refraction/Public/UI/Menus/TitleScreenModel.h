@@ -14,6 +14,7 @@
 #include "CoreMinimal.h"
 
 class APlayerController;
+class UCharacterFormSubsystem;
 class UGameInstance;
 struct FPlayerPicks;
 struct FWoRSaveData;
@@ -58,8 +59,11 @@ struct FTitleSaveSummary
 	bool bLastRunLost = false;
 	TArray<FText> PartyNames;
 	double PlaySeconds = 0.0;
-	/** B-546: the slot's character: the party leader's name. */
+	/** B-546: the slot's character: the party leader's name. D-241: a character made from picks is named by its body
+	 *  ("Male Nobody", a worn form's name). */
 	FText LeaderName;
+	/** D-241: the leader's word after "Spirit of" (WoRPlayerBuild::GetSpiritName); empty for an authored character. */
+	FText LeaderSpirit;
 	/** B-546 (Crown): the leader's Mind / Body / Spirit levels earned in the save's run (FSavedRun::RunLevels). The
 	 *  run's levels end with it (D-102), so only a run the save still holds has them; without one they show as dashes. */
 	bool bHasRunLevels = false;
@@ -100,8 +104,10 @@ namespace WoRTitleScreen
 	 *  none free). */
 	WORLD_OF_REFRACTION_API bool SendJoin(APlayerController *PC, const FPlayerPicks &Picks, int32 Slot);
 
-	/** bRunSettled: the save subsystem already settled a run this session (WasClosedRunSettled), so Data holds none. */
-	WORLD_OF_REFRACTION_API FTitleSaveSummary Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled = false);
+	/** bRunSettled: the save subsystem already settled a run this session (WasClosedRunSettled), so Data holds none.
+	 *  Forms names a worn form (D-241); null: the base body's name. */
+	WORLD_OF_REFRACTION_API FTitleSaveSummary Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled = false,
+														const UCharacterFormSubsystem *Forms = nullptr);
 	/** The game instance's save (USaveSubsystem). */
 	WORLD_OF_REFRACTION_API FTitleSaveSummary SummarizeSave(const UGameInstance *GameInstance);
 	/** B-554 (D-229): every filled slot below GetMaxSlots, in slot order (the active one as SummarizeSave says). */
