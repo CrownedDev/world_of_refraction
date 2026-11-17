@@ -13,7 +13,9 @@
 
 #include "CoreMinimal.h"
 
+class APlayerController;
 class UGameInstance;
+struct FPlayerPicks;
 struct FWoRSaveData;
 
 enum class ETitleScreenRow : uint8
@@ -85,6 +87,16 @@ namespace WoRTitleScreen
 	/** B-554: a row per filled slot (in slot order, each with its Slot), the + while fewer than MaxSlots, then the
 	 *  buttons. */
 	WORLD_OF_REFRACTION_API TArray<FTitleScreenRow> BuildSlotRows(const TArray<FTitleSaveSummary> &Slots, int32 MaxSlots = INDEX_NONE);
+
+	/** B-562 (D-229, stage 5): the slot list a co-op guest joins from: BuildSlotRows without the buttons. */
+	WORLD_OF_REFRACTION_API TArray<FTitleScreenRow> BuildJoinRows(const TArray<FTitleSaveSummary> &Slots, int32 MaxSlots = INDEX_NONE);
+	/** B-562: the character a save holds: its first party member with new-game picks (the leader). False: none. */
+	WORLD_OF_REFRACTION_API bool FindSavedPicks(const FWoRSaveData &Data, FPlayerPicks &OutPicks);
+	/** B-562: FindSavedPicks on this player's own save slot, read from its own disk (USaveSubsystem::ReadSlot). */
+	WORLD_OF_REFRACTION_API bool ReadSlotPicks(const UGameInstance *GameInstance, int32 Slot, FPlayerPicks &OutPicks);
+	/** B-562: PC's player asks the host for a seat as Picks (AWoRPlayerState::RequestJoinWithPicks). False: no player
+	 *  state or no picks; the host's answer is its own (D-150: it picks the seat). */
+	WORLD_OF_REFRACTION_API bool SendJoin(APlayerController *PC, const FPlayerPicks &Picks);
 
 	/** bRunSettled: the save subsystem already settled a run this session (WasClosedRunSettled), so Data holds none. */
 	WORLD_OF_REFRACTION_API FTitleSaveSummary Summarize(const FWoRSaveData &Data, bool bHasSave, double PlaySeconds, bool bRunSettled = false);
