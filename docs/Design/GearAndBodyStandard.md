@@ -87,7 +87,7 @@
 
 | # | Topic | The rule | Why |
 |---|---|---|---|
-| 1 | **How the model is built** | Every weapon model runs along **Y**, with its tip, blade or head towards **+Y**, its **origin where the main hand holds it**, and its cutting edge along **Z** (measured; in full below). The right hand is the default; left-hand pieces (shield, bow) say so | Crown: "that way we can make any other assets follow the same pattern and we won't have to play around with positioning" |
+| 1 | **How the model is built and held** | **The Paragon grip is the reference** (ruled, D-242): how a Paragon hero holds its weapon. Every weapon model and every body is lined up to it once. The values are **not filled in yet**: a hero pack must be added and measured first (in full below; section 10, step 0) | Crown: Paragon is "tried and proven"; "if we can get them to work, all we need to do is tweak everything else to fit". And: "we won't have to play around with positioning" |
 | 2 | **Put away** | Hidden, as today (`WeaponMeshComponent.cpp:172-182`). The back and hip points are named on the body now, unused | Nothing to align today; showing a weapon on the back later needs no new body work |
 | 3 | **Scale** | Real size in centimetres, checked against Manny's hand; a length range per type | Packs differ (**editor**); one check on import catches a giant dagger |
 | 4 | **Attach-point names** | One fixed list on every body: right hand (`hand_r_weapon`), left hand (`hand_l_weapon`), shield, ring, back, hip, arrow or muzzle (`weapon_r_muzzle`, on both bodies today), effect point. **One per hand, not one per weapon type**, and the **same position and turn on every body** | Measured: seven of twelve types have no point today and show nothing; Manny and Quinn carry different turns under the same names; Quinn already has the two per-hand points, Manny does not (`weapon-orientation.md` §2). With rule 1, one point per hand serves every type |
@@ -98,39 +98,45 @@
 | 9 | **Icons** | One style, one size, clear background; the frame is drawn by the screen, not baked in. An adapter's icon is the frame with its crystal's icon inside (D-229) | Three styles are in use today; one icon plus a tint beats one per element per tier |
 | 10 | **Heavy files** | New model, texture, sound and effect fields are loaded on demand (D-057) | Standing rule |
 
-### Rule 1 in full: how a weapon model is built (Crown, 2026-11-17)
+### Rule 1 in full: the Paragon grip is the reference (Crown, 2026-11-17)
 
-The standard fixes how the model itself is made, not only how it is attached. A model built to it sits right in the hand with no turn and no offset.
+**Ruled (D-242, "Paragon is the reference"):** how a Paragon hero holds its weapon is the standard, because the animations were made for it. Every weapon model, the StylizedWeapons ones included, and every body is lined up to it once, not the other way round. This replaces this document's earlier draft, which took the StylizedWeapons pattern as the standard.
 
-The values are the most common pattern among the owned models: StylizedWeapons, about 110 models, including all four the game uses (`docs/research/weapon-orientation.md`, "The most common pattern" and "One rule that would work").
+**What the reference is:** the weapon's place and turn relative to the hand, in the hero's own skeleton. It has two halves, and both are lined up to it:
+
+| Half | Lined up to the reference by |
+|---|---|
+| **The body's attach point** (one per hand, rule 4) | Sitting at the same place and turn, relative to the hand, as the hero's weapon bone |
+| **The weapon model** | Being built the way the hero's weapon is built on that bone: the same length axis, the same end for the tip, the origin at the same spot on the grip |
+
+With both true, a model sits right in the hand with no turn and no offset, on every body, for every Paragon clip.
+
+**The values cannot be filled in yet.** The Paragon animations on disk are the copies fitted to Manny, and they carry no weapon bones; no Paragon model or skeleton is in the project (`docs/research/weapon-orientation.md` §4; D-242). So one free hero pack must be added and measured first: **Kwang** for a sword on a Manny-like build, **Sparrow** for a bow and the cosmetics test. That is step 0 of section 10. Until then:
 
 | Part of the rule | Value |
 |---|---|
-| **Length axis** | **Y** |
-| **Which end** | The tip, blade, head or barrel towards **+Y**; the pommel or butt towards -Y |
-| **Origin** | **Where the main (right) hand holds it.** On the measured one-handers that is 19 to 22 cm from a sword's or dagger's pommel and 40 to 53 cm from an axe's or hammer's butt |
-| **Edge** | The cutting edge along **Z**; the flat of the blade faces X |
-| **Shields** | The face points along **X**, tall along Z, wide along Y; the origin at the **centre of the back** |
-| **Long two-handers** (spear, staff, scythe, two-handed hammer and axe) | Same axis and end. The origin is where the right hand sits in that type's stance, which may be near the middle of the shaft; the template states the distance from the butt (**editor**: seen in PIE, section 10) |
-| **Bows** | Limb to limb along Y, origin at the grip in the centre, as the pack's bow is |
-| **Fist weapons** | The one exception: they wrap the hand, so they keep the pack's Z axis, origin inside the fist |
-| **Kind and bones** | One `Root` bone and no attach points of its own, or a plain static model (rule 5) |
+| Main-hand grip: place and turn relative to the hand | **To be measured (step 0)** |
+| Off-hand grip | **To be measured (step 0)** |
+| Shield: place and turn (hand or forearm) | **To be measured**; neither Kwang nor Sparrow carries a shield, so this needs a third pack (Steel or Terra) |
+| The model's length axis, tip end and origin | **To be measured** from the hero's own weapon model |
+| Long two-handers, bows, fist weapons | **To be measured** per hero (Sparrow for the bow); the rest when their type goes in |
+| Kind and bones | One root bone and no attach points of its own, or a plain static model (rule 5) |
 
-**Which owned packs match:**
+**What the placeholder models do today** (measured, `weapon-orientation.md` §1 and "The most common pattern"). This is no longer the standard; it is the starting point the correction works from:
 
-| Pack | Matches? | What it needs |
+| Pack | Its pattern today | To reach the reference |
 |---|---|---|
-| **StylizedWeapons** (the four weapons in use; swords, axes, daggers, one-handed hammers, two-handed swords, polearms, shields, bows) | **Yes** | Nothing. Their per-piece turn is already 0 on all four in use |
-| StylizedWeapons staff, two-handed hammer, one two-handed axe | Axis yes; origin near the middle of the shaft | Judged by eye in PIE; moved only if the hand sits wrong |
-| StylizedWeapons fist weapons | The stated exception | Nothing |
-| **100 Fantasy pack** (grey: scythes, guns, spears) | **No**: most run along Z, guns along X, some origins are off the end | A one-off correction for the few pieces used (scythe, gun) |
-| **CombatMaster weapons** | **No**: blades to -Z, and not consistent with itself | None: its weapons are not used, only its animations |
+| **StylizedWeapons** (about 110 models; all four weapons in use) | One pattern throughout: along **Y**, tip or head to **+Y**, origin at the grip (19 to 22 cm from a sword's or dagger's pommel, 40 to 53 cm from an axe's or hammer's butt), edge along Z. Shields: face along X, origin near the centre of the back | Because the pack agrees with itself, **one and the same correction for the whole pack**, worked out once from step 0. If the reference happens to match, nothing |
+| StylizedWeapons staff, two-handed hammer, one two-handed axe | Same axis; origin near the middle of the shaft | The pack's correction, plus the origin moved if the hero's hand sits elsewhere |
+| StylizedWeapons fist weapons | Along Z, origin inside the fist | Their own correction, from a fist hero (Crunch) when gauntlets go in |
+| **100 Fantasy pack** (grey: scythes, guns, spears) | Not one pattern: most along Z, guns along X, some origins off the end | A correction per piece, for the few used (scythe, gun) |
+| **CombatMaster weapons** | Blades to -Z; not consistent with itself | None: its weapons are not used, only its animations |
 
-**The one-off correction (default):** the model is **corrected once and re-imported** (turned to +Y, origin moved to the grip), so the corrected file is the one the game keeps. Not an attach point added to the model: the gear code reads none, and it hides the problem instead of removing it. Not an offset on the weapon data: there is no position field there today, and a per-piece fix is exactly what Crown wants gone. Today's per-piece turn (`WeaponData.h:130,149`) stays only as the deliberate override of section 3; the two old assets that use it to flip a model (`DA_Weapon_Tomahawk`, `DA_Resonator_Equpment_Sword`) are old-format and go with the old assets.
+**The one-off correction (default):** the model is **corrected once and re-imported** to the reference, so the corrected file is the one the game keeps and later models are simply made that way. Not an attach point added to the model: the gear code reads none, and it hides the problem instead of removing it. Not an offset on the weapon data: there is no position field there today, and a per-piece fix is exactly what Crown wants gone. Today's per-piece turn (`WeaponData.h:130,149`) stays only as the deliberate override of section 3; the two old assets that use it to flip a model (`DA_Weapon_Tomahawk`, `DA_Resonator_Equpment_Sword`) are old-format and go with the old assets.
 
-**The hand's attach point is the other half:** one per hand, facing the way rule 1 expects, the same on every body (rule 4). Today the fix-ups live there instead: one point per weapon type, and different turns on the two bodies.
+**The bodies are lined up too.** Today the fix-ups live in the hand attach points: one per weapon type, with different turns on Manny and Quinn (`weapon-orientation.md` §2). Under the reference there is one point per hand, at the measured Paragon place and turn, the same on every body (rule 4).
 
-**No Paragon weapon models exist in the project** (measured: the Paragon folder holds animations only, `weapon-orientation.md` §4).
+**One risk step 0 must check:** a hero's hand is not Manny's hand. The grip measured on the hero's skeleton may need a small, fixed adjustment to look the same on Manny; that is why step 0 ends by playing the same clip on Manny with the game's sword on the measured grip.
 
 ## 7. Bodies
 
@@ -159,9 +165,9 @@ UE4-era packs (MageAnimationSet) go through one shared converter, set up once.
 
 ## 8. The twelve weapon types
 
-"Built to rule 1" is measured (`weapon-orientation.md` §1). "Shows today" is whether the code has an attach point for the type (§2 there).
+"Pack pattern" is whether the model follows the StylizedWeapons pattern, so the pack's one correction brings it to the reference (measured, `weapon-orientation.md` §1); it is not yet a pass against the Paragon grip, which waits for step 0. "Shows today" is whether the code has an attach point for the type (§2 there).
 
-| Type | Model | Built to rule 1 | Shows today | Animations | Pair set | Missing |
+| Type | Model | Pack pattern | Shows today | Animations | Pair set | Missing |
 |---|---|---|---|---|---|---|
 | Sword | StylizedWeapons | Yes | Yes | CombatMaster sword; Paragon Feng Mao | Two swords; with shield | Nothing |
 | Greatsword | StylizedWeapons | Yes | Yes | CombatMaster; Paragon Greystone, Kwang | — | Nothing |
@@ -182,7 +188,7 @@ The seven types that do not show today all start showing with rule 4's one point
 
 1. **Name** follows `ContentNaming.md`, with the weapon type in it.
 2. **Scale** is real size; it passes the length range for its type.
-3. **Built to rule 1:** its origin is at the grip and it lies along the house axis, tip to the house end; held, it needs no turn and no offset.
+3. **Built to rule 1:** on the reference grip it sits as the Paragon hero's weapon does; held, it needs no turn and no offset. (Checkable once step 0 has the values.)
 4. **Kind:** static, unless the piece itself moves.
 5. **Colour:** it uses the kind's one material; the element tint works; no copy per colour.
 6. **Type:** its weapon type is set, so the template gives it a stance and an attack with nothing else filled in.
@@ -198,7 +204,8 @@ The shortlist's order, with one step added in front. Each step in Crown's order:
 
 | # | Step | Crown sees | The problem it is meant to find |
 |---|---|---|---|
-| 0a | **One attach point per hand, the same on both bodies** (added here, from the measurement) | The sword, shield and both axes in Manny's hands and in Quinn's, side by side | Which body holds them right today (their turns differ); whether one point per hand really serves every type; where the hand sits on a long shaft |
+| 0 | **Measure the Paragon grip** (D-242). Add one free hero pack: **Kwang** (a sword, on a Manny-like build); **Sparrow** next (a bow, and the body for step 4). Measure, in the hero's own skeleton: the weapon bone's place and turn relative to the hand bone, for the **main hand**, the **off hand**, and a **shield** where a hero has one (Steel or Terra; neither Kwang nor Sparrow has one); and how the hero's own weapon model is built on that bone (axis, tip end, origin). Then play the same clip on Manny with the game's sword on that grip | The hero and Manny side by side in the same clip, sword in hand | The reference values for rule 1; whether the grip carries over to Manny unchanged or needs one fixed adjustment; what one correction brings StylizedWeapons to it. Nothing else in rule 1 can be filled in before this |
+| 0a | **One attach point per hand, the same on both bodies,** at the measured grip (added here, from the measurement) | The sword, shield and both axes in Manny's hands and in Quinn's, side by side | Whether both bodies now hold them alike (their turns differ today); whether one point per hand really serves every type; where the hand sits on a long shaft |
 | 0b | **The template itself,** on the sword and on sword and shield, from what is already in the game (added here; D-242's "look into first") | Nothing new: the same sword, now with no attack or stance on the piece | Whether the default-then-override order holds in the field and the fight; whether the shield's override fits |
 | 1 | **Bow** (StylizedWeapons bow, Sparrow's clips) | A bow drawn and fired | An animated weapon in the left hand; the bow's own clip in time with the body's; the arrow point (`weapon_r_muzzle`); reach in a fixed-position fight |
 | 2 | **Ring and crystal** together | A ring on the hand in its element's colour | A ring attach point on both bodies; one model tinted nine ways; whether a ring can be seen at the fight's camera at all |
@@ -221,7 +228,9 @@ The shortlist's order, with one step added in front. Each step in Crown's order:
 | 7 | **The first set: one attack and three skills per template?** | **Yes.** Hades: each weapon starts with a small, distinct set and grows from there |
 | 8 | **Spear and scythe have no real animations.** Stand-ins, or leave them out of the pools? | **Spear on Wukong's staff clips; scythe left out until its clips are checked.** No game to cite: it follows "placeholders first" (D-242) and buys nothing |
 
-**Settled by the measurement, no longer a question:** the model's axis, end and origin (rule 1); one attach point per hand in place of one per weapon type (rule 4); that no Paragon weapon models exist.
+**Settled, no longer a question:** the reference is the Paragon grip (ruled, D-242); one attach point per hand in place of one per weapon type (rule 4); that no Paragon weapon models exist in the project.
+
+**Waiting on step 0, not on Crown:** every value in rule 1 (the grip's place and turn, the model's axis, end and origin), and the correction that brings StylizedWeapons to it. The shield's grip needs a third hero pack (Steel or Terra).
 
 **Still needs the editor or Crown's eyes:** whether weapons look right in each body's hand today, and which body's turns are the right ones; where the hand sits on a long shaft (staff, spear, two-handed hammer and axe); which way the edge faces on axes and curved blades (only the outer box was measured); the two skeleton assets brought to one; scale inside each pack; whether each Paragon clip fits its label (Serath, Wukong as a spear, Yin); how many distinct moves a hero really gives; whether StylizedWeapons can take a tint; whether one apparel piece fits both bodies. Only a sample was measured: 19 of about 110 StylizedWeapons models.
 
@@ -240,3 +249,4 @@ The shortlist's order, with one step added in front. Each step in Crown's order:
 | 2026-11-17 | Created from D-242, the asset shortlist and the weapon code as it stands | dev (docs only) |
 | 2026-11-17 | Crown's addition: rule 1 fixes how a weapon model is built (origin at the grip, one length axis, one end); the values wait for `docs/research/weapon-orientation.md` | dev (docs only) |
 | 2026-11-17 | Rule 1 filled from the measurement (along Y, tip to +Y, origin at the main hand; shields face X); which packs match and the one-off correction (re-import); one attach point per hand settled; the twelve-type table and steps 0a and 6 added; Manny and Quinn found on two skeleton assets | dev (docs only) |
+| 2026-11-17 | Crown, D-242 "Paragon is the reference": rule 1's standard is the Paragon grip, not the StylizedWeapons pattern; the values wait for step 0 (add and measure Kwang, then Sparrow); the StylizedWeapons pattern stays as what the placeholders do today | dev (docs only) |
