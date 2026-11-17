@@ -4,7 +4,11 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Character/CharacterData.h"
+#include "Character/PlayerBuild.h"
 #include "Misc/AutomationTest.h"
+#include "Pool/PoolSubsystem.h"
+#include "UObject/Package.h"
 #include "Save/GuestKeepSubsystem.h"
 #include "Save/WoRSaveTypes.h"
 
@@ -86,6 +90,63 @@ void FGuestKeepSpec::Define()
 		TestTrue(TEXT("kept"), UGuestKeepSubsystem::FoldKeptLevels(Own, Member));
 		const FSavedPartyMember &Mine = Own.Party.Members[0];
 		TestTrue(TEXT("its levels replace the last ones"), Mine.bHasKeptLevels && Mine.KeptMind == 3 && Mine.KeptBody == 0 && Mine.KeptSpirit == 1);
+	});
+
+	It("keys a saved member as the pool keys its built character", [this]()
+	{
+		FSavedPartyMember Guest;
+		Guest.Picks = MakePicks();
+		Guest.Picks.bGuest = true;
+		const UCharacterData *Template = NewObject<UCharacterData>(GetTransientPackage());
+		const UCharacterData *Built = WoRPlayerBuild::BuildFrom(Guest.Picks, Template, nullptr, 0, nullptr, WoRPlayerBuild::GetBuiltName(Guest.Picks));
+		if (TestNotNull(TEXT("built"), Built))
+		{
+			TestEqual(TEXT("the same key"), UGuestKeepSubsystem::GetSavedMemberKey(Guest), UPoolSubsystem::GetCharacterKey(Built));
+		}
+	});
+
+	It("moves only the guest's kept hub gear and its learned skills to its own character, once", [this]()
+	{
+		const FName GuestKey(TEXT("Guest"));
+		const FName OwnKey(TEXT("Own"));
+		FWoRSaveData Host;
+		const FGuid Kept = FGuid::NewGuid();
+		const FGuid HostPlayers = FGuid::NewGuid();
+		const FGuid StartingKit = FGuid::NewGuid();
+		for (const FGuid &Id : {Kept, HostPlayers, StartingKit})
+		{
+			Host.Pool.Gear.AddDefaulted_GetRef().InstanceID = Id;
+		}
+		const auto Own = [&Host](const FGuid &Id, FName Key)
+		{
+			FSavedWearer &Owner = Host.Pool.Owners.AddDefaulted_GetRef();
+			Owner.GearID = Id;
+			Owner.Character = Key;
+		};
+		Own(Kept, GuestKey);
+		Own(HostPlayers, TEXT("HostPlayer"));
+		Own(StartingKit, GuestKey);
+		Host.Pool.HubGear = {Kept, HostPlayers}; // the starting kit is home gear, not found
+		FSavedCharacterSkills &Learned = Host.Pool.CharacterSkills.AddDefaulted_GetRef();
+		Learned.Character = GuestKey;
+		Learned.Abilities.AddDefaulted_GetRef().Def.Path = FSoftObjectPath(TEXT("/Game/Test/DA_Skill_Test.DA_Skill_Test"));
+
+		FWoRSaveData Mine;
+		TestEqual(TEXT("one piece and one skill"), UGuestKeepSubsystem::FoldGearAndSkills(Mine, Host, GuestKey, OwnKey), 2);
+		TestTrue(TEXT("the kept piece is its own, as hub gear"), Mine.Pool.Gear.Num() == 1 && Mine.Pool.Gear[0].InstanceID == Kept &&
+				 Mine.Pool.Owners.Num() == 1 && Mine.Pool.Owners[0].Character == OwnKey && Mine.Pool.HubGear.Contains(Kept));
+		TestTrue(TEXT("the skill under its own key"), Mine.Pool.CharacterSkills.Num() == 1 && Mine.Pool.CharacterSkills[0].Character == OwnKey);
+		TestEqual(TEXT("a second copy adds nothing"), UGuestKeepSubsystem::FoldGearAndSkills(Mine, Host, GuestKey, OwnKey), 0);
+
+		// A found evolution kept in the socket of the guest's starting weapon: it comes over (loose).
+		const FGuid Evolution = FGuid::NewGuid();
+		Host.Pool.Evolutions.AddDefaulted_GetRef().InstanceID = Evolution;
+		Host.Pool.HubGear.Add(Evolution);
+		FSavedOwnedItem *Kit = Host.Pool.Gear.FindByPredicate([&StartingKit](const FSavedOwnedItem &Entry) { return Entry.InstanceID == StartingKit; });
+		Kit->Gear.Attached.Kind = EAttachedItemKind::Evolution;
+		Kit->Gear.Attached.Evolution.InstanceID = Evolution;
+		TestEqual(TEXT("the socketed evolution"), UGuestKeepSubsystem::FoldGearAndSkills(Mine, Host, GuestKey, OwnKey), 1);
+		TestTrue(TEXT("in its own evolutions, as hub gear"), Mine.Pool.Evolutions.Num() == 1 && Mine.Pool.HubGear.Contains(Evolution));
 	});
 
 	It("saves a new character made to join as its own player, with its picks", [this]()

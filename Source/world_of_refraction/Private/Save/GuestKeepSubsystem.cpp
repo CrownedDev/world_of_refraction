@@ -2,14 +2,17 @@
 
 #include "Save/GuestKeepSubsystem.h"
 
+#include "Character/PlayerBuild.h"
 #include "Currency/CurrencyComponent.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
+#include "Pool/PoolSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "UI/Menus/TitleScreenModel.h"
+#include "UObject/Package.h"
 #include "WoRLog.h"
 
 namespace
@@ -94,6 +97,93 @@ bool UGuestKeepSubsystem::FoldKeptLevels(FWoRSaveData &Own, const FSavedPartyMem
 	Mine->KeptSpirit = Member.KeptSpirit;
 	Mine->bHasKeptLevels = true;
 	return true;
+}
+
+FName UGuestKeepSubsystem::GetSavedMemberKey(const FSavedPartyMember &Member)
+{
+	// UPoolSubsystem::GetCharacterKey on the built or loaded character: its object path, #MemberId for a later copy.
+	const FString Path = Member.Picks.IsSet()
+		? FString::Printf(TEXT("%s.%s"), *GetTransientPackage()->GetPathName(), *WoRPlayerBuild::GetBuiltName(Member.Picks).ToString())
+		: Member.CharacterData.Path.ToString();
+	return FName(Member.bKeyedByMember ? FString::Printf(TEXT("%s#%s"), *Path, *Member.MemberId.ToString(EGuidFormats::Digits)) : Path);
+}
+
+int32 UGuestKeepSubsystem::FoldGearAndSkills(FWoRSaveData &Own, const FWoRSaveData &HostCopy, FName GuestKey, FName OwnKey)
+{
+	int32 Moved = 0;
+	// D-219, D-221: found gear the run let the guest keep is the host's hub gear owned by the guest's member. The host
+	// built the guest fresh from its picks, so the rest it owns there is its starting kit, which its own save has.
+	for (const FGuid &GearID : HostCopy.Pool.HubGear)
+	{
+		const FSavedWearer *Owner = HostCopy.Pool.Owners.FindByPredicate([&GearID](const FSavedWearer &Entry) { return Entry.GearID == GearID; });
+		const FSavedOwnedItem *Piece = Owner && Owner->Character == GuestKey
+			? HostCopy.Pool.Gear.FindByPredicate([&GearID](const FSavedOwnedItem &Entry) { return Entry.InstanceID == GearID; })
+			: nullptr;
+		if (!Piece || Own.Pool.Gear.ContainsByPredicate([&GearID](const FSavedOwnedItem &Entry) { return Entry.InstanceID == GearID; }))
+		{
+			continue; // not the guest's, or kept by an earlier copy
+		}
+		Own.Pool.Gear.Add(*Piece);
+		FSavedWearer &Owned = Own.Pool.Owners.AddDefaulted_GetRef();
+		Owned.GearID = GearID;
+		Owned.Character = OwnKey;
+		Own.Pool.HubGear.AddUnique(GearID);
+		++Moved;
+	}
+	// A kept found evolution is hub gear in the evolution list: the guest's when it owns it or one of its pieces holds
+	// it (a socket in its starting kit too: the evolution comes over loose then).
+	TSet<FGuid> SocketedInGuests;
+	for (const FSavedOwnedItem &Piece : HostCopy.Pool.Gear)
+	{
+		const FSavedWearer *Owner = HostCopy.Pool.Owners.FindByPredicate([&Piece](const FSavedWearer &Entry) { return Entry.GearID == Piece.InstanceID; });
+		if (Owner && Owner->Character == GuestKey && Piece.Gear.Attached.IsEvolution())
+		{
+			SocketedInGuests.Add(Piece.Gear.Attached.Evolution.InstanceID);
+		}
+	}
+	for (const FGuid &GearID : HostCopy.Pool.HubGear)
+	{
+		const FSavedWearer *Owner = HostCopy.Pool.Owners.FindByPredicate([&GearID](const FSavedWearer &Entry) { return Entry.GearID == GearID; });
+		const bool bGuests = (Owner && Owner->Character == GuestKey) || SocketedInGuests.Contains(GearID);
+		const FSavedOwnedItem *Evolution = bGuests
+			? HostCopy.Pool.Evolutions.FindByPredicate([&GearID](const FSavedOwnedItem &Entry) { return Entry.InstanceID == GearID; })
+			: nullptr;
+		if (!Evolution || Own.Pool.Evolutions.ContainsByPredicate([&GearID](const FSavedOwnedItem &Entry) { return Entry.InstanceID == GearID; }))
+		{
+			continue;
+		}
+		Own.Pool.Evolutions.Add(*Evolution);
+		FSavedWearer &Owned = Own.Pool.Owners.AddDefaulted_GetRef();
+		Owned.GearID = GearID;
+		Owned.Character = OwnKey;
+		Own.Pool.HubGear.AddUnique(GearID);
+		++Moved;
+	}
+	// D-224: the skills the guest's member learned there (it started with none), added to its own character's.
+	const FSavedCharacterSkills *Learned = HostCopy.Pool.CharacterSkills.FindByPredicate([GuestKey](const FSavedCharacterSkills &Entry) { return Entry.Character == GuestKey; });
+	if (Learned)
+	{
+		FSavedCharacterSkills *Mine = Own.Pool.CharacterSkills.FindByPredicate([OwnKey](const FSavedCharacterSkills &Entry) { return Entry.Character == OwnKey; });
+		if (!Mine)
+		{
+			Mine = &Own.Pool.CharacterSkills.AddDefaulted_GetRef();
+			Mine->Character = OwnKey;
+		}
+		const auto AddMissing = [&Moved](TArray<FSavedOwnedItem> &Into, const TArray<FSavedOwnedItem> &From)
+		{
+			for (const FSavedOwnedItem &Skill : From)
+			{
+				if (!Into.ContainsByPredicate([&Skill](const FSavedOwnedItem &Entry) { return Entry.Def.Path == Skill.Def.Path && Entry.Def.Id == Skill.Def.Id; }))
+				{
+					Into.Add(Skill);
+					++Moved;
+				}
+			}
+		};
+		AddMissing(Mine->Spells, Learned->Spells);
+		AddMissing(Mine->Abilities, Learned->Abilities);
+	}
+	return Moved;
 }
 
 FWoRSaveData UGuestKeepSubsystem::MakeNewCharacterSave(const FPlayerPicks &Picks)
@@ -206,14 +296,29 @@ void UGuestKeepSubsystem::FoldCheckpoint(const FWoRSaveData &HostCopy, const UCu
 	{
 		return; // a run still open settles nothing yet (D-219, D-237); no member: not seated
 	}
-	if (FoldIntoSlot([Member](FWoRSaveData &Data) { return FoldKeptLevels(Data, *Member); }))
+	int32 Moved = 0;
+	const FName GuestKey = GetSavedMemberKey(*Member);
+	if (FoldIntoSlot([Member, &HostCopy, GuestKey, &Moved](FWoRSaveData &Data)
 	{
-		UE_LOG(LogWoR, Log, TEXT("[GuestKeep] Kept levels Mind %d, Body %d, Spirit %d to slot %d"), Member->KeptMind,
-			   Member->KeptBody, Member->KeptSpirit, JoinedSlot);
-		// The slot in play: its party in memory is captured on the next save, so it takes the levels too.
+		const bool bLevels = FoldKeptLevels(Data, *Member);
+		const FSavedPartyMember *Mine = FindOwnCharacter(Data);
+		Moved = Mine ? FoldGearAndSkills(Data, HostCopy, GuestKey, GetSavedMemberKey(*Mine)) : 0;
+		return bLevels || Moved > 0;
+	}))
+	{
+		UE_LOG(LogWoR, Log, TEXT("[GuestKeep] To slot %d: kept levels %s (Mind %d, Body %d, Spirit %d); %d gear piece(s) and skill(s)"),
+			   JoinedSlot, Member->bHasKeptLevels ? TEXT("yes") : TEXT("none"), Member->KeptMind, Member->KeptBody, Member->KeptSpirit, Moved);
+		// The slot in play: its party and pool in memory are captured on the next save, so they take it too.
 		USaveSubsystem *Saves = GetGameInstance()->GetSubsystem<USaveSubsystem>();
+		const bool bInPlay = Saves && Saves->GetActiveSlot() == JoinedSlot;
+		UPoolSubsystem *Pool = bInPlay && Moved > 0 ? GetGameInstance()->GetSubsystem<UPoolSubsystem>() : nullptr;
+		if (Pool)
+		{
+			Pool->ResetStore(); // as a return to the own save does (B-234d)
+			USaveSubsystem::RestorePool(Saves->GetData().Pool, *Pool);
+		}
 		UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
-		UParty *Party = Saves && Saves->GetActiveSlot() == JoinedSlot && PartySession ? PartySession->GetLocalParty() : nullptr;
+		UParty *Party = bInPlay && Member->bHasKeptLevels && PartySession ? PartySession->GetLocalParty() : nullptr;
 		FPartyMember *Live = Party ? Party->Members.FindByPredicate([this](const FPartyMember &Entry)
 		{
 			return !Entry.Picks.bGuest && SamePicksCharacter(Entry.Picks, JoinedPicks);
