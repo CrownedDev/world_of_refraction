@@ -27,7 +27,7 @@ How it was checked: the packs were read by folder and file name only (no editor;
 | **One ring (adapter)** | Engine `BasicShapes/Cylinder` scaled into a band, plus the crystal mesh below as its inset (**free**) | No rigged ring for Manny exists free; most games don't draw rings at all, so the inset gem is what reads | A **ring socket** on `hand_r` (or the wrist) on Manny and Quinn alike; scale at hand size; the element tint driving the inset; whether a ring is visible at the battle camera at all (if not, use a glow on the hand) |
 | **One crystal mesh** | [Low Poly Gems & Crystals, Free Sampler](https://www.fab.com/listings/f1c0d0e0-d64f-4236-af36-b3ab9d74875f) (free per search summary; diamond, cluster, heart gem) or [Stylized Crystal Cluster](https://www.fab.com/listings/34429737-bc6e-4184-b29f-2efde853cb33) (free, commercial use per summary) | One mesh can serve as pickup, ring inset and socket icon render | **One mesh, nine elements** through a tint parameter (not nine meshes); emissive for Light and Darkness and Void; size when used as a pickup vs an inset; the S-tier look (an extra glow?) |
 | **One apparel piece that swaps on Manny and Quinn** | [Tokusatsu Outfit for Manny and Quinn](https://www.unrealengine.com/marketplace/en-US/product/tokusatsu-outfit-for-manny-quinn-and-metahumans) (stylised; Manny **and** Quinn versions; price not shown, check the Vault). Fallback: the cheapest Manny-plus-Quinn piece on Fab | Has both body variants, which is exactly the problem to test | **Leader Pose** on Manny vs Quinn; whether one piece needs two meshes (one per body); clipping with the body (hide body sections under it?); the **tint parameters** for gem colour; how weapons and rings sit over sleeves |
-| **One extra body ("Body of …")** | A free **Paragon** hero from Epic (e.g. Sparrow, matching the bow test; [Epic's release](https://www.pcgamer.com/epic-has-released-dollar12-million-worth-of-paragon-assets-free-of-charge)). Its animations are already in the project | Different proportions from Manny, its own skeleton, real materials | **The body swap with gear on**: do weapon and ring sockets exist on the new skeleton, at the same names? Do Manny animations retarget cleanly? Does worn apparel hide, refit or block the swap? Saving and loading the chosen body. Licence: Epic staff say it's fine in UE games ([forum](https://forums.unrealengine.com/t/can-i-use-the-paragon-characters-for-commercial-purposes/521533/8)), but it can't be named "Paragon": a placeholder only |
+| **One extra body ("Body of …")** | A free **Paragon** hero from Epic (e.g. Sparrow, matching the bow test; [Epic's release](https://www.pcgamer.com/epic-has-released-dollar12-million-worth-of-paragon-assets-free-of-charge)). Its animations are already in the project | Different proportions from Manny, its own skeleton, real materials | **The body swap with gear on**: do weapon and ring sockets exist on the new skeleton, at the same names? Do Manny animations retarget cleanly? Does worn apparel hide, refit or block the swap? Saving and loading the chosen body. Licence: free to use in a shipped Unreal game, but not under the Paragon name, and not outside Unreal (section 4, corrected) |
 | **Icons** | Reuse in-project: `RPGIcons` for skills, IdleTycoon gems for crystals, PONETI for weapon types (**free**); fill the four missing weapon types (Greatsword, Scythe, Gun, Shield) from the same PONETI source if it has them | Enough to see every screen filled | The **icon size and frame** each screen expects; transparent vs boxed backgrounds; how an icon per element per tier is built (one icon plus a tint, or 63 icons?) |
 
 **Order:**
@@ -72,3 +72,90 @@ Prices and licences unverified (Fab pages not opened).
 - **Apparel and bodies:** [Stylized LowPoly Characters](https://www.fab.com/listings/2192d706-f2b5-4ca7-90b4-06987ecf4e5a) (13 modular outfits, UE5 skeleton); [Stylized Fighter](https://www.fab.com/listings/1649d221-c00b-46d6-a3cc-1a9e676135ca) (male and female on the UE5 Mannequin). The anime cast route is in `character-look-tools.md`.
 
 Not checked: grips, sockets and scale inside any pack (they need the editor); whether the Tokusatsu outfit is free; whether `AS_Cast_FireBall` comes from MageAnimationSet; Paragon's exact hero-to-weapon match.
+
+## 4. Paragon: what is on disk, what it covers, the licence (added 2026-11-17)
+
+**Searched:** every folder under `Content/` (tracked and git-ignored), plus `D:\github`, `D:\Epic Games` and the launcher's vault cache, for "Paragon" or a hero's name.
+
+**Result: only animations. No Paragon character is on disk.** The single Paragon folder is `Content/Imports/Paragon/ParagonAnimations/`, with one `<Hero>Manny` folder per hero (so already retargeted to Manny). It holds no skeletal mesh, skeleton, material, texture or skin. The other "Manny" folders found are the mannequin demos inside other packs.
+
+### 4.1 Hero by hero
+
+Weapon is from memory of Paragon plus the clip names (sure: **high** / **medium** / **low**). "Editor" means only opening the clips will confirm it.
+
+| Hero | Animation files | Clip hints | Weapon (sure) |
+|---|---|---|---|
+| Aurora | 189 | Ability, Attacks | Ice melee (low; editor) |
+| Belica | 143 | Aiming, Attack | Hand cannon / gun (medium) |
+| Countess | 230 | Attack, TravelMode | Twin blades, dagger-like (medium) |
+| Crunch | 144 | Combo_01…, Attack_Air | Big fists → gauntlets (high) |
+| Dekker | 162 | Targeting, Attack | Staff-like device (low) |
+| Drongo | 169 | Primary_Fire | Gun (high) |
+| Feng Mao | 196 | Dash_Attack, Attack_Stack | Sword (high) |
+| Fey | 173 | Ability_E | Caster (low) |
+| Gadget | 102 | LMB_Fire, Reload | Gun (high) |
+| Gideon | 199 | Primary_Attack_A/B/C | Caster, bare hands (medium) |
+| Greystone | 154 | Jump_Melee | Greatsword (high) |
+| Grux | 108 | PrimaryAttack_FourStrikes | Two maces → hammer (high) |
+| Kallari | 188 | Evade, Block, MarkedForDeath | Twin daggers (high) |
+| Khaimera | 146 | Melee_A… | Claw blades → gauntlets (medium) |
+| Kwang | 180 | SwordInWorld, Catch | Greatsword (high) |
+| Minions | 85 | Attack_A/B | Generic melee (low) |
+| Morigesh | 157 | Ability_E, Targeting | Caster (low) |
+| Murdock | 193 | Fire_Reload, Moving_Fire | Shotgun → gun (high) |
+| Muriel | 166 | Primary_Fire | Caster (medium) |
+| Narbash | 172 | In_Air_Melee | Mace (and drum) → hammer (medium) |
+| Phase | 161 | Ability_E | Caster (low) |
+| Revenant | 211 | Fire_Fast_Var_A–C | Revolver → gun (high) |
+| Riktor | 157 | Ability_Hook | Chain hook (low) |
+| Serath | 177 | In_Air_Melee, Wing_Flap | Polearm / scythe-like blade (low; editor) |
+| Sparrow | 150 | RMB_Fire, Fast_Fire | Bow (high) |
+| Steel | 186 | Bash, Block_Idle | Shield (high) |
+| Terra | 135 | RMB_melee, Q_swing | Axe and shield (high) |
+| TwinBlast | 254 | DoubleShot_Fire_Lft/Rt | Twin pistols → gun (high) |
+| Wraith | 229 | Fire, Ability_E | Sniper rifle → gun (high) |
+| Wukong | 172 | Primary_Melee_A… | Staff (high) |
+| Yin | 163 | Whip | Sword and whip (low; editor) |
+| Zinx | 119 | Ability_DoT | Caster (low) |
+
+### 4.2 The twelve weapon types
+
+| Type | Best heroes | Sure | Note |
+|---|---|---|---|
+| Sword | Feng Mao | High | CombatMaster already covers it |
+| Greatsword | Greystone, Kwang | High | CombatMaster too |
+| Spear | Wukong (staff clips as a spear), Serath | Low | **Editor**: no true spear hero |
+| Staff | Wukong | High | Also MageAnimationSet for casting |
+| Dagger | Kallari, Countess | High / medium | |
+| Axe | Terra | High | CombatMaster too |
+| Hammer | Grux, Narbash | High / medium | Maces, one-handed; **no two-handed hammer** |
+| Bow | Sparrow | High | The bow placeholder in section 2 |
+| Gauntlets | Crunch, Khaimera | High / medium | CombatMaster hand to hand too |
+| Scythe | Serath | Low | **Editor**; likely a gap |
+| Gun | Revenant, Murdock (one gun); TwinBlast (two) | High | |
+| Shield | Steel, Terra | High | |
+
+The caster heroes (Gideon, Muriel, Fey, Zinx) are useful for spell casts. Paragon clips are action-game moves (many "MSA" or additive variants, jogs, aim offsets), so expect to cut single attack clips into our montages and drop the locomotion ones.
+
+### 4.3 Bodies ("Body of …", D-241)
+
+**None on disk.** To try one, the free Epic packs to add are named "Paragon: <Hero>" on Fab. 19 heroes were released free in 2018, among them Sparrow, Kwang, Greystone, Kallari, Murdock, Revenant, TwinBlast, Wraith, Grux, Countess, Steel, Terra, Feng Mao, Gideon, Muriel and Aurora ([80.lv, final round](https://80.lv/articles/final-round-of-free-paragon-assets-valued-at-over-5-million); a forum note says some were briefly missing from Fab, then restored: [thread](https://forums.unrealengine.com/t/missing-paragon-characters-on-fab/2117593)). The listing says each pack holds the model, animations, Animation Blueprints, skins and FX. Nothing was added.
+
+- **Skeleton:** each Paragon hero ships on **its own skeleton**, not UE5 Manny. That is why our animations sit in `<Hero>Manny` copies. The work to use one as a body:
+  1. Retarget the hero mesh onto Manny's skeleton, or set up an IK Retargeter both ways.
+  2. Add our standard sockets (weapon, shield, ring) to it.
+  3. Check that Manny-based apparel can't be worn on it (hide apparel on that body, or make a version).
+  4. Check its proportions against our attack spacing.
+- **Colour settings:** Paragon materials have per-skin colour and emissive settings, but whether any can take our element tint needs the **editor**.
+- **Style:** Paragon heroes are realistic and painterly, not anime. They fit a placeholder or an unlockable "other world" look better than the main cast (`character-look-tools.md`).
+
+### 4.4 The licence
+
+- **Source pages could not be opened** (2026-11-17: Epic's Paragon download page and the Sparrow listing both returned "forbidden"; Fab's licence page shows only a summary without an Epic-content clause). So this rests on the most reliable secondary sources.
+- **Allowed:** using the assets in your own commercial game built in Unreal, with no charge beyond Unreal's normal terms. Epic's release said "no strings attached" (quoted from Epic's page in [this forum thread](https://forums.unrealengine.com/t/can-i-use-the-paragon-characters-for-commercial-purposes/521533), 2022; [PC Gamer, 2018](https://www.pcgamer.com/epic-has-released-dollar12-million-worth-of-paragon-assets-free-of-charge)).
+- **Not allowed:**
+  - **Use outside Unreal.** The Sparrow listing reads "licensed for use only with UE based products" (from the [listing](https://docs.unrealengine.com/marketplace/ja/product/paragon-sparrow) via a search summary).
+  - **The Paragon name and logo.**
+  - **Making a Paragon sequel, remake or re-creation without Epic's written permission** (Epic's content terms as quoted in the same forum thread).
+- **Unclear:** one forum user saw "UE4 based products" on an older listing and asked Epic about UE5. The listing now names UE 5.0–5.3. No formal Epic answer was found.
+- **Correction:** section 2 said a Paragon hero "can only ever be a placeholder". **That was too strict.** On these sources a Paragon body may ship as a look in an Unreal game, renamed (no "Paragon", and safer not to use the hero's own name) and not presented as Paragon. Whether it should is a style question (it is not anime), and the licence wording should be read on the Fab page before shipping.
