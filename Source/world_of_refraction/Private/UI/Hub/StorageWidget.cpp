@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/GearGive.h"
 #include "Inventory/ItemTier.h"
+#include "Character/PlayerBuild.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
@@ -150,7 +151,7 @@ TArray<UStorageWidget::FMember> UStorageWidget::GatherMembers() const
 	{
 		if (Member.CharacterData)
 		{
-			Members.Add({UPoolSubsystem::GetCharacterKey(Member), FText::FromString(Member.CharacterData->Name)});
+			Members.Add({UPoolSubsystem::GetCharacterKey(Member), WoRPlayerBuild::GetMemberListName(Member, Party->Members, GetWorld())}); // D-241
 		}
 	}
 	return Members;
