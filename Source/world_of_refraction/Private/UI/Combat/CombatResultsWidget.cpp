@@ -19,6 +19,8 @@ namespace CombatResultsStyle
     constexpr int32 TitleFontSize = 64;
     constexpr int32 BodyFontSize = 24;
     constexpr const TCHAR *Prompt = TEXT("Press any key to continue");
+    constexpr const TCHAR *DroppedLineBreak = TEXT("\n");
+    constexpr const TCHAR *DroppedLogSeparator = TEXT(" / ");
 }
 
 namespace CombatResultsBuild
@@ -137,10 +139,10 @@ void UCombatResultsWidget::SetDroppedLines(const TArray<FText> &Lines)
     {
         Strings.Add(Line.ToString());
     }
-    LastDroppedLines = FString::Join(Strings, TEXT(" / "));
+    LastDroppedLines = FString::Join(Strings, CombatResultsStyle::DroppedLogSeparator);
     if (DroppedText)
     {
-        DroppedText->SetText(FText::Join(FText::FromString(LINE_TERMINATOR), Lines));
+        DroppedText->SetText(FText::Join(FText::FromString(CombatResultsStyle::DroppedLineBreak), Lines));
         DroppedText->SetVisibility(Lines.Num() > 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
     }
     UE_LOG(LogTemp, Log, TEXT("[CombatResults] Dropped: %s"), Lines.Num() > 0 ? *LastDroppedLines : TEXT("nothing"));

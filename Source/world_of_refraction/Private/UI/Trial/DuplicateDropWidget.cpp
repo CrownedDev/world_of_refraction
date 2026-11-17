@@ -149,6 +149,15 @@ bool UDuplicateDropWidget::NativeOnHandleBackAction()
 	return true;
 }
 
+void UDuplicateDropWidget::NativeOnDeactivated()
+{
+	if (OnChosen)
+	{
+		Choose(WoRTrialPoolLook::DUPLICATE_BACK_CHOICE);
+	}
+	Super::NativeOnDeactivated();
+}
+
 FReply UDuplicateDropWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
 {
 	using namespace WoRMenuStyle;

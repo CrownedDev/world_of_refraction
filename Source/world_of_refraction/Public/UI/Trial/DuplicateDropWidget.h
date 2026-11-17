@@ -36,6 +36,8 @@ protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual bool NativeOnHandleBackAction() override;
+	/** Closed some other way (a layer pop, a level change): Q-565's keep-both still reaches OnChosen. */
+	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
 	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
