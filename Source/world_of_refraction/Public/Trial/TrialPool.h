@@ -2,7 +2,7 @@
 // B-566 (D-225, TrialPoolDesign §2 and §9 stage 2, the pool): what a trial can give, zone by zone.
 //   - The pool tag: the trial's own (UTrialData::Pool); a zone's LootPool still overrides it for that zone.
 //   - The items: TrialLoot::GatherPool on that tag (weapons, adapters, skills, prebuilt finds, apparel, evolutions).
-//   - The crystals: every base element's gem in every trial (Q-566), leaning to the trial's element (more often, and likelier at a
+//   - The crystals: every element's gem in every trial (Q-566), leaning to the trial's element (more often, and likelier at a
 //     higher tier). Crystals are not assets, so they are not tagged: the pool holds them all.
 //   - The tiers: each zone opens one more (zone 0 F to E ... zone 4 F to A).
 // Stage 4 (the roll) and stage 5 (drops) pick from here. Debug: wor.Trial.Pool with no tag prints the active trial's
@@ -43,7 +43,7 @@ namespace TrialPool
 	/** The zone's own LootPool when set, else the trial's Pool; empty with neither. */
 	WORLD_OF_REFRACTION_API FGameplayTag GetPoolTag(const UTrialData *Trial, const FEncounterZoneInfo &Zone);
 
-	/** Every base element's gem (Q-566: Fire, Water, Lightning, Wind, Earth), in ECrystalType order. */
+	/** Every element's gem (Q-566: the nine elements; Quartz out), in ECrystalType order. */
 	WORLD_OF_REFRACTION_API const TArray<ECrystalType> &GetPoolCrystals();
 	/** OWN_ELEMENT_WEIGHT for the trial's element's gem, else OTHER_ELEMENT_WEIGHT (a Generic trial: no lean). */
 	WORLD_OF_REFRACTION_API float GetCrystalWeight(ECrystalType Type, ESpellElement TrialElement);

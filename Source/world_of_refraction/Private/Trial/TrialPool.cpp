@@ -41,10 +41,11 @@ FGameplayTag TrialPool::GetPoolTag(const UTrialData *Trial, const FEncounterZone
 
 const TArray<ECrystalType> &TrialPool::GetPoolCrystals()
 {
-	// Q-566: the five base elements the clean set uses (TrialPoolDesign example 5, "all five"). TODO: Light, Darkness,
-	// Void, Reality and Quartz join here if Crown wants them in every trial.
+	// Q-566 (brain for Crown, D-225 "every element's crystals"): each element's gem. Quartz is no element's and no trial
+	// pickup gives it today (a merchant may stock it as a consumable), so it stays out.
 	static const TArray<ECrystalType> Crystals = {ECrystalType::Garnet, ECrystalType::Sapphire, ECrystalType::Citrine, ECrystalType::Emerald,
-												  ECrystalType::Amber};
+												  ECrystalType::Amber,	ECrystalType::Opal,		ECrystalType::Onyx,	   ECrystalType::Amethyst,
+												  ECrystalType::Iolite};
 	return Crystals;
 }
 
