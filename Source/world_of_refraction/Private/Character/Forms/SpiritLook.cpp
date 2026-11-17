@@ -14,9 +14,11 @@
 #include "EngineUtils.h"
 #include "GameFramework/Character.h"
 #include "HAL/IConsoleManager.h"
+#include "Infusion/ClassColors.h"
+#include "Infusion/ElementColors.h"
 #include "Inventory/GearGive.h"
 #include "Inventory/InventoryComponent.h"
-#include "Materials/MaterialInterface.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "Party/Party.h"
 #include "Party/PartyInteractionComponent.h"
 #include "Party/PartySessionSubsystem.h"
@@ -30,12 +32,13 @@ namespace
 	const TCHAR *const MANNY_MESH = TEXT("/Game/Data/Characters/Models/CharacterBase/SKM_Manny_Base.SKM_Manny_Base");
 	const TCHAR *const QUINN_MESH = TEXT("/Game/Data/Characters/Models/CharacterBase/SKM_Quinn.SKM_Quinn");
 
-	/** The Blueprint's own body: the pawn class's default mesh, with its materials. */
-	const USkeletalMeshComponent *GetOwnLook(const ACharacter &Pawn)
-	{
-		const ACharacter *Defaults = Pawn.GetClass()->GetDefaultObject<ACharacter>();
-		return Defaults ? Defaults->GetMesh() : nullptr;
-	}
+}
+
+const FName WoRSpiritLook::TINT_PARAMETER(TEXT("Tint"));
+
+FLinearColor WoRSpiritLook::GetBodyColour(const UCharacterData *Character)
+{
+	return Character && Character->bBrokenDarknessInnate ? ElementColors::BrokenDarkness : ClassColors::GetColorForCharacter(Character);
 }
 
 const TCHAR *WoRSpiritLook::GetBodyMeshPath(EPlayerBaseForm Body)
@@ -44,24 +47,11 @@ const TCHAR *WoRSpiritLook::GetBodyMeshPath(EPlayerBaseForm Body)
 }
 
 bool WoRSpiritLook::Dress(USkeletalMeshComponent &Mesh, const UCharacterFormData *Form, EPlayerBaseForm Body,
-						  const USkeletalMeshComponent *OwnLook)
+						  const FLinearColor *Tint)
 {
 	if (Form)
 	{
-		return Form->DressMesh(Mesh);
-	}
-	if (OwnLook && OwnLook->GetSkeletalMeshAsset())
-	{
-		Mesh.EmptyOverrideMaterials();
-		Mesh.SetSkeletalMesh(OwnLook->GetSkeletalMeshAsset());
-		for (int32 Index = 0; Index < OwnLook->OverrideMaterials.Num(); ++Index)
-		{
-			if (UMaterialInterface *Material = OwnLook->OverrideMaterials[Index])
-			{
-				Mesh.SetMaterial(Index, Material);
-			}
-		}
-		return true;
+		return Form->DressMesh(Mesh); // its own materials: the body colour is off while a spirit is worn
 	}
 	USkeletalMesh *BodyMesh = LoadObject<USkeletalMesh>(nullptr, GetBodyMeshPath(Body));
 	if (!BodyMesh)
@@ -70,6 +60,13 @@ bool WoRSpiritLook::Dress(USkeletalMeshComponent &Mesh, const UCharacterFormData
 	}
 	Mesh.EmptyOverrideMaterials();
 	Mesh.SetSkeletalMesh(BodyMesh);
+	for (int32 Index = 0; Tint && Index < Mesh.GetNumMaterials(); ++Index)
+	{
+		if (UMaterialInstanceDynamic *Material = Mesh.CreateAndSetMaterialInstanceDynamic(Index))
+		{
+			Material->SetVectorParameterValue(TINT_PARAMETER, *Tint);
+		}
+	}
 	return true;
 }
 
@@ -83,13 +80,8 @@ bool WoRSpiritLook::DressMember(ACharacter &Pawn, const FPartyMember &Member, co
 	const UCharacterFormData *Form = Forms && !Member.SpiritForm.IsNone() ? Forms->FindFormByName(Member.SpiritForm) : nullptr;
 	UE_CLOG(!Member.SpiritForm.IsNone() && !Form, LogWoR, Warning, TEXT("[SpiritLook] %s wears %s, which is not a known spirit: its body instead"),
 			*Member.Picks.Name, *Member.SpiritForm.ToString());
-	const bool bOwnLook = !Form && Member.SpiritBody == Member.Picks.Body;
-	const USkeletalMeshComponent *OwnLook = bOwnLook ? GetOwnLook(Pawn) : nullptr;
-	if (OwnLook && Mesh->GetSkeletalMeshAsset() == OwnLook->GetSkeletalMeshAsset())
-	{
-		return true; // already its own look: leave it (and any colour its Blueprint set at runtime) alone
-	}
-	const bool bDressed = Dress(*Mesh, Form, Member.SpiritBody, OwnLook);
+	const FLinearColor Colour = GetBodyColour(Member.CharacterData);
+	const bool bDressed = Dress(*Mesh, Form, Member.SpiritBody, &Colour);
 	UE_LOG(LogWoR, Log, TEXT("[SpiritLook] %s (%s) %s"), *GetNameSafe(&Pawn), *GetMemberSpiritString(Member), bDressed ? TEXT("dressed") : TEXT("has no mesh to wear"));
 	return bDressed;
 }
@@ -127,7 +119,7 @@ FString WoRSpiritLook::GetMemberSpiritString(const FPartyMember &Member)
 	{
 		return FString::Printf(TEXT("%s: %s (over %s)"), *Member.Picks.Name, *Member.SpiritForm.ToString(), *Body);
 	}
-	return FString::Printf(TEXT("%s: %s%s"), *Member.Picks.Name, *Body, Member.SpiritBody == Member.Picks.Body ? TEXT(" (own look)") : TEXT(""));
+	return FString::Printf(TEXT("%s: %s (its colour %s)"), *Member.Picks.Name, *Body, *GetBodyColour(Member.CharacterData).ToFColor(true).ToHex());
 }
 
 #if !UE_BUILD_SHIPPING

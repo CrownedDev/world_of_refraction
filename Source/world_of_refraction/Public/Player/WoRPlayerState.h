@@ -248,6 +248,7 @@ private:
 	TWeakObjectPtr<const ACharacter> DressedPawn;
 	TWeakObjectPtr<UCharacterFormData> DressedForm;
 	EPlayerBaseForm DressedBase = EPlayerBaseForm::Manny;
+	FLinearColor DressedColour = FLinearColor::Transparent; // B-560: the body colour it was dressed in
 	TWeakObjectPtr<USkeletalMesh> DressedMesh;
 
 	/** B-232: the characters this player commands. */
