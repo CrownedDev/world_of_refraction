@@ -10,6 +10,8 @@
 #include "Character/Forms/CharacterFormSubsystem.h"
 #include "Character/Forms/SpiritLook.h"
 #include "Engine/GameInstance.h"
+#include "Infusion/ClassColors.h"
+#include "Infusion/ElementColors.h"
 #include "Party/Party.h"
 #include "Save/SaveSubsystem.h"
 #include "Save/WoRSaveTypes.h"
@@ -54,6 +56,21 @@ void FRecruitSpiritSpec::Define()
 		TestTrue(TEXT("the wearing line names the form"), InForm.WearingLine.ToString().Contains(TEXT("Amethyst Prisma")));
 	});
 
+	It("colours a body by its element, Broken Darkness or class (B-560)", [this]()
+	{
+		UCharacterData *Fire = NewObject<UCharacterData>(GetTransientPackage());
+		Fire->CharacterClass = ECharacterClass::Caster;
+		Fire->InnateElement = ESpellElement::Fire;
+		TestEqual(TEXT("a Fire Refractor is fire"), WoRSpiritLook::GetBodyColour(Fire), ElementColors::GetColorForElement(ESpellElement::Fire));
+		UCharacterData *Broken = DuplicateObject(Fire, GetTransientPackage());
+		Broken->InnateElement = ESpellElement::Darkness;
+		Broken->bBrokenDarknessInnate = true;
+		TestEqual(TEXT("Broken Darkness is its own"), WoRSpiritLook::GetBodyColour(Broken), ElementColors::BrokenDarkness);
+		UCharacterData *Resonator = NewObject<UCharacterData>(GetTransientPackage());
+		Resonator->CharacterClass = ECharacterClass::Resonator;
+		TestEqual(TEXT("a Resonator its class colour"), WoRSpiritLook::GetBodyColour(Resonator), ClassColors::ResonatorSilver);
+	});
+
 	It("refuses a locked spirit by the player's unlocks, without wearing anything", [this]()
 	{
 		TestNotEqual(TEXT("a locked form is refused"), Forms->CanWearForm(Form), EFormSwitchRefusal::None);
@@ -67,7 +84,7 @@ void FRecruitSpiritSpec::Define()
 		Member.Picks.bRecruit = true;
 		Member.Picks.Body = EPlayerBaseForm::Manny;
 		Member.CharacterData = NewObject<UCharacterData>(GetTransientPackage());
-		TestTrue(TEXT("its starting body is its own look"), WoRSpiritLook::GetMemberSpiritString(Member).Contains(TEXT("own look")));
+		TestTrue(TEXT("its body in its colour"), WoRSpiritLook::GetMemberSpiritString(Member).Contains(TEXT("its colour")));
 		Member.SpiritForm = Form->GetFName();
 		Member.SpiritBody = EPlayerBaseForm::Quinn;
 		TestTrue(TEXT("a worn spirit is named"), WoRSpiritLook::GetMemberSpiritString(Member).Contains(Form->GetName()));
