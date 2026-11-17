@@ -1,7 +1,8 @@
 // SpiritLook.h
 // B-558 (D-238, one-player stage 4b): how a body shows its spirit, for the player and for the hub's recruits. A worn
 // spirit (a form) puts its mesh and materials on; Male / Female Nobody is the plain body, tinted with the character's
-// element or class colour (B-560: each material slot's Tint, ClassColors), the colour cleared while a spirit is worn.
+// element or class colour (B-560: each material slot's Tint, ClassColors; D-238: the chest light too), the colour
+// cleared while a spirit is worn.
 // The player's own spirit is in UCharacterFormSubsystem (AWoRPlayerState::ApplyFormLook); a recruit's is on its party
 // member (FPartyMember::SpiritForm, SpiritBody). Debug: wor.Party.PrintSpirits.
 
@@ -25,6 +26,10 @@ namespace WoRSpiritLook
 
 	/** B-560: the Nobody bodies' material parameter for the body colour (MI_Manny_* / MI_Quinn_*). */
 	WORLD_OF_REFRACTION_API extern const FName TINT_PARAMETER;
+
+	/** D-238 (Crown): the chest light's colour parameters on the Nobody bodies, set with the Tint. Which logo layer is
+	 *  the chest light shows only in PIE, so all three are set until Crown names one (then keep only that one). */
+	WORLD_OF_REFRACTION_API extern const TArray<FName> CHEST_LIGHT_PARAMETERS;
 
 	/** B-560 (D-238): a body's colour: a Refractor its element's (Broken Darkness its own), a Generic or Resonator its
 	 *  class's (ClassColors, the table the element debug colour reads). */
