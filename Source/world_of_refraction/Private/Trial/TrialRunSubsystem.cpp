@@ -235,10 +235,24 @@ void UTrialRunSubsystem::StartRunGearAndGold()
         }
         // B-512 (D-221): every run starts on the class kit, reset before the layer opens (a crystal it frees is the
         // player's own, not a find). A member with no kit keeps what it wears (FindClassDefaults logs why).
-        TMap<FName, const FClassDefaultLoadout *> Kits;
+        // B-556 (D-228 (a)): a player built from picks starts on its class kit with the picked pieces laid over it.
+        TMap<FName, FClassDefaultLoadout> PickedKits;
+        const UClassDefaultLoadoutData *Table = ClassDefaultLoadouts.IsNull() ? nullptr : ClassDefaultLoadouts.LoadSynchronous();
+        const UParty *KitParty = Session ? Session->GetLocalParty() : nullptr;
+        for (const FPartyMember &Member : Table && KitParty ? KitParty->Members : TArray<FPartyMember>())
+        {
+            // No class kit: no picked kit either, so the member keeps what it wears (as FindClassDefaults below).
+            const FClassDefaultLoadout *ClassKit = Table->Defaults.Find(Member.Picks.Class);
+            if (ClassKit && Member.Picks.IsSet() && !Member.bRunOnly)
+            {
+                PickedKits.Add(UPoolSubsystem::GetCharacterKey(Member), Table->MakePickedGear(Member.Picks, ClassKit));
+            }
+        }
+        TMap<FName, const FClassDefaultLoadout *> Kits; // points into PickedKits, which is complete by now
         for (const TPair<FName, ECharacterClass> &Member : GetLocalPartyClasses(GetGameInstance()))
         {
-            if (const FClassDefaultLoadout *Kit = FindClassDefaults(Member.Value))
+            const FClassDefaultLoadout *Kit = PickedKits.Find(Member.Key);
+            if (Kit || (Kit = FindClassDefaults(Member.Value)) != nullptr)
             {
                 Pool->ResetClassDefaultKit(Member.Key, *Kit);
                 Kits.Add(Member.Key, Kit);
