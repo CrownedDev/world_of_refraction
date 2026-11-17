@@ -1486,6 +1486,8 @@ FSavedParty USaveSubsystem::CaptureParty(const UParty *Party, bool bKeepVitals)
 		Out.GuardWeaponId = Member.GuardWeaponId;
 		Out.ParryElementPriority = Member.ParryElementPriority; // B-393 (D-170)
 		Out.Picks = Member.Picks; // B-554 (D-228)
+		Out.SpiritForm = Member.SpiritForm; // B-558 (D-238)
+		Out.SpiritBody = Member.SpiritBody;
 		// B-507 (D-221, v40): the field skill, the field attack pick and the weapon in hand are saved on the worn-gear record.
 		if (bKeepVitals)
 		{
@@ -1832,6 +1834,8 @@ bool USaveSubsystem::RestoreParty(const FSavedParty &Saved, UPartySessionSubsyst
 	{
 		FPartyMember Member;
 		Member.Picks = In.Picks; // B-554 (D-228): a built player is built again from its picks
+		Member.SpiritForm = In.SpiritForm; // B-558 (D-238)
+		Member.SpiritBody = In.SpiritBody;
 		Member.CharacterData = In.Picks.IsSet() ? WoRPlayerBuild::Build(In.Picks, PartySession.GetGameInstance())
 												: In.CharacterData.ResolveAs<UCharacterData>();
 		Member.PawnClass = TSoftClassPtr<ACombatCharacter>(FSoftObjectPath(In.PawnClass.ToString()));

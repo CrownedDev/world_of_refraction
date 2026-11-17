@@ -458,6 +458,7 @@ bool UPartySessionSubsystem::InviteMemberInternal(TSoftClassPtr<ACombatCharacter
 	if (RecruitPicks && RecruitPicks->bRecruit && Data->GetFName() == WoRPlayerBuild::GetBuiltName(*RecruitPicks)) // not the player's own build
 	{
 		Member.Picks = *RecruitPicks;
+		Member.SpiritBody = RecruitPicks->Body; // B-558: it joins on its starting body
 	}
 	Member.MemberId = FGuid::NewGuid();
 	Member.bKeyedByMember = GetMemberSlotByData(Data) != INDEX_NONE;

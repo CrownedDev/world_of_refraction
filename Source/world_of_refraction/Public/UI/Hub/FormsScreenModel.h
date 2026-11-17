@@ -56,19 +56,28 @@ struct FFormsScreenPage
 
 namespace WoRFormsScreen
 {
-	/** The page for CharacterName, from the form subsystem; Owns / Wears answer for one reference piece's asset. */
+	/** The page for CharacterName, from the form subsystem, wearing Worn (null: its own spirit) over Body; Owns / Wears
+	 *  answer for one reference piece's asset. B-558: the unlocks are the player's, the worn spirit the character's. */
+	WORLD_OF_REFRACTION_API FFormsScreenPage BuildPage(const UCharacterFormSubsystem &Forms, const FText &CharacterName,
+													   const UCharacterFormData *Worn, EPlayerBaseForm Body,
+													   TFunctionRef<bool(const UObject *)> Owns, TFunctionRef<bool(const UObject *)> Wears);
+
+	/** The player's page: the form subsystem's worn spirit and body. */
 	WORLD_OF_REFRACTION_API FFormsScreenPage BuildPage(const UCharacterFormSubsystem &Forms, const FText &CharacterName,
 													   TFunctionRef<bool(const UObject *)> Owns, TFunctionRef<bool(const UObject *)> Wears);
 
-	/** The page for the local player's character (the party's first member). */
-	WORLD_OF_REFRACTION_API FFormsScreenPage BuildPage(UWorld *World);
+	/** B-558: the party member at MemberIndex (0: the local player); a recruit (D-238) wears its own spirit. */
+	WORLD_OF_REFRACTION_API FFormsScreenPage BuildPage(UWorld *World, int32 MemberIndex = 0);
 
-	/** A: wears Row's form (one of your own spirits takes a skin off and sets that body). Empty on success; else the
-	 *  reason, for the player. */
-	WORLD_OF_REFRACTION_API FText Wear(UWorld *World, const FFormsScreenRow &Row);
+	/** B-558: how many party members the screen steps through. */
+	WORLD_OF_REFRACTION_API int32 GetMemberCount(UWorld *World);
+
+	/** A: MemberIndex wears Row's form (one of your own spirits takes a skin off and sets that body). Empty on success;
+	 *  else the reason, for the player. A member that is neither the player nor a recruit can't change spirit. */
+	WORLD_OF_REFRACTION_API FText Wear(UWorld *World, const FFormsScreenRow &Row, int32 MemberIndex = 0);
 
 	/** Y: the other base body (Manny / Quinn). Empty on success; else the reason. */
-	WORLD_OF_REFRACTION_API FText SwitchBaseBody(UWorld *World);
+	WORLD_OF_REFRACTION_API FText SwitchBaseBody(UWorld *World, int32 MemberIndex = 0);
 
 	WORLD_OF_REFRACTION_API FString GetFormsScreenString(UWorld *World);
 }
