@@ -5,6 +5,8 @@
 #include "Algo/Count.h"
 
 #include "Character/CharacterData.h"
+#include "Character/Forms/CharacterFormData.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
 #include "Character/PlayerPicks.h"
 #include "Engine/GameInstance.h"
 #include "Engine/Texture2D.h"
@@ -203,34 +205,75 @@ FText WoRPlayerBuild::MakeCardName(const UCharacterData &Character, bool bPlayer
 	return OwnerTag.IsEmpty() ? LOCTEXT("NoTag", "Player") : FText::FromString(OwnerTag);
 }
 
+namespace
+{
+	/** D-229: the player claiming this character in World (null: nobody yet), and whether it is World's viewer's own. */
+	const AWoRPlayerState *FindClaimingPlayer(const UCharacterData *Character, const FGuid &MemberId, const UWorld *World, bool &bOutViewersOwn)
+	{
+		const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
+		const AWoRPlayerState *Owner = nullptr;
+		for (int32 Index = 0; GameState && !Owner && Index < GameState->PlayerArray.Num(); ++Index)
+		{
+			const AWoRPlayerState *Player = Cast<AWoRPlayerState>(GameState->PlayerArray[Index]);
+			if (Player && ((MemberId.IsValid() && Player->ClaimsMember(MemberId)) || Player->ClaimsCharacter(Character)))
+			{
+				Owner = Player;
+			}
+		}
+		const APlayerController *Viewer = World ? World->GetFirstPlayerController() : nullptr;
+		// Unclaimed: the viewer's own only when alone (solo); with other players it may be theirs, so neutral until a claim arrives.
+		const bool bAlone = !GameState || GameState->PlayerArray.Num() <= 1;
+		bOutViewersOwn = Owner ? Viewer && Viewer->PlayerState == Owner : bAlone;
+		return Owner;
+	}
+}
+
 FText WoRPlayerBuild::GetCardName(const UCharacterData *Character, const FGuid &MemberId, const UWorld *World)
 {
 	if (!Character)
 	{
 		return FText::GetEmpty();
 	}
-	const AGameStateBase *GameState = World ? World->GetGameState() : nullptr;
-	const AWoRPlayerState *Owner = nullptr;
-	for (int32 Index = 0; GameState && !Owner && Index < GameState->PlayerArray.Num(); ++Index)
-	{
-		const AWoRPlayerState *Player = Cast<AWoRPlayerState>(GameState->PlayerArray[Index]);
-		if (Player && ((MemberId.IsValid() && Player->ClaimsMember(MemberId)) || Player->ClaimsCharacter(Character)))
-		{
-			Owner = Player;
-		}
-	}
-	const APlayerController *Viewer = World ? World->GetFirstPlayerController() : nullptr;
-	// Unclaimed: the viewer's own only when alone (solo); with other players it may be theirs, so neutral until a claim arrives.
-	const bool bAlone = !GameState || GameState->PlayerArray.Num() <= 1;
-	const bool bViewersOwn = Owner ? Viewer && Viewer->PlayerState == Owner : bAlone;
+	bool bViewersOwn = false;
+	const AWoRPlayerState *Owner = FindClaimingPlayer(Character, MemberId, World, bViewersOwn);
 	return MakeCardName(*Character, IsPlayerCharacter(Character), bViewersOwn, Owner ? Owner->GetPlayerName() : FString());
 }
 
-FText WoRPlayerBuild::GetDetailLine(const UCharacterData *Character)
+FText WoRPlayerBuild::GetSpiritName(ECharacterClass Class, ESpellElement Element, bool bBrokenDarkness)
 {
-	// D-229: the kind name the character is built with ("Fire Refractor"); the wording waits on Crown's Spirit/Body rename.
-	return IsPlayerCharacter(Character) ? FText::FromString(Character->Name) : FText::GetEmpty();
+	return Class == ECharacterClass::Caster ? WoRNewGame::GetRefractorChoiceName({Element, bBrokenDarkness}) : WoRGameNames::GetCharacterClassName(Class);
 }
+
+FText WoRPlayerBuild::MakeIdentityLines(const FText &SpiritName, const FText &BodyName)
+{
+	const FText Spirit = WoRGameNames::FormatSpiritOf(SpiritName);
+	return BodyName.IsEmpty() ? Spirit : FText::Format(LOCTEXT("IdentityLines", "{0}\n{1}"), Spirit, WoRGameNames::FormatBodyOf(BodyName));
+}
+
+FText WoRPlayerBuild::GetLocalBodyName(const UGameInstance *GameInstance)
+{
+	const UCharacterFormSubsystem *Forms = GameInstance ? GameInstance->GetSubsystem<UCharacterFormSubsystem>() : nullptr;
+	if (!Forms)
+	{
+		return FText::GetEmpty();
+	}
+	const UCharacterFormData *Worn = Forms->GetWornForm();
+	return Worn ? Worn->FormName : WoRGameNames::GetBaseFormName(Forms->GetBaseForm());
+}
+
+FText WoRPlayerBuild::GetDetailLine(const UCharacterData *Character, const FGuid &MemberId, const UWorld *World)
+{
+	if (!IsPlayerCharacter(Character))
+	{
+		return FText::GetEmpty();
+	}
+	bool bViewersOwn = false;
+	FindClaimingPlayer(Character, MemberId, World, bViewersOwn);
+	// shortcut: another player's body isn't known on this machine (its forms live in its own game): its Spirit line only.
+	const FText Body = bViewersOwn && World ? GetLocalBodyName(World->GetGameInstance()) : FText::GetEmpty();
+	return MakeIdentityLines(GetSpiritName(Character->CharacterClass, Character->InnateElement, Character->bBrokenDarknessInnate), Body);
+}
+
 
 bool WoRPlayerBuild::IsBuilt(const UCharacterData *Character)
 {

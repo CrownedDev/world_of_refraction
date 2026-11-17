@@ -116,8 +116,19 @@ void FGuestPicksSpec::Define()
 		TestEqual(TEXT("another player's: its tag, no brackets"), WoRPlayerBuild::MakeCardName(*Player, true, false, TEXT("Rin")).ToString(), FString(TEXT("Rin")));
 		TestEqual(TEXT("a recruit: its own name"), WoRPlayerBuild::MakeCardName(*Recruit, false, true, TEXT("Rin")).ToString(), FString(TEXT("Fire Spirit")));
 		TestEqual(TEXT("no world (solo): You"), WoRPlayerBuild::GetCardName(Player, FGuid(), nullptr).ToString(), FString(TEXT("You")));
-		TestEqual(TEXT("the detail line: the kind name"), WoRPlayerBuild::GetDetailLine(Player).ToString(), FString(TEXT("Fire Refractor")));
-		TestTrue(TEXT("a recruit: no detail line"), WoRPlayerBuild::GetDetailLine(Recruit).IsEmpty());
+		TestTrue(TEXT("a recruit: no detail line"), WoRPlayerBuild::GetDetailLine(Recruit, FGuid(), nullptr).IsEmpty());
+		TestEqual(TEXT("no world: the Spirit line only"), WoRPlayerBuild::GetDetailLine(Player, FGuid(), nullptr).ToString(), FString(TEXT("Spirit of Fire")));
+	});
+
+	It("reads a character as Spirit of over Body of (D-241)", [this]()
+	{
+		TestEqual(TEXT("a Refractor: its element"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Caster, ESpellElement::Fire, false).ToString(), FString(TEXT("Fire")));
+		TestEqual(TEXT("Reality: Unknown"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Caster, ESpellElement::Reality, false).ToString(), FString(TEXT("Unknown")));
+		TestEqual(TEXT("Broken Darkness"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Caster, ESpellElement::Darkness, true).ToString(), FString(TEXT("Broken Darkness")));
+		TestEqual(TEXT("a Resonator: its class"), WoRPlayerBuild::GetSpiritName(ECharacterClass::Resonator, ESpellElement::None, false).ToString(), FString(TEXT("Resonator")));
+		const FString Lines = WoRPlayerBuild::MakeIdentityLines(FText::FromString(TEXT("Fire")), FText::FromString(TEXT("Orthos"))).ToString();
+		TestTrue(TEXT("two lines"), Lines.StartsWith(TEXT("Spirit of Fire")) && Lines.EndsWith(TEXT("Body of Orthos")) && Lines.Contains(TEXT("\n")));
+		TestEqual(TEXT("no body: one line"), WoRPlayerBuild::MakeIdentityLines(FText::FromString(TEXT("Fire")), FText::GetEmpty()).ToString(), FString(TEXT("Spirit of Fire")));
 	});
 
 	It("refuses a join with no picks, without a host", [this]()
