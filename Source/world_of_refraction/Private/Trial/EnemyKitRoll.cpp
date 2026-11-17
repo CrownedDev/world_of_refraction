@@ -264,7 +264,7 @@ FRolledEnemyKit EnemyKitRoll::Roll(const UCharacterData &Template, const FEnemyK
 		if (Skill && !Placed.Contains(Skill))
 		{
 			Placed.Add(Skill);
-			UE_CLOG(!Place(Skill), LogWoRLoadout, Log, TEXT("[EnemyKitRoll] %s: no piece holds its always-has %s"), *Template.GetName(), *Skill->GetName());
+			UE_CLOG(!Place(Skill), LogWoRLoadout, Warning, TEXT("[EnemyKitRoll] %s: no piece holds its always-has %s"), *Template.GetName(), *Skill->GetName());
 		}
 	}
 	TArray<USkillDataBase *> Usable;
@@ -358,7 +358,7 @@ FString EnemyKitRoll::GetRolledKitString(const FRolledEnemyKit &Kit)
 	{
 		Pieces.Add(GetPieceString(Piece));
 	}
-	return FString::Printf(TEXT("%s | %d slots | innate up to %d"), Pieces.IsEmpty() ? TEXT("no gear") : *FString::Join(Pieces, TEXT("; ")),
+	return FString::Printf(TEXT("%s | %d slots | innate budget %d"), Pieces.IsEmpty() ? TEXT("no gear") : *FString::Join(Pieces, TEXT("; ")),
 						   GetSlotCount(Kit), Kit.MostInnate);
 }
 
