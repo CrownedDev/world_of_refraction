@@ -3,6 +3,7 @@
 #include "UI/Menus/NewGameScreenModel.h"
 
 #include "Character/CharacterData.h"
+#include "Character/PlayerBuild.h"
 #include "Character/CombatCharacter.h"
 #include "Engine/GameInstance.h"
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
@@ -12,6 +13,7 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Save/SaveSubsystem.h"
 #include "Trial/TrialRunSubsystem.h"
+#include "UI/Menus/TitleScreenModel.h"
 #include "WoRGameNames.h"
 #include "WoRLog.h"
 
@@ -372,16 +374,24 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 		return LOCTEXT("FriendsRun", "A new game can't start during a friend's run.");
 	}
 
+	// B-554 (D-229): the new character takes the first free slot; the others keep theirs.
+	const int32 Slot = Saves->FindFreeSlot(WoRTitleScreen::GetMaxSlots());
+	if (Slot == INDEX_NONE)
+	{
+		return LOCTEXT("SlotsFull", "Every character slot is in use: delete one on the title first.");
+	}
+
+	// B-554 (D-228): the player is built from the picks (the shared player asset, the class table, the picks).
 	FPartyMember Leader;
-	Leader.CharacterData = FindStartCharacter(PartySession->NewGameCharacters, Pick);
+	Leader.Picks = Pick;
+	Leader.CharacterData = WoRPlayerBuild::Build(Pick, GI);
 	// The player's pawn class, as EnsureLocalParty resolves it: the pawn standing in the world, else the config's.
 	const APawn *Pawn = PC->GetPawn();
 	Leader.PawnClass = Pawn && Pawn->IsA<ACombatCharacter>() ? TSoftClassPtr<ACombatCharacter>(Pawn->GetClass()->GetPathName())
 															  : PartySession->DefaultSoloPawnClass;
 	if (!Leader.CharacterData)
 	{
-		UE_LOG(LogWoRUI, Warning, TEXT("[NewGame] No start character for %s (UPartySessionSubsystem::NewGameCharacters)"),
-			   *GetPanelTitle(Pick).ToString());
+		UE_LOG(LogWoRUI, Warning, TEXT("[NewGame] %s not built (UPartySessionSubsystem::PlayerCharacter)"), *GetPanelTitle(Pick).ToString());
 		return FText::Format(LOCTEXT("NoCharacter", "{0} can't be started yet: no character is set up for it."), GetPanelTitle(Pick));
 	}
 	if (Leader.PawnClass.IsNull())
@@ -395,15 +405,12 @@ FText WoRNewGame::Begin(APlayerController *PC, const FNewGamePick &Pick)
 	}
 
 	// The old game's saves stop first: the trial's exit below saves it (async), and that write must not land after the
-	// new game's. StartFreshGame resumes writes.
-	if (Saves->IsBoundToPlayer())
-	{
-		Saves->DeleteSave();
-	}
+	// new game's. StartFreshGame resumes writes. B-554: the old character's file stays (its own slot).
+	Saves->StopWrites();
 	// The trial's exit ends a run under way, then travels to the hub on the next tick, where the player's pawn comes
 	// back as the picked character.
 	TrialRun->ExitTrial();
-	if (!Saves->StartFreshGame(Leader, Pick.Body))
+	if (!Saves->StartFreshGame(Leader, Pick.Body, Slot))
 	{
 		return LOCTEXT("NotStarted", "The new game didn't start."); // not reached: Begin checked what StartFreshGame refuses
 	}
