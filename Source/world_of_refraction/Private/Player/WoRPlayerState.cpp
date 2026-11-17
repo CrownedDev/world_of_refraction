@@ -3,6 +3,7 @@
 #include "Player/WoRPlayerState.h"
 
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/Forms/SpiritLook.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "GameFramework/GameStateBase.h"
@@ -92,6 +93,7 @@ namespace
 			}));
 }
 
+// OBSOLETE (B-558): the body paths moved to WoRSpiritLook::GetBodyMeshPath; delete in stage 6.
 namespace PlayerFormLook
 {
     // B-279b: the base bodies (Design/CharacterForms.md §1). // TODO: V's lighter void material once B-143 lands.
@@ -467,18 +469,8 @@ void AWoRPlayerState::ApplyFormLook()
 								 DressedMesh.Get() == Mesh->GetSkeletalMeshAsset(); // something else swapped the mesh: dress again
 	if (!bAlreadyDressed)
 	{
-		bool bDressed = false;
-		if (Form)
-		{
-			bDressed = Form->DressMesh(*Mesh);
-		}
-		else if (USkeletalMesh *BaseMesh = LoadObject<USkeletalMesh>(nullptr, Base == EPlayerBaseForm::Quinn ? PlayerFormLook::QUINN_MESH : PlayerFormLook::MANNY_MESH))
-		{
-			Mesh->EmptyOverrideMaterials();
-			Mesh->SetSkeletalMesh(BaseMesh);
-			bDressed = true;
-		}
-		if (!bDressed)
+		// B-558: the dressing is shared with the recruits (WoRSpiritLook); the player's body is always the plain one.
+		if (!WoRSpiritLook::Dress(*Mesh, Form, Base, /*OwnLook=*/nullptr))
 		{
 			UE_LOG(LogWoR, Warning, TEXT("[CharacterForms] %s has no mesh to wear"), Form ? *Form->GetName() : *UEnum::GetValueAsString(Base));
 			return;
