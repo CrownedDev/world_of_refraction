@@ -110,7 +110,7 @@ void UEnemyKitCardWidget::Refresh()
 	}
 	NameText->SetText(Card.Name);
 	ClassText->SetText(Card.ClassLine);
-	const FText LineBreak = FText::FromString(LINE_TERMINATOR);
+	const FText LineBreak = FText::FromString(TEXT("\n"));
 	PiecesText->SetText(Card.Pieces.Num() > 0 ? FText::Join(LineBreak, Card.Pieces) : LOCTEXT("NoPieces", "Nothing"));
 	SkillsText->SetText(Card.Skills.Num() > 0 ? FText::Join(LineBreak, Card.Skills) : LOCTEXT("NoSkills", "None"));
 }
