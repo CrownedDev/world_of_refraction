@@ -117,10 +117,17 @@ TArray<FString> AEnemyZone::FindEncountersBelowGuide(const UWorld *World)
 				Roster.Add(CharComp->CharacterData); // the pawn fights alone (B-074)
 			}
 		}
-		const FString Line = DescribePlacementBelowGuide(It->GetName(), FindZoneAt(World, It->GetActorLocation()), Roster);
+		const FEncounterZoneInfo Zone = FindZoneAt(World, It->GetActorLocation());
+		const FString Line = DescribePlacementBelowGuide(It->GetName(), Zone, Roster);
 		if (!Line.IsEmpty())
 		{
 			Lines.Add(Line);
+		}
+		// B-567 (TrialPoolDesign §10 note 5): an always-has piece outside the zone's tiers keeps its tier; warn.
+		const FString Outside = EnemyKitRules::DescribeOutsideZoneRange(It->GetName(), Zone, Roster);
+		if (!Outside.IsEmpty())
+		{
+			Lines.Add(Outside);
 		}
 	}
 	return Lines;
@@ -149,11 +156,11 @@ namespace
 				const TArray<FString> Below = AEnemyZone::FindEncountersBelowGuide(World);
 				if (Below.IsEmpty())
 				{
-					UE_LOG(LogTemp, Display, TEXT("[EnemyZone] every encounter fits its zone's guide (B-328b)"));
+					UE_LOG(LogTemp, Display, TEXT("[EnemyZone] every encounter fits its zone's guide (B-328b) and range (B-567)"));
 				}
 				for (const FString &Line : Below)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("[EnemyZone] below the guide: %s"), *Line);
+					UE_LOG(LogTemp, Warning, TEXT("[EnemyZone] check: %s"), *Line);
 				}
 			}));
 }
