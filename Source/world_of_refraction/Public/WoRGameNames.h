@@ -117,6 +117,11 @@ namespace WoRGameNames
     /** B-544 (D-236): the hub's place name, "The Hub" (was "Void Realm" with a "The hub" subtitle). */
     WORLD_OF_REFRACTION_API FText GetHubPlaceName();
 
+    /** D-241 (Crown): what a character is, "Spirit of {0}" ("Spirit of Fire"). */
+    WORLD_OF_REFRACTION_API FText FormatSpiritOf(const FText &What);
+    /** D-241 (Crown): how a character looks, "Body of {0}" ("Body of Orthos", "Body of Male Nobody"). */
+    WORLD_OF_REFRACTION_API FText FormatBodyOf(const FText &Look);
+
     /** D-229 (Crown): the local player's own character card reads "You". */
     WORLD_OF_REFRACTION_API FText GetYouWord();
     /** D-229: "Your turn" (the turn title for the viewer's own character). */
