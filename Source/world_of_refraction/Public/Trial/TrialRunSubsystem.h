@@ -493,6 +493,8 @@ public:
     const FClassDefaultLoadout *FindClassDefaults(ECharacterClass Class) const;
     /** B-512: specs point the trial start at their own kits (or none), so they don't depend on the content's asset. */
     void SetClassDefaultLoadouts(const TSoftObjectPtr<UClassDefaultLoadoutData> &Kits) { ClassDefaultLoadouts = Kits; }
+    /** B-554: the class table's asset (its numbers build the player, WoRPlayerBuild). */
+    const TSoftObjectPtr<UClassDefaultLoadoutData> &GetClassDefaultLoadouts() const { return ClassDefaultLoadouts; }
 
     /** Debug: the kit asset's classes and every character's minted kit (wor.Trial.PrintClassDefaults). */
     FString GetClassDefaultsString() const;
