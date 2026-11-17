@@ -9,6 +9,7 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Misc/AutomationTest.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Trial/EnemyKit.h"
 #include "Trial/TrialPool.h"
 
@@ -35,10 +36,13 @@ void FEnemyKitSpec::Define()
 		TestEqual(TEXT("a Refractor: 1 piece"), EnemyKitRules::GetMostGear(Kit, ECharacterClass::Caster), 1);
 		TestTrue(TEXT("any kind, an evolution too"), EnemyKitRules::AllowsKind(Kit, EEnemyKitKind::Evolution));
 		TestEqual(TEXT("skills: every slot a piece has"), EnemyKitRules::GetMostSkillsOnPiece(Kit, 12), 12);
-		TestEqual(TEXT("innate places at 0 pillar points: 3"), EnemyKitRules::GetInnatePlaces(0), EnemyKitRules::INNATE_BASE_PLACES);
-		TestEqual(TEXT("at 1 / 7 / 1: 12"), EnemyKitRules::GetInnatePlaces(9), 12);
-		TestEqual(TEXT("at 7 / 7 / 7: the full 24"), EnemyKitRules::GetInnatePlaces(21), EnemyKitRules::MAX_INNATE_PLACES);
-		TestEqual(TEXT("never past 24"), EnemyKitRules::GetInnatePlaces(30), EnemyKitRules::MAX_INNATE_PLACES);
+		TestEqual(TEXT("innate budget at 0 / 0 / 0: 3"), EnemyKitRules::GetInnateBudget(0, 0, 0, false), EnemyKitRules::INNATE_BUDGET_BASE);
+		TestEqual(TEXT("at 1 / 7 / 1: 3 + 9"), EnemyKitRules::GetInnateBudget(1, 7, 1, false), 12);
+		TestEqual(TEXT("at 7 / 7 / 7: the full 24"), EnemyKitRules::GetInnateBudget(7, 7, 7, false), 24);
+		TestEqual(TEXT("Broken Darkness at 0 / 0 / 0: the same 3"), EnemyKitRules::GetInnateBudget(0, 0, 0, true), 3);
+		TestEqual(TEXT("Broken Darkness at 1 / 7 / 1: 3 + 2 + 15 + 2"), EnemyKitRules::GetInnateBudget(1, 7, 1, true), 22);
+		TestEqual(TEXT("Broken Darkness at 6 / 6 / 6: 3 + 36"), EnemyKitRules::GetInnateBudget(6, 6, 6, true), 39);
+		TestEqual(TEXT("Broken Darkness at 7 / 7 / 7: the full 48"), EnemyKitRules::GetInnateBudget(7, 7, 7, true), 48);
 		TestTrue(TEXT("any weapon type"), EnemyKitRules::AllowsWeaponType(Kit, EWeaponType::Axe));
 		TestTrue(TEXT("any element"), EnemyKitRules::AllowsElement(Kit, ESpellElement::Water));
 		const FTrialTierRange Zone = TrialPool::GetZoneTierRange(2);
@@ -72,7 +76,7 @@ void FEnemyKitSpec::Define()
 		TestTrue(TEXT("no meeting: nothing to take"), None.Min > None.Max);
 	});
 
-	It("gives an enemy its innate places by its own levels, unless its kit limits them", [this]()
+	It("gives an enemy its innate budget by its own levels, unless its kit limits it", [this]()
 	{
 		UCharacterData *Enemy = NewObject<UCharacterData>();
 		Enemy->WorldMindLevel = 1;
@@ -82,6 +86,26 @@ void FEnemyKitSpec::Define()
 		Enemy->EnemyKit.bLimitInnate = true;
 		Enemy->EnemyKit.MostInnate = 5;
 		TestEqual(TEXT("its own limit"), EnemyKitRules::GetMostInnate(*Enemy), 5);
+	});
+
+	It("keeps the innate spells that fit the budget, in order, by their tier cost", [this]()
+	{
+		const auto MakeSpell = [](EItemTier Tier)
+		{
+			USpellData *Spell = NewObject<USpellData>();
+			Spell->Tier = Tier;
+			return Spell;
+		};
+		USpellData *C = MakeSpell(EItemTier::C_Tier); // 4
+		USpellData *A = MakeSpell(EItemTier::A_Tier); // 6
+		USpellData *F = MakeSpell(EItemTier::F_Tier); // 1
+		const TArray<USpellData *> Spells = {C, A, F};
+		int32 Spent = 0;
+		const TArray<USpellData *> Kept = EnemyKitRules::FitInnateBudget(Spells, 5, 0, Spent);
+		TestTrue(TEXT("C and F fit 5; A is skipped"), Kept.Num() == 2 && Kept[0] == C && Kept[1] == F);
+		TestEqual(TEXT("5 spent"), Spent, 5);
+		Spent = 0;
+		TestEqual(TEXT("a discount of 1 lets C and A fit 8 (3 + 5)"), EnemyKitRules::FitInnateBudget(Spells, 8, 1, Spent).Num(), 2);
 	});
 
 	It("checks the always-has list against the class", [this]()

@@ -9,7 +9,9 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutRules.h"
+#include "Loadout/SpellPoolConstants.h"
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Trial/PrebuiltFindData.h"
 #include "Trial/TrialLoot.h"
 #include "Trial/TrialPool.h"
@@ -105,15 +107,39 @@ int32 EnemyKitRules::GetMostSkillsOnPiece(const FEnemyKit &Kit, int32 PieceSlots
 	return Kit.bLimitSkillsPerPiece ? FMath::Clamp(Kit.MostSkillsPerPiece, 0, Slots) : Slots;
 }
 
-int32 EnemyKitRules::GetInnatePlaces(int32 PillarPoints)
+int32 EnemyKitRules::GetInnateBudget(int32 Mind, int32 Body, int32 Spirit, bool bBrokenDarkness)
 {
-	return FMath::Min(INNATE_BASE_PLACES + INNATE_PLACES_PER_PILLAR_POINT * FMath::Max(0, PillarPoints), MAX_INNATE_PLACES);
+	int32 Budget = INNATE_BUDGET_BASE;
+	for (const int32 Level : {Mind, Body, Spirit})
+	{
+		const int32 Points = FMath::Clamp(Level, 0, PILLAR_TOP_LEVEL);
+		Budget += !bBrokenDarkness				 ? INNATE_BUDGET_PER_PILLAR_POINT * Points
+				  : Points < PILLAR_TOP_LEVEL ? BD_BUDGET_PER_PILLAR_POINT * Points
+											 : BD_BUDGET_PER_PILLAR_POINT * (PILLAR_TOP_LEVEL - 1) + BD_BUDGET_TOP_PILLAR_POINT;
+	}
+	return FMath::Min(Budget, bBrokenDarkness ? SpellPoolConstants::BD_SPELL_BUDGET : SpellPoolConstants::INNATE_SPELL_BUDGET);
 }
 
 int32 EnemyKitRules::GetMostInnate(const UCharacterData &Enemy)
 {
 	const FEnemyKit &Kit = Enemy.EnemyKit;
-	return Kit.bLimitInnate ? Kit.MostInnate : GetInnatePlaces(Enemy.WorldMindLevel + Enemy.WorldBodyLevel + Enemy.WorldSpiritLevel);
+	return Kit.bLimitInnate ? Kit.MostInnate
+							: GetInnateBudget(Enemy.WorldMindLevel, Enemy.WorldBodyLevel, Enemy.WorldSpiritLevel, Enemy.bBrokenDarknessInnate);
+}
+
+TArray<USpellData *> EnemyKitRules::FitInnateBudget(TConstArrayView<USpellData *> Spells, int32 Budget, int32 Discount, int32 &InOutSpent)
+{
+	TArray<USpellData *> Kept;
+	for (USpellData *Spell : Spells)
+	{
+		const int32 Cost = Spell ? SpellPoolConstants::SpellSlotEffectiveCost(Spell->Tier, Discount) : 0;
+		if (Spell && InOutSpent + Cost <= Budget)
+		{
+			InOutSpent += Cost;
+			Kept.Add(Spell);
+		}
+	}
+	return Kept;
 }
 
 bool EnemyKitRules::AllowsWeaponType(const FEnemyKit &Kit, EWeaponType Type)
@@ -250,7 +276,7 @@ FString EnemyKitRules::GetEnemyKitString(const FEnemyKit &Kit, ECharacterClass C
 							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Weapon)),
 							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Adapter)),
 							  Kit.bLimitSkillsPerPiece ? *FString::FromInt(Kit.MostSkillsPerPiece) : TEXT("its slots"),
-							  Kit.bLimitInnate ? *FString::FromInt(Kit.MostInnate) : TEXT("its places (D-240)"));
+							  Kit.bLimitInnate ? *FString::Printf(TEXT("%d points"), Kit.MostInnate) : TEXT("its D-240 budget"));
 	Output += FString::Printf(TEXT(" | kinds %s | weapon types %s | elements %s | tiers %s"), Kinds.IsEmpty() ? TEXT("any") : *FString::Join(Kinds, TEXT(", ")),
 							  Types.IsEmpty() ? TEXT("any") : *FString::Join(Types, TEXT(", ")),
 							  Elements.IsEmpty() ? TEXT("any") : *FString::Join(Elements, TEXT(", ")),

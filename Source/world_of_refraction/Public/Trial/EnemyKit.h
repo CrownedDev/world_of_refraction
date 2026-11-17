@@ -3,7 +3,7 @@
 //   - The always-has list: gear (each at the tier it is given) and skills, the same on every enemy of the type.
 //   - Limits on what it takes from the pool (Crown 2026-11-17, "the limits merged"): most gear, most skills per
 //     piece, most innate spells, which kinds, which elements, a tier range. Each is optional and unset means any:
-//     skills fill every slot a piece has, innate places follow D-240 (GetMostInnate).
+//     skills fill every slot a piece has, the innate budget follows D-240 (GetInnateBudget).
 // Enemies follow the player's rules: the class decides which kinds fit and caps them (LoadoutClassTable), and slots
 // come by tier. B-567b: most weapons, most adapters and evolution allowed became most gear and the kinds list.
 // Stage 4 rolls the open part from the trial's pool inside these. Debug: UCharacterData's Print Enemy Kit button
@@ -19,6 +19,7 @@
 
 class UCharacterData;
 class USkillDataBase;
+class USpellData;
 struct FEncounterZoneInfo;
 struct FTrialTierRange;
 enum class ECharacterClass : uint8;
@@ -80,7 +81,8 @@ struct WORLD_OF_REFRACTION_API FEnemyKit
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits", meta = (InlineEditConditionToggle))
 	bool bLimitInnate = false;
-	/** B-567c (Crown): most innate spells it keeps. Unset: its innate places (D-240: 3, plus 1 per pillar point). */
+	/** B-567c (Crown): its innate budget in points (each innate spell costs its tier, less its pillar discount, CL-34).
+	 *  Unset: D-240's budget by its own levels (3, plus 1 per pillar point; Broken Darkness 6 plus 2). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits", meta = (EditCondition = "bLimitInnate", ClampMin = 0))
 	int32 MostInnate = 0;
 
@@ -107,10 +109,14 @@ struct WORLD_OF_REFRACTION_API FEnemyKit
 
 namespace EnemyKitRules
 {
-	/** D-240: innate places start at 3 and grow by 1 per pillar point, up to today's full pool (6 in each of 4 schools). */
-	inline constexpr int32 INNATE_BASE_PLACES = 3;
-	inline constexpr int32 INNATE_PLACES_PER_PILLAR_POINT = 1;
-	inline constexpr int32 MAX_INNATE_PLACES = 24;
+	/** D-240 (Crown): the innate budget starts at 3 points and grows by 1 per pillar point, up to today's 24. Broken
+	 *  Darkness starts at the same 3; each pillar point is worth 2 and a pillar's seventh worth 3: 3 + 3 x (6 x 2 + 3) = 48.
+	 *  TODO: move beside SpellPoolConstants when the player side lands. */
+	inline constexpr int32 INNATE_BUDGET_BASE = 3;
+	inline constexpr int32 INNATE_BUDGET_PER_PILLAR_POINT = 1;
+	inline constexpr int32 BD_BUDGET_PER_PILLAR_POINT = 2;
+	inline constexpr int32 BD_BUDGET_TOP_PILLAR_POINT = 3;
+	inline constexpr int32 PILLAR_TOP_LEVEL = 7;
 
 	/** The kind of an always-has or pool item (a prebuilt find by its piece); false when it is no gear. */
 	WORLD_OF_REFRACTION_API bool GetKind(const UObject *Item, EEnemyKitKind &OutKind);
@@ -123,10 +129,13 @@ namespace EnemyKitRules
 	WORLD_OF_REFRACTION_API bool AllowsKind(const FEnemyKit &Kit, EEnemyKitKind Kind);
 	/** How many skills one piece with PieceSlots slots may hold: its slots, lowered by the kit's per-piece limit. */
 	WORLD_OF_REFRACTION_API int32 GetMostSkillsOnPiece(const FEnemyKit &Kit, int32 PieceSlots);
-	/** D-240's innate places at these pillar levels (Mind + Body + Spirit). */
-	WORLD_OF_REFRACTION_API int32 GetInnatePlaces(int32 PillarPoints);
-	/** The kit's innate limit, else Enemy's innate places by its own levels. */
+	/** D-240's innate budget at these pillar levels, capped at SpellPoolConstants' full budget. */
+	WORLD_OF_REFRACTION_API int32 GetInnateBudget(int32 Mind, int32 Body, int32 Spirit, bool bBrokenDarkness);
+	/** The kit's innate limit, else Enemy's D-240 budget by its own levels. */
 	WORLD_OF_REFRACTION_API int32 GetMostInnate(const UCharacterData &Enemy);
+	/** Spells in order, each kept while its cost (tier less Discount, SpellPoolConstants) fits what is left of Budget;
+	 *  one that doesn't fit is skipped and a cheaper one after it may still fit. InOutSpent carries across pools. */
+	WORLD_OF_REFRACTION_API TArray<USpellData *> FitInnateBudget(TConstArrayView<USpellData *> Spells, int32 Budget, int32 Discount, int32 &InOutSpent);
 	WORLD_OF_REFRACTION_API bool AllowsWeaponType(const FEnemyKit &Kit, EWeaponType Type);
 	WORLD_OF_REFRACTION_API bool AllowsElement(const FEnemyKit &Kit, ESpellElement Element);
 	/** The zone's range, narrowed by the kit's own; Min above Max when the two don't meet (nothing to take). */
