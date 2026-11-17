@@ -52,6 +52,10 @@ namespace TrialPool
 	WORLD_OF_REFRACTION_API float GetCrystalTierWeight(EItemTier Tier, const FTrialTierRange &Range, bool bOwnElement);
 	/** One crystal, element then tier, by the weights above. */
 	WORLD_OF_REFRACTION_API FCrystalId PickCrystal(ESpellElement TrialElement, const FTrialTierRange &Range, FRandomStream &Roll);
+	/** B-568: the same, among the types Allowed lets through (an enemy's element limit, a socket's accepted type). Type
+	 *  None when none is allowed or Range is empty. */
+	WORLD_OF_REFRACTION_API FCrystalId PickCrystal(ESpellElement TrialElement, const FTrialTierRange &Range, FRandomStream &Roll,
+												   TFunctionRef<bool(ECrystalType)> Allowed);
 
 	/** The trial's pool: its tag and items, the crystal weights, and each zone in World with its pool and tiers. */
 	WORLD_OF_REFRACTION_API FString GetTrialPoolString(const UTrialData *Trial, const UWorld *World);
