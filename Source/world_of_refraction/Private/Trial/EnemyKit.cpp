@@ -9,7 +9,9 @@
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/LoadoutRules.h"
+#include "Loadout/SpellPoolConstants.h"
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Trial/PrebuiltFindData.h"
 #include "Trial/TrialLoot.h"
 #include "Trial/TrialPool.h"
@@ -99,9 +101,45 @@ bool EnemyKitRules::AllowsKind(const FEnemyKit &Kit, EEnemyKitKind Kind)
 	return Kit.Kinds.IsEmpty() || Kit.Kinds.Contains(Kind);
 }
 
-int32 EnemyKitRules::GetMostSkills(const FEnemyKit &Kit, int32 Slots)
+int32 EnemyKitRules::GetMostSkillsOnPiece(const FEnemyKit &Kit, int32 PieceSlots)
 {
-	return FMath::Clamp(Kit.bLimitSkills ? Kit.MostSkills : DEFAULT_MOST_SKILLS, 0, FMath::Max(0, Slots));
+	const int32 Slots = FMath::Max(0, PieceSlots);
+	return Kit.bLimitSkillsPerPiece ? FMath::Clamp(Kit.MostSkillsPerPiece, 0, Slots) : Slots;
+}
+
+int32 EnemyKitRules::GetInnateBudget(int32 Mind, int32 Body, int32 Spirit, bool bBrokenDarkness)
+{
+	int32 Budget = INNATE_BUDGET_BASE;
+	for (const int32 Level : {Mind, Body, Spirit})
+	{
+		const int32 Points = FMath::Clamp(Level, 0, PILLAR_TOP_LEVEL);
+		Budget += !bBrokenDarkness				 ? INNATE_BUDGET_PER_PILLAR_POINT * Points
+				  : Points < PILLAR_TOP_LEVEL ? BD_BUDGET_PER_PILLAR_POINT * Points
+											 : BD_BUDGET_PER_PILLAR_POINT * (PILLAR_TOP_LEVEL - 1) + BD_BUDGET_TOP_PILLAR_POINT;
+	}
+	return FMath::Min(Budget, bBrokenDarkness ? SpellPoolConstants::BD_SPELL_BUDGET : SpellPoolConstants::INNATE_SPELL_BUDGET);
+}
+
+int32 EnemyKitRules::GetMostInnate(const UCharacterData &Enemy)
+{
+	const FEnemyKit &Kit = Enemy.EnemyKit;
+	return Kit.bLimitInnate ? Kit.MostInnate
+							: GetInnateBudget(Enemy.WorldMindLevel, Enemy.WorldBodyLevel, Enemy.WorldSpiritLevel, Enemy.bBrokenDarknessInnate);
+}
+
+TArray<USpellData *> EnemyKitRules::FitInnateBudget(TConstArrayView<USpellData *> Spells, int32 Budget, int32 Discount, int32 &InOutSpent)
+{
+	TArray<USpellData *> Kept;
+	for (USpellData *Spell : Spells)
+	{
+		const int32 Cost = Spell ? SpellPoolConstants::SpellSlotEffectiveCost(Spell->Tier, Discount) : 0;
+		if (Spell && InOutSpent + Cost <= Budget)
+		{
+			InOutSpent += Cost;
+			Kept.Add(Spell);
+		}
+	}
+	return Kept;
 }
 
 bool EnemyKitRules::AllowsWeaponType(const FEnemyKit &Kit, EWeaponType Type)
@@ -147,10 +185,9 @@ TArray<FString> EnemyKitRules::CheckAlwaysHas(const FEnemyKit &Kit, ECharacterCl
 	{
 		Problems.Add(FString::Printf(TEXT("%d pieces always; its most gear is %d"), Items, Kit.MostGear));
 	}
-	const int32 MostSkills = Kit.bLimitSkills ? Kit.MostSkills : DEFAULT_MOST_SKILLS;
-	if (Kit.Skills.Num() > MostSkills)
+	if (!Kit.Skills.IsEmpty() && Kit.bLimitSkillsPerPiece && Kit.MostSkillsPerPiece == 0)
 	{
-		Problems.Add(FString::Printf(TEXT("%d skills always; most skills is %d"), Kit.Skills.Num(), MostSkills));
+		Problems.Add(TEXT("it always has skills, but no piece may hold one (most skills per piece 0)"));
 	}
 	if (Kit.bLimitTiers && Kit.MinTier > Kit.MaxTier)
 	{
@@ -235,9 +272,11 @@ FString EnemyKitRules::GetEnemyKitString(const FEnemyKit &Kit, ECharacterClass C
 	}
 	FString Output = FString::Printf(TEXT("Always has: %s | skills: %s"), Pieces.IsEmpty() ? TEXT("nothing") : *FString::Join(Pieces, TEXT(", ")),
 									 Skills.IsEmpty() ? TEXT("none") : *FString::Join(Skills, TEXT(", ")));
-	Output += FString::Printf(TEXT(" | most gear %s (weapons %s, adapters %s), skills %d (before slots)"), *GetLimitString(GetMostGear(Kit, Class)),
+	Output += FString::Printf(TEXT(" | most gear %s (weapons %s, adapters %s), skills per piece %s, innate %s"), *GetLimitString(GetMostGear(Kit, Class)),
 							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Weapon)),
-							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Adapter)), Kit.bLimitSkills ? Kit.MostSkills : DEFAULT_MOST_SKILLS);
+							  *GetLimitString(GetMostOfKind(Kit, Class, EEnemyKitKind::Adapter)),
+							  Kit.bLimitSkillsPerPiece ? *FString::FromInt(Kit.MostSkillsPerPiece) : TEXT("its slots"),
+							  Kit.bLimitInnate ? *FString::Printf(TEXT("%d points"), Kit.MostInnate) : TEXT("its D-240 budget"));
 	Output += FString::Printf(TEXT(" | kinds %s | weapon types %s | elements %s | tiers %s"), Kinds.IsEmpty() ? TEXT("any") : *FString::Join(Kinds, TEXT(", ")),
 							  Types.IsEmpty() ? TEXT("any") : *FString::Join(Types, TEXT(", ")),
 							  Elements.IsEmpty() ? TEXT("any") : *FString::Join(Elements, TEXT(", ")),

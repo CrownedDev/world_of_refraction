@@ -1,9 +1,9 @@
 // EnemyKit.h
 // B-567 (D-225, TrialPoolDesign §3-4 and §9 stage 3, the enemy's parts): what an enemy template sets for its kit.
 //   - The always-has list: gear (each at the tier it is given) and skills, the same on every enemy of the type.
-//   - Five limits on what it takes from the pool (Crown 2026-11-17, "the limits merged"): most gear, most skills,
-//     which kinds, which elements, a tier range. Each is optional and unset means any; the one exception is the
-//     skills, unset 3 (DEFAULT_MOST_SKILLS).
+//   - Limits on what it takes from the pool (Crown 2026-11-17, "the limits merged"): most gear, most skills per
+//     piece, most innate spells, which kinds, which elements, a tier range. Each is optional and unset means any:
+//     skills fill every slot a piece has, the innate budget follows D-240 (GetInnateBudget).
 // Enemies follow the player's rules: the class decides which kinds fit and caps them (LoadoutClassTable), and slots
 // come by tier. B-567b: most weapons, most adapters and evolution allowed became most gear and the kinds list.
 // Stage 4 rolls the open part from the trial's pool inside these. Debug: UCharacterData's Print Enemy Kit button
@@ -19,6 +19,7 @@
 
 class UCharacterData;
 class USkillDataBase;
+class USpellData;
 struct FEncounterZoneInfo;
 struct FTrialTierRange;
 enum class ECharacterClass : uint8;
@@ -73,10 +74,17 @@ struct WORLD_OF_REFRACTION_API FEnemyKit
 	int32 MostGear = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits", meta = (InlineEditConditionToggle))
-	bool bLimitSkills = false;
-	/** Most skills, the always-has ones included, never more than its slots. Unset: 3. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits", meta = (EditCondition = "bLimitSkills", ClampMin = 0))
-	int32 MostSkills = 3;
+	bool bLimitSkillsPerPiece = false;
+	/** B-567c (Crown): how many skills each piece may hold, never more than its slots. Unset: every slot it has. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits", meta = (EditCondition = "bLimitSkillsPerPiece", ClampMin = 0))
+	int32 MostSkillsPerPiece = 0;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits", meta = (InlineEditConditionToggle))
+	bool bLimitInnate = false;
+	/** B-567c (Crown): its innate budget in points (each innate spell costs its tier, less its pillar discount, CL-34).
+	 *  Unset: D-240's budget by its own levels (3, plus 1 per pillar point; Broken Darkness 6 plus 2). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits", meta = (EditCondition = "bLimitInnate", ClampMin = 0))
+	int32 MostInnate = 0;
 
 	/** Which kinds of gear it may take (an evolution only when Evolution is listed). Empty: any. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Limits")
@@ -101,8 +109,14 @@ struct WORLD_OF_REFRACTION_API FEnemyKit
 
 namespace EnemyKitRules
 {
-	/** TrialPoolDesign §3: the one limit whose unset value is a number. TODO: tunable. */
-	inline constexpr int32 DEFAULT_MOST_SKILLS = 3;
+	/** D-240 (Crown): the innate budget starts at 3 points and grows by 1 per pillar point, up to today's 24. Broken
+	 *  Darkness starts at the same 3; each pillar point is worth 2 and a pillar's seventh worth 3: 3 + 3 x (6 x 2 + 3) = 48.
+	 *  TODO: move beside SpellPoolConstants when the player side lands. */
+	inline constexpr int32 INNATE_BUDGET_BASE = 3;
+	inline constexpr int32 INNATE_BUDGET_PER_PILLAR_POINT = 1;
+	inline constexpr int32 BD_BUDGET_PER_PILLAR_POINT = 2;
+	inline constexpr int32 BD_BUDGET_TOP_PILLAR_POINT = 3;
+	inline constexpr int32 PILLAR_TOP_LEVEL = 7;
 
 	/** The kind of an always-has or pool item (a prebuilt find by its piece); false when it is no gear. */
 	WORLD_OF_REFRACTION_API bool GetKind(const UObject *Item, EEnemyKitKind &OutKind);
@@ -113,15 +127,22 @@ namespace EnemyKitRules
 	 *  evolutions: NO_LIMIT here (an evolution still counts toward most gear). */
 	WORLD_OF_REFRACTION_API int32 GetMostOfKind(const FEnemyKit &Kit, ECharacterClass Class, EEnemyKitKind Kind);
 	WORLD_OF_REFRACTION_API bool AllowsKind(const FEnemyKit &Kit, EEnemyKitKind Kind);
-	/** The kit's skill limit (unset 3), never more than Slots. */
-	WORLD_OF_REFRACTION_API int32 GetMostSkills(const FEnemyKit &Kit, int32 Slots);
+	/** How many skills one piece with PieceSlots slots may hold: its slots, lowered by the kit's per-piece limit. */
+	WORLD_OF_REFRACTION_API int32 GetMostSkillsOnPiece(const FEnemyKit &Kit, int32 PieceSlots);
+	/** D-240's innate budget at these pillar levels, capped at SpellPoolConstants' full budget. */
+	WORLD_OF_REFRACTION_API int32 GetInnateBudget(int32 Mind, int32 Body, int32 Spirit, bool bBrokenDarkness);
+	/** The kit's innate limit, else Enemy's D-240 budget by its own levels. */
+	WORLD_OF_REFRACTION_API int32 GetMostInnate(const UCharacterData &Enemy);
+	/** Spells in order, each kept while its cost (tier less Discount, SpellPoolConstants) fits what is left of Budget;
+	 *  one that doesn't fit is skipped and a cheaper one after it may still fit. InOutSpent carries across pools. */
+	WORLD_OF_REFRACTION_API TArray<USpellData *> FitInnateBudget(TConstArrayView<USpellData *> Spells, int32 Budget, int32 Discount, int32 &InOutSpent);
 	WORLD_OF_REFRACTION_API bool AllowsWeaponType(const FEnemyKit &Kit, EWeaponType Type);
 	WORLD_OF_REFRACTION_API bool AllowsElement(const FEnemyKit &Kit, ESpellElement Element);
 	/** The zone's range, narrowed by the kit's own; Min above Max when the two don't meet (nothing to take). */
 	WORLD_OF_REFRACTION_API FTrialTierRange GetTierRange(const FEnemyKit &Kit, const FTrialTierRange &ZoneRange);
 
-	/** Problems with the always-has list against the class and the kit's own limits (too many weapons, adapters,
-	 *  gear or skills, a kind or weapon type left out, an upside-down tier range, a piece of an unknown kind); empty when it fits. */
+	/** Problems with the always-has list against the class and the kit's own limits (too many weapons, adapters or
+	 *  gear, a kind or weapon type left out, an upside-down tier range, a piece of an unknown kind); empty when it fits. */
 	WORLD_OF_REFRACTION_API TArray<FString> CheckAlwaysHas(const FEnemyKit &Kit, ECharacterClass Class);
 	/** One line per always-has piece whose tier is outside Zone's range (the given tier wins; TrialPoolDesign §10 note
 	 *  5), else empty. */
