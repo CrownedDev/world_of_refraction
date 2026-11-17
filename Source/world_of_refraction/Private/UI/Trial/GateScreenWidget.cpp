@@ -502,8 +502,20 @@ int32 UGateScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent, int32 &Ou
 
 FReply UGateScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
+	const bool bLeft = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
+	for (int32 Index = 0; bLeft && Index < GateTabs.Num() && Index < Page.Gates.Num(); ++Index)
+	{
+		if (GateTabs[Index].IsValid() && GateTabs[Index]->GetCachedGeometry().IsUnderLocation(InMouseEvent.GetScreenSpacePosition()))
+		{
+			if (Index != GateIndex) // B-553: a click on a gate tab goes there, as LB / RB do
+			{
+				MoveGate(Index - GateIndex);
+			}
+			return FReply::Handled();
+		}
+	}
 	int32 Card = INDEX_NONE;
-	const int32 Row = InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton ? FindRowUnder(InMouseEvent, Card) : INDEX_NONE;
+	const int32 Row = bLeft ? FindRowUnder(InMouseEvent, Card) : INDEX_NONE;
 	if (Row == INDEX_NONE)
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
@@ -515,7 +527,7 @@ FReply UGateScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, c
 		Refresh();
 		return FReply::Handled();
 	}
-	// The first click lights a row, a click on the lit row is A: a stray click doesn't enter.
+	// A click on the lit row is A; on another row (the keys moved the light, the mouse stood still) it only lights it.
 	if (Row != Focus)
 	{
 		Focus = Row;
@@ -527,6 +539,18 @@ FReply UGateScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, c
 		PressSelect();
 	}
 	return FReply::Handled();
+}
+
+FReply UGateScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	// Only a moving mouse lights a row (as Up / Down do), so a resting cursor doesn't fight the keys.
+	int32 Card = INDEX_NONE;
+	const int32 Row = InMouseEvent.GetCursorDelta().IsZero() ? INDEX_NONE : FindRowUnder(InMouseEvent, Card);
+	if (Row != INDEX_NONE && Row != Focus)
+	{
+		MoveFocus(Row - Focus);
+	}
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
 
 #if !UE_BUILD_SHIPPING

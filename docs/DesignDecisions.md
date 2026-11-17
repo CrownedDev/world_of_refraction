@@ -1285,6 +1285,7 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED (Crown, 2026-11-16); a standing rule · **Raised:** 2026-11-16 · **Blocks:** nothing
 **Answer (Crown):** "we should allow mouse clicks; it's a PC and console game". Every menu and screen can be used with the mouse (hover lights a row, a click picks it, the wheel scrolls a list), as well as the keyboard and a gamepad. A new screen ships with all three; existing screens that are keys-only (the title and the new-game screen first) get the mouse added. **Crown, same day, on the remaining keys-only screens: "we should allow the mouse"**: the rest are done in order (the Equipment screen's wheel first).
 **Built (B-538, in dev, 2026-11-16):** the title and the new-game screen (hover, click through the confirm path, the cursor shows). Every other screen and what the mouse does there: `InputMap.md`, "Screens and how they are reached", the Mouse column.
+**Built (B-553, in dev, 2026-11-17):** the rest of the screens: the Equipment wheel, the Recruit and Join request cards, hover on the Character sheet, the Gate and Play together; Credits, the Rest spot and the battle HUD needed nothing for the mouse. Every player screen now takes the mouse (`InputMap.md` screens table). Left open: the Rest spot's old panel has no Back key and nothing focused for the keys and pad, and the battle HUD's gamepad inside a submenu (Q-391).
 
 ### D-232 — The title is its own level
 **Status:** ANSWERED (Crown, 2026-11-16) · **Raised:** 2026-11-16 · **Blocks:** nothing
