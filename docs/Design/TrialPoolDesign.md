@@ -89,7 +89,7 @@
 
 ## 6. Drops
 
-**Today:** defeated enemies drop pillar levels only (`Private/Trial/TrialGate.cpp:238-247`). Gear and skills come from chests: one seeded, unweighted pick per player (`TrialMapFeature.cpp:190-201`; the weight is a TODO at `Public/Trial/TrialLoot.h:32-34`).
+**Built (B-569):** a won trial fight drops one thing per player character (`TrialDrops`, `ABattleGameMode::GrantFightDrops`), beside the pillar levels; defaults Q-569. **Before:** defeated enemies dropped pillar levels only (`Private/Trial/TrialGate.cpp:238-247`). Gear and skills come from chests: one seeded, unweighted pick per player (`TrialMapFeature.cpp:190-201`; the weight is a TODO at `Public/Trial/TrialLoot.h:32-34`).
 
 | Rule | Status |
 |---|---|
@@ -213,3 +213,4 @@ None open. The earlier ones are settled by D-225's "Gaps closed after the rewrit
 | 2026-11-17 | Brought in line with Crown's answers: limits not a ladder, the player's slot rules, shared template and per-enemy roll, one drop per fight, crystals lean to the trial's element, duplicates' three choices, the half-and-half shelf, two kit-skill variations, co-op guests keep what they earn | dev (docs only) |
 | 2026-11-17 | Gaps closed: one drop of any kind, 3 skills when unset, a tier range per zone, a boss's first defeat gives two things, the story answer; section 10 is build notes only | dev (docs only) |
 | 2026-11-17 | Crown's final wording: a boss's first defeat gives one thing from its presets, of any kind, plus the normal drop; a preset piece arrives as set up | dev (docs only) |
+| 2026-11-17 | B-569 stage 5 built: drops (one per player, 3 to 1, worn tier, empty, no grade roll); build note 1 done (ER-38's row) | `feature/B-569-trial-drops` |
