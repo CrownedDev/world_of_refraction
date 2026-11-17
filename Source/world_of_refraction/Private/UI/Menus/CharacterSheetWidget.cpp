@@ -313,10 +313,10 @@ void UCharacterSheetWidget::Refresh()
 		if (bShown)
 		{
 			MemberTabLabels[Index]->SetText(Members[Index].Name);
-			MemberTabs[Index]->SetBrushColor(Index == MemberIndex ? FocusColor : PlateColor);
 			MemberTabLabels[Index]->SetColorAndOpacity(FSlateColor(Index == MemberIndex ? TextColor : DimColor));
 		}
 	}
+	PaintMemberTabs();
 	if (!NameText)
 	{
 		return; // headless: no tree
@@ -463,6 +463,42 @@ FReply UCharacterSheetWidget::NativeOnMouseButtonDown(const FGeometry &InGeometr
 	}
 	MoveMember(Tab - MemberIndex);
 	return FReply::Handled();
+}
+
+void UCharacterSheetWidget::PaintMemberTabs()
+{
+	using namespace WoRMenuStyle;
+	for (int32 Index = 0; Index < MemberTabs.Num() && Index < Members.Num(); ++Index)
+	{
+		if (MemberTabs[Index])
+		{
+			MemberTabs[Index]->SetBrushColor(Index == MemberIndex ? FocusColor : Index == HoveredTab ? HoverColor : PlateColor);
+		}
+	}
+}
+
+void UCharacterSheetWidget::SetHoveredTab(int32 Tab)
+{
+	if (Tab != HoveredTab)
+	{
+		HoveredTab = Tab;
+		PaintMemberTabs();
+	}
+}
+
+FReply UCharacterSheetWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
+{
+	if (!InMouseEvent.GetCursorDelta().IsZero()) // a resting cursor doesn't light anything
+	{
+		SetHoveredTab(FindMemberTabUnder(InMouseEvent));
+	}
+	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
+}
+
+void UCharacterSheetWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEvent)
+{
+	SetHoveredTab(INDEX_NONE);
+	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
 #if !UE_BUILD_SHIPPING
