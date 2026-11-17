@@ -183,6 +183,13 @@ struct WORLD_OF_REFRACTION_API FSavedPartyMember
 	UPROPERTY()
 	FPlayerPicks Picks;
 
+	/** B-558 (D-238, no version change: absent reads as its own body): a recruit's worn spirit (FPartyMember). */
+	UPROPERTY()
+	FName SpiritForm;
+
+	UPROPERTY()
+	EPlayerBaseForm SpiritBody = EPlayerBaseForm::Manny;
+
 	// D-221 (B-507, save v40): the field skill, the field attack pick and the weapon in hand moved to the member's
 	// worn-gear record (FSavedPool::WornGear).
 

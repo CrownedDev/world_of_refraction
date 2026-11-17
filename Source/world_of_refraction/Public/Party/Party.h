@@ -234,6 +234,14 @@ struct FPartyMember
 	UPROPERTY(BlueprintReadOnly, Category = "Party")
 	FPlayerPicks Picks;
 
+	/** B-558 (D-238): a recruit's worn spirit, a form's asset name; None: its own body, SpiritBody (its starting body,
+	 *  Picks.Body, shows its Blueprint's own coloured look). The player's own spirit lives in UCharacterFormSubsystem. */
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	FName SpiritForm;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Party")
+	EPlayerBaseForm SpiritBody = EPlayerBaseForm::Manny;
+
 	bool IsValidMember() const { return !PawnClass.IsNull() && CharacterData != nullptr; }
 
 	bool HasCarriedVitals() const { return CurrentHP != PartyConstants::NO_CARRIED_VITALS; }
