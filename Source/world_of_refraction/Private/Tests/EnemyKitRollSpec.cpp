@@ -8,6 +8,7 @@
 #include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Algo/Accumulate.h"
 #include "Misc/AutomationTest.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
@@ -88,8 +89,10 @@ void FEnemyKitRollSpec::Define()
 			TestEqual(TEXT("most gear 1: the sword alone"), Kit.Pieces.Num(), 1);
 			TestTrue(TEXT("the always-has skill first"), Kit.Abilities.Num() > 0 && Kit.Abilities[0] == SwordSkill);
 			TestFalse(TEXT("no axe skill without an axe"), Kit.Abilities.Contains(AxeSkill));
-			const int32 Skills = Kit.Abilities.Num() + Kit.Spells.Num();
-			TestTrue(TEXT("skills: at most 3 and the slots"), Skills <= EnemyKitRules::DEFAULT_MOST_SKILLS && Skills <= EnemyKitRoll::GetSlotCount(Kit));
+			for (const FRolledKitPiece &Piece : Kit.Pieces)
+			{
+				TestTrue(TEXT("each piece holds at most its slots"), Piece.Abilities.Num() + Piece.Spells.Num() <= EnemyKitRoll::GetPieceSlots(Piece));
+			}
 		}
 	});
 
@@ -107,6 +110,32 @@ void FEnemyKitRollSpec::Define()
 		const FRolledEnemyKit Adapters = EnemyKitRoll::Roll(*Enemy, Input);
 		TestEqual(TEXT("adapters only: its class's one adapter, no weapon"), Adapters.Pieces.Num(), 1);
 		TestEqual(TEXT("no weapon"), CountWeapons(Adapters), 0);
+	});
+
+	It("holds at most its per-piece limit on each piece, and its spells only on adapters of their element", [this]()
+	{
+		USpellData *WaterSpell = NewObject<USpellData>();
+		WaterSpell->Element = ESpellElement::Water;
+		USpellData *OtherWater = NewObject<USpellData>();
+		OtherWater->Element = ESpellElement::Water;
+		UAbilityData *OtherSword = NewObject<UAbilityData>();
+		Input.Pool.Append({WaterSpell, OtherWater, OtherSword});
+		Enemy->EnemyKit.Elements = {ESpellElement::Water};
+		Enemy->EnemyKit.bLimitSkillsPerPiece = true;
+		Enemy->EnemyKit.MostSkillsPerPiece = 1;
+		for (int32 Occurrence = 0; Occurrence < TRIES; ++Occurrence)
+		{
+			Input.Seed = EnemyKitRoll::MakeSeed(RUN_SEED, TEXT("A"), Enemy, Occurrence);
+			const FRolledEnemyKit Kit = EnemyKitRoll::Roll(*Enemy, Input);
+			for (const FRolledKitPiece &Piece : Kit.Pieces)
+			{
+				TestTrue(TEXT("one skill a piece"), Piece.Abilities.Num() + Piece.Spells.Num() <= 1);
+				const bool bWeapon = Cast<UWeaponData>(Piece.Piece) != nullptr;
+				TestTrue(TEXT("spells only on adapters"), bWeapon ? Piece.Spells.IsEmpty() : Piece.Abilities.IsEmpty());
+			}
+			TestEqual(TEXT("the kit lists what its pieces hold"), Kit.Abilities.Num() + Kit.Spells.Num(),
+					  Kit.Pieces.Num() > 0 ? Algo::TransformAccumulate(Kit.Pieces, [](const FRolledKitPiece &Piece) { return Piece.Abilities.Num() + Piece.Spells.Num(); }, 0) : 0);
+		}
 	});
 
 	It("socketing only crystals of its elements, and spells only through them", [this]()

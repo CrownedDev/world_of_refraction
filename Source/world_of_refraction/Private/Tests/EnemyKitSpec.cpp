@@ -24,7 +24,7 @@ END_DEFINE_SPEC(FEnemyKitSpec)
 
 void FEnemyKitSpec::Define()
 {
-	It("leaves everything to the class and the zone when nothing is set, except skills: 3", [this]()
+	It("leaves everything to the class, the slots and the zone when nothing is set", [this]()
 	{
 		const FEnemyKit Kit;
 		TestEqual(TEXT("a Generic: 2 weapons"), EnemyKitRules::GetMostOfKind(Kit, ECharacterClass::Generic, EEnemyKitKind::Weapon), 2);
@@ -34,7 +34,11 @@ void FEnemyKitSpec::Define()
 		TestEqual(TEXT("a Resonator: 6 pieces (1 weapon, 5 adapters)"), EnemyKitRules::GetMostGear(Kit, ECharacterClass::Resonator), 6);
 		TestEqual(TEXT("a Refractor: 1 piece"), EnemyKitRules::GetMostGear(Kit, ECharacterClass::Caster), 1);
 		TestTrue(TEXT("any kind, an evolution too"), EnemyKitRules::AllowsKind(Kit, EEnemyKitKind::Evolution));
-		TestEqual(TEXT("skills: 3"), EnemyKitRules::GetMostSkills(Kit, 16), EnemyKitRules::DEFAULT_MOST_SKILLS);
+		TestEqual(TEXT("skills: every slot a piece has"), EnemyKitRules::GetMostSkillsOnPiece(Kit, 12), 12);
+		TestEqual(TEXT("innate places at 0 pillar points: 3"), EnemyKitRules::GetInnatePlaces(0), EnemyKitRules::INNATE_BASE_PLACES);
+		TestEqual(TEXT("at 1 / 7 / 1: 12"), EnemyKitRules::GetInnatePlaces(9), 12);
+		TestEqual(TEXT("at 7 / 7 / 7: the full 24"), EnemyKitRules::GetInnatePlaces(21), EnemyKitRules::MAX_INNATE_PLACES);
+		TestEqual(TEXT("never past 24"), EnemyKitRules::GetInnatePlaces(30), EnemyKitRules::MAX_INNATE_PLACES);
 		TestTrue(TEXT("any weapon type"), EnemyKitRules::AllowsWeaponType(Kit, EWeaponType::Axe));
 		TestTrue(TEXT("any element"), EnemyKitRules::AllowsElement(Kit, ESpellElement::Water));
 		const FTrialTierRange Zone = TrialPool::GetZoneTierRange(2);
@@ -53,10 +57,10 @@ void FEnemyKitSpec::Define()
 		Kit.Kinds = {EEnemyKitKind::Weapon};
 		TestEqual(TEXT("weapons only: no adapter"), EnemyKitRules::GetMostOfKind(Kit, ECharacterClass::Generic, EEnemyKitKind::Adapter), 0);
 		TestFalse(TEXT("weapons only: no evolution"), EnemyKitRules::AllowsKind(Kit, EEnemyKitKind::Evolution));
-		Kit.bLimitSkills = true;
-		Kit.MostSkills = 6;
-		TestEqual(TEXT("six skills with 16 slots"), EnemyKitRules::GetMostSkills(Kit, 16), 6);
-		TestEqual(TEXT("never more than its slots"), EnemyKitRules::GetMostSkills(Kit, 4), 4);
+		Kit.bLimitSkillsPerPiece = true;
+		Kit.MostSkillsPerPiece = 2;
+		TestEqual(TEXT("two skills on a piece of 6"), EnemyKitRules::GetMostSkillsOnPiece(Kit, 6), 2);
+		TestEqual(TEXT("never more than the piece's slots"), EnemyKitRules::GetMostSkillsOnPiece(Kit, 1), 1);
 		Kit.WeaponTypes = {EWeaponType::Sword};
 		TestFalse(TEXT("only swords"), EnemyKitRules::AllowsWeaponType(Kit, EWeaponType::Axe));
 		Kit.bLimitTiers = true;
@@ -66,6 +70,18 @@ void FEnemyKitSpec::Define()
 		TestTrue(TEXT("D to A inside zone 4"), Range.Min == EItemTier::D_Tier && Range.Max == EItemTier::A_Tier);
 		const FTrialTierRange None = EnemyKitRules::GetTierRange(Kit, TrialPool::GetZoneTierRange(0));
 		TestTrue(TEXT("no meeting: nothing to take"), None.Min > None.Max);
+	});
+
+	It("gives an enemy its innate places by its own levels, unless its kit limits them", [this]()
+	{
+		UCharacterData *Enemy = NewObject<UCharacterData>();
+		Enemy->WorldMindLevel = 1;
+		Enemy->WorldBodyLevel = 7;
+		Enemy->WorldSpiritLevel = 1;
+		TestEqual(TEXT("1 / 7 / 1: 3 + 9"), EnemyKitRules::GetMostInnate(*Enemy), 12);
+		Enemy->EnemyKit.bLimitInnate = true;
+		Enemy->EnemyKit.MostInnate = 5;
+		TestEqual(TEXT("its own limit"), EnemyKitRules::GetMostInnate(*Enemy), 5);
 	});
 
 	It("checks the always-has list against the class", [this]()
