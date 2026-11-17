@@ -9,6 +9,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
 #include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/Forms/SpiritLook.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
@@ -191,6 +192,11 @@ void ABattleGameMode::BootstrapCombat()
         if (!Spawned)
         {
             continue;
+        }
+        // B-558 (D-238): a recruit wears its spirit (its own Blueprint look on its starting body).
+        if (ACharacter *SpawnedCharacter = Member ? Cast<ACharacter>(Spawned) : nullptr)
+        {
+            WoRSpiritLook::DressMember(*SpawnedCharacter, *Member, GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>());
         }
         if (!CanEnterCombat(Spawned))
         {

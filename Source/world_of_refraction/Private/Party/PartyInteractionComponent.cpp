@@ -8,6 +8,9 @@
 #include "Character/CharacterDataComponent.h"
 #include "Character/PlayerBuild.h"
 #include "Character/PlayerPicks.h"
+#include "Character/Forms/CharacterFormSubsystem.h"
+#include "Character/Forms/SpiritLook.h"
+#include "GameFramework/Character.h"
 #include "Components/SphereComponent.h"
 #include "Engine/Engine.h"
 #include "Engine/GameInstance.h"
@@ -65,6 +68,18 @@ void UPartyInteractionComponent::BeginPlay()
 
 	TriggerSphere->OnComponentBeginOverlap.AddDynamic(this, &UPartyInteractionComponent::OnTriggerBeginOverlap);
 	TriggerSphere->OnComponentEndOverlap.AddDynamic(this, &UPartyInteractionComponent::OnTriggerEndOverlap);
+
+	// B-558 (D-238): a recruit already in the party shows the spirit it wears.
+	UCharacterData *Recruit = GetOwnerCharacterData();
+	const UPartySessionSubsystem *PartySession = GetPartySession();
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	const int32 Slot = Party && Recruit ? PartySession->GetMemberSlotByData(Recruit) : INDEX_NONE;
+	ACharacter *Body = Cast<ACharacter>(GetOwner());
+	if (Body && Party && Party->Members.IsValidIndex(Slot))
+	{
+		const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+		WoRSpiritLook::DressMember(*Body, Party->Members[Slot], GI ? GI->GetSubsystem<UCharacterFormSubsystem>() : nullptr);
+	}
 }
 
 void UPartyInteractionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
