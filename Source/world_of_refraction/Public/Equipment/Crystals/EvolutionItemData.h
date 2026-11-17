@@ -64,8 +64,7 @@ public:
         // ==================== SOURCE (loot/draft tags) ====================
 
         /** GameplayTag sources this evolution can drop from (e.g. Source.Floor.2, Source.Vendor.X).
-         *  Authored per-asset in the editor. The loot draft (C0 asset registry + C2 tag-query,
-         *  deferred) filters candidates by these. INERT until then — nothing reads it yet. */
+         *  Authored per-asset in the editor. B-566 (D-225): read by TrialLoot::GatherPool, so a trial's pool holds it. */
         UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Source")
         FGameplayTagContainer SourceTags;
 

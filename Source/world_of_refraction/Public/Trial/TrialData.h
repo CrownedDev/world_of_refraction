@@ -13,6 +13,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Trial/TrialGate.h"
 #include "TrialData.generated.h"
@@ -62,8 +63,15 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Gate")
     TArray<FTrialVariation> Variations;
 
+    // ==================== POOL (B-566, D-225) ====================
+
+    /** The trial's pool: every weapon, adapter, skill, prebuilt find, apparel and evolution whose SourceTags hold this
+     *  tag (TrialLoot::GatherPool), plus every element's crystals leaning to Element (TrialPool). A zone's own
+     *  LootPool overrides it for that zone. Unset: the trial gives nothing from a pool. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Pool")
+    FGameplayTag Pool;
+
     // ==================== BANKED (future clusters) ====================
-    // - LootPool     : what the trial's rewards draw from
     // - POIs         : points of interest / encounter placement
     // - Boss         : the trial's boss encounter definition
     // - Modifiers    : trial-wide rule modifiers
