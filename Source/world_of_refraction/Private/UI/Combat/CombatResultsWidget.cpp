@@ -83,6 +83,9 @@ TSharedRef<SWidget> UCombatResultsWidget::RebuildWidget()
 
         TitleText = CombatResultsBuild::AddCentredText(WidgetTree, Box, TEXT("TitleText"), CombatResultsStyle::TitleFontSize);
         DetailText = CombatResultsBuild::AddCentredText(WidgetTree, Box, TEXT("DetailText"), CombatResultsStyle::BodyFontSize);
+        DroppedText = CombatResultsBuild::AddCentredText(WidgetTree, Box, TEXT("DroppedText"), CombatResultsStyle::BodyFontSize);
+        DroppedText->SetColorAndOpacity(FSlateColor(CombatResultsStyle::VictoryColor));
+        DroppedText->SetVisibility(ESlateVisibility::Collapsed);
         PromptText = CombatResultsBuild::AddCentredText(WidgetTree, Box, TEXT("PromptText"), CombatResultsStyle::BodyFontSize);
     }
     return Super::RebuildWidget();
@@ -127,12 +130,28 @@ void UCombatResultsWidget::ShowResult(const FCombatResult &Result)
     OnResultShown(Result);
 }
 
+void UCombatResultsWidget::SetDroppedLines(const TArray<FText> &Lines)
+{
+    TArray<FString> Strings;
+    for (const FText &Line : Lines)
+    {
+        Strings.Add(Line.ToString());
+    }
+    LastDroppedLines = FString::Join(Strings, TEXT(" / "));
+    if (DroppedText)
+    {
+        DroppedText->SetText(FText::Join(FText::FromString(LINE_TERMINATOR), Lines));
+        DroppedText->SetVisibility(Lines.Num() > 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[CombatResults] Dropped: %s"), Lines.Num() > 0 ? *LastDroppedLines : TEXT("nothing"));
+}
+
 FString UCombatResultsWidget::GetResultsStateString() const
 {
-    return FString::Printf(TEXT("[CombatResults] shown=%s continued=%s last=\"%s\""),
+    return FString::Printf(TEXT("[CombatResults] shown=%s continued=%s last=\"%s\" dropped=\"%s\""),
                            bShown ? TEXT("yes") : TEXT("no"),
                            bContinued ? TEXT("yes") : TEXT("no"),
-                           *LastResultLine);
+                           *LastResultLine, *LastDroppedLines);
 }
 
 void UCombatResultsWidget::NativeDestruct()
@@ -189,3 +208,34 @@ void UCombatResultsWidget::ClearAutoContinueTimer()
         World->GetTimerManager().ClearTimer(AutoContinueTimerHandle);
     }
 }
+
+#if !UE_BUILD_SHIPPING
+#include "GameFramework/PlayerController.h"
+#include "HAL/IConsoleManager.h"
+#include "Trial/TrialPoolLook.h"
+
+static FAutoConsoleCommandWithWorld GPreviewFightRewardCommand(
+    TEXT("wor.UI.PreviewFightReward"),
+    TEXT("B-565: show the fight's results with a made-up victory and the made-up drop line (TrialPoolDesign example 2). Closes on its own."),
+    FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+    {
+        APlayerController *PC = World ? World->GetFirstPlayerController() : nullptr;
+        UCombatResultsWidget *Widget = PC ? CreateWidget<UCombatResultsWidget>(PC, UCombatResultsWidget::StaticClass()) : nullptr;
+        if (!Widget)
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[CombatResults] wor.UI.PreviewFightReward: no player controller"));
+            return;
+        }
+        Widget->AddToViewport();
+        FCombatResult Result;
+        Result.FinalState = ECombatState::Victory;
+        Result.TotalTurns = 7; // made up
+        Result.LocalPartySurvivors = 3;
+        Widget->ShowResult(Result);
+        Widget->SetDroppedLines({WoRTrialPoolLook::GetDroppedLine(WoRTrialPoolLook::MakeDropExample())});
+        // The preview has no game mode listening to OnContinue: it removes itself when the real screen would continue.
+        FTimerHandle RemoveHandle;
+        World->GetTimerManager().SetTimer(RemoveHandle, FTimerDelegate::CreateWeakLambda(Widget, [Widget]() { Widget->RemoveFromParent(); }),
+                                          Widget->AutoContinueSeconds, /*bLoop=*/false);
+    }));
+#endif
