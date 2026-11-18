@@ -46,6 +46,7 @@ class UMemoryData;
 class UMerchantData;
 struct FMerchantStockEntry;
 class UTrialData;
+class UPrimaryDataAsset;
 class UClassDefaultLoadoutData;
 struct FClassDefaultLoadout;
 class UWorld;
@@ -562,6 +563,12 @@ private:
      *  so a weak pointer let GC drop it mid-run. Cleared on ExitTrial. */
     UPROPERTY(Transient)
     TObjectPtr<UTrialData> ActiveTrial;
+
+    /** B-571: the trial pool's things a vendor may show, gathered once when the trial becomes the active one
+     *  (TrialLoot::GatherPool loads and sorts every loot asset). Cleared with ActiveTrial. */
+    UPROPERTY(Transient)
+    TArray<TObjectPtr<UPrimaryDataAsset>> TrialVendorPool;
+    void GatherTrialVendorPool();
 
     int32 RunSeed = 0;
 

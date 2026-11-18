@@ -34,6 +34,8 @@
 #include "Skills/Definitions/SpellData.h"
 #include "TimerManager.h"
 #include "Trial/TrialData.h"
+#include "Trial/TrialLoot.h"
+#include "Trial/TrialPool.h"
 #include "Trial/PrismDropPickup.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/PlayerController.h"
@@ -151,6 +153,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     StartRunGearAndGold();
 
     ActiveTrial = Trial;
+    GatherTrialVendorPool(); // B-571
     BeatenEncounters.Reset();
     BeatenMiniBosses.Reset(); // B-187b
     EncounterRevivals.Reset();
@@ -392,6 +395,7 @@ void UTrialRunSubsystem::FinishRun()
            ActiveTrial ? *ActiveTrial->Name.ToString() : TEXT("<none>"),
            *HubLevel.ToString());
     ActiveTrial = nullptr;
+    TrialVendorPool.Reset(); // B-571
     RunSeed = 0;
     VariationIndex = INDEX_NONE;
     TrialDifficulty = TrialGate::DEFAULT_DIFFICULTY;
@@ -967,7 +971,33 @@ void UTrialRunSubsystem::NotifyRunProgressChanged() const
 TArray<FMerchantStockEntry> UTrialRunSubsystem::GetMerchantStock(const UMerchantData *Merchant) const
 {
     // RunSeed says a run is on: a trial vendor stocks for the run, a home vendor as a home shop.
-    return Merchant ? MerchantStockRoll::StockFor(*Merchant, RunSeed != 0, RunSeed) : TArray<FMerchantStockEntry>();
+    if (!Merchant || RunSeed == 0)
+    {
+        return Merchant ? Merchant->Stock : TArray<FMerchantStockEntry>();
+    }
+    // B-571 (D-225): half its own list, half the trial's pool (what a chest or a drop can give, sold instead). The
+    // shelf follows from the run seed, the trial and the authored assets alone, so every machine with those rolls the same.
+    TArray<FMerchantStockEntry> PoolLines;
+    for (UPrimaryDataAsset *Asset : TrialVendorPool)
+    {
+        FMerchantStockEntry &Line = PoolLines.AddDefaulted_GetRef();
+        Line.Asset = Asset;
+    }
+    return MerchantStockRoll::RollWithPool(Merchant->Stock, PoolLines, MerchantStockRoll::SeedFor(RunSeed, *Merchant));
+}
+
+void UTrialRunSubsystem::GatherTrialVendorPool()
+{
+    TrialVendorPool.Reset();
+    // The trial's own pool tag, not a zone's (Q-571): a vendor's shelf is rolled once per run, wherever it stands.
+    for (UObject *Item : TrialLoot::GatherPool(TrialPool::GetPoolTag(ActiveTrial.Get(), FEncounterZoneInfo())))
+    {
+        if (UPrimaryDataAsset *Asset = TrialLoot::CanGrant(Item) ? Cast<UPrimaryDataAsset>(Item) : nullptr)
+        {
+            TrialVendorPool.Add(Asset);
+        }
+    }
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Trial vendors draw on %d pool thing(s) (B-571)"), TrialVendorPool.Num());
 }
 
 FString UTrialRunSubsystem::GetMerchantStockString(const UMerchantData *Merchant) const
@@ -1035,6 +1065,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
                                     const TArray<UMemoryData *> &Memories)
 {
     ActiveTrial = Trial;
+    GatherTrialVendorPool(); // B-571
     RunSeed = InRunSeed;
     VariationIndex = InVariationIndex;
     TrialDifficulty = InDifficulty;
