@@ -21,3 +21,5 @@ Both are zero by default, so every weapon is held exactly as before until a valu
 | 5 | A dual weapon (its own left mesh) with Left Mesh Offset set | Only the left-hand mesh moves | [ ] |
 | 6 | Switch weapons and back, enter a fight | The offset is kept each time the weapon is drawn again | [ ] |
 | 7 | The character's Details panel: Weapon Mesh, Debug Log Mesh State | The log shows "Mesh Offset (right)" and "Left Mesh Offset" with your values | [ ] |
+| 8 | (`fix/left-mesh-fields-visible`) Open a shield's asset (Wield Mode Single, Handling Dual only), category Mesh | **Left Mesh Rotation** is shown and can be edited (it was hidden); changing it turns the shield in the off hand. Left Hand Static / Skeletal Mesh stay hidden: an off-hand piece uses its own main mesh | [ ] |
+| 9 | (`fix/left-mesh-fields-visible`) Open a weapon that is Single and Single only (the Claymore) | Left Mesh Rotation is hidden, as before: it is never held in the left hand | [ ] |
