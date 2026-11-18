@@ -14,6 +14,7 @@
 #include "Loadout/ClassDefaultLoadoutData.h"
 #include "Loadout/WornGear.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "UI/Menus/NewGameScreenModel.h"
 
 namespace
@@ -141,6 +142,33 @@ void FClassPickGearSpec::Define()
 		TestTrue(TEXT("the innate spell is in its one loadout"), Inventory->SavedLoadouts.Num() == 1 &&
 				 Inventory->SavedLoadouts[0].InnateSpells.Num() == 1 && Inventory->SavedLoadouts[0].InnateSpells[0].Spell == Numbers.InnateSpells[0]);
 		TestTrue(TEXT("no other gear to bank"), Inventory->Weapons.IsEmpty() && Inventory->Rings.IsEmpty() && !Inventory->StartingEvolution);
+		TestTrue(TEXT("a class with no starting skills knows none"), Inventory->Spells.IsEmpty() && Inventory->Abilities.IsEmpty());
+	});
+
+	It("D-245: makes the class's starting skills the built player's own from the start", [this]()
+	{
+		USpellData *StartSpell = NewObject<USpellData>(GetTransientPackage());
+		UAbilityData *StartAbility = NewObject<UAbilityData>(GetTransientPackage());
+		FClassDefaultLoadout &ClassKit = Table->Defaults.FindOrAdd(ECharacterClass::Generic);
+		ClassKit.StartingSkills = {StartSpell, StartAbility, StartSpell}; // listed twice: known once
+		FPlayerPicks Picks = MakePicks(ECharacterClass::Generic);
+		Picks.Weapons = {EWeaponType::Sword, EWeaponType::Axe};
+		const UInventoryData *Inventory = WoRPlayerBuild::MakeInventory(Picks, *Table, nullptr);
+		if (!TestNotNull(TEXT("inventory"), Inventory)) return;
+		TestTrue(TEXT("the spell is known"), Inventory->Spells.Num() == 1 && Inventory->Spells[0] == StartSpell);
+		TestTrue(TEXT("the ability is known"), Inventory->Abilities.Num() == 1 && Inventory->Abilities[0] == StartAbility);
+		TestTrue(TEXT("known, not slotted: its one loadout holds the innate list only"),
+				 Inventory->SavedLoadouts.Num() == 1 && Inventory->SavedLoadouts[0].InnateSpells.IsEmpty());
+		TestEqual(TEXT("the picked weapons are still its starting gear"), Inventory->StartingGear.Pieces.Num(), WornGearLayout::SECONDARY_INDEX + 1);
+		const UInventoryData *Other = WoRPlayerBuild::MakeInventory(MakePicks(ECharacterClass::Caster), *Table, nullptr);
+		TestTrue(TEXT("another class doesn't get them"), Other && Other->Spells.IsEmpty() && Other->Abilities.IsEmpty());
+		FPlayerPicks Guest = Picks;
+		Guest.bGuest = true;
+		FPlayerPicks Recruit = Picks;
+		Recruit.bRecruit = true;
+		const UInventoryData *GuestInventory = WoRPlayerBuild::MakeInventory(Guest, *Table, nullptr);
+		const UInventoryData *RecruitInventory = WoRPlayerBuild::MakeInventory(Recruit, *Table, nullptr);
+		TestTrue(TEXT("nor a guest or a hub recruit (Q-245)"), GuestInventory && GuestInventory->Spells.IsEmpty() && RecruitInventory && RecruitInventory->Abilities.IsEmpty());
 	});
 }
 
