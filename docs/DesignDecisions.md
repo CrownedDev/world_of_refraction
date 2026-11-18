@@ -1250,6 +1250,12 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-246 — Ammunition is its own weapon type: arrows and bullets go in the off hand
+**Status:** ANSWERED (Crown, 2026-11-18) · not built · **Raised:** 2026-11-18, while planning a weapon test set after the D-242 grip work
+**Answer (Crown):** a bow is held in the main hand and its arrow type in the off hand, and the arrow can carry effects: "bow main hand arrow off hand then we can add some effects to it". Then: "so arrow becomes a weapon type and so does bullets". So **Arrow** and **Bullet** become weapon types, held in the off hand beside a Bow or a Gun, and the ammunition is where effects can sit.
+**Today:** `EWeaponType` has Bow and Gun but no Arrow or Bullet; no bow, gun, arrow or bullet weapon data or model is in the game yet.
+**Open:** which effects ammunition carries and how they stack with the weapon's; whether ammunition is used up or kept; whether a Bow takes only Arrows and a Gun only Bullets; the off-hand socket and look for ammunition (a quiver?).
+
 ### D-245 — What a new character picks at the start goes into its inventory
 **Status:** ANSWERED in outline (Crown, 2026-11-18) · built 2026-11-18 (starting skills owned from the start; Q-245 holds the defaults), not yet seen in PIE · **Raised:** 2026-11-18, from Crown's PIE pass of a new Generic
 **Answer (Crown):** "when we pick our starting gear/spells we should put it in inventory on a new character". So the weapons, rings and spells picked on the new-game screen (D-228) are **owned by the new character and show in its inventory** from the first moment in the hub, not only worn or only handed over at trial entry.
