@@ -1250,6 +1250,12 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-247 — Bows and guns use no ammunition: the arrow or bullet is part of the attack
+**Status:** ANSWERED (Crown, 2026-11-18: "agreed") · not built · **Raised:** 2026-11-18, after D-246 was dropped
+**Answer:** no arrow or bullet items and no ammunition count. A bow's or gun's attack plays its own draw-and-shoot animation and flies an arrow or bullet model to the target, the way a spell flies its bolt. Effects on the shot come from what the weapon already carries: the crystal or stone in its socket and infusion (a fire crystal in a bow gives fire arrows).
+**Reference:** Expedition 33, Octopath Traveler and Persona keep ranged attacks free of ammunition; well liked for keeping turn-based fights about choices, not stock.
+**Today:** test bows (`DA_Weapon_FalconerBow`, `DA_Weapon_MechanicalBow`) and guns (`DA_Weapon_HunterGun`, `DA_Weapon_HunterGun2`) exist with no Weapon Attack, so they use the unarmed attack. **To build:** a bow attack and a gun attack (animation, projectile model, hit timing).
+
 ### D-246 — Ammunition is an augment: arrows and bullets go where stones go
 **Status:** DROPPED (Crown, 2026-11-18: "actually ignore that idea theres no point") · nothing built · **Raised:** 2026-11-18, while planning a weapon test set after the D-242 grip work
 **Answer (Crown):** first: "bow main hand arrow off hand then we can add some effects to it" and "so arrow becomes a weapon type and so does bullets". Then changed: "we can make arrows and bullets an augment type i.e where stones go". So **arrows and bullets are a kind of augment**, set in a Bow's or Gun's stone socket like an augment stone, and they are where ammunition effects sit. They are **not** a weapon type and not held in the off hand.
