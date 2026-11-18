@@ -235,7 +235,8 @@ void FInventoryScreenSpec::Define()
 		Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), SCREEN_GEM, SCREEN_GEM_COUNT);
 		const FInventoryScreenPage Pouch = PageOf(EInventoryScreenTab::Pouch);
 		if (!TestEqual(TEXT("one stack carried"), Pouch.Tiles.Num(), 1)) return;
-		const FInventoryScreenVerb *StackStore = FindVerb(VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]), EInventoryVerb::Store);
+		const TArray<FInventoryScreenVerb> StackVerbs = VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]); // kept: FindVerb points into it
+		const FInventoryScreenVerb *StackStore = FindVerb(StackVerbs, EInventoryVerb::Store);
 		TestTrue(TEXT("a stack's Store is greyed in a run"), StackStore && !StackStore->Refusal.IsEmpty());
 		TestFalse(TEXT("and Run refuses it"),
 				  WoRInventoryVerbs::Run(World(), EInventoryVerb::Store, KeyOf(SCREEN_MEMBER), NAME_None, Pouch.Tiles[0].Row, 1).IsEmpty());
@@ -273,7 +274,8 @@ void FInventoryScreenSpec::Define()
 		FInventoryScreenPage Chest = PageOf(EInventoryScreenTab::Chest);
 		int32 Stored = Chest.Tiles.IndexOfByPredicate([](const FInventoryScreenTile &Tile) { return !Tile.Row.IsGear() && Tile.Row.Item == SCREEN_GEM; });
 		if (!TestTrue(TEXT("the stack is on the Chest tab"), Stored != INDEX_NONE)) return;
-		const FInventoryScreenVerb *Take = FindVerb(VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]), EInventoryVerb::Take);
+		TArray<FInventoryScreenVerb> ChestVerbs = VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]); // kept: FindVerb points into it
+		const FInventoryScreenVerb *Take = FindVerb(ChestVerbs, EInventoryVerb::Take);
 		TestTrue(TEXT("Take can run with room"), Take && Take->Refusal.IsEmpty());
 
 		for (const ECrystalType Kind : SCREEN_FILLER_KINDS)
@@ -286,7 +288,8 @@ void FInventoryScreenSpec::Define()
 		Chest = PageOf(EInventoryScreenTab::Chest);
 		Stored = Chest.Tiles.IndexOfByPredicate([](const FInventoryScreenTile &Tile) { return !Tile.Row.IsGear() && Tile.Row.Item == SCREEN_GEM; });
 		if (!TestTrue(TEXT("still on the Chest tab"), Stored != INDEX_NONE)) return;
-		Take = FindVerb(VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]), EInventoryVerb::Take);
+		ChestVerbs = VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]);
+		Take = FindVerb(ChestVerbs, EInventoryVerb::Take);
 		TestTrue(TEXT("a full pouch greys Take with the reason"), Take && !Take->Refusal.IsEmpty());
 	});
 
@@ -313,7 +316,8 @@ void FInventoryScreenSpec::Define()
 		Receivers = WoRInventoryScreen::BuildReceivers(World(), KeyOf(SCREEN_MEMBER), Pouch.Tiles[0]);
 		if (!TestEqual(TEXT("still listed"), Receivers.Num(), SCREEN_PARTY_SIZE - 1)) return;
 		TestFalse(TEXT("a full pouch is refused with a reason"), Receivers[0].Refusal.IsEmpty());
-		const FInventoryScreenVerb *Give = FindVerb(VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]), EInventoryVerb::Give);
+		const TArray<FInventoryScreenVerb> PouchVerbs = VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]); // kept: FindVerb points into it
+		const FInventoryScreenVerb *Give = FindVerb(PouchVerbs, EInventoryVerb::Give);
 		TestTrue(TEXT("so Give is greyed: no one can take it"), Give && !Give->Refusal.IsEmpty());
 	});
 
