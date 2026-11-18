@@ -105,7 +105,7 @@
 | Apparel drops like weapons; merchant-only things never drop | Ruled |
 | Always-has pieces can drop | Default in D-225 (not changed) |
 
-**A duplicate (ruled).** Duplicates are allowed, "since everything is tiered". When a drop is something the player already has, they choose one of three:
+**Built (B-570), weapons:** the drop is added first, then the prompt asks on the trial map (`TrialDuplicates`); a known skill converts to Skill essence; defaults and what is not built in Q-570. **A duplicate (ruled).** Duplicates are allowed, "since everything is tiered". When a drop is something the player already has, they choose one of three:
 1. **Replace** the one they have with it.
 2. **Add** it to the inventory ("in case you want to give it to a teammate").
 3. **Convert** it to essence.
@@ -214,3 +214,4 @@ None open. The earlier ones are settled by D-225's "Gaps closed after the rewrit
 | 2026-11-17 | Gaps closed: one drop of any kind, 3 skills when unset, a tier range per zone, a boss's first defeat gives two things, the story answer; section 10 is build notes only | dev (docs only) |
 | 2026-11-17 | Crown's final wording: a boss's first defeat gives one thing from its presets, of any kind, plus the normal drop; a preset piece arrives as set up | dev (docs only) |
 | 2026-11-17 | B-569 stage 5 built: drops (one per player, 3 to 1, worn tier, empty, no grade roll); build note 1 done (ER-38's row) | `feature/B-569-trial-drops` |
+| 2026-11-18 | B-570 stage 6 built for weapons: the three choices on the trial map; a known skill converts; build note 2 (ER-20) left as it is, see Q-570 | `feature/B-570-trial-duplicates` |
