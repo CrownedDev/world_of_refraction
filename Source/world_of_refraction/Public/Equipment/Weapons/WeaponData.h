@@ -149,9 +149,12 @@ public:
               meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
     USkeletalMesh *LeftHandSkeletalMesh = nullptr;
 
-    /** Rotation applied to the left-hand mesh in Dual / OffHandShield modes. */
+    /** Rotation applied to this weapon's mesh in the LEFT hand: a Dual / OffHandShield weapon's left mesh, or this
+     *  piece held as an off hand (a shield, a second weapon; UWeaponMeshComponent::SpawnOffHandMesh). Shown whenever
+     *  either can happen: a wield mode with a left mesh, or a Handling that can pair (an off-hand shield is
+     *  Single + Dual only, and was hidden before). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
-              meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
+              meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single || Handling != EWeaponHandling::SingleOnly", EditConditionHides))
     FRotator LeftMeshRotation = FRotator::ZeroRotator;
 
     /** As Mesh Offset, for this weapon's mesh in the LEFT hand: a Dual weapon's left mesh, or this piece held as an
