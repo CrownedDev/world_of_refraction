@@ -346,7 +346,7 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
             FAttachmentTransformRules::SnapToTargetNotIncludingScale,
             RightSocket);
 
-        PrimarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
+        PrimarySkeletalMeshComp->SetRelativeLocationAndRotation(Weapon->MeshOffset, Weapon->MeshRotation);
 
         UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Spawned skeletal mesh '%s' at socket '%s'"),
                *Weapon->Name, *RightSocket.ToString());
@@ -366,7 +366,7 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
             RightSocket);
 
         // Apply rotation offset
-        PrimaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
+        PrimaryStaticMeshComp->SetRelativeLocationAndRotation(Weapon->MeshOffset, Weapon->MeshRotation);
 
         UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Spawned static mesh '%s' at socket '%s'"),
                *Weapon->Name, *RightSocket.ToString());
@@ -403,7 +403,7 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         }
         PrimarySkeletalMeshComp->RegisterComponent();
         PrimarySkeletalMeshComp->AttachToComponent(OwnerMesh, AttachRules, RightSocket);
-        PrimarySkeletalMeshComp->SetRelativeRotation(Weapon->MeshRotation);
+        PrimarySkeletalMeshComp->SetRelativeLocationAndRotation(Weapon->MeshOffset, Weapon->MeshRotation);
     }
     else if (Weapon->WeaponStaticMesh)
     {
@@ -415,7 +415,7 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         }
         PrimaryStaticMeshComp->RegisterComponent();
         PrimaryStaticMeshComp->AttachToComponent(OwnerMesh, AttachRules, RightSocket);
-        PrimaryStaticMeshComp->SetRelativeRotation(Weapon->MeshRotation);
+        PrimaryStaticMeshComp->SetRelativeLocationAndRotation(Weapon->MeshOffset, Weapon->MeshRotation);
     }
 
     // ---- Left hand: distinct skeletal preferred, then distinct static ----
@@ -437,7 +437,7 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         }
         SecondarySkeletalMeshComp->RegisterComponent();
         SecondarySkeletalMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
-        SecondarySkeletalMeshComp->SetRelativeRotation(Weapon->LeftMeshRotation);
+        SecondarySkeletalMeshComp->SetRelativeLocationAndRotation(Weapon->LeftMeshOffset, Weapon->LeftMeshRotation);
     }
     else if (Weapon->LeftHandStaticMesh)
     {
@@ -449,7 +449,7 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         }
         SecondaryStaticMeshComp->RegisterComponent();
         SecondaryStaticMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
-        SecondaryStaticMeshComp->SetRelativeRotation(Weapon->LeftMeshRotation);
+        SecondaryStaticMeshComp->SetRelativeLocationAndRotation(Weapon->LeftMeshOffset, Weapon->LeftMeshRotation);
     }
     else
     {
@@ -488,7 +488,7 @@ void UWeaponMeshComponent::SpawnOffHandMesh(UWeaponData *OffHand)
         }
         SecondarySkeletalMeshComp->RegisterComponent();
         SecondarySkeletalMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
-        SecondarySkeletalMeshComp->SetRelativeRotation(OffHand->LeftMeshRotation);
+        SecondarySkeletalMeshComp->SetRelativeLocationAndRotation(OffHand->LeftMeshOffset, OffHand->LeftMeshRotation);
     }
     else if (OffHand->WeaponStaticMesh)
     {
@@ -500,7 +500,7 @@ void UWeaponMeshComponent::SpawnOffHandMesh(UWeaponData *OffHand)
         }
         SecondaryStaticMeshComp->RegisterComponent();
         SecondaryStaticMeshComp->AttachToComponent(OwnerMesh, AttachRules, LeftSocket);
-        SecondaryStaticMeshComp->SetRelativeRotation(OffHand->LeftMeshRotation);
+        SecondaryStaticMeshComp->SetRelativeLocationAndRotation(OffHand->LeftMeshOffset, OffHand->LeftMeshRotation);
     }
     else
     {
@@ -572,6 +572,10 @@ void UWeaponMeshComponent::DebugLogMeshState()
            CachedWeapon ? *CachedWeapon->MeshRotation.ToString() : TEXT("N/A"));
     UE_LOG(LogTemp, Display, TEXT("Left Mesh Rotation: %s"),
            CachedWeapon ? *CachedWeapon->LeftMeshRotation.ToString() : TEXT("N/A"));
+    // The offsets on the socket (cm, the socket's axes); the off-hand piece's own left offset when one is held.
+    UE_LOG(LogTemp, Display, TEXT("Mesh Offset (right): %s"), CachedWeapon ? *CachedWeapon->MeshOffset.ToString() : TEXT("N/A"));
+    UE_LOG(LogTemp, Display, TEXT("Left Mesh Offset: %s"),
+           CachedOffHand ? *CachedOffHand->LeftMeshOffset.ToString() : CachedWeapon ? *CachedWeapon->LeftMeshOffset.ToString() : TEXT("N/A"));
 
     // Which fallback tier supplies the left-hand mesh.
     FString LeftMeshSource = TEXT("<none>");
