@@ -32,7 +32,7 @@
 
 **Each zone has its own tier range (ruled).** The first zone holds only the pool's low tiers and later zones open the higher ones, so enemies and drops get stronger deeper in. The ranges follow the zones' tier guide, which exists today: zones 0 to 4 ask for F, D, C, B, A (`EnemyZone.h:23-25,63-65`). Proposed ranges (tunable): zone 0 F to E, zone 1 F to D, zone 2 F to C, zone 3 F to B, zone 4 F to A. A weak enemy with a strong piece is still possible, inside its zone's range.
 
-**The merchant (ruled):** a merchant has **its own pool** (things that never drop from enemies) and also draws from the trial's pool. The shelf is **half and half** (a named tunable). Today a trial vendor shows 8 lines rolled from its own authored list only (`Public/Merchant/MerchantStockRoll.h:16,56-59`). So: 4 lines from its own list, 4 from the trial's pool.
+**Built (B-571):** `MerchantStockRoll::RollWithPool`, used by `UTrialRunSubsystem::GetMerchantStock`; defaults Q-571. **The merchant (ruled):** a merchant has **its own pool** (things that never drop from enemies) and also draws from the trial's pool. The shelf is **half and half** (a named tunable). Today a trial vendor shows 8 lines rolled from its own authored list only (`Public/Merchant/MerchantStockRoll.h:16,56-59`). So: 4 lines from its own list, 4 from the trial's pool.
 
 **The deckbuilder's rule for enemies is the same shape** (§1b, an Event there is a trial here): "PvE enemy decks = the Event's shared cards + that character's bonded cards": the pool, plus what the enemy always has.
 
@@ -215,3 +215,4 @@ None open. The earlier ones are settled by D-225's "Gaps closed after the rewrit
 | 2026-11-17 | Crown's final wording: a boss's first defeat gives one thing from its presets, of any kind, plus the normal drop; a preset piece arrives as set up | dev (docs only) |
 | 2026-11-17 | B-569 stage 5 built: drops (one per player, 3 to 1, worn tier, empty, no grade roll); build note 1 done (ER-38's row) | `feature/B-569-trial-drops` |
 | 2026-11-18 | B-570 stage 6 built for weapons: the three choices on the trial map; a known skill converts; build note 2 (ER-20) left as it is, see Q-570 | `feature/B-570-trial-duplicates` |
+| 2026-11-18 | B-571 stage 7 built: a trial vendor's shelf is half its own list, half the trial's pool | `feature/B-571-trial-merchant` |
