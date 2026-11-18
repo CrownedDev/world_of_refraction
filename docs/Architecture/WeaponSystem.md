@@ -250,6 +250,14 @@ weapon DA carries no socket names:
   `WeaponType` exactly like the right-hand lookup, with the same
   Error-and-`NAME_None` default.
 
+**D-242 (2026-11-18): the grip sockets come first.** `ChooseSocket` picks the socket for a piece in a hand:
+`hand_r_grip` / `hand_l_grip` for a weapon, `hand_l_shield` / `hand_r_shield` for a shield (the named constants
+`RIGHT_GRIP_SOCKET`, `LEFT_GRIP_SOCKET`, `LEFT_SHIELD_SOCKET`, `RIGHT_SHIELD_SOCKET`). The two lookups above are
+now the **older** sockets: used when the body's mesh has no such socket (one Warning per socket, naming the mesh)
+or when `wor.Weapons.UseGrip` is 0. Changing the switch rebuilds every weapon mesh (`RefreshWeaponMesh`). The
+weapon's `MeshRotation` / `LeftMeshRotation` are still applied on top: a weapon fixed to the reference weapon
+carries none. Debug: `GetSocketString`, `wor.Weapons.PrintSockets`, `DebugLogMeshState`.
+
 **To support a new weapon type's attachment, add a `case` to both switches**
 (`GetRightSocketForWeapon` and `GetLeftSocketForWeapon`). If a socket resolves
 to `NAME_None`, the spawn function logs a Warning and skips that hand — there
@@ -435,3 +443,9 @@ mesh spawns). They are hidden in the details panel while `WieldMode` is
 | 2026-11-14 | B-437 (D-175): a weapon's stone-ability list is deleted and no stone adds ability slots (tier plus crystal, 12 at most). `UEquipmentDataBase::DefaultAbilities` ("Extra Abilities", shown with a stone attached) has no reader left: OBSOLETE, kept until the editor step clears authored values. | feature/B-437-remove-ability-stone |
 | 2026-11-15 | B-515 (D-223): `EWeaponType::Shield` (appended last) is an off-hand-only piece: `WeaponSetRules::CheckPair` lets a pairable weapon of any type take it and refuses it in the main hand (`ShieldInMainHand`); `IsShieldPair`; the pair's wield mode is `OffHandShield` and its stance the main hand's own. `WoRGameNames::GetHeldWeaponTypeName(Weapon, OffHand)` reads "Sword and Shield" from the piece. `UWeaponMeshComponent` puts the active set's off-hand piece's own mesh in the left socket (`GetOffHandPiece`, `SpawnOffHandMesh`; a shield in `hand_l_sas`). The baked `OffHandShield` wield mode and left-hand mesh fields are OBSOLETE. | feature/B-515-shield-piece |
 | 2026-11-15 | B-515c (Crown, Q8): a shield pair counts as one weapon for the slots: `WeaponSetRules::GetSetTierSlots` keeps the main hand's own tier slots when `IsShieldPair`; only a pair of two weapons averages (D-211). The shield's stat and resistance lines still count. | fix/B-515c-shield-pair-slots |
+| 2026-11-18 | D-242: `UWeaponMeshComponent` attaches to the grip sockets (`hand_r_grip`, `hand_l_grip`, `hand_l_shield`, `hand_r_shield`) through `ChooseSocket` / `ResolveSocket`; the older per-type sockets are the fallback (one Warning) and the `wor.Weapons.UseGrip 0` path; `GetSocketString`, `wor.Weapons.PrintSockets`, `RefreshWeaponMesh`. Spec cases in `WoR.Weapons.MeshFollowsLoadout`. | `feature/D-242-grip-sockets` |
+| 2026-11-18 | Testing aid: `wor.Debug.GiveAllWeapons [count]` (`Debug/Inventory/GiveAllWeaponsDebug`) gives the played character every weapon asset as home gear through `AddWeapon`, past the room, hub only. Spec `WoR.Debug.GiveAllWeapons`. | `feature/debug-give-all-weapons` |
+| 2026-11-18 | Testing aid changed (Crown: too much): `wor.Debug.GiveAllWeapons` is replaced by `wor.Debug.GiveTestWeapons` (`Debug/Inventory/GiveTestWeaponsDebug`): 2 each of the weapons in `TEST_WEAPON_PATHS` (sword, shield, hand axe, bearded axe) through `AddWeapon`, within the room, hub only. Spec `WoR.Debug.GiveTestWeapons`. | `feature/debug-give-test-weapons` |
+| 2026-11-18 | Testing aid: `wor.Debug.GiveTestWeapons` gives Crown's second test set, 12 pieces: `TEST_WEAPONS` (`FTestWeapon`: path and count) replaces `TEST_WEAPON_PATHS` and `COUNT_EACH`. A missing asset is skipped with a warning; the spec counts it without failing. | `feature/debug-test-weapons-set2` |
+| 2026-11-18 | `UWeaponData::MeshOffset` and `LeftMeshOffset` (FVector, cm, zero by default): `UWeaponMeshComponent` sets them as the spawned mesh's relative location on its socket with the rotation (`SetRelativeLocationAndRotation`, all eight attach sites: right and left, skeletal and static, dual and off-hand piece). The offset is in the socket's space; the rotation does not turn it. `DebugLogMeshState` prints both. No asset changed. | `feature/weapon-mesh-offset` |
+| 2026-11-18 | Fix: `UWeaponData::LeftMeshRotation` is shown in the Details panel when the wield mode has a left mesh **or** the Handling can pair (`WieldMode != Single || Handling != SingleOnly`). An off-hand piece (a shield: Single, Dual only) is drawn with it (`SpawnOffHandMesh`) but it was hidden. The left-hand mesh fields keep their condition: only a Dual / OffHandShield weapon's own left mesh reads them. | `fix/left-mesh-fields-visible` |

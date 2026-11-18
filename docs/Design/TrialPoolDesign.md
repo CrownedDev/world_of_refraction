@@ -32,7 +32,7 @@
 
 **Each zone has its own tier range (ruled).** The first zone holds only the pool's low tiers and later zones open the higher ones, so enemies and drops get stronger deeper in. The ranges follow the zones' tier guide, which exists today: zones 0 to 4 ask for F, D, C, B, A (`EnemyZone.h:23-25,63-65`). Proposed ranges (tunable): zone 0 F to E, zone 1 F to D, zone 2 F to C, zone 3 F to B, zone 4 F to A. A weak enemy with a strong piece is still possible, inside its zone's range.
 
-**The merchant (ruled):** a merchant has **its own pool** (things that never drop from enemies) and also draws from the trial's pool. The shelf is **half and half** (a named tunable). Today a trial vendor shows 8 lines rolled from its own authored list only (`Public/Merchant/MerchantStockRoll.h:16,56-59`). So: 4 lines from its own list, 4 from the trial's pool.
+**Built (B-571):** `MerchantStockRoll::RollWithPool`, used by `UTrialRunSubsystem::GetMerchantStock`; defaults Q-571. **The merchant (ruled):** a merchant has **its own pool** (things that never drop from enemies) and also draws from the trial's pool. The shelf is **half and half** (a named tunable). Today a trial vendor shows 8 lines rolled from its own authored list only (`Public/Merchant/MerchantStockRoll.h:16,56-59`). So: 4 lines from its own list, 4 from the trial's pool.
 
 **The deckbuilder's rule for enemies is the same shape** (§1b, an Event there is a trial here): "PvE enemy decks = the Event's shared cards + that character's bonded cards": the pool, plus what the enemy always has.
 
@@ -105,7 +105,7 @@
 | Apparel drops like weapons; merchant-only things never drop | Ruled |
 | Always-has pieces can drop | Default in D-225 (not changed) |
 
-**A duplicate (ruled).** Duplicates are allowed, "since everything is tiered". When a drop is something the player already has, they choose one of three:
+**Built (B-570), weapons:** the drop is added first, then the prompt asks on the trial map (`TrialDuplicates`); a known skill converts to Skill essence; defaults and what is not built in Q-570. **A duplicate (ruled).** Duplicates are allowed, "since everything is tiered". When a drop is something the player already has, they choose one of three:
 1. **Replace** the one they have with it.
 2. **Add** it to the inventory ("in case you want to give it to a teammate").
 3. **Convert** it to essence.
@@ -123,7 +123,7 @@ This covers everything in the inventory (weapons, adapters, evolutions, crystals
 | **Used in the field** | Used on an enemy before the fight. Costs EP. It shows the full kit of the enemy it is used on, and remembers the type's shared part for the run |
 | **Always on** | Once owned, enemies show their gear as the player gets close |
 
-No such skill exists today. Default: the card shows no rank word, since "Elite", "Mini-boss" and "Boss" are never shown to the player (D-187).
+**Built (B-572), the field variation's rule:** a skill carries it (`USkillDataBase::KitSight`); used near an enemy it costs EP and shows the run's rolled kit on the card (`TrialKitSight`, placeholder `wor.Trial.InspectEnemy`). The key, the always-on look and the skill assets are Q-572. No skill asset has it yet. Default: the card shows no rank word, since "Elite", "Mini-boss" and "Boss" are never shown to the player (D-187).
 
 ## 8. Worked examples
 
@@ -214,3 +214,6 @@ None open. The earlier ones are settled by D-225's "Gaps closed after the rewrit
 | 2026-11-17 | Gaps closed: one drop of any kind, 3 skills when unset, a tier range per zone, a boss's first defeat gives two things, the story answer; section 10 is build notes only | dev (docs only) |
 | 2026-11-17 | Crown's final wording: a boss's first defeat gives one thing from its presets, of any kind, plus the normal drop; a preset piece arrives as set up | dev (docs only) |
 | 2026-11-17 | B-569 stage 5 built: drops (one per player, 3 to 1, worn tier, empty, no grade roll); build note 1 done (ER-38's row) | `feature/B-569-trial-drops` |
+| 2026-11-18 | B-570 stage 6 built for weapons: the three choices on the trial map; a known skill converts; build note 2 (ER-20) left as it is, see Q-570 | `feature/B-570-trial-duplicates` |
+| 2026-11-18 | B-571 stage 7 built: a trial vendor's shelf is half its own list, half the trial's pool | `feature/B-571-trial-merchant` |
+| 2026-11-18 | B-572 stage 8, the field variation's rule built; the rest in Q-572 | `feature/B-572-kit-sight` |

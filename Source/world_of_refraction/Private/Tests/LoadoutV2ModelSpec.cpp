@@ -19,6 +19,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Loadout/WeaponSetRules.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "UI/Menus/LoadoutV2Model.h"
 
@@ -342,6 +343,59 @@ void FLoadoutV2ModelSpec::Define()
 		Adapter.Kind = ELoadoutV2DraftKind::Adapter;
 		Adapter.Adapter = LoadoutV2TestAdapter();
 		TestFalse(TEXT("an adapter can't take a weapon entry's place"), WoRLoadoutV2::ReplaceEntry(Loadout, ECharacterClass::Generic, Entry, Adapter, Refusal));
+	});
+
+	It("a new main hand takes the off hand off when the two no longer pair; a shield as main hand stays refused (Crown, 2026-11-18)", [this]()
+	{
+		FCombatLoadout Loadout;
+		FText Refusal;
+		const FWeaponInventoryEntry Blade = LoadoutV2TestWeapon(TEXT("Blade"), EWeaponType::Sword);
+		const FWeaponInventoryEntry Edge = LoadoutV2TestWeapon(TEXT("Edge"), EWeaponType::Sword);
+		const FWeaponInventoryEntry Sabre = LoadoutV2TestWeapon(TEXT("Sabre"), EWeaponType::Sword);
+		const FWeaponInventoryEntry Claymore = LoadoutV2TestWeapon(TEXT("Claymore"), EWeaponType::Greatsword, EWeaponHandling::SingleOnly);
+		const FWeaponInventoryEntry Hatchet = LoadoutV2TestWeapon(TEXT("Hatchet"), EWeaponType::Axe);
+		const FWeaponInventoryEntry Shield = LoadoutV2TestWeapon(TEXT("Shield"), EWeaponType::Shield, EWeaponHandling::DualOnly); // as the shield assets are
+		WoRLoadoutV2::ApplyDraft(Loadout, ECharacterClass::Generic, LoadoutV2WeaponDraft(Blade, Edge), Refusal);
+		const FLoadoutV2Entry Entry = WoRLoadoutV2::BuildWeaponsPage(Loadout, ECharacterClass::Generic).Entries[0];
+		const FLoadoutV2Draft Pair = WoRLoadoutV2::DraftFromEntry(Loadout, Entry);
+		int32 Cells = 0;
+
+		FLoadoutV2Draft Draft = Pair;
+		TestTrue(TEXT("a weapon that can't be dual wielded: the off hand comes off"), WoRLoadoutV2::SetMainHand(Draft, Claymore));
+		TestTrue(TEXT("the claymore is the main hand, alone"), Draft.MainHand.PersistentID == Claymore.PersistentID && !Draft.OffHand.IsValid());
+		TestTrue(TEXT("and it can be confirmed"), WoRLoadoutV2::CheckEntryEdit(Loadout, ECharacterClass::Generic, Entry, Draft, Cells).IsEmpty());
+		FCombatLoadout After = Loadout;
+		TestTrue(TEXT("it goes in"), WoRLoadoutV2::ReplaceEntry(After, ECharacterClass::Generic, Entry, Draft, Refusal));
+		TestEqual(TEXT("the entry is the claymore alone"), WoRLoadoutV2::BuildWeaponsPage(After, ECharacterClass::Generic).Entries[0].Name.ToString(), FString(TEXT("Claymore")));
+
+		Draft = Pair;
+		TestTrue(TEXT("another type: the off hand comes off"), WoRLoadoutV2::SetMainHand(Draft, Hatchet));
+		TestFalse(TEXT("the axe alone"), Draft.OffHand.IsValid());
+
+		Draft = Pair;
+		TestFalse(TEXT("the same type that pairs: the off hand stays"), WoRLoadoutV2::SetMainHand(Draft, Sabre));
+		TestEqual(TEXT("still the old off hand"), Draft.OffHand.PersistentID, Edge.PersistentID);
+
+		Draft = Pair;
+		TestFalse(TEXT("a shield as the main hand takes nothing off"), WoRLoadoutV2::SetMainHand(Draft, Shield));
+		TestFalse(TEXT("and stays refused"), WoRLoadoutV2::CheckEntryEdit(Loadout, ECharacterClass::Generic, Entry, Draft, Cells).IsEmpty());
+
+		FLoadoutV2Draft Alone = LoadoutV2WeaponDraft(Blade);
+		TestFalse(TEXT("no off hand: nothing to take off"), WoRLoadoutV2::SetMainHand(Alone, Claymore));
+
+		// A shield's line says it is an off-hand piece, with or without an off hand set (not "Twin only").
+		const FString ShieldWords = WeaponSetRules::GetPairRefusalText(WeaponSetRules::EPairRefusal::ShieldInMainHand).ToString();
+		FCombatLoadout Empty;
+		TestEqual(TEXT("a shield alone as the main hand"), WoRLoadoutV2::CheckDraft(Empty, ECharacterClass::Generic, LoadoutV2WeaponDraft(Shield), Cells).ToString(), ShieldWords);
+		TestEqual(TEXT("a shield over an off hand"), WoRLoadoutV2::CheckDraft(Empty, ECharacterClass::Generic, LoadoutV2WeaponDraft(Shield, Edge), Cells).ToString(), ShieldWords);
+		TestTrue(TEXT("a sword with the shield in the off hand goes in"), WoRLoadoutV2::CheckDraft(Empty, ECharacterClass::Generic, LoadoutV2WeaponDraft(Blade, Shield), Cells).IsEmpty());
+		const TArray<FLoadoutV2OffHandChoice> UnderClaymore = WoRLoadoutV2::BuildOffHandChoices(Claymore, {Shield}, ECharacterClass::Generic);
+		TestTrue(TEXT("under a main hand that can't pair, the shield's line names the main hand"),
+				 UnderClaymore.Num() == 1 && UnderClaymore[0].Refusal.ToString() == TEXT("Claymore takes no off hand."));
+
+		TestEqual(TEXT("a weapon row names its type after its name"), WoRLoadoutV2::GetWeaponRowName(FText::FromString(TEXT("Blade")), Blade.Weapon).ToString(),
+				  FString(TEXT("Blade · Sword")));
+		TestEqual(TEXT("no weapon: the bare name"), WoRLoadoutV2::GetWeaponRowName(FText::FromString(TEXT("Blade")), nullptr).ToString(), FString(TEXT("Blade")));
 	});
 
 	It("Edit offers the other kind; it replaces the entry only when confirmed, cancel leaves it (B-531, D-230)", [this]()

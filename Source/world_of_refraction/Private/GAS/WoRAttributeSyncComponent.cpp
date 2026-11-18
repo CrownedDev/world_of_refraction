@@ -414,8 +414,9 @@ void UWoRAttributeSyncComponent::SyncResistanceSource(UAbilitySystemComponent &A
 	{
 		Spec.Data->SetSetByCallerMagnitude(Magnitude.Key, Magnitude.Value);
 	}
-	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-	Applied.Magnitudes = Magnitudes;
+	// Found again after the apply (as SyncComposedStat): a read during it may sync another source and grow the map.
+	const FActiveGameplayEffectHandle Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	AppliedResistanceSources.FindOrAdd(SourceClass.Get()) = {Handle, Magnitudes};
 	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s applied"), *GetOwner()->GetName(), *SourceClass->GetName());
 }
 
@@ -458,8 +459,9 @@ void UWoRAttributeSyncComponent::SyncDerivedStat(UAbilitySystemComponent &ASC, c
 	{
 		Spec.Data->SetSetByCallerMagnitude(WoRTags::SetByCaller_Stat_Transient, Transient);
 	}
-	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-	Applied.Transient = Transient;
+	// Found again after the apply (as SyncComposedStat): a read during it may sync another stat and grow the map.
+	const FActiveGameplayEffectHandle Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	AppliedDerivedStats.FindOrAdd(Attribute) = {Handle, Transient};
 	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s derived (buff layer %.4f)"), *GetOwner()->GetName(), *Attribute.GetName(),
 		   Transient);
 }
@@ -510,8 +512,9 @@ void UWoRAttributeSyncComponent::SyncPoolStat(UAbilitySystemComponent &ASC, cons
 		AppliedPoolSources.Remove(Attribute);
 		return;
 	}
-	Applied.Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
-	Applied.Layers = Layers;
+	// Found again after the apply (as SyncComposedStat): a read during it may sync another pool and grow the map.
+	const FActiveGameplayEffectHandle Handle = ASC.ApplyGameplayEffectSpecToSelf(*Spec.Data.Get());
+	AppliedPoolSources.FindOrAdd(Attribute) = {Handle, Layers};
 	UE_LOG(LogWoR, Verbose, TEXT("[AttributeSync] %s %s pool sources: %s"), *GetOwner()->GetName(), *Attribute.GetName(),
 		   *Layers.ToString());
 }

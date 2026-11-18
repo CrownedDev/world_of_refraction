@@ -240,6 +240,14 @@ namespace WoRLoadoutV2
 	WORLD_OF_REFRACTION_API TArray<FLoadoutV2MainHandChoice> BuildMainHandChoices(const FCombatLoadout &Loadout, ECharacterClass Class,
 																			   const TArray<FWeaponInventoryEntry> &OwnedWeapons);
 
+	/** Crown's PIE pass (2026-11-18): MainHand goes in the draft's main hand with its own sockets (Q-476c), and an off
+	 *  hand that no longer pairs with it comes off (the new one can't be dual wielded, or is another type). A shield as
+	 *  the main hand keeps the off hand, so it stays refused. True when the off hand came off. */
+	WORLD_OF_REFRACTION_API bool SetMainHand(FLoadoutV2Draft &Draft, const FWeaponInventoryEntry &MainHand);
+
+	/** A weapon row's name with its type after it: "Simple Sword · Sword". */
+	WORLD_OF_REFRACTION_API FText GetWeaponRowName(const FText &Name, const UWeaponData *Weapon);
+
 	/** X Compare of two weapons: power, the cells (a weapon swap changes none, D-206), and the built-in abilities gained
 	 *  and lost. */
 	WORLD_OF_REFRACTION_API FLoadoutV2Compare BuildCompare(const FWeaponInventoryEntry &Equipped, const FWeaponInventoryEntry &Selected);

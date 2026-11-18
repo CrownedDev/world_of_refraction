@@ -22,6 +22,7 @@
 #include "Player/WoRFrontEndGameMode.h"
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
+#include "Trial/TrialDuplicates.h"
 #include "UI/Menus/TitleScreenWidget.h"
 #include "UI/WoRKeyHintText.h"
 #include "UI/WoRRootLayout.h"
@@ -258,6 +259,11 @@ void AWoRHubController::BeginPlay()
 	{
 		UTitleScreenWidget::Open(this);
 		return;
+	}
+	// B-570 (TrialPoolDesign §6): a duplicate dropped in the last fight asks its three choices here, back on the map.
+	if (IsLocalController())
+	{
+		GetWorldTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]() { TrialDuplicates::OpenNextPrompt(this); }));
 	}
 	// B-467, B-535: the game opens on the title, PIE included (the first map load of a session, the default map only).
 	// OBSOLETE (B-537): once the menu level is GameDefaultMap this opens nothing (the hub is no longer the default map).

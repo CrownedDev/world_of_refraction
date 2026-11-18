@@ -18,9 +18,9 @@ void UCombatAnimInstance::NativeInitializeAnimation()
     Super::NativeInitializeAnimation();
     CacheReferences();
 
-    // Bind to montage notify events
-    OnPlayMontageNotifyBegin.AddDynamic(this, &UCombatAnimInstance::HandleMontageNotify);
-    UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatAnimInstance] NativeInit ran, notify bound for %s"), *GetName()); // once per pawn: not a warning
+    // Bind to montage notify events. Unique: a mesh swap (WoRSpiritLook::Dress, SetSkeletalMesh) runs this again on the same instance.
+    OnPlayMontageNotifyBegin.AddUniqueDynamic(this, &UCombatAnimInstance::HandleMontageNotify);
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatAnimInstance] NativeInit ran, notify bound for %s"), *GetName()); // once per init: not a warning
 }
 
 void UCombatAnimInstance::HandleMontageNotify(FName NotifyName, const FBranchingPointNotifyPayload &BranchingPointPayload)

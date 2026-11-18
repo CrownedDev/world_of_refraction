@@ -265,8 +265,11 @@ FClassDefaultLoadout UClassDefaultLoadoutData::MakePickedGear(const FPlayerPicks
 		UE_CLOG(Weapons.Num() > WornGearLayout::SECONDARY_INDEX + 1, LogWoRLoadout, Warning,
 				TEXT("[ClassDefaults] %d weapons picked; only the first two are given"), Weapons.Num());
 		// Over a kit only the pieces change: the place's skill picks and crystal stay the kit's.
-		FClassDefaultPiece &Main = Place(WornGearLayout::PRIMARY_INDEX);
+		// The second place first: growing the list for it moves the first, so a reference taken before it would write
+		// the picks into freed memory (the Generic trial-entry crash, over a kit of one piece).
+		static_assert(WornGearLayout::SECONDARY_INDEX > WornGearLayout::PRIMARY_INDEX, "Place the higher index first");
 		FClassDefaultPiece &Second = Place(WornGearLayout::SECONDARY_INDEX);
+		FClassDefaultPiece &Main = Place(WornGearLayout::PRIMARY_INDEX);
 		Second = FClassDefaultPiece(); // filled again below when a second weapon takes it
 		Main.OffHand = nullptr;
 		Main.Piece = Weapons.IsValidIndex(0) ? Weapons[0] : nullptr;

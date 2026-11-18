@@ -3,6 +3,7 @@
 # Usage: Scripts/ue/test.sh [filter]   (default filter "WoR."; e.g. "WoR.Damage")
 # B-293: WOR_BALANCE=nightly|full Scripts/ue/test.sh WoR.Balance.  runs that balance preset in WoR.Balance.Sim.Targets
 # (and the parity check over its matchups) and writes Saved/Balance/<preset>_<stamp>.{csv,json,md}.
+# WOR_STOMP=1 Scripts/ue/test.sh [filter]  runs under the guard allocator (-stompmalloc): stale reads/writes crash at their line.
 # B-350 (D-140): unset = the balance sim is skipped (it runs in the nightly preset only; WOR_BALANCE=quick still works).
 set -uo pipefail
 source "$(dirname "$0")/common.sh"
@@ -15,6 +16,9 @@ rm -rf "$REPORT"
 
 BALANCE_ARGS=()
 [ -n "${WOR_BALANCE:-}" ] && BALANCE_ARGS=("-WoRBalance=$WOR_BALANCE")
+# WOR_STOMP=1: the engine's guard allocator. A read or write of freed memory (a reference kept across a list that
+# grew, a pointer into a temporary) crashes at that line instead of damaging the heap; the run stops at the first one.
+[ -n "${WOR_STOMP:-}" ] && BALANCE_ARGS+=("-stompmalloc")
 echo "Running automation tests '$FILTER' ${WOR_BALANCE:+(balance preset $WOR_BALANCE) }... (log: $LOG)"
 MSYS_NO_PATHCONV=1 "$UE_ROOT/Engine/Binaries/Win64/UnrealEditor-Cmd.exe" "$WOR_PROJECT" "$WOR_HEADLESS_INI" "${BALANCE_ARGS[@]}" \
     -ExecCmds="Automation RunTests $FILTER" -TestExit="Automation Test Queue Empty" \

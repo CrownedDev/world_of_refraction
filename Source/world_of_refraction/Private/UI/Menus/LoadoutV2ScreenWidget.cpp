@@ -5,6 +5,8 @@
 #include "Algo/IndexOf.h"
 #include "Components/Border.h"
 #include "Components/EditableTextBox.h"
+#include "Components/ScrollBox.h"
+#include "Components/SizeBox.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
@@ -45,6 +47,8 @@ namespace LoadoutV2ScreenStyle
 	constexpr float RowPadding = 18.0f;
 	constexpr float RowGap = 10.0f;
 	constexpr float NameColumnWidth = 460.0f;
+	/** The list panel's tallest, until the screen has been drawn once and its own area's height is known (RefreshView). */
+	constexpr float ListMaxHeight = 700.0f;
 	constexpr float BoxPadding = 24.0f;
 	// B-485: icon sizes (the mockups' 22 px at 720p, here at 1080p).
 	constexpr float RowIconSize = 36.0f;
@@ -68,6 +72,27 @@ namespace LoadoutV2ScreenStyle
 	FText WeaponName(const FWeaponInventoryEntry &Weapon)
 	{
 		return Weapon.Weapon ? FText::FromString(Weapon.Weapon->GetDisplayName()) : FText::GetEmpty();
+	}
+
+	/** Whether the Add / Edit window's slot holds something in the draft. */
+	bool IsSlotFilled(const FLoadoutV2Draft &Draft, ELoadoutV2Slot GearSlot)
+	{
+		switch (GearSlot)
+		{
+		case ELoadoutV2Slot::MainHand:
+			return Draft.MainHand.IsValid() && Draft.MainHand.Weapon;
+		case ELoadoutV2Slot::OffHand:
+			return Draft.OffHand.IsValid() && Draft.OffHand.Weapon;
+		case ELoadoutV2Slot::Adapter:
+			return Draft.Adapter.Ring != nullptr;
+		case ELoadoutV2Slot::Evolution:
+			return Draft.Socket1.IsEvolution() && Draft.Socket1.Evolution.Item;
+		case ELoadoutV2Slot::Socket1:
+			return !Draft.Socket1.IsEmpty();
+		case ELoadoutV2Slot::Socket2:
+		default:
+			return !Draft.Socket2.IsEmpty();
+		}
 	}
 
 	/** B-531 (D-230): the piece lines from First on, exactly-same pieces with the same verdict as one line with a count
@@ -215,8 +240,16 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		AddToColumn(ListColumn, NameBox, FMargin(0.0f, 0.0f, 0.0f, LineGap)); // no wrapper: collapsed, it leaves no gap
 		SetShown(NameBox, false);
 		ListBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-		AddToColumn(ListColumn, ListBox);
-		AddToRow(Columns, MakeSized(WidgetTree, ListWidth, 0.0f, ListPanel), FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
+		// Crown (2026-11-18): a list longer than the panel scrolls inside it and is cut at its edge. The panel hugs a
+		// short list as before; a long one stops at the height RefreshView reads from the area.
+		ListScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+		ListScroll->SetConsumeMouseWheel(EConsumeMouseWheel::Never); // the wheel moves the selection (NativeOnMouseWheel); the view follows it
+		ListScroll->AddChild(ListBox);
+		AddToColumn(ListColumn, ListScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		ListSizer = MakeSized(WidgetTree, ListWidth, 0.0f, ListPanel);
+		ListSizer->SetMaxDesiredHeight(ListMaxHeight);
+		ListArea = Columns;
+		AddToRow(Columns, ListSizer, FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
 		UBorder *Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		DetailsBox = Box;
 		Box->SetBrushColor(PanelColor);
@@ -595,7 +628,21 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 	case ELoadoutV2Mode::WindowKind:
 		return Kinds.IsValidIndex(Line) ? Kinds[Line].Name : FText::GetEmpty();
 	case ELoadoutV2Mode::WindowSlots:
-		return Slots.IsValidIndex(Line) ? GetSlotName(Slots[Line]) : FText::GetEmpty();
+	{
+		if (!Slots.IsValidIndex(Line))
+		{
+			return FText::GetEmpty();
+		}
+		// Crown (2026-11-18): a filled slot leads with its piece (the slot's word is the quiet text beside it,
+		// GetLineDetail); an empty one leads with the slot's word.
+		if (!LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]))
+		{
+			return GetSlotName(Slots[Line]);
+		}
+		const FLineIcons Icons = GetLineIcons(Line);
+		const FText Piece = GetSlotValue(Slots[Line]);
+		return !Icons.bHasTier || WoRIcons::GetTierBadge(Icons.Tier) ? Piece : FText::Format(LOCTEXT("SlotPieceTier", "{0}  {1}"), Piece, WoRGameNames::GetTierLetter(Icons.Tier));
+	}
 	case ELoadoutV2Mode::SkillEntries:
 		return SkillsPage.Entries.IsValidIndex(Line) ? SkillsPage.Entries[Line].Name : FText::GetEmpty();
 	case ELoadoutV2Mode::SkillRows:
@@ -684,7 +731,11 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 	case ELoadoutV2Mode::WindowKind:
 		return Kinds.IsValidIndex(Line) ? Kinds[Line].Refusal : FText::GetEmpty();
 	case ELoadoutV2Mode::WindowSlots:
-		return Slots.IsValidIndex(Line) ? GetSlotValue(Slots[Line]) : FText::GetEmpty();
+		if (!Slots.IsValidIndex(Line))
+		{
+			return FText::GetEmpty();
+		}
+		return LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]) ? GetSlotName(Slots[Line]) : GetSlotValue(Slots[Line]); // filled: which slot it is
 	case ELoadoutV2Mode::SkillEntries:
 		return SkillsPage.Entries.IsValidIndex(Line)
 				   ? FText::Format(LOCTEXT("SkillEntryCount", "{0}/{1}"), SkillsPage.Entries[Line].Filled, SkillsPage.Entries[Line].Total)
@@ -755,6 +806,43 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 			Icons.Socket2 = Entry->SocketBadges.IsValidIndex(1) ? Entry->SocketBadges[1] : FLoadoutV2Icon();
 			Icons.bHasTier = Mode == ELoadoutV2Mode::List; // B-516b (D-223): the Equipment list's tier badge
 			Icons.Tier = Entry->Tier;
+		}
+		return Icons;
+	}
+	if (Mode == ELoadoutV2Mode::WindowSlots && Slots.IsValidIndex(Line) && LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]))
+	{
+		// A filled slot's piece: its icon and tier, as its line in a slot's list shows them.
+		switch (Slots[Line])
+		{
+		case ELoadoutV2Slot::MainHand:
+		case ELoadoutV2Slot::OffHand:
+		{
+			const FWeaponInventoryEntry &Piece = Slots[Line] == ELoadoutV2Slot::MainHand ? Draft.MainHand : Draft.OffHand;
+			Icons.Type.Kind = ELoadoutV2IconKind::WeaponType;
+			Icons.Type.WeaponType = Piece.Weapon->WeaponType;
+			Icons.Type.Name = WoRGameNames::GetHeldWeaponTypeName(Piece.Weapon);
+			Icons.bHasTier = true;
+			Icons.Tier = Piece.Tier;
+			break;
+		}
+		case ELoadoutV2Slot::Adapter:
+		{
+			FRingInventoryEntry Adapter = Draft.Adapter;
+			Adapter.AttachedItem = Draft.Socket1; // the entry's socket, as the draft holds it
+			Icons.Type = WoRLoadoutV2::MakeAdapterIcon(Adapter);
+			Icons.bHasTier = true;
+			Icons.Tier = Draft.Adapter.Tier;
+			break;
+		}
+		case ELoadoutV2Slot::Evolution:
+		case ELoadoutV2Slot::Socket1:
+		case ELoadoutV2Slot::Socket2:
+		default:
+		{
+			const FRuntimeAttachedItem &Item = Slots[Line] == ELoadoutV2Slot::Socket2 ? Draft.Socket2 : Draft.Socket1;
+			Icons.Socket1 = WoRLoadoutV2::MakeSocketIcon(Item); // no tier badge: the text has it ("Garnet (F)", AttachmentText)
+			break;
+		}
 		}
 		return Icons;
 	}
@@ -1075,7 +1163,9 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		}
 		const bool bRefused = IsLineRefused(Index);
 		LineRows[Index]->SetBrushColor(Index == Selected ? FocusColor : Index == HoveredLine ? HoverColor : PlateColor);
-		LineNames[Index]->SetText(GetLineName(Index));
+		// A weapon line in a slot's list has its type after its name ("Simple Sword · Sword"); the box keeps the bare name.
+		const bool bWeaponLine = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk) && Items.IsValidIndex(Index) && Items[Index].Weapon.IsValid();
+		LineNames[Index]->SetText(bWeaponLine ? WoRLoadoutV2::GetWeaponRowName(GetLineName(Index), Items[Index].Weapon.Weapon) : GetLineName(Index));
 		LineNames[Index]->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor)); // refused: stays, greyed
 		WoRKeyHints::SetHint(LineDetails[Index], GetLineDetail(Index));
 		// B-482b: on the entries list the detail is the row's right end ("ACTIVE", "1/5 left"), in the accent colour.
@@ -1099,6 +1189,20 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		{
 			NameSlot->SetSize(FSlateChildSize(bSocketBadge || bTierBadge ? ESlateSizeRule::Automatic : ESlateSizeRule::Fill));
 		}
+	}
+
+	// The list's panel ends where its area does.
+	// shortcut: the area's height is read on a refresh, so a window resized while a long list is open keeps the old
+	// height until the next key or mouse move; follow the geometry itself if that shows.
+	const float AreaHeight = ListArea->GetCachedGeometry().GetLocalSize().Y;
+	ListSizer->SetMaxDesiredHeight(AreaHeight > 0.0f ? AreaHeight : ListMaxHeight);
+	// The selected line is brought into view when the selection or the list changes, not on every refresh (a hover
+	// refreshes too, and would pull a list dragged by its scroll bar back).
+	const uint32 ViewKey = HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(Count)), HashCombine(GetTypeHash(static_cast<uint8>(Mode)), GetTypeHash(static_cast<uint8>(Tab))));
+	if (ViewKey != ScrolledViewKey && LineRows.IsValidIndex(Selected) && Selected < Count)
+	{
+		ScrolledViewKey = ViewKey;
+		ListScroll->ScrollWidgetIntoView(LineRows[Selected], /*AnimateScroll=*/false);
 	}
 
 	// The box: the focused entry's details, or in the window the entry being built.
@@ -1162,7 +1266,9 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	else
 	{
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
-		BoxTitle = bPieceBox ? GetLineName(GetBoxLine()) : Entry ? Entry->Name : FText::GetEmpty(); // B-482: nothing on the Add weapon frame
+		// B-482: nothing on the Add weapon frame. On a slot row the title stays the slot's word (the row leads with the piece).
+		const bool bSlotBox = bPieceBox && Mode == ELoadoutV2Mode::WindowSlots && Slots.IsValidIndex(GetBoxLine());
+		BoxTitle = bSlotBox ? GetSlotName(Slots[GetBoxLine()]) : bPieceBox ? GetLineName(GetBoxLine()) : Entry ? Entry->Name : FText::GetEmpty();
 		if (Mode == ELoadoutV2Mode::SkillEntries && SkillsPage.Entries.IsValidIndex(Selected))
 		{
 			BoxTitle = SkillsPage.Entries[Selected].Header; // "Ashen Blade + Cinder Edge · 4/9 skills"
@@ -1424,6 +1530,11 @@ void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
 
 int32 ULoadoutV2ScreenWidget::FindLineUnder(const FVector2D &ScreenPosition) const
 {
+	// A line scrolled out of the panel is not under the mouse, wherever its own place would be.
+	if (ListScroll && !ListScroll->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+	{
+		return INDEX_NONE;
+	}
 	const int32 Count = FMath::Min(GetLineCount(), LineRows.Num());
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
@@ -2574,7 +2685,8 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Equipped.bEquipped = true;
 			Equipped.Weapon = InSlot;
 			Equipped.Name = WeaponName(InSlot);
-			Equipped.Line = WoRGameNames::GetHeldWeaponTypeName(InSlot.Weapon, bMain && Current.OffHand.IsValid() ? Current.OffHand.Weapon : nullptr); // B-513, B-515: with its off hand
+			// B-513, B-515: what the two hands make ("Sword and Shield"); a weapon alone has its type after its name.
+			Equipped.Line = bMain && Current.OffHand.IsValid() ? WoRGameNames::GetHeldWeaponTypeName(InSlot.Weapon, Current.OffHand.Weapon) : FText::GetEmpty();
 		}
 		const TArray<FLoadoutV2OffHandChoice> OffHands = bMain ? TArray<FLoadoutV2OffHandChoice>() : WoRLoadoutV2::BuildOffHandChoices(Draft.MainHand, Inventory->Weapons, Class);
 		const int32 FirstPiece = Items.Num();
@@ -2589,14 +2701,18 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Item.Weapon = Owned;
 			Item.Name = WeaponName(Owned);
 			FLoadoutV2Draft Changed = Draft;
-			(bMain ? Changed.MainHand : Changed.OffHand) = Owned;
+			bool bOffHandComesOff = false;
 			if (bMain)
 			{
-				Changed.Socket1 = Owned.AttachedItem; // Q-476c: sockets stay on their piece; a new main hand brings its own
-				Changed.Socket2 = Owned.StoneSocket;
+				bOffHandComesOff = WoRLoadoutV2::SetMainHand(Changed, Owned);
+			}
+			else
+			{
+				Changed.OffHand = Owned;
 			}
 			const TPair<FText, int32> Result = Check(Changed);
-			Item.Line = FText::Format(LOCTEXT("WeaponItemLine", "{0} · {1}"), WoRGameNames::GetHeldWeaponTypeName(Owned.Weapon), CellsLine(Result.Value));
+			// The type is after the name (the row's draw, GetWeaponRowName).
+			Item.Line = bOffHandComesOff ? FText::Format(LOCTEXT("WeaponItemLineOffHand", "{0} · the off hand comes off"), CellsLine(Result.Value)) : CellsLine(Result.Value);
 			const FLoadoutV2OffHandChoice *Pair = OffHands.FindByPredicate([&Owned](const FLoadoutV2OffHandChoice &Each) { return Each.Weapon.PersistentID == Owned.PersistentID; });
 			Item.Refusal = IsElsewhere(Owned.PersistentID) ? LOCTEXT("RefuseInOtherEntry", "In another entry.")
 						   : Pair && !Pair->Refusal.IsEmpty() ? Pair->Refusal
@@ -2779,10 +2895,14 @@ bool ULoadoutV2ScreenWidget::PutPieceInDraft(ELoadoutV2Slot GearSlot, const FLoa
 	switch (GearSlot)
 	{
 	case ELoadoutV2Slot::MainHand:
-		Draft.MainHand = Item.Weapon;
-		Draft.Socket1 = Item.Weapon.AttachedItem; // Q-476c: sockets stay on their piece; a new main hand brings its own
-		Draft.Socket2 = Item.Weapon.StoneSocket;
+	{
+		const FText OffHandName = LoadoutV2ScreenStyle::WeaponName(Draft.OffHand);
+		if (WoRLoadoutV2::SetMainHand(Draft, Item.Weapon))
+		{
+			Message = FText::Format(LOCTEXT("OffHandCameOff", "{0} came off the off hand: it doesn't pair with {1}."), OffHandName, LoadoutV2ScreenStyle::WeaponName(Item.Weapon));
+		}
 		return true;
+	}
 	case ELoadoutV2Slot::OffHand:
 		Draft.OffHand = Item.Weapon;
 		return true;

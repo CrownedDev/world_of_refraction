@@ -129,6 +129,12 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
     FRotator MeshRotation = FRotator::ZeroRotator;
 
+    /** Where the right-hand mesh's own origin sits from the hand socket, in cm, along the SOCKET's axes (the mesh's
+     *  relative location on the socket; Mesh Rotation does not turn it). Zero: the origin is on the socket. For a
+     *  mesh whose origin is at the butt of a long handle, move it back along the shaft so the hand holds the middle. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    FVector MeshOffset = FVector::ZeroVector;
+
     /** Distinct left-hand static mesh for any non-Single WieldMode (Dual / OffHandShield).
      *  Must be assigned explicitly — there is no reuse of the right-hand mesh.
      *  If both LeftHand* fields are null, no left-hand mesh spawns. */
@@ -143,10 +149,18 @@ public:
               meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
     USkeletalMesh *LeftHandSkeletalMesh = nullptr;
 
-    /** Rotation applied to the left-hand mesh in Dual / OffHandShield modes. */
+    /** Rotation applied to this weapon's mesh in the LEFT hand: a Dual / OffHandShield weapon's left mesh, or this
+     *  piece held as an off hand (a shield, a second weapon; UWeaponMeshComponent::SpawnOffHandMesh). Shown whenever
+     *  either can happen: a wield mode with a left mesh, or a Handling that can pair (an off-hand shield is
+     *  Single + Dual only, and was hidden before). */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh",
-              meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single", EditConditionHides))
+              meta = (EditCondition = "WieldMode != EWeaponWieldMode::Single || Handling != EWeaponHandling::SingleOnly", EditConditionHides))
     FRotator LeftMeshRotation = FRotator::ZeroRotator;
+
+    /** As Mesh Offset, for this weapon's mesh in the LEFT hand: a Dual weapon's left mesh, or this piece held as an
+     *  off hand (a shield, a second weapon). In cm, along the left socket's axes; Left Mesh Rotation does not turn it. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mesh")
+    FVector LeftMeshOffset = FVector::ZeroVector;
 
     /** Optional material override applied to slot 0 of the spawned right-hand weapon mesh.
      *  Null = use the mesh asset's default materials. */

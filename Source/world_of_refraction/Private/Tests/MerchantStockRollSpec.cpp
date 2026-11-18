@@ -30,6 +30,26 @@ namespace
 		return Merchant;
 	}
 
+	constexpr int32 STOCK_ROLL_TEST_POOL_MARK = 100; // a trial-pool line's Count starts here, an own line's stays below
+
+	/** Lines of a trial's pool: each its own asset, told apart by Count (STOCK_ROLL_TEST_POOL_MARK + 1..Lines). */
+	TArray<FMerchantStockEntry> StockRollTestPool(int32 Lines)
+	{
+		TArray<FMerchantStockEntry> Pool;
+		for (int32 i = 0; i < Lines; ++i)
+		{
+			FMerchantStockEntry &Entry = Pool.AddDefaulted_GetRef();
+			Entry.Asset = NewObject<UMerchantData>(GetTransientPackage()); // any data asset: only its identity is read
+			Entry.Count = STOCK_ROLL_TEST_POOL_MARK + i + 1;
+		}
+		return Pool;
+	}
+
+	int32 StockRollTestPoolLines(const TArray<FMerchantStockEntry> &Stock)
+	{
+		return Stock.FilterByPredicate([](const FMerchantStockEntry &Entry) { return Entry.Count > STOCK_ROLL_TEST_POOL_MARK; }).Num();
+	}
+
 	TArray<int32> StockRollTestLines(const TArray<FMerchantStockEntry> &Stock)
 	{
 		TArray<int32> Lines;
@@ -116,6 +136,45 @@ void FMerchantStockRollSpec::Define()
 			UMerchantData *Small = StockRollTestMerchant(MerchantStockRoll::TRIAL_VENDOR_STOCK_SIZE - 1);
 			TestEqual(TEXT("whole list"), MerchantStockRoll::StockFor(*Small, true, STOCK_ROLL_TEST_SEED).Num(),
 					  MerchantStockRoll::TRIAL_VENDOR_STOCK_SIZE - 1);
+		});
+	});
+
+	Describe("a trial vendor with the trial's pool (B-571)", [this]()
+	{
+		It("shows half its own list and half the pool, its own lines first, the same on the same seed", [this]()
+		{
+			const TArray<FMerchantStockEntry> Pool = StockRollTestPool(STOCK_ROLL_TEST_POOL_SIZE);
+			const TArray<FMerchantStockEntry> Shelf = MerchantStockRoll::RollWithPool(Merchant->Stock, Pool, STOCK_ROLL_TEST_SEED);
+			const int32 Half = FMath::RoundToInt(MerchantStockRoll::TRIAL_VENDOR_STOCK_SIZE * MerchantStockRoll::TRIAL_POOL_SHARE);
+			TestEqual(TEXT("the shelf's size"), Shelf.Num(), MerchantStockRoll::TRIAL_VENDOR_STOCK_SIZE);
+			TestEqual(TEXT("half from the pool"), StockRollTestPoolLines(Shelf), Half);
+			TestTrue(TEXT("its own lines first"), Shelf[0].Count < STOCK_ROLL_TEST_POOL_MARK && Shelf.Last().Count > STOCK_ROLL_TEST_POOL_MARK);
+			TestEqual(TEXT("the same shelf on the same seed"), StockRollTestLines(MerchantStockRoll::RollWithPool(Merchant->Stock, Pool, STOCK_ROLL_TEST_SEED)),
+					  StockRollTestLines(Shelf));
+		});
+
+		It("lets one side fill the places the other can't", [this]()
+		{
+			constexpr int32 FEW = 2;
+			const TArray<FMerchantStockEntry> Pool = StockRollTestPool(STOCK_ROLL_TEST_POOL_SIZE);
+			const TArray<FMerchantStockEntry> FewOwn = MerchantStockRoll::RollWithPool(StockRollTestMerchant(FEW)->Stock, Pool, STOCK_ROLL_TEST_SEED);
+			TestEqual(TEXT("a short own list: the pool fills"), StockRollTestPoolLines(FewOwn), MerchantStockRoll::TRIAL_VENDOR_STOCK_SIZE - FEW);
+			const TArray<FMerchantStockEntry> FewPool = MerchantStockRoll::RollWithPool(Merchant->Stock, StockRollTestPool(FEW), STOCK_ROLL_TEST_SEED);
+			TestTrue(TEXT("a short pool: its own list fills"),
+					 FewPool.Num() == MerchantStockRoll::TRIAL_VENDOR_STOCK_SIZE && StockRollTestPoolLines(FewPool) == FEW);
+			TestEqual(TEXT("no pool: its own list only, as before"), MerchantStockRoll::RollWithPool(Merchant->Stock, {}, STOCK_ROLL_TEST_SEED).Num(),
+					  MerchantStockRoll::TRIAL_VENDOR_STOCK_SIZE);
+		});
+
+		It("doesn't offer a pool line the vendor already lists", [this]()
+		{
+			TArray<FMerchantStockEntry> Pool = StockRollTestPool(1);
+			Pool.Add(Merchant->Stock[0]); // the vendor's own line, in the pool too
+			const FMerchantStockEntry Twice = Pool[0]; // a copy: adding an element of the list to itself is refused
+			Pool.Add(Twice);                           // one pool line twice
+			const TArray<FMerchantStockEntry> Shelf = MerchantStockRoll::RollWithPool(Merchant->Stock, Pool, STOCK_ROLL_TEST_SEED);
+			TestEqual(TEXT("one pool line, once"), StockRollTestPoolLines(Shelf), 1);
+			TestEqual(TEXT("a full shelf"), Shelf.Num(), MerchantStockRoll::TRIAL_VENDOR_STOCK_SIZE);
 		});
 	});
 }

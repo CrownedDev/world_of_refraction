@@ -361,7 +361,8 @@ void FLoadoutScreenSpec::Define()
 
 		FCombatLoadout Loadout = TwoWeapons();
 		Loadout.SecondaryWeapon.WeaponEntry.Weapon->AcceptedCrystalType = ECrystalType::Citrine;
-		const FLoadoutScreenRow &Hammer = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic).Rows[LOADOUT_SCREEN_TEST_SECOND];
+		// A copy: the page is a temporary, so a reference into its rows would dangle.
+		const FLoadoutScreenRow Hammer = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic).Rows[LOADOUT_SCREEN_TEST_SECOND];
 		TestTrue(TEXT("the row reads the piece's setting"), Hammer.AcceptedCrystal == ECrystalType::Citrine);
 		const FCrystalId Citrine(ECrystalType::Citrine, EItemTier::C_Tier);
 		const FCrystalId Garnet(ECrystalType::Garnet, EItemTier::C_Tier);

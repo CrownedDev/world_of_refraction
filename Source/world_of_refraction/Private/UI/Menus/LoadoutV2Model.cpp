@@ -417,6 +417,12 @@ namespace LoadoutV2Build
 		}
 		if (Draft.Kind == ELoadoutV2DraftKind::Weapon)
 		{
+			// A shield is an off-hand piece whatever else is set: say that, not "Twin only" (its Handling is DualOnly,
+			// which for a shield means it pairs and never stands alone).
+			if (Draft.MainHand.Weapon && Draft.MainHand.Weapon->WeaponType == EWeaponType::Shield)
+			{
+				return WeaponSetRules::GetPairRefusalText(WeaponSetRules::EPairRefusal::ShieldInMainHand);
+			}
 			if (Draft.OffHand.IsValid())
 			{
 				if (Class != ECharacterClass::Generic)
@@ -663,6 +669,11 @@ TArray<FLoadoutV2OffHandChoice> WoRLoadoutV2::BuildOffHandChoices(const FWeaponI
 			// UIScreens: "Pairs only with a sword".
 			Choice.Refusal = FText::Format(LOCTEXT("RefusePairsOnlyWith", "Pairs only with a {0}."), WoRGameNames::GetWeaponTypeName(MainHand.Weapon->WeaponType));
 		}
+		else if (Pair == WeaponSetRules::EPairRefusal::NotPairable && MainHand.Weapon && !MainHand.Weapon->CanBePaired())
+		{
+			// The main hand is the one that can't pair: say so, not "this weapon" on a shield's or a second sword's line.
+			Choice.Refusal = FText::Format(LOCTEXT("RefuseMainTakesNoOffHand", "{0} takes no off hand."), FText::FromString(MainHand.Weapon->GetDisplayName()));
+		}
 		else if (Pair != WeaponSetRules::EPairRefusal::None)
 		{
 			Choice.Refusal = WeaponSetRules::GetPairRefusalText(Pair);
@@ -696,6 +707,30 @@ TArray<FLoadoutV2MainHandChoice> WoRLoadoutV2::BuildMainHandChoices(const FComba
 		Choice.Refusal = CheckDraft(Loadout, Class, Draft, Choice.CellsAfter);
 	}
 	return Choices;
+}
+
+bool WoRLoadoutV2::SetMainHand(FLoadoutV2Draft &Draft, const FWeaponInventoryEntry &MainHand)
+{
+	Draft.MainHand = MainHand;
+	Draft.Socket1 = MainHand.AttachedItem; // Q-476c: sockets stay on their piece; a new main hand brings its own
+	Draft.Socket2 = MainHand.StoneSocket;
+	if (!Draft.OffHand.IsValid())
+	{
+		return false;
+	}
+	const WeaponSetRules::EPairRefusal Pair = WeaponSetRules::CheckPair(MainHand, Draft.OffHand);
+	if (Pair != WeaponSetRules::EPairRefusal::NotPairable && Pair != WeaponSetRules::EPairRefusal::DifferentTypes)
+	{
+		return false;
+	}
+	Draft.OffHand = FWeaponInventoryEntry();
+	return true;
+}
+
+FText WoRLoadoutV2::GetWeaponRowName(const FText &Name, const UWeaponData *Weapon)
+{
+	const FText Type = WoRGameNames::GetHeldWeaponTypeName(Weapon);
+	return Type.IsEmpty() ? Name : FText::Format(LOCTEXT("WeaponRowName", "{0} · {1}"), Name, Type);
 }
 
 FLoadoutV2Compare WoRLoadoutV2::BuildCompare(const FWeaponInventoryEntry &Equipped, const FWeaponInventoryEntry &Selected)

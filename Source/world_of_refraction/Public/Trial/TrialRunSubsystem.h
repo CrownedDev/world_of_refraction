@@ -34,6 +34,7 @@
 #include "Field/FieldSkillTypes.h"
 #include "Combat/Encounter/EnemyZone.h"
 #include "Trial/TrialGate.h"
+#include "Trial/TrialDuplicates.h"
 #include "Trial/RunRewards.h"
 #include "Character/ECharacterClass.h"
 #include "CoreMinimal.h"
@@ -45,6 +46,7 @@ class UMemoryData;
 class UMerchantData;
 struct FMerchantStockEntry;
 class UTrialData;
+class UPrimaryDataAsset;
 class UClassDefaultLoadoutData;
 struct FClassDefaultLoadout;
 class UWorld;
@@ -197,6 +199,34 @@ public:
 
     /** B-232d: every character's waiting levels (the GameState's run state copies them). */
     const TMap<FName, int32> &GetAllUnspentLevels() const { return UnspentLevels; }
+
+    /** B-570 (TrialPoolDesign §6): dropped duplicates waiting for their choice on the trial map (TrialDuplicates). Run
+     *  state, not saved: one left unanswered keeps both (Q-565). */
+    void AddPendingDuplicate(const FTrialDuplicate &Duplicate)
+    {
+        if (Duplicate.IsSet())
+        {
+            PendingDuplicates.Add(Duplicate);
+        }
+    }
+    /** The oldest waiting duplicate, taken off the list; false when none waits. */
+    bool TakePendingDuplicate(FTrialDuplicate &OutDuplicate)
+    {
+        if (PendingDuplicates.IsEmpty())
+        {
+            return false;
+        }
+        OutDuplicate = PendingDuplicates[0];
+        PendingDuplicates.RemoveAt(0);
+        return true;
+    }
+    const TArray<FTrialDuplicate> &GetPendingDuplicates() const { return PendingDuplicates; }
+
+    /** B-572 (TrialPoolDesign §7): the enemy types whose kit was seen this run with the field skill (TrialKitSight):
+     *  their shared part shows on every enemy of that type for the rest of the run. Run state, not saved. */
+    void MarkKitTypeSeen(FName EnemyType) { SeenKitTypes.Add(EnemyType); }
+    bool IsKitTypeSeen(FName EnemyType) const { return SeenKitTypes.Contains(EnemyType); }
+    int32 GetSeenKitTypeCount() const { return SeenKitTypes.Num(); }
     int32 GetTotalUnspentLevels() const;
     void AddUnspentLevels(FName CharacterKey, int32 Count);
     /** Takes one of the character's unspent levels; false when it has none. */
@@ -540,6 +570,12 @@ private:
     UPROPERTY(Transient)
     TObjectPtr<UTrialData> ActiveTrial;
 
+    /** B-571: the trial pool's things a vendor may show, gathered once when the trial becomes the active one
+     *  (TrialLoot::GatherPool loads and sorts every loot asset). Cleared with ActiveTrial. */
+    UPROPERTY(Transient)
+    TArray<TObjectPtr<UPrimaryDataAsset>> TrialVendorPool;
+    void GatherTrialVendorPool();
+
     int32 RunSeed = 0;
 
     int32 VariationIndex = INDEX_NONE;
@@ -637,6 +673,10 @@ private:
     int32 DroppedPrisms = 0;
     /** B-235: the other players' drops (see DropPrismsForPlayer). */
     TMap<FString, int32> OtherPlayerDrops;
+    /** B-570: see AddPendingDuplicate. */
+    TArray<FTrialDuplicate> PendingDuplicates;
+    /** B-572: see MarkKitTypeSeen. */
+    TSet<FName> SeenKitTypes;
     TArray<FName> DropEncounters;
     /** B-362c: the drop's spot, run state like DroppedPrisms (saved with the run). */
     FVector DropSpot = FVector::ZeroVector;
