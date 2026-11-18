@@ -1,6 +1,6 @@
 # Gear and body standard: the house rulebook
 
-**Status:** in line with D-242 (every paragraph added on 2026-11-17) and D-243. Crown has answered the first round of questions; section 11 holds what is still open. Nothing is built from it yet. It also follows D-241 / D-234 / D-238 (bodies and colour), D-209 / D-211 / D-215 / D-224 (pairs, the standard attack, skills), D-223 (the clean gear set), D-058 and `docs/Conventions/ContentNaming.md`. The facts about the packs are from `docs/research/asset-shortlist.md`.
+**Status:** in line with D-242 (every paragraph to "One skeleton for every body", 2026-11-18), D-243 and D-244. Crown has answered the first round of questions; section 11 holds what is still open. Nothing is built from it yet. It also follows D-241 / D-234 / D-238 (bodies and colour), D-209 / D-211 / D-215 / D-224 (pairs, the standard attack, skills), D-223 (the clean gear set), D-058 and `docs/Conventions/ContentNaming.md`. The facts about the packs are from `docs/research/asset-shortlist.md`.
 **Marks:** *Ruled* = Crown's words in a D-entry. *Default* = proposed here. *Measured* = from `docs/research/weapon-orientation.md` (37 weapon models and the hand attach points on both bodies) or from D-242's "The holds, measured" (the hero packs), both read through the editor on 2026-11-17. **(editor)** = still needs the editor or Crown's eyes in PIE.
 
 ## 1. The idea in five lines
@@ -20,7 +20,7 @@
 | **Model slot** | Where the piece's model goes. The model is the piece's own; the template only says how it is held | Each weapon asset holds its model, static or animated (`Public/Equipment/Weapons/WeaponData.h:123-126`) |
 | **Grip** | Which hand, which attach point, and the turn that makes it sit right | The attach point is picked by weapon type in code, and only sword, dagger, greatsword and axe are mapped; any other type logs an error and shows nothing (`Private/Equipment/Weapons/WeaponMeshComponent.cpp:77-93,111-123`). The turn is on each piece (`WeaponData.h:130,149`) |
 | **Stance** | The idle pose with the weapon out | On each weapon asset (`WeaponData.h:74`); a stance is one idle animation (`Public/Character/StanceData.h:39`) |
-| **Standard attack** | The basic swing: the same one in the field and in a fight (D-215) | On each weapon asset (`WeaponData.h:60`), with its fight animation and its field swing (`Public/Skills/Definitions/SkillDataBase.h:320,325`) |
+| **Standard attack** | The basic swing: the same one in the field and in a fight (D-215). **A melee weapon's basic attack goes to the enemy** (ruled, D-244; rule 7) | On each weapon asset (`WeaponData.h:60`), with its fight animation and its field swing (`Public/Skills/Definitions/SkillDataBase.h:320,325`) |
 | **Pool of moves** | The clips that can become skills (section 5) | Skills are their own assets that name the weapon type they need (`Public/Skills/Definitions/AbilityData.h:42`); a weapon carries none (D-224). The old list field is still on the asset (`WeaponData.h:65`) |
 | **Guard** | The block or parry with this weapon | Per weapon (`WeaponData.h:109-111`), else the character's own block (`Public/Character/CosmeticsData.h:53`) |
 | **Hit and death reactions** | Being struck and falling while holding it | No per-weapon field found in the weapon or cosmetics data (not checked further). Most owned sets lack a death clip; one shared death serves all (shortlist §5.1) |
@@ -105,13 +105,13 @@ A piece brings the attacks that fit where it is held. This replaces the question
 
 | # | Topic | The rule | Why |
 |---|---|---|---|
-| 1 | **How the model is built and held** | **The Paragon grip is the reference** (ruled, D-242), and **Kwang's hold** is the one measured for it. Every weapon model and every body is lined up to it once. The values are in full below; the matching attach point on Manny and Quinn is not made yet | Crown: Paragon is "tried and proven"; "if we can get them to work, all we need to do is tweak everything else to fit". And: "we won't have to play around with positioning" |
+| 1 | **How the model is built and held** | **Paragon's method is the reference** (ruled, D-242): one hold per body, and every weapon made to fit it. The grip is Crown's `hand_r_grip`; every sword uses the one sword hold; the Beastslayer Sword is the reference weapon. In full below | Crown: Paragon is "tried and proven"; "if we can get them to work, all we need to do is tweak everything else to fit". And: "we won't have to play around with positioning" |
 | 2 | **Put away** | **Hidden** (ruled, D-242), as today (`WeaponMeshComponent.cpp:172-182`). The back and hip points are named on the body now, unused; Kwang's back mount is measured (below) | Nothing to align today; showing a weapon on the back later needs no new body work |
 | 3 | **Scale** | Real size in centimetres, checked against Manny's hand; a length range per type | Packs differ (**editor**); one check on import catches a giant dagger |
-| 4 | **Attach-point names** | One fixed list on every body: right hand (`hand_r_weapon`), left hand (`hand_l_weapon`), shield, one ring point per finger (below), back, hip, arrow or muzzle (`weapon_r_muzzle`, on both bodies today), effect point. **One per hand, not one per weapon type**, and the **same position and turn on every body** | Measured: seven of twelve types have no point today and show nothing; Manny and Quinn carry different turns under the same names; Quinn already has the two per-hand points, Manny does not (`weapon-orientation.md` §2). With rule 1, one point per hand serves every type |
+| 4 | **Attach-point names** | One fixed list on every body: right hand (`hand_r_grip`, made, D-242), left hand (`hand_l_grip`, not made), shield, one ring point per finger (below), back, hip, arrow or muzzle (`weapon_r_muzzle`, on both bodies today), effect point. **One per hand, not one per weapon type**, and the **same position and turn on every body** | Measured: seven of twelve types have no point today and show nothing; Manny and Quinn carry different turns under the same names; Quinn already has the two per-hand points, Manny does not (`weapon-orientation.md` §2). With rule 1, one point per hand serves every type |
 | 5 | **Model kind** | Static by default; animated only when the piece itself moves (a bow string, a chain). The gear code holds both (`WeaponData.h:123-126`) | Static is cheaper and simpler; StylizedWeapons ships everything animated, so most of its pieces can be simplified |
 | 6 | **Colour** | One material per kind (weapon, apparel, crystal, body) with named settings: `Tint`, glow strength, tier glow. The element's colour comes from the element table. Never a copy per colour | Bodies already work this way (`Private/Character/Forms/SpiritLook.cpp:37-38,68-72`). StylizedWeapons does not: its colours are separate copies with no tint setting (`docs/Architecture/WeaponSystem.md`, `UWeaponData`), so it needs one new material (**editor**) |
-| 7 | **Animation in place** | In place by default; root motion only where a move is marked for it (CLAUDE.md). Keep only the in-place copy | Fights are fixed-position. CombatMaster's root-motion-only sets (DSAS V3, Twin Axe) wait for an in-place pass |
+| 7 | **Animation in place, except a melee basic attack** | **A melee weapon's basic attack travels to its target** (ruled, D-244: "for melee weapons at least"); the travel is to be **a leap in the end**, not built now. Ranged weapons and spells are not ruled on. In place stays the default only where no travel is ruled; root motion only where a move is marked for it. Keep only the in-place copy | Crown saw the sword's basic attack play on the spot in PIE (D-244). Otherwise fights are fixed-position. CombatMaster's root-motion-only sets (DSAS V3, Twin Axe) wait for an in-place pass |
 | 8 | **Naming** | New assets follow `ContentNaming.md`: `SM_` / `SK_` models with the type in the name (`SM_Sword_1H_...`), `AS_` clips, `AM_` montages, skills as `DA_<Family>_<Attack or Ability>_<Name>`. Pack assets keep their names (D-058) | A picker can filter by type; new files sit beside their siblings |
 | 9 | **Icons** | One style, one size, clear background; the frame is drawn by the screen, not baked in. An adapter's icon is the frame with its crystal's icon inside (D-229) | Three styles are in use today; one icon plus a tint beats one per element per tier |
 | 10 | **Heavy files** | New model, texture, sound and effect fields are loaded on demand (D-057) | Standing rule |
@@ -133,7 +133,7 @@ With both true, a model sits right in the hand with no turn and no offset, on ev
 
 | Hold | From | Place | Turn | Note |
 |---|---|---|---|---|
-| **Kwang, main hand** (`weapon_r`) | `hand_r` | -10.144, 5.902, 2.104 | 16.348 / 51.134 / 109.024 | **The reference** |
+| **Kwang, main hand** (`weapon_r`) | `hand_r` | -10.144, 5.902, 2.104 | 16.348 / 51.134 / 109.024 | **The pattern for the one sword hold**; its numbers are not used on Manny (below) |
 | Kwang, off hand (`weapon_l`) | `hand_l` | The mirror of the main hand | | |
 | Kwang, back mount (`weapon_backMount_r`) | `spine_02` | -28.904, 2.131, 57.391 | -90 / -158.321 / 0 | For the back point of rule 2 |
 | Sun Wukong, main hand (`weapon_r`) | `hand_r` | -8.099, 3.863, -0.617 | 17.026 / 59.274 / 109.680 | **Matches Kwang**, within about 8 degrees: one hold serves both |
@@ -141,17 +141,31 @@ With both true, a model sits right in the hand with no turn and no offset, on ev
 | Greystone, shield (`shield_inner`) | `hand_l` | -14.486, -0.819, -0.160 | 0.632 / 3.236 / 81.473 | The only shield measured; carried on the forearm |
 | Ours today, Manny `hand_r_sword` | `hand_r` | -3.7, 2.65, -6.47 | 10.9 / 89.24 / -67.42 | **Matches none of them**: about 11 cm from Kwang's |
 
+**One sword hold for every sword (ruled, D-242 "One sword hold"):** "we should use one sword type if anything". Every sword is held one way, **Kwang's**, the sword in a sword-and-shield pair included. Greystone's own hold is not used; his moves are played with the sword in Kwang's hold, and how that looks is part of the check (section 10, step 3).
+
+**The grip on the body, set by Crown (D-242 "The grip on Manny", "I am happy with that"; "One skeleton for every body"):**
+
+| | Value |
+|---|---|
+| Attach point | **`hand_r_grip`**, on `hand_r` |
+| Place | -4.008187, 3.069104, -5.630992 |
+| Turn | 180, -20, 180, as the Details panel shows it |
+| How it was set | By eye in the editor, with the Beastslayer Sword and the twin-sword idle |
+| Where it lives | On the one shared skeleton, so both bodies have it (section 7) |
+
+It landed beside the old `hand_r_sword` place, **not at Kwang's raw numbers**: Manny's hand is not Kwang's. So what is kept from Paragon is **the method** (one hold per body, every weapon made to match), not the numbers.
+
+**Weapons are made to fit the grip (ruled, D-242 "The grip on Manny"):** the grip is set once per body, and each weapon is then made to fit it, so a weapon is only referenced, never turned per use. "Not all weapons will be in the same position": the Adventurer's Spear sits backwards in the same grip.
+
 | Part of the rule | Value |
 |---|---|
-| Main-hand grip | Kwang's `weapon_r` hold, above |
-| Off-hand grip | Its mirror |
-| Shield | Greystone's forearm hold, above, until Crown has looked at it (**editor**) |
-| The model's length axis and tip end | On Kwang the blade runs along the hold's **-Y**. StylizedWeapons models run along **+Y**, so they sit back to front on it until turned (below) |
-| The model's origin | At the grip, as StylizedWeapons already is |
-| Bows, fist weapons, long two-handers | Not measured: no bow or fist hero pack is added. Wukong's staff uses the same hold as Kwang's sword |
+| Main-hand grip | `hand_r_grip`, above |
+| Off-hand grip | `hand_l_grip`: **not made yet** (D-242) |
+| Shield | Not set. Greystone's forearm hold, above, is the only one measured (**editor**) |
+| **The reference weapon** | **The Beastslayer Sword** (ruled). A weapon is right when it sits in the grip as the Beastslayer Sword does |
+| The model's handle and direction | Its pivot at the handle, its direction turned to match the reference weapon |
+| Bows, fist weapons, long two-handers | Not set: no bow or fist hero pack is added |
 | Kind and bones | One root bone and no attach points of its own, or a plain static model (rule 5) |
-
-**The next step, for Crown to look at:** one new attach point per hand on Manny and on Quinn at Kwang's numbers, with the weapon turned for the axis. Not done (section 10, step 1). The turns of our old points and Kwang's cannot be compared like for like, because the blade axes differ.
 
 **The hero packs, read (D-242):** in every pack the weapon is **baked into the hero's body** and moved by bones; none has a separate weapon model. Crown: "don't bother for now" about cutting a weapon out. So:
 - **Our weapons come from StylizedWeapons.**
@@ -162,19 +176,17 @@ With both true, a model sits right in the hand with no turn and no offset, on ev
 
 | Pack | Its pattern today | To reach the reference |
 |---|---|---|
-| **StylizedWeapons** (about 110 models; all four weapons in use) | One pattern throughout: along **Y**, tip or head to **+Y**, origin at the grip (19 to 22 cm from a sword's or dagger's pommel, 40 to 53 cm from an axe's or hammer's butt), edge along Z. Shields: face along X, origin near the centre of the back | Because the pack agrees with itself, **one and the same correction for the whole pack**: turned end for end, since Kwang's blade runs along -Y. The origin already sits at the grip |
+| **StylizedWeapons** (about 110 models; all four weapons in use) | One pattern throughout: along **Y**, tip or head to **+Y**, origin at the grip (19 to 22 cm from a sword's or dagger's pommel, 40 to 53 cm from an axe's or hammer's butt), edge along Z. Shields: face along X, origin near the centre of the back | Each piece in use is copied and fixed to the reference weapon (below). Because the pack agrees with itself, the same fix should serve each of its pieces (**editor**) |
 | StylizedWeapons staff, two-handed hammer, one two-handed axe | Same axis; origin near the middle of the shaft | The pack's correction, plus the origin moved if the hero's hand sits elsewhere |
 | StylizedWeapons fist weapons | Along Z, origin inside the fist | Their own correction, from a fist hero (Crunch) when gauntlets go in |
 | **100 Fantasy pack** (grey: scythes, guns, spears) | Not one pattern: most along Z, guns along X, some origins off the end | A correction per piece, for the few used (scythe, gun) |
 | **CombatMaster weapons** | Blades to -Z; not consistent with itself | None: its weapons are not used, only its animations |
 
-**The one-off correction (default):** the model is **corrected once and re-imported** to the reference, so the corrected file is the one the game keeps and later models are simply made that way. Not an attach point added to the model: the gear code reads none, and it hides the problem instead of removing it. Not an offset on the weapon data: there is no position field there today, and a per-piece fix is exactly what Crown wants gone. Today's per-piece turn (`WeaponData.h:130,149`) stays only as the deliberate override of section 3; the two old assets that use it to flip a model (`DA_Weapon_Tomahawk`, `DA_Resonator_Equpment_Sword`) are old-format and go with the old assets.
+**The one-off correction (ruled, D-242 "The grip on Manny"):** a weapon the game uses is **copied into our own folder**, its pivot moved to the handle and its direction turned to match the reference weapon, and **the game uses that fixed copy**. The vendor pack stays out of git. **Only weapons in use are fixed.** No weapon is fixed yet. This replaces this page's earlier default (correct and re-import) and its "one correction for the whole pack": the table above is now only what each pack starts from. Today's per-piece turn (`WeaponData.h:130,149`) stays only as the deliberate override of section 3; the two old assets that use it to flip a model (`DA_Weapon_Tomahawk`, `DA_Resonator_Equpment_Sword`) are old-format and go with the old assets.
 
-For the first look (step 1), the four pieces in use may carry the turn in their existing per-piece field, as a placeholder; the re-import follows once Crown has agreed the hold.
+**The bodies are lined up too.** The old fix-ups lived in the hand attach points, one per weapon type (`weapon-orientation.md` §2). Those old points (`hand_r_sword`, `hand_r_axe`, `hand_r_greatsword` and the left-hand ones) **stay until the new path is proven in PIE** (ruled); the code still attaches to them and none attaches to `hand_r_grip` yet (D-242).
 
-**The bodies are lined up too.** Today the fix-ups live in the hand attach points: one per weapon type, with different turns on Manny and Quinn (`weapon-orientation.md` §2). Under the reference there is one point per hand, at Kwang's place and turn, the same on every body (rule 4).
-
-**Still to check by eye:** a hero's hand is not Manny's hand, so Kwang's numbers may need one small, fixed adjustment on Manny. And Greystone, the source of the sword-and-shield moves, holds his sword differently from the reference, so his moves must be watched with the sword on Kwang's hold.
+**Still to check by eye:** Greystone, the source of the sword-and-shield moves, holds his sword differently, so his moves must be watched with the sword in the one sword hold.
 
 **Rings (ruled, D-242):** in a fight a ring is **a glow, not a model**, and **each finger stands for one slot**: a Resonator's five adapters are five fingers. So the body carries one ring point per finger. Which hand, and which finger is which slot, is not ruled (section 11).
 
@@ -182,14 +194,21 @@ For the first look (step 1), the four pieces in use may carry the turn in their 
 
 **Ruled:** Body is how a character looks ("Body of Orthos", D-241). Male Nobody and Female Nobody are Manny and Quinn (D-234). A new character's body takes the colour of its element or class, and the chest light too (D-238).
 
-**Today:** the two bodies are fixed paths in code, and the colour is set through one setting called `Tint` plus three chest-light settings (`SpiritLook.cpp:32-38,68-72`). **Measured:** Manny and Quinn are on **two different skeleton assets** with the same 161 bone names, and their weapon attach points have the same names and positions but different turns (`weapon-orientation.md` §2). So at least one body likely holds weapons at a different angle today (**editor**: needs eyes in PIE).
+**Today:** the two bodies are fixed paths in code, and the colour is set through one setting called `Tint` plus three chest-light settings (`SpiritLook.cpp:32-38,68-72`). **One skeleton for every body (ruled and built, D-242 "One skeleton for every body", 2026-11-18):** Manny now sits on Quinn's skeleton, so the two share one skeleton and every animation on it plays on both. Manny's bones all match by name and parent. Crown's `hand_r_grip` is on that one skeleton, so both bodies have it. Crown's PIE check: the Manny body shows, holds its weapon and reaches the trial fight. (Before this they were on two skeleton assets with different turns on the same attach points, `weapon-orientation.md` §2.)
+
+**Still open there (D-242):**
+- The skeleton file is in a vendor folder that git ignores, so the grip exists **only on Crown's PC**.
+- `hand_l_grip` is not made.
+- The sword-and-shield attacks sit on other packs' skeletons, and the pool's sword-and-shield basic attack has no animation.
+- Quinn's body has none of the seven old attach points, so weapons hang at the hip on that body until the code attaches to the grip.
+- Manny's seven old points are kept, with their old values, until then.
 
 **A new body must have:**
 
 | Need | Rule |
 |---|---|
-| **Skeleton** | The UE5 Manny bone set and names. Every animation the game owns plays on it. Default: **one skeleton asset for every body**, so attach points are made once; today's two are brought to one, or kept in step by a check (**editor** picks) |
-| **Attach points** | The full list in section 6, rule 4, with the same names, positions and turns as Manny's |
+| **Skeleton** | The UE5 Manny bone set and names. Every animation the game owns plays on it. **One skeleton for every body** (ruled, D-242), so attach points are made once |
+| **Attach points** | The full list in section 6, rule 4, on the shared skeleton. The grip is set once per body (D-242) |
 | **Colour settings** | `Tint` and the chest light on the two base bodies only. **An unlocked body keeps its own look** and does not take the element's colour (ruled, D-242) |
 | **Proportions** | Close enough to Manny that attack reach and hand positions hold (**editor**) |
 | **Apparel** | Either it wears Manny's or Quinn's apparel, or apparel is hidden on it |
@@ -207,7 +226,7 @@ UE4-era packs (MageAnimationSet) go through one shared converter, set up once.
 
 ## 8. The twelve weapon types
 
-"Pack pattern" is whether the model follows the StylizedWeapons pattern, so the pack's one correction (turned end for end) brings it to Kwang's hold (measured, `weapon-orientation.md` §1). "Shows today" is whether the code has an attach point for the type (§2 there).
+"Pack pattern" is whether the model follows the StylizedWeapons pattern, so its pieces start from one known shape when they are fixed to the reference weapon (measured, `weapon-orientation.md` §1). "Shows today" is whether the code has an attach point for the type (§2 there).
 
 | Type | Model | Pack pattern | Shows today | Animations | Pair set | Missing |
 |---|---|---|---|---|---|---|
@@ -230,7 +249,7 @@ The seven types that do not show today all start showing with rule 4's one point
 
 1. **Name** follows `ContentNaming.md`, with the weapon type in it.
 2. **Scale** is real size; it passes the length range for its type.
-3. **Built to rule 1:** on Kwang's hold it sits as his weapon does (origin at the grip, tip along the hold's -Y); held, it needs no turn and no offset.
+3. **Built to rule 1:** it is our own fixed copy, pivot at the handle, and in `hand_r_grip` it sits as the Beastslayer Sword does; held, it needs no turn and no offset.
 4. **Kind:** static, unless the piece itself moves.
 5. **Colour:** it uses the kind's one material; the element tint works; no copy per colour.
 6. **Type:** its weapon type is set, so the template gives it a stance and an attack with nothing else filled in.
@@ -247,7 +266,9 @@ The first three steps come from D-242; the rest follow the shortlist's order. Ea
 | # | Step | Crown sees | The problem it is meant to find |
 |---|---|---|---|
 | 0 | **Measure the Paragon grip. Done** (2026-11-17): Kwang, Greystone and Sun Wukong added and their holds measured (section 6, rule 1) | — | It found: Kwang and Wukong share one hold; Greystone differs; our sword points match none; the blade axis is the other way round |
-| 1 | **A matching attach point on Manny and on Quinn,** one per hand at Kwang's numbers, with the sword turned for the axis. **Next** | The sword, shield and both axes in Manny's hands and in Quinn's, side by side, and beside Kwang in the same clip | Whether Kwang's hold looks right on Manny, or needs one fixed adjustment; whether both bodies now hold alike (their turns differ today); whether one point per hand serves every type |
+| 1 | **The grip on the body. Done for the right hand** (D-242): Crown set `hand_r_grip` by eye and is happy with it; Manny and Quinn now share one skeleton, so both have it | — | It found: Manny's hand is not Kwang's, so the method is kept, not the numbers; the bodies and packs sat on about five skeletons |
+| 1a | **Use the grip. Next** (D-242's "not done" list): the code attaches to `hand_r_grip`; `hand_l_grip` is made; the weapons in use are copied into our folder and fixed to the Beastslayer Sword; the skeleton with the grip is kept somewhere git can hold | The sword, shield and both axes in Manny's hands and in Quinn's, side by side | Whether both bodies hold alike (Quinn's weapons hang at the hip today); whether one grip serves every weapon once each is fixed; the old per-type points can then go, after PIE |
+| 1b | **A melee basic attack that goes to the enemy** (D-244). Which way is built first is open (section 11) | The sword's basic attack reaching the enemy and coming back | Whether the Kwang swing can travel at all; the leap comes later |
 | 2 | **The template itself,** on the sword and on sword and shield, from what is already in the game (D-242's "look into first") | Nothing new: the same sword, now with no attack or stance on the piece | Whether the default-then-override order holds in the field and the fight; whether the hand types (main, off, dual) fit the shield |
 | 3 | **The check: staff, scythe and spear on one swing** (D-242). Attach each in turn, play the same staff swing, and set each weapon's hit moment. In the same check, play a **mirrored move with a shield** on the other arm | Three weapons through one swing; a mirrored move beside the original | Whether the scythe and spear can truly share the staff's moves; how much earlier a longer reach lands; where the hand sits on a long shaft; whether a mirrored move looks right with a shield |
 | 4 | **Bow** (StylizedWeapons bow, Sparrow's clips; no bow hero pack is added yet) | A bow drawn and fired | An animated weapon in the left hand; the bow's own clip in time with the body's; the arrow point (`weapon_r_muzzle`); reach in a fixed-position fight |
@@ -280,10 +301,13 @@ The first three steps come from D-242; the rest follow the shortlist's order. Ea
 | 2 | **Which six skills per weapon type** | Crown | They are proposed, not picked: Crown has not watched the moves |
 | 3 | **Rings: which hand, and which finger is which slot** | Crown | D-242 rules a finger per slot, not the order. Default: the hand that holds no weapon, thumb first in slot order |
 | 4 | **A hero body carries its own weapon inside the body.** With no cut-outs for now, what shows when that body is worn with the game's gear? | Crown | Default: the hero's own weapon is hidden if its bones allow it (**editor**); if not, that body is for looking at, not for fighting, until a cut-out is made |
-| 5 | **The shield's hold:** Greystone's forearm hold is the only one measured, and his sword hold is not the reference | Editor, then Crown's eye | Looked at in step 1 |
+| 5 | **The shield's hold and the left-hand grip:** `hand_l_grip` is not made; Greystone's forearm hold is the only shield hold measured | Editor, then Crown's eye | Step 1a |
+| 7 | **Where the shared skeleton and its grip are kept:** the file is in a vendor folder git ignores, so the grip is only on Crown's PC (D-242) | Brain / editor | Until settled, nobody else's copy has the grip |
+| 8 | **The sword-and-shield attacks:** they sit on other packs' skeletons, and the pool's sword-and-shield basic attack has no animation (D-242) | Editor | Needed before step 2 covers sword and shield |
+| 9 | **The melee basic attack (D-244):** which of the three ways is built first; what the leap looks like and which clip carries it; whether enemies follow the same rule; ranged weapons and spells are not ruled on | Crown | D-244 lists the three ways; Expedition 33 and Persona 5 send the attacker to the target and back |
 | 6 | **How the skill's multiple sits with tier, infusion and status build-up** (D-243) | To be planned before code | Its own job |
 
-**Still needs the editor or Crown's eyes:** whether Kwang's hold looks right on Manny and on Quinn; where the hand sits on a long shaft (staff, spear, scythe, two-handed hammer and axe); which way the edge faces on axes and curved blades (only the outer box was measured); the two skeleton assets brought to one, or one mirror set-up made for each; scale inside each pack; whether the moves wanted from Kwang, Greystone and Wukong are already in the Manny copies on disk or must be converted from the packs; the hit moments of the moves (not readable through the connection); whether StylizedWeapons can take a tint; whether one apparel piece fits both bodies. Only a sample was measured: 19 of about 110 StylizedWeapons models.
+**Still needs the editor or Crown's eyes:** how the grip looks on Quinn; how Greystone's moves look with the sword in the one sword hold; where the hand sits on a long shaft (staff, spear, scythe, two-handed hammer and axe); which way the edge faces on axes and curved blades (only the outer box was measured); the one mirror set-up for the shared skeleton; scale inside each pack; whether the moves wanted from Kwang, Greystone and Wukong are already in the Manny copies on disk or must be converted from the packs; the hit moments of the moves (not readable through the connection); whether StylizedWeapons can take a tint; whether one apparel piece fits both bodies. Only a sample was measured: 19 of about 110 StylizedWeapons models.
 
 ## Clashes found
 
@@ -299,6 +323,11 @@ The first three steps come from D-242; the rest follow the shortlist's order. Ea
 9. **D-243 against D-101:** the weapon's part is multiplied by the skill, where D-101 adds it. Deliberate; D-243 says so, and the two games now differ here on purpose.
 10. **Hit moments:** D-242 sets a move's hit moment per weapon type; today it is marked once on the animation (`SkillDataBase.h:304`). A build note, not a clash of rulings.
 
+11. **Settled:** clash 5. Manny now sits on Quinn's skeleton (D-242, 2026-11-18).
+12. **Settled:** clash 7. Every sword uses Kwang's hold; Greystone's is not used (D-242 "One sword hold").
+13. **Inside D-242, older lines against newer:** "The holds, measured" says lining up means "a new socket on Manny and Quinn at Kwang's numbers"; "The grip on Manny" then sets the grip by eye, not at Kwang's numbers, and keeps the method only. It also lists Quinn's grip as not done, which "One skeleton for every body" settles the next day. The later paragraphs stand.
+14. **D-244 against CLAUDE.md:** CLAUDE.md still says standard attacks play in place by default. D-244 changes that for melee basic attacks and says so; CLAUDE.md's line needs the same change (not made here: this job is one file).
+
 ## Changelog
 
 | Date | Change | Branch |
@@ -308,3 +337,4 @@ The first three steps come from D-242; the rest follow the shortlist's order. Ea
 | 2026-11-17 | Rule 1 filled from the measurement (along Y, tip to +Y, origin at the main hand; shields face X); which packs match and the one-off correction (re-import); one attach point per hand settled; the twelve-type table and steps 0a and 6 added; Manny and Quinn found on two skeleton assets | dev (docs only) |
 | 2026-11-17 | Crown, D-242 "Paragon is the reference": rule 1's standard is the Paragon grip, not the StylizedWeapons pattern; the values wait for step 0 (add and measure Kwang, then Sparrow); the StylizedWeapons pattern stays as what the placeholders do today | dev (docs only) |
 | 2026-11-17 | Brought in line with D-242's later paragraphs and D-243: the measured holds (Kwang's is the reference), the hero packs read (weapons baked in, no cut-outs), attack hand types and mirroring, the ring glow per finger, six skills per weapon type, shared staff moves with a hit moment per weapon type, the weapon-times-skill rule, the staff / scythe / spear check as step 3; section 11 is now answered and still open | dev (docs only) |
+| 2026-11-18 | D-242's last three paragraphs and D-244: one sword hold for every sword; Crown's `hand_r_grip` with its numbers; weapons made to fit the grip, the Beastslayer Sword as the reference weapon, fixed copies in our own folder; one skeleton for every body (built) and what is open there; a melee basic attack goes to the enemy, a leap later | docs/gear-standard-grip-d244 |
