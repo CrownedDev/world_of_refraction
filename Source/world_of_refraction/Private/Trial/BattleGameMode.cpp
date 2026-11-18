@@ -19,6 +19,8 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/EquipmentDataBase.h"
 #include "Skills/Definitions/SkillDataBase.h"
+#include "Skills/Definitions/SpellData.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "GameFramework/PlayerStart.h"
 #include "Kismet/GameplayStatics.h"
 #include "Loadout/LoadoutComponent.h"
@@ -40,6 +42,7 @@
 #include "Trial/TrialPoolLook.h"
 #include "Character/PlayerBuild.h"
 #include "Inventory/InventoryComponent.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "Save/SaveSubsystem.h"
@@ -827,13 +830,54 @@ void ABattleGameMode::GrantFightDrops(UTrialRunSubsystem &TrialRun)
         // Seeded by the run, the fight and the player: a retried fight drops the same.
         FRandomStream Roll(HashCombine(FightSeed, GetTypeHash(BattleGameModeConstants::DROP_SEED_SALT + PlayerIndex++)));
         const FTrialDrop Drop = TrialDrops::Pick(Input.Pool, FightUsed, Input.TrialElement, Input.ZoneRange, Roll);
+        UInventoryComponent *Inventory = Member->FindComponentByClass<UInventoryComponent>();
+        // B-570: the three-choice prompt answers a duplicate weapon on the trial map, so the older Gold-or-dismantle
+        // notice stays quiet for it (a prebuilt find keeps the old notice: it has no prompt yet, Q-570).
+        bool bNoInventoryNotice = false;
+        bool &OldNotice = Inventory ? Inventory->bSuppressDuplicateNotice : bNoInventoryNotice;
+        TGuardValue<bool> QuietOldNotice(OldNotice, OldNotice || Cast<UWeaponData>(Drop.Item) != nullptr);
         const bool bGiven = TrialDrops::Grant(Member, Drop);
         UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Drop for %s: %s%s"), *GetNameSafe(Member), *TrialDrops::GetDropString(Drop), bGiven ? TEXT("") : TEXT(" (not given)"));
         if (bGiven)
         {
             DroppedLines.Add(WoRTrialPoolLook::GetDroppedLine(TrialDrops::MakeView(Drop)));
+            NoteDroppedDuplicate(TrialRun, *CharComp, Inventory, Drop);
+        }
+        else if (Inventory)
+        {
+            // B-570 (Q-570): a character can't hold a skill twice, so one it knows converts to Skill essence.
+            USpellData *Spell = Cast<USpellData>(Drop.Item);
+            UAbilityData *Ability = Cast<UAbilityData>(Drop.Item);
+            const bool bKnown = (Spell && Inventory->HasSpell(Spell)) || (Ability && Inventory->HasAbility(Ability));
+            const int32 Essence = bKnown ? TrialDuplicates::ConvertKnownSkill(Member, Cast<USkillDataBase>(Drop.Item)) : 0;
+            if (Essence > 0)
+            {
+                DroppedLines.Add(TrialDuplicates::GetConvertedLine(TrialDrops::MakeView(Drop), Essence));
+            }
         }
     }
+}
+
+void ABattleGameMode::NoteDroppedDuplicate(UTrialRunSubsystem &TrialRun, const UCharacterDataComponent &CharComp, const UInventoryComponent *Inventory,
+                                           const FTrialDrop &Drop) const
+{
+    const UWeaponData *Weapon = Cast<UWeaponData>(Drop.Item);
+    if (!Weapon || !Inventory || Inventory->GetWeaponCount() == 0)
+    {
+        return; // B-530: adapters are no duplicates; crystals stack; evolutions and apparel are a TODO (Q-570)
+    }
+    FTrialDuplicate Duplicate;
+    Duplicate.CharacterKey = UPoolSubsystem::GetCharacterKey(&CharComp);
+    Duplicate.NewID = Inventory->GetWeaponAt(Inventory->GetWeaponCount() - 1).PersistentID; // AddDroppedGear appends
+    Duplicate.HeldID = TrialDuplicates::FindHeldWeapon(*Inventory, Weapon, Duplicate.NewID);
+    const FPartyMember *Record = CharComp.FindCarriedPartyMember();
+    if (!Duplicate.IsSet() || (Record && Record->Picks.bGuest))
+    {
+        // TODO: co-op (D-103): a guest's duplicate keeps both (Add); its own prompt needs the choice sent to its machine.
+        return;
+    }
+    TrialRun.AddPendingDuplicate(Duplicate);
+    UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] %s already has a %s: the choice waits on the trial map (B-570)"), *Duplicate.CharacterKey.ToString(), *Weapon->GetName());
 }
 
 bool ABattleGameMode::ShowResults(const FCombatResult &Result)

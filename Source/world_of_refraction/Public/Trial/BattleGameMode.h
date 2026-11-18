@@ -108,6 +108,9 @@ private:
     /** B-569 (D-225 stage 5): a won trial fight drops one thing for each player character (TrialDrops), seeded by the
      *  run and the fight; fills DroppedLines for the results. No pool: nothing. */
     void GrantFightDrops(UTrialRunSubsystem &TrialRun);
+    /** B-570 (TrialPoolDesign §6): a dropped weapon the character already had one of waits for its choice on the trial map. */
+    void NoteDroppedDuplicate(UTrialRunSubsystem &TrialRun, const class UCharacterDataComponent &CharComp, const class UInventoryComponent *Inventory,
+                              const FTrialDrop &Drop) const;
 
     void ReturnToTrial();
 
