@@ -193,7 +193,8 @@ void FJournalScreenSpec::Define()
 		Page = QuestView();
 		MainRow = Page.Rows.FindByPredicate([](const FJournalRow &Row) { return Row.Id == TEXT("TrackMainSpec"); });
 		TestTrue(TEXT("the row says so"), MainRow && MainRow->SelectVerb.ToString() == TEXT("Stop tracking") && MainRow->Kicker.ToString().Contains(TEXT("tracked")));
-		TestTrue(TEXT("one at a time"), WoRJournalScreen::ToggleTrack(Game(), *SideRow) && Quests->GetTrackedQuest() == FName(TEXT("TrackSideSpec")));
+		SideRow = Page.Rows.FindByPredicate([](const FJournalRow &Row) { return Row.Id == TEXT("TrackSideSpec"); }); // the page was rebuilt
+		TestTrue(TEXT("one at a time"), SideRow && WoRJournalScreen::ToggleTrack(Game(), *SideRow) && Quests->GetTrackedQuest() == FName(TEXT("TrackSideSpec")));
 
 		const FSavedHiddenQuests Saved = Quests->Capture();
 		Quests->TrackQuest(NAME_None);

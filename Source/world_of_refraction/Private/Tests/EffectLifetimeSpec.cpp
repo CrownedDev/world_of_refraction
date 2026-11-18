@@ -125,8 +125,8 @@ void FEffectLifetimeSpec::Define()
 			{
 				return;
 			}
-			TestEqual(FString::Printf(TEXT("Copy follows the tracker after turn %d"), Turn), Copy->RemainingTurns,
-					  Tracker->GetTurnsLeft(BuffGE()));
+			const int32 CopyTurns = Copy->RemainingTurns; // read first: BuffGE() refills Stored, which Copy points into
+			TestEqual(FString::Printf(TEXT("Copy follows the tracker after turn %d"), Turn), CopyTurns, Tracker->GetTurnsLeft(BuffGE()));
 			TestEqual(FString::Printf(TEXT("Tracker counted turn %d"), Turn), Tracker->GetTurnsLeft(BuffGE()), LIFETIME_TURNS - Turn);
 		}
 		EffectManager->ProcessStartOfTurnEffects(Hero);
@@ -165,7 +165,8 @@ void FEffectLifetimeSpec::Define()
 		}
 		TestEqual(TEXT("Stacked"), Copy->CurrentStacks, 2);
 		TestEqual(TEXT("One tracked GE"), Tracker->NumTracked(), 1);
-		TestEqual(TEXT("Tracked for the copy's span"), Tracker->GetTurnsLeft(BuffGE()), Copy->RemainingTurns);
+		const int32 CopyTurns = Copy->RemainingTurns; // read first: BuffGE() refills Stored, which Copy points into
+		TestEqual(TEXT("Tracked for the copy's span"), Tracker->GetTurnsLeft(BuffGE()), CopyTurns);
 		TestMatches(TEXT("stacked"));
 	});
 
