@@ -108,6 +108,17 @@ WORLD_OF_REFRACTION_API TArray<FDefenseDifficultyTriple> ResolveCastDifficulty(
  * Truly-shared fields for abilities, spells, and weapon attacks.
  * Subclasses extend with asset-specific data (cost, requirements, delivery, etc.).
  */
+/** B-572 (D-225, TrialPoolDesign §7): seeing an enemy's kit is not free; it comes as two variations of one skill. */
+UENUM(BlueprintType)
+enum class EKitSight : uint8
+{
+    None,
+    /** Used on an enemy on the map before the fight; costs EP; shows that enemy's full kit. */
+    Field,
+    /** Once owned, enemies show their gear as the player gets close. */
+    AlwaysOn
+};
+
 UCLASS(Abstract, BlueprintType)
 class WORLD_OF_REFRACTION_API USkillDataBase : public UPrimaryDataAsset
 {
@@ -226,6 +237,11 @@ public:
     /** Tier for break calculations and difficulty scaling. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
     EItemTier Tier = EItemTier::F_Tier;
+
+    /** B-572 (TrialPoolDesign §7): knowing this skill lets its owner see enemy kits (TrialKitSight). None for every
+     *  other skill. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Identity")
+    EKitSight KitSight = EKitSight::None;
 
     // ==================== TARGETING ====================
 

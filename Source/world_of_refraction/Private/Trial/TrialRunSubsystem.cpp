@@ -171,6 +171,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     OtherPlayerDrops.Reset(); // B-235
     PendingDuplicates.Reset(); // B-570
+    SeenKitTypes.Reset(); // B-572
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
     bDropHasSpot = false;
@@ -416,6 +417,7 @@ void UTrialRunSubsystem::FinishRun()
     PayoutMultiplier = RunRewards::BASE_PAYOUT_MULTIPLIER;
     OtherPlayerDrops.Reset(); // B-235
     PendingDuplicates.Reset(); // B-570
+    SeenKitTypes.Reset(); // B-572
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
     bDropHasSpot = false;

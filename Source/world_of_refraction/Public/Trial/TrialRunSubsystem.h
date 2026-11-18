@@ -221,6 +221,12 @@ public:
         return true;
     }
     const TArray<FTrialDuplicate> &GetPendingDuplicates() const { return PendingDuplicates; }
+
+    /** B-572 (TrialPoolDesign §7): the enemy types whose kit was seen this run with the field skill (TrialKitSight):
+     *  their shared part shows on every enemy of that type for the rest of the run. Run state, not saved. */
+    void MarkKitTypeSeen(FName EnemyType) { SeenKitTypes.Add(EnemyType); }
+    bool IsKitTypeSeen(FName EnemyType) const { return SeenKitTypes.Contains(EnemyType); }
+    int32 GetSeenKitTypeCount() const { return SeenKitTypes.Num(); }
     int32 GetTotalUnspentLevels() const;
     void AddUnspentLevels(FName CharacterKey, int32 Count);
     /** Takes one of the character's unspent levels; false when it has none. */
@@ -669,6 +675,8 @@ private:
     TMap<FString, int32> OtherPlayerDrops;
     /** B-570: see AddPendingDuplicate. */
     TArray<FTrialDuplicate> PendingDuplicates;
+    /** B-572: see MarkKitTypeSeen. */
+    TSet<FName> SeenKitTypes;
     TArray<FName> DropEncounters;
     /** B-362c: the drop's spot, run state like DroppedPrisms (saved with the run). */
     FVector DropSpot = FVector::ZeroVector;
