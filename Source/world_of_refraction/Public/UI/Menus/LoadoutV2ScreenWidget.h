@@ -48,6 +48,8 @@ class UBorder;
 class UEditableTextBox;
 class UHorizontalBox;
 class UImage;
+class UScrollBox;
+class USizeBox;
 class UTexture2D;
 class UInventoryComponent;
 class ULoadoutComponent;
@@ -406,6 +408,16 @@ private:
 	TObjectPtr<UTextBlock> HintsText;
 	UPROPERTY(Transient)
 	TObjectPtr<UVerticalBox> ListBox;
+	/** Crown (2026-11-18): a list longer than its panel scrolls inside it. ListScroll holds ListBox; ListSizer caps the
+	 *  panel at ListArea's height (the space between the header and the footer), read once the screen has been drawn. */
+	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> ListScroll;
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> ListSizer;
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> ListArea;
+	/** The selection and list the view was last scrolled to (RefreshView), so only a change scrolls it. */
+	uint32 ScrolledViewKey = 0;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> LineRows;
 	UPROPERTY(Transient)
