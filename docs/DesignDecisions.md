@@ -1242,6 +1242,12 @@ The queue of questions only Crown can answer.
 - **Lore is untouched:** story, dialogue, quest and journal text, names, flavour lines.
 **Left open by the audit itself** (it gives no single answer; Crown's call when it comes up): Secret quest or Hidden quest (the code says Secret); Perfect Dodge / Perfect Guard beside Flawless Parry; the New Game heading (lore).
 
+### D-245 — What a new character picks at the start goes into its inventory
+**Status:** ANSWERED in outline (Crown, 2026-11-18) · not built · **Raised:** 2026-11-18, from Crown's PIE pass of a new Generic
+**Answer (Crown):** "when we pick our starting gear/spells we should put it in inventory on a new character". So the weapons, rings and spells picked on the new-game screen (D-228) are **owned by the new character and show in its inventory** from the first moment in the hub, not only worn or only handed over at trial entry.
+**What happens today (log, 2026-11-18):** the new character's inventory starts with 0 weapons, 0 rings, 0 spells; its starting gear is minted and worn (D-223, 2 pieces) and the hub pawn "draws the shared armoury"; the picked weapons and the starting spell are given when a trial is entered (D-221 class kit, D-224 run skills). The Code Writer is to report exactly where each pick lives today before anything is changed.
+**Open (Crown):** whether the picks are also worn at once or only owned; whether they sit in the character's own inventory or the shared pool (D-219 / D-221); whether the trial-entry kit is then made from the inventory.
+
 ### D-244 — A melee weapon's basic attack goes to the enemy; a leap is the look wanted later
 **Status:** ANSWERED (Crown, 2026-11-18) · not built · **Raised:** 2026-11-18, from Crown's PIE pass of the Generic in the trial
 **Answer (Crown):** asked whether basic attacks should run to the enemy or stay in place: "yeah for melee weapons at least". And: "ideally i would like a leap for the movement but thats for another day". So a **melee weapon's basic attack travels to its target**; ranged weapons and spells are not ruled on. The travel is a **leap** in the end, not built now. This changes the old default that a standard attack stays in place (CLAUDE.md, Animations): in place is now the default only where no travel is ruled.
