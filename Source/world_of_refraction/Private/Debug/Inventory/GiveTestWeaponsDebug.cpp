@@ -54,21 +54,21 @@ FString WoRGiveTestWeapons::GiveTestWeapons(UWorld *World)
 		return TEXT("a run is open: weapons given now would be run-only; use it in the hub");
 	}
 
-	TArray<UWeaponData *> Weapons;
-	for (const TCHAR *Path : TEST_WEAPON_PATHS)
+	TArray<FString> Lines;
+	int32 Total = 0;
+	int32 Asked = 0;
+	for (const FTestWeapon &Entry : TEST_WEAPONS)
 	{
-		if (UWeaponData *Weapon = LoadObject<UWeaponData>(nullptr, Path))
+		Asked += Entry.Count;
+		if (UWeaponData *Weapon = LoadObject<UWeaponData>(nullptr, Entry.Path))
 		{
-			Weapons.Add(Weapon);
+			Total += GiveWeapons(*Inventory, {Weapon}, Entry.Count, Lines);
 		}
 		else
 		{
-			UE_LOG(LogWoR, Warning, TEXT("[GiveTestWeapons] %s is not a weapon asset - skipped"), Path);
+			UE_LOG(LogWoR, Warning, TEXT("[GiveTestWeapons] %s is not a weapon asset - skipped"), Entry.Path);
 		}
 	}
-
-	TArray<FString> Lines;
-	const int32 Total = GiveWeapons(*Inventory, Weapons, COUNT_EACH, Lines);
 	for (const FString &Line : Lines)
 	{
 		if (Line.EndsWith(TEXT("(REFUSED)")))
@@ -80,7 +80,6 @@ FString WoRGiveTestWeapons::GiveTestWeapons(UWorld *World)
 			UE_LOG(LogWoR, Log, TEXT("[GiveTestWeapons] %s"), *Line);
 		}
 	}
-	const int32 Asked = UE_ARRAY_COUNT(TEST_WEAPON_PATHS) * COUNT_EACH;
 	return FString::Printf(TEXT("%d of %d test weapon(s) given%s"), Total, Asked, Total < Asked ? TEXT(" - see the [GiveTestWeapons] warnings in the log") : TEXT(""));
 }
 
@@ -89,7 +88,7 @@ namespace
 {
 	FAutoConsoleCommandWithWorld GGiveTestWeaponsCmd(
 		TEXT("wor.Debug.GiveTestWeapons"),
-		TEXT("DEBUG: gives the played character 2 each of the test weapons (sword, shield, hand axe, bearded axe) as home gear. Hub only."),
+		TEXT("DEBUG: gives the played character the test weapons (2 each of swords, greatswords, axes, shields, bows, guns: 12) as home gear. Hub only."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
