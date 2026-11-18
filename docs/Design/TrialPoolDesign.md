@@ -123,7 +123,7 @@ This covers everything in the inventory (weapons, adapters, evolutions, crystals
 | **Used in the field** | Used on an enemy before the fight. Costs EP. It shows the full kit of the enemy it is used on, and remembers the type's shared part for the run |
 | **Always on** | Once owned, enemies show their gear as the player gets close |
 
-No such skill exists today. Default: the card shows no rank word, since "Elite", "Mini-boss" and "Boss" are never shown to the player (D-187).
+**Built (B-572), the field variation's rule:** a skill carries it (`USkillDataBase::KitSight`); used near an enemy it costs EP and shows the run's rolled kit on the card (`TrialKitSight`, placeholder `wor.Trial.InspectEnemy`). The key, the always-on look and the skill assets are Q-572. No skill asset has it yet. Default: the card shows no rank word, since "Elite", "Mini-boss" and "Boss" are never shown to the player (D-187).
 
 ## 8. Worked examples
 
@@ -216,3 +216,4 @@ None open. The earlier ones are settled by D-225's "Gaps closed after the rewrit
 | 2026-11-17 | B-569 stage 5 built: drops (one per player, 3 to 1, worn tier, empty, no grade roll); build note 1 done (ER-38's row) | `feature/B-569-trial-drops` |
 | 2026-11-18 | B-570 stage 6 built for weapons: the three choices on the trial map; a known skill converts; build note 2 (ER-20) left as it is, see Q-570 | `feature/B-570-trial-duplicates` |
 | 2026-11-18 | B-571 stage 7 built: a trial vendor's shelf is half its own list, half the trial's pool | `feature/B-571-trial-merchant` |
+| 2026-11-18 | B-572 stage 8, the field variation's rule built; the rest in Q-572 | `feature/B-572-kit-sight` |
