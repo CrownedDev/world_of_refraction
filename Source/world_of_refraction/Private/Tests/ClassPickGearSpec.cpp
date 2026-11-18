@@ -97,6 +97,23 @@ void FClassPickGearSpec::Define()
 				 Refractor.Pieces[WornGearLayout::PRIMARY_INDEX].Piece == BaseWeapon);
 	});
 
+	It("lays two picked weapons over a class kit of one piece (the list grows for the second place)", [this]()
+	{
+		// The Generic trial-entry crash: growing the list for the second place moved the first, and the picks were
+		// written through the old reference into freed memory.
+		FClassDefaultLoadout Base;
+		Base.Pieces.SetNum(WornGearLayout::PRIMARY_INDEX + 1);
+		Base.Pieces[WornGearLayout::PRIMARY_INDEX].Piece = BaseWeapon;
+		Base.Pieces[WornGearLayout::PRIMARY_INDEX].OffHand = Shield;
+		FPlayerPicks Picks = MakePicks(ECharacterClass::Generic);
+		Picks.Weapons = {EWeaponType::Sword, EWeaponType::Axe};
+		const FClassDefaultLoadout Kit = Table->MakePickedGear(Picks, &Base);
+		TestEqual(TEXT("both weapon places"), Kit.Pieces.Num(), WornGearLayout::SECONDARY_INDEX + 1);
+		TestTrue(TEXT("the first pick replaces the kit's weapon, with no off hand"),
+				 Kit.Pieces[WornGearLayout::PRIMARY_INDEX].Piece == Sword && !Kit.Pieces[WornGearLayout::PRIMARY_INDEX].OffHand);
+		TestTrue(TEXT("the second pick takes the second place"), Kit.Pieces[WornGearLayout::SECONDARY_INDEX].Piece == Axe);
+	});
+
 	It("gives a Resonator two empty adapters and 3 F-tier crystals of each picked type", [this]()
 	{
 		FPlayerPicks Picks = MakePicks(ECharacterClass::Resonator);
