@@ -10,6 +10,46 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "GameFramework/Character.h"
+#include "HAL/IConsoleManager.h"
+#include "UObject/UObjectIterator.h"
+
+const FName UWeaponMeshComponent::RIGHT_GRIP_SOCKET(TEXT("hand_r_grip"));
+const FName UWeaponMeshComponent::LEFT_GRIP_SOCKET(TEXT("hand_l_grip"));
+const FName UWeaponMeshComponent::LEFT_SHIELD_SOCKET(TEXT("hand_l_shield"));
+const FName UWeaponMeshComponent::RIGHT_SHIELD_SOCKET(TEXT("hand_r_shield"));
+
+namespace
+{
+    bool GUseGripSockets = true;
+    FAutoConsoleVariableRef CVarUseGripSockets(
+        TEXT("wor.Weapons.UseGrip"), GUseGripSockets,
+        TEXT("D-242: 1 (default) attaches weapons to hand_r_grip / hand_l_grip and shields to hand_l_shield / hand_r_shield; "
+             "0 uses the older per-type sockets (hand_r_sword, hand_l_axe, hand_l_sas...). Changing it rebuilds every weapon mesh."),
+        FConsoleVariableDelegate::CreateLambda([](IConsoleVariable *)
+        {
+            for (TObjectIterator<UWeaponMeshComponent> It; It; ++It)
+            {
+                if (It->HasBegunPlay())
+                {
+                    It->RefreshWeaponMesh();
+                }
+            }
+        }));
+
+    FAutoConsoleCommandWithWorld GPrintWeaponSocketsCommand(
+        TEXT("wor.Weapons.PrintSockets"),
+        TEXT("DEBUG (D-242): for every character showing a weapon, the socket each hand uses and the body mesh."),
+        FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
+        {
+            for (TObjectIterator<UWeaponMeshComponent> It; It; ++It)
+            {
+                if (It->GetWorld() == World && It->HasBegunPlay())
+                {
+                    UE_LOG(LogTemp, Display, TEXT("%s"), *It->GetSocketString());
+                }
+            }
+        }));
+}
 
 UWeaponMeshComponent::UWeaponMeshComponent()
 {
@@ -67,7 +107,88 @@ USkeletalMeshComponent *UWeaponMeshComponent::GetOwnerMesh() const
     return Owner->FindComponentByClass<USkeletalMeshComponent>();
 }
 
-FName UWeaponMeshComponent::GetRightSocketForWeapon(const UWeaponData *Weapon) const
+FName UWeaponMeshComponent::GetGripSocket(bool bRightHand, bool bShield)
+{
+    if (bShield)
+    {
+        return bRightHand ? RIGHT_SHIELD_SOCKET : LEFT_SHIELD_SOCKET;
+    }
+    return bRightHand ? RIGHT_GRIP_SOCKET : LEFT_GRIP_SOCKET;
+}
+
+bool UWeaponMeshComponent::IsShieldInHand(const UWeaponData &Piece, bool bRightHand)
+{
+    return Piece.WeaponType == EWeaponType::Shield || (!bRightHand && Piece.WieldMode == EWeaponWieldMode::OffHandShield);
+}
+
+FName UWeaponMeshComponent::ChooseSocket(const UWeaponData &Piece, bool bRightHand, bool bUseGrip, TFunctionRef<bool(FName)> HasSocket, bool &bOutFellBack)
+{
+    bOutFellBack = false;
+    const bool bShield = IsShieldInHand(Piece, bRightHand);
+    const FName Grip = GetGripSocket(bRightHand, bShield);
+    if (bUseGrip && HasSocket(Grip))
+    {
+        return Grip;
+    }
+    bOutFellBack = bUseGrip;
+    // The older per-type sockets. A shield's is the one left-hand shield socket, in either hand.
+    return bShield || !bRightHand ? GetLeftSocketForWeapon(&Piece) : GetRightSocketForWeapon(&Piece);
+}
+
+bool UWeaponMeshComponent::UsesGripSockets()
+{
+    return GUseGripSockets;
+}
+
+FName UWeaponMeshComponent::ResolveSocket(const UWeaponData *Piece, bool bRightHand)
+{
+    FName &Used = bRightHand ? RightSocketUsed : LeftSocketUsed;
+    Used = NAME_None;
+    const USkeletalMeshComponent *Body = GetOwnerMesh();
+    if (!Piece || !Body)
+    {
+        return Used;
+    }
+    bool bFellBack = false;
+    Used = ChooseSocket(*Piece, bRightHand, UsesGripSockets(), [Body](FName Socket) { return Body->DoesSocketExist(Socket); }, bFellBack);
+    const FName Wanted = GetGripSocket(bRightHand, IsShieldInHand(*Piece, bRightHand));
+    if (bFellBack && !WarnedMissingSockets.Contains(Wanted))
+    {
+        WarnedMissingSockets.Add(Wanted);
+        UE_LOG(LogTemp, Warning, TEXT("[WeaponMeshComponent] %s: %s has no socket %s; %s uses the older socket %s (D-242)"), *GetNameSafe(GetOwner()),
+               *GetNameSafe(Body->GetSkeletalMeshAsset()), *Wanted.ToString(), *GetNameSafe(Piece), *Used.ToString());
+    }
+    return Used;
+}
+
+void UWeaponMeshComponent::RefreshWeaponMesh()
+{
+    WarnedMissingSockets.Reset(); // the body or its sockets may have changed: warn afresh
+    ClearWeaponMesh();
+    UpdateWeaponMesh();
+}
+
+FString UWeaponMeshComponent::GetSocketString() const
+{
+    const USkeletalMeshComponent *Body = GetOwnerMesh();
+    const auto Hand = [](FName Socket)
+    {
+        if (Socket.IsNone())
+        {
+            return FString(TEXT("none"));
+        }
+        const bool bGrip = Socket == RIGHT_GRIP_SOCKET || Socket == LEFT_GRIP_SOCKET || Socket == LEFT_SHIELD_SOCKET || Socket == RIGHT_SHIELD_SOCKET;
+        return FString::Printf(TEXT("%s (%s)"), *Socket.ToString(), bGrip ? TEXT("grip") : TEXT("older socket"));
+    };
+    return FString::Printf(TEXT("[WeaponSockets] %s: %s%s on %s: right %s, left %s"), *GetNameSafe(GetOwner()),
+                           CachedWeapon ? *GetNameSafe(CachedWeapon) : TEXT("no weapon"), CachedOffHand ? *(TEXT(" + ") + GetNameSafe(CachedOffHand)) : TEXT(""),
+                           Body ? *GetNameSafe(Body->GetSkeletalMeshAsset()) : TEXT("no body mesh"),
+                           // A hand with no mesh shown (a weapon with none assigned) names no socket.
+                           *Hand(IsValid(PrimaryStaticMeshComp) || IsValid(PrimarySkeletalMeshComp) ? RightSocketUsed : FName()),
+                           *Hand(IsValid(SecondaryStaticMeshComp) || IsValid(SecondarySkeletalMeshComp) ? LeftSocketUsed : FName()));
+}
+
+FName UWeaponMeshComponent::GetRightSocketForWeapon(const UWeaponData *Weapon)
 {
     if (!Weapon)
     {
@@ -92,7 +213,7 @@ FName UWeaponMeshComponent::GetRightSocketForWeapon(const UWeaponData *Weapon) c
     }
 }
 
-FName UWeaponMeshComponent::GetLeftSocketForWeapon(const UWeaponData *Weapon) const
+FName UWeaponMeshComponent::GetLeftSocketForWeapon(const UWeaponData *Weapon)
 {
     if (!Weapon)
     {
@@ -201,7 +322,7 @@ void UWeaponMeshComponent::SpawnWeaponMesh(UWeaponData *Weapon)
         return;
     }
 
-    const FName RightSocket = GetRightSocketForWeapon(Weapon);
+    const FName RightSocket = ResolveSocket(Weapon, /*bRightHand=*/true); // D-242: the grip, else the older per-type socket
     if (RightSocket.IsNone())
     {
         UE_LOG(LogTemp, Warning,
@@ -260,8 +381,8 @@ void UWeaponMeshComponent::SpawnDualWeaponMesh(UWeaponData *Weapon)
         return;
     }
 
-    const FName RightSocket = GetRightSocketForWeapon(Weapon);
-    const FName LeftSocket = GetLeftSocketForWeapon(Weapon);
+    const FName RightSocket = ResolveSocket(Weapon, /*bRightHand=*/true); // D-242
+    const FName LeftSocket = ResolveSocket(Weapon, /*bRightHand=*/false);
     const FAttachmentTransformRules AttachRules =
         FAttachmentTransformRules::SnapToTargetNotIncludingScale;
 
@@ -351,7 +472,7 @@ UWeaponData *UWeaponMeshComponent::GetOffHandPiece(const UWeaponData *ActiveWeap
 void UWeaponMeshComponent::SpawnOffHandMesh(UWeaponData *OffHand)
 {
     USkeletalMeshComponent *OwnerMesh = GetOwnerMesh();
-    const FName LeftSocket = OffHand ? GetLeftSocketForWeapon(OffHand) : NAME_None;
+    const FName LeftSocket = OffHand ? ResolveSocket(OffHand, /*bRightHand=*/false) : NAME_None; // D-242
     if (!OwnerMesh || LeftSocket.IsNone())
     {
         return;
@@ -417,6 +538,8 @@ void UWeaponMeshComponent::ClearWeaponMesh()
 
     CachedWeapon = nullptr;
     CachedOffHand = nullptr;
+    RightSocketUsed = NAME_None;
+    LeftSocketUsed = NAME_None;
 }
 
 void UWeaponMeshComponent::DebugLogMeshState()
@@ -437,10 +560,12 @@ void UWeaponMeshComponent::DebugLogMeshState()
     UE_LOG(LogTemp, Display, TEXT("Secondary Skeletal: %s"),
            SecondarySkeletalMeshComp ? TEXT("Spawned") : TEXT("None"));
 
-    // Sockets derived from the weapon's EWeaponType (and WieldMode for the left hand).
-    UE_LOG(LogTemp, Display, TEXT("Derived Right Socket: %s"),
+    // D-242: the sockets in use (the grip ones, or the older per-type fallback).
+    UE_LOG(LogTemp, Display, TEXT("%s"), *GetSocketString());
+    // The older sockets derived from the weapon's EWeaponType (and WieldMode for the left hand).
+    UE_LOG(LogTemp, Display, TEXT("Older Right Socket: %s"),
            *GetRightSocketForWeapon(CachedWeapon).ToString());
-    UE_LOG(LogTemp, Display, TEXT("Derived Left Socket: %s"),
+    UE_LOG(LogTemp, Display, TEXT("Older Left Socket: %s"),
            *GetLeftSocketForWeapon(CachedWeapon).ToString());
 
     UE_LOG(LogTemp, Display, TEXT("Mesh Rotation (right): %s"),

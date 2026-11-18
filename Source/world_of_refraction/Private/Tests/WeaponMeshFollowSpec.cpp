@@ -144,6 +144,72 @@ void FWeaponMeshFollowSpec::Define()
 		Mesh->DestroyComponent();
 		TestFalse(TEXT("Unbound"), Loadout->OnActiveWeaponChanged.IsBound());
 	});
+
+	Describe("the socket each hand uses (D-242)", [this]()
+	{
+		const auto Typed = [](EWeaponType Type, EWeaponWieldMode Mode = EWeaponWieldMode::Single)
+		{
+			UWeaponData *Piece = NewObject<UWeaponData>(GetTransientPackage());
+			Piece->WeaponType = Type;
+			Piece->WieldMode = Mode;
+			return Piece;
+		};
+		const auto Every = [](FName) { return true; };  // a body with every socket
+		const auto NoGrips = [](FName) { return false; }; // a body with none of the D-242 sockets
+		constexpr bool RIGHT = true;
+		constexpr bool LEFT = false;
+		constexpr bool USE_GRIP = true;
+
+		It("puts every right-hand weapon type on hand_r_grip and an off-hand weapon on hand_l_grip", [this, Typed, Every]()
+		{
+			bool bFellBack = true;
+			for (const EWeaponType Type : {EWeaponType::Sword, EWeaponType::Axe, EWeaponType::Greatsword, EWeaponType::Dagger})
+			{
+				TestEqual(TEXT("right hand: the grip"), UWeaponMeshComponent::ChooseSocket(*Typed(Type), RIGHT, USE_GRIP, Every, bFellBack),
+						  UWeaponMeshComponent::RIGHT_GRIP_SOCKET);
+				TestFalse(TEXT("no fallback"), bFellBack);
+				TestEqual(TEXT("left hand: the grip"), UWeaponMeshComponent::ChooseSocket(*Typed(Type, EWeaponWieldMode::Dual), LEFT, USE_GRIP, Every, bFellBack),
+						  UWeaponMeshComponent::LEFT_GRIP_SOCKET);
+			}
+		});
+
+		It("puts a shield on its own point in either hand", [this, Typed, Every]()
+		{
+			bool bFellBack = true;
+			TestEqual(TEXT("a shield piece, left"), UWeaponMeshComponent::ChooseSocket(*Typed(EWeaponType::Shield), LEFT, USE_GRIP, Every, bFellBack),
+					  UWeaponMeshComponent::LEFT_SHIELD_SOCKET);
+			TestEqual(TEXT("a shield piece, right"), UWeaponMeshComponent::ChooseSocket(*Typed(EWeaponType::Shield), RIGHT, USE_GRIP, Every, bFellBack),
+					  UWeaponMeshComponent::RIGHT_SHIELD_SOCKET);
+			const UWeaponData *Baked = Typed(EWeaponType::Sword, EWeaponWieldMode::OffHandShield); // the older sword with its shield baked in
+			TestEqual(TEXT("a baked shield, left"), UWeaponMeshComponent::ChooseSocket(*Baked, LEFT, USE_GRIP, Every, bFellBack),
+					  UWeaponMeshComponent::LEFT_SHIELD_SOCKET);
+			TestEqual(TEXT("its sword, right: the grip"), UWeaponMeshComponent::ChooseSocket(*Baked, RIGHT, USE_GRIP, Every, bFellBack),
+					  UWeaponMeshComponent::RIGHT_GRIP_SOCKET);
+		});
+
+		It("falls back to the older per-type socket when the body has no D-242 socket, and says so", [this, Typed, NoGrips]()
+		{
+			bool bFellBack = false;
+			TestEqual(TEXT("sword, right"), UWeaponMeshComponent::ChooseSocket(*Typed(EWeaponType::Sword), RIGHT, USE_GRIP, NoGrips, bFellBack), FName(TEXT("hand_r_sword")));
+			TestTrue(TEXT("fell back"), bFellBack);
+			TestEqual(TEXT("axe, left"), UWeaponMeshComponent::ChooseSocket(*Typed(EWeaponType::Axe, EWeaponWieldMode::Dual), LEFT, USE_GRIP, NoGrips, bFellBack),
+					  FName(TEXT("hand_l_axe")));
+			TestEqual(TEXT("shield, left"), UWeaponMeshComponent::ChooseSocket(*Typed(EWeaponType::Shield), LEFT, USE_GRIP, NoGrips, bFellBack), FName(TEXT("hand_l_sas")));
+			TestEqual(TEXT("shield, right: the one older shield socket"), UWeaponMeshComponent::ChooseSocket(*Typed(EWeaponType::Shield), RIGHT, USE_GRIP, NoGrips, bFellBack),
+					  FName(TEXT("hand_l_sas")));
+			TestTrue(TEXT("fell back"), bFellBack);
+		});
+
+		It("uses the older sockets when the switch is off, with no fallback warning", [this, Typed, Every]()
+		{
+			bool bFellBack = true;
+			TestEqual(TEXT("greatsword, right"), UWeaponMeshComponent::ChooseSocket(*Typed(EWeaponType::Greatsword), RIGHT, !USE_GRIP, Every, bFellBack),
+					  FName(TEXT("hand_r_greatsword")));
+			TestFalse(TEXT("the switch, not a missing socket"), bFellBack);
+			TestEqual(TEXT("shield, left"), UWeaponMeshComponent::ChooseSocket(*Typed(EWeaponType::Shield), LEFT, !USE_GRIP, Every, bFellBack), FName(TEXT("hand_l_sas")));
+			TestTrue(TEXT("the switch starts on"), UWeaponMeshComponent::UsesGripSockets());
+		});
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

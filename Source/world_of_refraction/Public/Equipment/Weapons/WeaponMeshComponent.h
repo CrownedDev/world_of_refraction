@@ -45,10 +45,39 @@ public:
     UFUNCTION(BlueprintPure, Category = "Weapon Mesh")
     UStaticMeshComponent *GetPrimaryStaticMeshComp() const { return PrimaryStaticMeshComp; }
 
+    // ==================== SOCKETS (D-242) ====================
+    // One hold per hand on every body, and each weapon made to fit it; a shield has its own point in either hand. The
+    // older per-type sockets (hand_r_sword, hand_l_axe, hand_l_sas...) stay as the fallback and behind the switch
+    // wor.Weapons.UseGrip (default on) until the grip path is proven in PIE.
+    static const FName RIGHT_GRIP_SOCKET;
+    static const FName LEFT_GRIP_SOCKET;
+    static const FName LEFT_SHIELD_SOCKET;
+    static const FName RIGHT_SHIELD_SOCKET;
+
+    /** The D-242 socket for a piece in that hand: the hand's grip, or its shield point for a shield. */
+    static FName GetGripSocket(bool bRightHand, bool bShield);
+
+    /** Piece is a shield in that hand: a shield piece, or (left hand) the shield baked into an OffHandShield weapon. */
+    static bool IsShieldInHand(const UWeaponData &Piece, bool bRightHand);
+
+    /** The socket Piece attaches to in that hand: the D-242 one when bUseGrip and HasSocket finds it on the body,
+     *  else the older per-type one (a shield's: hand_l_sas). bOutFellBack: the D-242 socket was wanted and missing. */
+    static FName ChooseSocket(const UWeaponData &Piece, bool bRightHand, bool bUseGrip, TFunctionRef<bool(FName)> HasSocket, bool &bOutFellBack);
+
+    /** wor.Weapons.UseGrip. */
+    static bool UsesGripSockets();
+
+    /** Rebuilds the weapon meshes (the switch changed, or a socket was added to the body). */
+    void RefreshWeaponMesh();
+
     // ==================== DEBUG ====================
 
     UFUNCTION(BlueprintCallable, Category = "Debug", CallInEditor)
     void DebugLogMeshState();
+
+    /** One line: the owner, the weapon shown, the body mesh, and for each hand the socket used and whether it is the
+     *  D-242 one or the older fallback. Console: wor.Weapons.PrintSockets. */
+    FString GetSocketString() const;
 
 protected:
     virtual void BeginPlay() override;
@@ -75,12 +104,19 @@ private:
 
     /** Resolve the right-hand attachment socket from the weapon's WeaponType.
      *  Returns NAME_None (and logs an Error) for an unmapped type. */
-    FName GetRightSocketForWeapon(const UWeaponData *Weapon) const;
+    static FName GetRightSocketForWeapon(const UWeaponData *Weapon);
 
     /** Resolve the left-hand attachment socket. OffHandShield short-circuits to
      *  hand_l_sas; otherwise derived from WeaponType. Returns NAME_None (and
      *  logs an Error) for an unmapped type. */
-    FName GetLeftSocketForWeapon(const UWeaponData *Weapon) const;
+    static FName GetLeftSocketForWeapon(const UWeaponData *Weapon);
+
+    /** D-242: the socket Piece goes in on this body (ChooseSocket), remembered for the debug print; warns once per
+     *  missing D-242 socket. */
+    FName ResolveSocket(const UWeaponData *Piece, bool bRightHand);
+    FName RightSocketUsed;
+    FName LeftSocketUsed;
+    TSet<FName> WarnedMissingSockets;
 
     // ==================== CACHED REFERENCES ====================
 
