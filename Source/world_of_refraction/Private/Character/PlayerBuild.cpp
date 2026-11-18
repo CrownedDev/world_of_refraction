@@ -16,6 +16,8 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryData.h"
 #include "Loadout/ClassDefaultLoadoutData.h"
+#include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -109,6 +111,24 @@ UInventoryData *WoRPlayerBuild::MakeInventory(const FPlayerPicks &Picks, const U
 	// Minted once, on the first draw or trial (UPoolSubsystem::SeedStartingGear); the crystals banked once (BankStartingItems).
 	Inventory->StartingGear = Table.MakePickedGear(Picks, /*Base=*/nullptr);
 	Inventory->CrystalStock = UClassDefaultLoadoutData::GetPickedCrystals(Picks);
+	// D-245: the class's starting skills are the new character's own from the first moment in the hub (known, not put
+	// in a slot: D-224, Q9). A run still starts its list from the kit's (UTrialRunSubsystem, BeginKitRunSkills).
+	// The player's own character only (Q-245): a guest's skills are its own save's and are handed back when it leaves
+	// (B-564), and a hub recruit keeps its fixed row.
+	if (const FClassDefaultLoadout *ClassKit = Picks.bGuest || Picks.bRecruit ? nullptr : Table.Defaults.Find(Picks.Class))
+	{
+		for (USkillDataBase *Skill : ClassKit->StartingSkills)
+		{
+			if (USpellData *Spell = Cast<USpellData>(Skill))
+			{
+				Inventory->Spells.AddUnique(Spell);
+			}
+			else if (UAbilityData *Ability = Cast<UAbilityData>(Skill))
+			{
+				Inventory->Abilities.AddUnique(Ability);
+			}
+		}
+	}
 	// The innate list and pools a pawn's first draw reads: the inventory's active authored loadout.
 	FSavedLoadout Loadout;
 	Loadout.LoadoutName = TEXT("Innate");
