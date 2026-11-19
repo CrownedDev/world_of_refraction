@@ -76,6 +76,8 @@ Crown: moving and clicking "feels stiff when it should feel responsive". Rules f
 | Scroll follows focus smoothly | 100-150 ms glide, no jump | |
 | A move redraws only what changed | the old and new item, the card | a per-step hitch reads as stiff |
 
+**Built (`feature/ui-feel-step1`, not yet seen in PIE):** on the merged Inventory / Loadout screen: the light redraw on a move, the card placed the same frame, our own hold-to-repeat, the highlight fade, the pressed dip, gliding scroll, and the four sound cues (soft references in `DefaultGame.ini`, silent until set). The timings are `WoRMenuFeel` in `UI/Menus/MenuFeel.h`. Not yet: panels sliding in and out (the loadout coming in), the optional pop, and the other menus.
+
 **Sounds (Crown, 2026-11-20: use the deckbuilder's for now):** Stormwave Audio's Glass Sound Effects Vol. I (bought by Crown 2026-10-13, commercial use allowed, raw files never redistributed): "Glass Clink 15" for presses and moves (starts at 0.125 s), "Small Glass Break 3" for confirm, as in the deckbuilder's `UiSound.cs`. Back and refused cues: picked when wired. Crown may replace them later.
 
 
