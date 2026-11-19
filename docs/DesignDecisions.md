@@ -1256,7 +1256,7 @@ The queue of questions only Crown can answer.
 **Approved by the reference-backed default (Crown vetoes):** (1) pieces that don't fit the focused slot stay in the grid, greyed with a lock, the reason in the card (Diablo IV and Baldur's Gate 3 show unusable items greyed rather than hiding them); (2) pictures are one per weapon type for now, one per weapon later from renders of the models; (3) Inventory's Equip asks which weapon set and hand, and equips without leaving the page (Baldur's Gate 3 equips from the inventory in place).
 **Open (Crown):** keep the loadout screen's own Inventory tab (D-230) or fold it into Equipment's grid; whether Equipment adds a character preview later; Give and Store may need building.
 **Name rows (Crown):** a piece is written as its name, and under it its type with the tier in brackets, no tier badge: "Simple Sword" / "Sword (F)" ("we dont need an icon").
-**Build order:** one piece at a time with Crown's look at each: the grid, then the card, then the buttons.
+**Build order:** one piece at a time with Crown's look at each: the grid, then the card, then the buttons. **Built:** step 1, the grid (`feature/D-248-grid-step1`, 2026-11-19, not yet seen in PIE; sheet `docs/PIE/D-248-grid-step1.md`).
 
 ### D-247 — Bows and guns use no ammunition: the arrow or bullet is part of the attack
 **Status:** ANSWERED (Crown, 2026-11-18: "agreed") · not built · **Raised:** 2026-11-18, after D-246 was dropped
