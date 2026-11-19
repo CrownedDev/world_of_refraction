@@ -459,7 +459,7 @@ FReply UGateScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKe
 	{
 		// Over this screen: Back returns here.
 		if (bFresh && !(IsToggleKey(Key) ? static_cast<UObject *>(UPartyScreenWidget::Open(GetOwningPlayer()))
-										  : static_cast<UObject *>(ULoadoutV2ScreenWidget::Open(GetOwningPlayer()))))
+										  : static_cast<UObject *>(ULoadoutV2ScreenWidget::OpenWithLoadout(GetOwningPlayer())))) // D-249: the loadout in
 		{
 			UE_LOG(LogWoRUI, Warning, TEXT("[GateScreen] the %s screen didn't open"), IsToggleKey(Key) ? TEXT("party") : TEXT("loadout"));
 		}

@@ -28,6 +28,8 @@ namespace WoRLoadoutV2Grid
 {
 	/** Tiles in a row (the mockup's ten: step 2 gave the grid the details box's width). */
 	constexpr int32 COLUMNS = 10;
+	/** D-249: tiles in a row when the grid has the whole screen's width (the inventory alone, the loadout closed). */
+	constexpr int32 COLUMNS_WIDE = 14;
 
 	/** The filter tabs after All: each weapon type present, once, in the enum's order. */
 	WORLD_OF_REFRACTION_API TArray<EWeaponType> GetTypesPresent(TConstArrayView<EWeaponType> Types);

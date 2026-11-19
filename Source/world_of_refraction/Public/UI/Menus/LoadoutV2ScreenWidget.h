@@ -34,6 +34,7 @@
 
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
+#include "UI/Menus/InventoryScreenModel.h"
 #include "UI/Menus/LoadoutSavedModel.h"
 #include "UI/Menus/LoadoutV2GridModel.h"
 #include "UI/Menus/LoadoutV2InventoryModel.h"
@@ -196,6 +197,38 @@ public:
 	/** B, Esc: one step back (the name box, the saved list, the ask, the list, the window, Options), else closes the screen. */
 	void PressBack() { HandleBackAction(); }
 
+	// D-249 piece 1: Inventory and Loadout are one screen. The inventory is home: the Gear / Pouch / Chest tabs and
+	// their things in the grid (read from the inventory screen's model, WoRInventoryScreen), the lit tile's details in
+	// the card. Y (and a click on the Loadout button, top right) brings the loadout in on the left and the grid narrows;
+	// Y again closes it. Left off the grid's first column goes to the loadout's side, Right from its list comes back.
+	// The specs call these too.
+	/** Opens the screen with the loadout already in and the keys on its side (the game menu's Loadout page, the Gate). */
+	static ULoadoutV2ScreenWidget *OpenWithLoadout(APlayerController *PC);
+	bool IsLoadoutOpen() const { return bLoadoutOpen; }
+	/** The keys are on the inventory's side (its tiles, or its filter row). */
+	bool IsOnInventorySide() const { return !bOnLoadoutSide; }
+	/** Y on the inventory's side, or the Loadout button: the loadout in or out. Refused while the loadout is in the
+	 *  middle of something (Options, a window, a slot's list): finish or leave that first. */
+	void ToggleLoadout();
+	/** The keys go to the loadout's side (it must be open) or back to the inventory's (the loadout must be at a tab's
+	 *  top level). False when they can't. */
+	bool FocusLoadoutSide();
+	bool FocusInventorySide();
+	/** The arrows on the inventory's side: tile to tile; Up off the top row reaches the filter row (Left / Right pick,
+	 *  Down returns); Left off the first column goes to the loadout's side when it is open. */
+	void MoveInventoryTile(int32 DeltaX, int32 DeltaY);
+	/** LB / RB on the inventory's side: Gear, Pouch, Chest, in a ring. */
+	void MoveInventoryTab(int32 Delta);
+	/** The View button / H on the inventory's side: the next sort. */
+	void CycleInventorySort();
+	EInventoryScreenTab GetInventoryTab() const { return InvTab; }
+	EInventoryScreenSort GetInventorySort() const { return InvSort; }
+	int32 GetInventoryTile() const { return InvSelected; }
+	bool IsOnInventoryFilters() const { return bOnInvFilters; }
+	const FInventoryScreenPage &GetInventorySide() const { return InvPage; }
+	/** Tiles to a row: fewer while the loadout is in. */
+	int32 GetGridColumns() const { return bLoadoutOpen ? WoRLoadoutV2Grid::COLUMNS : WoRLoadoutV2Grid::COLUMNS_WIDE; }
+
 	// D-248 step 1: the picture grid (WoRLoadoutV2Grid), shown while a weapon slot (Main hand, Off hand) is being filled:
 	// the entry's slots stay in the list on the left, the choices are tiles beside it. The specs call these too.
 	bool IsGridOpen() const;
@@ -307,6 +340,42 @@ private:
 
 	// Options.
 	void SelectOption();
+
+	// D-249 piece 1: the inventory's side.
+	/** The loadout is at a tab's top level (its entries, the Skills tab's entries): the only place the keys may leave it. */
+	bool IsLoadoutAtTopLevel() const { return Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries; }
+	/** The grid shows the inventory's tab (always, but while a weapon slot is being filled: then it shows its choices). */
+	bool IsInventoryGrid() const { return !IsGridOpen(); }
+	/** The inventory's page for the shown member, tab, filter and sort, read fresh. */
+	void RefreshInventorySide();
+	/** The inventory's tiles as grid tiles (FInventoryScreenTile to FLoadoutV2GridTile). */
+	TArray<FLoadoutV2GridTile> GetInventoryTiles() const;
+	/** The tile the card shows on the inventory's side: the one under the mouse, else the lit one. */
+	int32 GetInventoryBoxTile() const { return InvPage.Tiles.IsValidIndex(HoveredInvTile) ? HoveredInvTile : InvSelected; }
+	/** The inventory's side has the card: the keys are there and no slot is being filled. */
+	bool IsInventoryBox() const { return !bOnLoadoutSide && IsInventoryGrid(); }
+	void SelectInventoryTab(EInventoryScreenTab NewTab);
+	void SelectInventoryFilter(int32 Index);
+	bool bLoadoutOpen = false;
+	bool bOnLoadoutSide = false;
+	bool bOnInvFilters = false;
+	EInventoryScreenTab InvTab = EInventoryScreenTab::Gear;
+	EInventoryScreenFilter InvFilter = EInventoryScreenFilter::All;
+	EInventoryScreenSort InvSort = EInventoryScreenSort::Kind;
+	TArray<EInventoryScreenFilter> InvFilters;
+	FInventoryScreenPage InvPage;
+	int32 InvSelected = 0;
+	int32 HoveredInvTile = INDEX_NONE;
+	int32 HoveredInvTab = INDEX_NONE;
+	/** The columns the tiles were last laid out in (their rows and columns are set again when it changes). */
+	int32 GridColumnsLaidOut = 0;
+	WoRMenuStyle::FChipRow InvTabChips;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> LoadoutTabsPanel;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> LoadoutButton;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LoadoutButtonText;
 
 	// D-248 step 1: the grid.
 	/** After the slot's pieces are listed: the types present, the piece count, then the filter (only its type stays). */
