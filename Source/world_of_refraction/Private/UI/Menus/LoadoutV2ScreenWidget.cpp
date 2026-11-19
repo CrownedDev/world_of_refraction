@@ -70,9 +70,6 @@ namespace LoadoutV2ScreenStyle
 	constexpr float CardWidth = 520.0f;
 	constexpr float CardGap = 6.0f;
 	constexpr float CardFrameWidth = 2.0f;
-	/** The room a line of the card's text has: the card less its frame and its padding. The lines wrap at a width set
-	 *  from this (not at the width they were last drawn at), so the card's height is right the moment it is filled. */
-	constexpr float CardTextWidth = CardWidth - CardFrameWidth * 2.0f - BoxPadding * 2.0f;
 	// D-249: the inventory's tabs, in the row's order (the inventory screen's own Loadout tab is not one of them).
 	const EInventoryScreenTab InventoryTabOrder[] = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch, EInventoryScreenTab::Chest};
 	constexpr int32 INVENTORY_TAB_COUNT = UE_ARRAY_COUNT(InventoryTabOrder);
@@ -117,6 +114,9 @@ namespace LoadoutV2ScreenStyle
 		return Lock;
 	}
 	constexpr float BoxPadding = 24.0f;
+	/** The room a line of the card's text has: the card less its frame and its padding. The lines wrap at a width set
+	 *  from this (not at the width they were last drawn at), so the card's height is right the moment it is filled. */
+	constexpr float CardTextWidth = CardWidth - CardFrameWidth * 2.0f - BoxPadding * 2.0f;
 	// B-485: icon sizes (the mockups' 22 px at 720p, here at 1080p).
 	constexpr float RowIconSize = 36.0f;
 	constexpr float BadgeSize = 28.0f;
