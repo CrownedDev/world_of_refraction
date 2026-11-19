@@ -2341,6 +2341,89 @@ void ULoadoutV2ScreenWidget::CycleInventorySort()
 
 // ==================== KEYS ====================
 
+bool ULoadoutV2ScreenWidget::MoveInDirection(int32 DeltaX, int32 DeltaY)
+{
+	if (!bOnLoadoutSide && IsInventoryGrid())
+	{
+		MoveInventoryTile(DeltaX, DeltaY); // D-249: the inventory's side
+		return true;
+	}
+	if (IsGridOpen())
+	{
+		MoveInGrid(DeltaX, DeltaY); // D-248: a slot's grid, tile to tile
+		return true;
+	}
+	if (DeltaX > 0 && bOnLoadoutSide && IsLoadoutAtTopLevel())
+	{
+		FocusInventorySide(); // D-249: Right from the loadout's list: the inventory's side
+		return true;
+	}
+	if (DeltaY != 0)
+	{
+		MoveSelection(DeltaY);
+		return true;
+	}
+	return false;
+}
+
+void ULoadoutV2ScreenWidget::StartHold(const FKey &Key, int32 DeltaX, int32 DeltaY)
+{
+	HeldKey = Key;
+	HeldDirection = FIntPoint(DeltaX, DeltaY);
+	HoldRepeat.Start();
+	if (!HoldTicker.IsValid())
+	{
+		// The core ticker, only while a direction is held (not a widget Tick): it runs while the game is paused too.
+		HoldTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float DeltaSeconds) { return TickHold(DeltaSeconds); }));
+	}
+}
+
+void ULoadoutV2ScreenWidget::StopHold()
+{
+	HeldKey = EKeys::Invalid;
+	if (HoldTicker.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HoldTicker);
+		HoldTicker.Reset();
+	}
+}
+
+bool ULoadoutV2ScreenWidget::TickHold(float DeltaSeconds)
+{
+	if (!HeldKey.IsValid() || !IsActivated())
+	{
+		HoldTicker.Reset(); // returning false takes the ticker off
+		HeldKey = EKeys::Invalid;
+		return false;
+	}
+	for (int32 Repeats = HoldRepeat.Advance(DeltaSeconds); Repeats > 0; --Repeats)
+	{
+		MoveInDirection(HeldDirection.X, HeldDirection.Y);
+	}
+	return true;
+}
+
+FReply ULoadoutV2ScreenWidget::NativeOnKeyUp(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == HeldKey)
+	{
+		StopHold();
+	}
+	return Super::NativeOnKeyUp(InGeometry, InKeyEvent);
+}
+
+void ULoadoutV2ScreenWidget::NativeOnFocusLost(const FFocusEvent &InFocusEvent)
+{
+	StopHold(); // the key's release would go elsewhere
+	Super::NativeOnFocusLost(InFocusEvent);
+}
+
+void ULoadoutV2ScreenWidget::NativeOnDeactivated()
+{
+	StopHold();
+	Super::NativeOnDeactivated();
+}
+
 void ULoadoutV2ScreenWidget::MoveSelection(int32 Delta)
 {
 	const int32 Count = GetLineCount();
@@ -2980,14 +3063,26 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent); // B-440e: typing a name; the box keeps Enter and Esc
 	}
+	// UI_Theme 5a: a held direction repeats on our own clock (StartHold, TickHold), the same on every PC; the
+	// system's key repeats are ignored.
+	const int32 DeltaX = IsRightKey(Key) ? 1 : IsLeftKey(Key) ? -1 : 0;
+	const int32 DeltaY = IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0;
+	if (DeltaX != 0 || DeltaY != 0)
+	{
+		if (InKeyEvent.IsRepeat())
+		{
+			return FReply::Handled();
+		}
+		if (MoveInDirection(DeltaX, DeltaY))
+		{
+			StartHold(Key, DeltaX, DeltaY);
+			return FReply::Handled();
+		}
+		return Super::NativeOnKeyDown(InGeometry, InKeyEvent); // a direction with nothing to do here (Left on the loadout's list)
+	}
 	if (!bOnLoadoutSide && IsInventoryGrid())
 	{
 		// D-249: the keys on the inventory's side. The character keys and Back fall through to the shared handling.
-		if (IsUpKey(Key) || IsDownKey(Key) || IsLeftKey(Key) || IsRightKey(Key))
-		{
-			MoveInventoryTile(IsRightKey(Key) ? 1 : IsLeftKey(Key) ? -1 : 0, IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0);
-			return FReply::Handled();
-		}
 		if (IsTabPrevKey(Key) || IsTabNextKey(Key) || IsSecondActionKey(Key) || IsHelpKey(Key) || IsConfirmKey(Key) || IsToggleKey(Key))
 		{
 			if (InKeyEvent.IsRepeat())
@@ -3024,19 +3119,9 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			return FReply::Handled(); // the loadout's own keys (the view, Set active) do nothing from this side
 		}
 	}
-	else if (bOnLoadoutSide && IsLoadoutAtTopLevel() && IsRightKey(Key))
-	{
-		FocusInventorySide(); // D-249: Right from the loadout's list: the inventory's side
-		return FReply::Handled();
-	}
 	if (IsGridOpen())
 	{
-		// D-248 step 1: in the grid the arrows go tile to tile, and the tab keys turn the filter.
-		if (IsUpKey(Key) || IsDownKey(Key) || IsLeftKey(Key) || IsRightKey(Key))
-		{
-			MoveInGrid(IsRightKey(Key) ? 1 : IsLeftKey(Key) ? -1 : 0, IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0);
-			return FReply::Handled();
-		}
+		// D-248 step 1: in the grid the tab keys turn the filter (the arrows: MoveInDirection).
 		if (IsTabPrevKey(Key) || IsTabNextKey(Key))
 		{
 			if (!InKeyEvent.IsRepeat())
@@ -3045,11 +3130,6 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			}
 			return FReply::Handled();
 		}
-	}
-	if (IsUpKey(Key) || IsDownKey(Key))
-	{
-		MoveSelection(IsDownKey(Key) ? 1 : -1);
-		return FReply::Handled();
 	}
 	if (IsSubTabPrevKey(Key) || IsSubTabNextKey(Key))
 	{

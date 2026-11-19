@@ -41,7 +41,9 @@
 #include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
+#include "Containers/Ticker.h"
 #include "UI/Menus/MenuChipRow.h"
+#include "UI/Menus/MenuFeel.h"
 #include "UI/WoRActivatableWidget.h"
 #include "LoadoutV2ScreenWidget.generated.h"
 
@@ -168,6 +170,9 @@ public:
 
 	// What the keys do (the specs call these too).
 	void MoveSelection(int32 Delta);
+	/** A direction key, wherever the keys are: the inventory's tiles, a slot's grid, the loadout's list (Up / Down, and
+	 *  Right to the inventory's side). False when the direction has nothing to do here. */
+	bool MoveInDirection(int32 DeltaX, int32 DeltaY);
 	void MoveMember(int32 Delta);
 	/** B-440f, LB / RB: the next tab (Delta > 0) or the one before, from a tab's top level only. B-476d: Weapons |
 	 *  Skills | Apparel in a ring. */
@@ -266,6 +271,9 @@ protected:
 	virtual void NativeOnActivated() override;
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+	virtual FReply NativeOnKeyUp(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+	virtual void NativeOnFocusLost(const FFocusEvent &InFocusEvent) override;
+	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent &InMouseEvent) override;
@@ -278,6 +286,17 @@ private:
 	void RefreshData();
 	void RefreshView();
 	void RefreshDetails();
+	// UI_Theme 5a: our own hold-to-repeat. A direction key acts once when pressed (the system's repeats are ignored);
+	// while it stays down it repeats after WoRMenuFeel::HOLD_REPEAT_FIRST_SECONDS, then every HOLD_REPEAT_NEXT_SECONDS.
+	void StartHold(const FKey &Key, int32 DeltaX, int32 DeltaY);
+	void StopHold();
+	/** The core ticker's step while a direction is held; false ends it (the key was let go, or the screen left). */
+	bool TickHold(float DeltaSeconds);
+	FKey HeldKey;
+	FIntPoint HeldDirection = FIntPoint::ZeroValue;
+	FWoRHoldRepeat HoldRepeat;
+	FTSTicker::FDelegateHandle HoldTicker;
+
 	// UI_Theme 5a: a move redraws only what changed.
 	/** The light view, for when only the selection or the hover moved: the lines and tiles are recoloured (their text
 	 *  and pictures stay), the lit one is scrolled into view, and the card is filled again. */
