@@ -41,7 +41,9 @@
 #include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
+#include "Containers/Ticker.h"
 #include "UI/Menus/MenuChipRow.h"
+#include "UI/Menus/MenuFeel.h"
 #include "UI/WoRActivatableWidget.h"
 #include "LoadoutV2ScreenWidget.generated.h"
 
@@ -51,6 +53,7 @@ class UEditableTextBox;
 class UHorizontalBox;
 class UImage;
 class UScrollBox;
+class USoundBase;
 class USizeBox;
 class UTexture2D;
 class UInventoryComponent;
@@ -155,7 +158,7 @@ struct FLoadoutV2WindowItem
 	FLoadoutScreenChoice Socket;
 };
 
-UCLASS()
+UCLASS(Config = Game)
 class WORLD_OF_REFRACTION_API ULoadoutV2ScreenWidget : public UWoRActivatableWidget
 {
 	GENERATED_BODY()
@@ -168,6 +171,9 @@ public:
 
 	// What the keys do (the specs call these too).
 	void MoveSelection(int32 Delta);
+	/** A direction key, wherever the keys are: the inventory's tiles, a slot's grid, the loadout's list (Up / Down, and
+	 *  Right to the inventory's side). False when the direction has nothing to do here. */
+	bool MoveInDirection(int32 DeltaX, int32 DeltaY);
 	void MoveMember(int32 Delta);
 	/** B-440f, LB / RB: the next tab (Delta > 0) or the one before, from a tab's top level only. B-476d: Weapons |
 	 *  Skills | Apparel in a ring. */
@@ -257,12 +263,20 @@ public:
 	const TArray<FLoadoutScreenRow> &GetApparelRows() const { return ApparelRows; }
 	bool IsRenaming() const { return bRenaming; }
 	static bool IsSimpleView() { return bSimpleView; }
+	/** UI_Theme 5a: the last sound cue asked for (noted even when no sound is set, so the specs read it). */
+	EWoRMenuCue GetLastCue() const { return LastCue; }
+	/** UI_Theme 5a: how many times the whole view was redrawn, and how many times only the selection (the specs read these). */
+	int32 GetFullRefreshCount() const { return FullRefreshCount; }
+	int32 GetLightRefreshCount() const { return LightRefreshCount; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeOnActivated() override;
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+	virtual FReply NativeOnKeyUp(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
+	virtual void NativeOnFocusLost(const FFocusEvent &InFocusEvent) override;
+	virtual void NativeOnDeactivated() override;
 	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent &InMouseEvent) override;
@@ -275,6 +289,90 @@ private:
 	void RefreshData();
 	void RefreshView();
 	void RefreshDetails();
+	// UI_Theme 5a: our own hold-to-repeat. A direction key acts once when pressed (the system's repeats are ignored);
+	// while it stays down it repeats after WoRMenuFeel::HOLD_REPEAT_FIRST_SECONDS, then every HOLD_REPEAT_NEXT_SECONDS.
+	void StartHold(const FKey &Key, int32 DeltaX, int32 DeltaY);
+	void StopHold();
+	/** The core ticker's step while a direction is held; false ends it (the key was let go, or the screen left). */
+	bool TickHold(float DeltaSeconds);
+	FKey HeldKey;
+	FIntPoint HeldDirection = FIntPoint::ZeroValue;
+	FWoRHoldRepeat HoldRepeat;
+	FTSTicker::FDelegateHandle HoldTicker;
+
+	// UI_Theme 5a: a sound on every action: a move, a confirm, a back, a refusal. Soft references, set in
+	// DefaultGame.ini under [/Script/world_of_refraction.LoadoutV2ScreenWidget] (MoveSound=/Game/...); unset: silent.
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Sound")
+	TSoftObjectPtr<USoundBase> MoveSound;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Sound")
+	TSoftObjectPtr<USoundBase> ConfirmSound;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Sound")
+	TSoftObjectPtr<USoundBase> BackSound;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Sound")
+	TSoftObjectPtr<USoundBase> RefusedSound;
+	/** The cues loaded so far, kept so they stay loaded. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USoundBase>> LoadedCueSounds;
+	EWoRMenuCue LastCue = EWoRMenuCue::None;
+	void PlayCue(EWoRMenuCue Cue);
+	/** What the keys are on, as one number: a move is heard only when it changed. */
+	uint32 GetFocusKey() const;
+	/** A on the lit item would only be refused (a greyed line, a locked tile): the Refused cue, not Confirm. */
+	bool IsLitRefused() const;
+
+	// UI_Theme 5a: motion. The highlight fades to the new item, a pressed item dips, the grid glides to its lit row.
+	// One core ticker runs them, only while something is moving (TickFeel); the next input cuts any of them short.
+	struct FItemFade
+	{
+		TWeakObjectPtr<UBorder> Item;
+		FLinearColor From;
+		FLinearColor To;
+		float Elapsed = 0.0f;
+	};
+	struct FItemPress
+	{
+		TWeakObjectPtr<UBorder> Item;
+		/** The colour it had, and the darker one it wears while down. */
+		FLinearColor Normal;
+		FLinearColor Darkened;
+		float Elapsed = 0.0f;
+	};
+	/** The lit line or tile: what A is pressed on. Null with nothing lit, or headless. */
+	UBorder *GetLitItem() const;
+	/** The item goes darker and a little lower for WoRMenuFeel::PRESS_SECONDS, then comes back. */
+	void PressItem(UBorder *Item);
+	void StartFeelTicker();
+	bool TickFeel(float DeltaSeconds);
+	/** Where the grid's scroll is going (a glide's end), else where it is: the card is placed against this. */
+	float GetGridScrollTarget() const;
+	TArray<FItemFade> ItemFades;
+	TArray<FItemPress> ItemPresses;
+	static constexpr float GRID_GLIDE_IDLE = -1.0f;
+	float GridGlideFrom = 0.0f;
+	float GridGlideTo = 0.0f;
+	/** How long the grid has been gliding; GRID_GLIDE_IDLE when it isn't. */
+	float GridGlideElapsed = GRID_GLIDE_IDLE;
+	FTSTicker::FDelegateHandle FeelTicker;
+
+	// UI_Theme 5a: a move redraws only what changed.
+	/** The light view, for when only the selection or the hover moved: the lines and tiles are recoloured (their text
+	 *  and pictures stay), the lit one is scrolled into view, and the card is filled again. */
+	void RefreshSelection();
+	/** After the mouse moved: the full view when a chip or a filter tab lit or went out, else the light one. */
+	void RefreshHover();
+	/** The card (the details box), the compare line, the message and the hints. */
+	void RefreshBox();
+	/** The lit line and the lit tile, brought into view when they changed. */
+	void ScrollToSelection();
+	FLinearColor GetLineColor(int32 Index, bool bSlotGrid) const;
+	FLinearColor GetTileColor(int32 Index, bool bLocked, bool bSlotGrid) const;
+	/** Gives a line or a tile its colour, only when it differs from what it has: it fades to it (HIGHLIGHT_FADE_SECONDS). */
+	void SetItemColor(UBorder *Item, const FLinearColor &Color);
+	int32 FullRefreshCount = 0;
+	int32 LightRefreshCount = 0;
+	/** The chips and filter tabs the mouse is over, as one number, and the one the full view last drew (RefreshHover). */
+	uint32 GetHoverChipKey() const;
+	uint32 HoverChipKey = 0;
 	/** The shown member's loadout component, inventory and active loadout; false when the member isn't here. */
 	bool FindActive(ULoadoutComponent *&OutLoadout, UInventoryComponent *&OutInventory, const FCombatLoadout *&OutActive) const;
 
@@ -386,8 +484,9 @@ private:
 	 *  tile (WoRLoadoutV2Grid::PlaceCard), in a light frame; otherwise it sits right of the list, as before. Called
 	 *  once the box's lines are written, so the card's size is the one it will have. */
 	void PlaceBox(bool bGrid);
-	/** One more RefreshView on the next frame (once; not a Tick): what PlaceBox measured can be a frame old (wrapped
-	 *  text after a width change, the grid before its first draw). The settling refresh asks for no further one. */
+	/** One more RefreshView on the next frame (once; not a Tick), asked for only before the screen's first draw, when
+	 *  its own height is not known yet (UI_Theme 5a: otherwise the card is measured and placed the same frame). The
+	 *  settling refresh asks for no further one. */
 	void SettleViewNextFrame();
 	bool bSettlePending = false;
 	bool bSettlingView = false;
@@ -602,6 +701,9 @@ private:
 	TObjectPtr<UTextBlock> GridCountText;
 	UPROPERTY(Transient)
 	TObjectPtr<UHorizontalBox> GridTabsRow;
+	/** The grid's header line (the slot or tab, the count): with the tabs row, what stands above the tiles (PlaceBox). */
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> GridHeaderRow;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> GridTabs;
 	UPROPERTY(Transient)

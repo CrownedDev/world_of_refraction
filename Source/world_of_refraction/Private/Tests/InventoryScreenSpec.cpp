@@ -170,8 +170,15 @@ void FInventoryScreenSpec::Define()
 		TestFalse(TEXT("the card has the lit tile's details"), Screen->GetDetails().IsEmpty());
 		TestFalse(TEXT("no slot is being filled"), Screen->IsGridOpen());
 
+		// UI_Theme 5a: a move redraws only what changed (the light view), never the whole screen.
+		const int32 FullBefore = Screen->GetFullRefreshCount();
+		const int32 LightBefore = Screen->GetLightRefreshCount();
 		Screen->MoveInventoryTile(1, 0);
 		TestEqual(TEXT("Right: the next tile"), Screen->GetInventoryTile(), 1);
+		TestTrue(TEXT("a tile move takes the light view only"), Screen->GetFullRefreshCount() == FullBefore && Screen->GetLightRefreshCount() == LightBefore + 1);
+		Screen->MoveSelection(1);
+		TestTrue(TEXT("so does a move down the loadout's list"), Screen->GetFullRefreshCount() == FullBefore && Screen->GetLightRefreshCount() == LightBefore + 2);
+		Screen->MoveSelection(-1);
 		Screen->MoveInventoryTile(-1, 0);
 		Screen->MoveInventoryTile(-1, 0);
 		TestTrue(TEXT("Left off the first column with the loadout out: stays on the inventory"), Screen->IsOnInventorySide() && Screen->GetInventoryTile() == 0);
@@ -205,6 +212,7 @@ void FInventoryScreenSpec::Define()
 			TestFalse(TEXT("the keys can't leave a window"), Screen->FocusInventorySide());
 			Screen->ToggleLoadout();
 			TestTrue(TEXT("nor can the loadout be closed"), Screen->IsLoadoutOpen() && !Screen->GetMessage().IsEmpty());
+			TestTrue(TEXT("and that is the Refused cue (UI_Theme 5a)"), Screen->GetLastCue() == EWoRMenuCue::Refused);
 			Screen->PressBack();
 			TestFalse(TEXT("Back leaves the window"), Screen->IsAdding());
 		}

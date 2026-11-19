@@ -12,6 +12,7 @@
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Containers/Ticker.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
@@ -21,6 +22,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutConstants.h"
@@ -29,6 +31,7 @@
 #include "Pool/PoolSubsystem.h"
 #include "Misc/ScopeExit.h"
 #include "Player/WoRHubController.h"
+#include "Sound/SoundBase.h"
 #include "UI/Menus/LoadoutApparelModel.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/WoRIconTable.h"
@@ -70,9 +73,6 @@ namespace LoadoutV2ScreenStyle
 	constexpr float CardWidth = 520.0f;
 	constexpr float CardGap = 6.0f;
 	constexpr float CardFrameWidth = 2.0f;
-	/** Where the tiles' view starts under the grid panel's top (its padding, the header, the filter tabs), until the
-	 *  grid has been drawn once and the real place is known. */
-	constexpr float GridViewTopFallback = 150.0f;
 	// D-249: the inventory's tabs, in the row's order (the inventory screen's own Loadout tab is not one of them).
 	const EInventoryScreenTab InventoryTabOrder[] = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch, EInventoryScreenTab::Chest};
 	constexpr int32 INVENTORY_TAB_COUNT = UE_ARRAY_COUNT(InventoryTabOrder);
@@ -117,6 +117,9 @@ namespace LoadoutV2ScreenStyle
 		return Lock;
 	}
 	constexpr float BoxPadding = 24.0f;
+	/** The room a line of the card's text has: the card less its frame and its padding. The lines wrap at a width set
+	 *  from this (not at the width they were last drawn at), so the card's height is right the moment it is filled. */
+	constexpr float CardTextWidth = CardWidth - CardFrameWidth * 2.0f - BoxPadding * 2.0f;
 	// B-485: icon sizes (the mockups' 22 px at 720p, here at 1080p).
 	constexpr float RowIconSize = 36.0f;
 	constexpr float BadgeSize = 28.0f;
@@ -374,6 +377,7 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		UVerticalBox *GridColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		GridPanel->SetContent(GridColumn);
 		UHorizontalBox *GridHeader = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		GridHeaderRow = GridHeader;
 		GridTitleText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		GridCountText = MakeText(WidgetTree, LineFontSize, DimColor);
 		AddToRow(GridHeader, GridTitleText, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -1338,6 +1342,9 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 void ULoadoutV2ScreenWidget::RefreshView()
 {
 	using namespace LoadoutV2ScreenStyle;
+	++FullRefreshCount;
+	ItemFades.Reset(); // the whole view gives every line and tile its colour outright
+	HoverChipKey = GetHoverChipKey(); // the chips and filter tabs are drawn as hovered now (RefreshHover)
 	if (!IsLoadoutAtTopLevel())
 	{
 		// D-249: the loadout is in the middle of something (Options, a window, a slot's list): it is in, and the keys are its.
@@ -1457,9 +1464,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			continue;
 		}
 		const bool bRefused = IsLineRefused(Index);
-		// D-249: with the keys on the inventory's side the list's own line is only marked, not lit.
-		const bool bKeysHere = bOnLoadoutSide || bGrid;
-		LineRows[Index]->SetBrushColor(Index == Selected ? (bKeysHere ? FocusColor : HoverColor) : Index == HoveredLine ? HoverColor : PlateColor);
+		LineRows[Index]->SetBrushColor(GetLineColor(Index, bGrid));
 		// A weapon line in a slot's list has its type after its name ("Simple Sword · Sword"); the box keeps the bare name.
 		const bool bWeaponLine = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk) && Items.IsValidIndex(Index) && Items[Index].Weapon.IsValid();
 		LineNames[Index]->SetText(bWeaponLine ? WoRLoadoutV2::GetWeaponRowName(GetLineName(Index), Items[Index].Weapon.Weapon) : GetLineName(Index));
@@ -1498,19 +1503,263 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	// height until the next key or mouse move; follow the geometry itself if that shows.
 	const float AreaHeight = ListArea->GetCachedGeometry().GetLocalSize().Y;
 	ListSizer->SetMaxDesiredHeight(AreaHeight > 0.0f ? AreaHeight : ListMaxHeight);
-	// The selected line is brought into view when the selection or the list changes, not on every refresh (a hover
-	// refreshes too, and would pull a list dragged by its scroll bar back).
-	const uint32 ViewKey = HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(Count)), HashCombine(GetTypeHash(static_cast<uint8>(Mode)), GetTypeHash(static_cast<uint8>(Tab))));
-	if (ViewKey != ScrolledViewKey && LineRows.IsValidIndex(Selected) && Selected < Count)
-	{
-		ScrolledViewKey = ViewKey;
-		ListScroll->ScrollWidgetIntoView(LineRows[Selected], /*AnimateScroll=*/false);
-	}
 	// The rows are drawn: back to the real mode, selection and hover (the grid's, when it shows).
 	RowsHovered.Reset();
 	RowsSelected.Reset();
 	RowsMode.Reset();
 
+	ScrollToSelection();
+	RefreshBox();
+}
+
+void ULoadoutV2ScreenWidget::RefreshSelection()
+{
+	using namespace LoadoutV2ScreenStyle;
+	// UI_Theme 5a: a move redraws only what changed. Only the selection or the hover moved, so the lines and tiles
+	// keep their text and pictures: the old and the new one are recoloured, and the card is filled again.
+	++LightRefreshCount;
+	RefreshDetails();
+	if (!ListBox)
+	{
+		return; // headless: no tree
+	}
+	const bool bSlotGrid = IsGridOpen();
+	const int32 LineCount = FMath::Min(bSlotGrid ? Slots.Num() : GetLineCount(), LineRows.Num()); // beside a slot's grid the lines are the slots
+	for (int32 Index = 0; Index < LineCount; ++Index)
+	{
+		SetItemColor(LineRows[Index], GetLineColor(Index, bSlotGrid));
+	}
+	const int32 TileCount = FMath::Min(bSlotGrid ? Items.Num() : InvPage.Tiles.Num(), GridTiles.Num());
+	for (int32 Index = 0; Index < TileCount; ++Index)
+	{
+		SetItemColor(GridTiles[Index], GetTileColor(Index, bSlotGrid && !Items[Index].Refusal.IsEmpty(), bSlotGrid));
+	}
+	ScrollToSelection();
+	RefreshBox();
+}
+
+void ULoadoutV2ScreenWidget::RefreshHover()
+{
+	// The chips and the filter tabs are coloured by the full view; a hovered line or tile only needs the light one.
+	if (GetHoverChipKey() != HoverChipKey)
+	{
+		RefreshView();
+		return;
+	}
+	RefreshSelection();
+}
+
+uint32 ULoadoutV2ScreenWidget::GetHoverChipKey() const
+{
+	return HashCombine(HashCombine(GetTypeHash(HoveredMemberChip), GetTypeHash(HoveredTabChip)), HashCombine(GetTypeHash(HoveredGridTab), GetTypeHash(HoveredInvTab)));
+}
+
+FLinearColor ULoadoutV2ScreenWidget::GetLineColor(int32 Index, bool bSlotGrid) const
+{
+	using namespace LoadoutV2ScreenStyle;
+	// Beside a slot's grid the lines are the entry's slots: the one being filled is lit, and the mouse lights tiles.
+	const int32 Lit = bSlotGrid ? SlotIndex : Selected;
+	const int32 Hovered = bSlotGrid ? static_cast<int32>(INDEX_NONE) : HoveredLine;
+	// D-249: with the keys on the inventory's side the list's own line is only marked, not lit.
+	const bool bKeysHere = bOnLoadoutSide || bSlotGrid;
+	return Index == Lit ? (bKeysHere ? FocusColor : HoverColor) : Index == Hovered ? HoverColor : PlateColor;
+}
+
+FLinearColor ULoadoutV2ScreenWidget::GetTileColor(int32 Index, bool bLocked, bool bSlotGrid) const
+{
+	using namespace LoadoutV2ScreenStyle;
+	const int32 Lit = bSlotGrid ? Selected : bOnLoadoutSide || bOnInvFilters ? static_cast<int32>(INDEX_NONE) : InvSelected;
+	const int32 Hovered = bSlotGrid ? HoveredLine : HoveredInvTile; // in a slot's grid the hovered line is a tile
+	return Index == Lit ? FocusColor : Index == Hovered ? HoverColor : bLocked ? LockedTileColor : PlateColor;
+}
+
+void ULoadoutV2ScreenWidget::SetItemColor(UBorder *Item, const FLinearColor &Color)
+{
+	if (!Item)
+	{
+		return;
+	}
+	// UI_Theme 5a: the highlight fades to the new item (and off the old one), it does not jump. A fade under way is
+	// turned to the new colour from where it is, so the next input cuts it short.
+	FItemFade *Fade = ItemFades.FindByPredicate([Item](const FItemFade &Each) { return Each.Item == Item; });
+	if (Fade)
+	{
+		if (Fade->To == Color)
+		{
+			return;
+		}
+		Fade->From = Item->GetBrushColor();
+		Fade->To = Color;
+		Fade->Elapsed = 0.0f;
+	}
+	else if (Item->GetBrushColor() != Color)
+	{
+		ItemFades.Add(FItemFade{Item, Item->GetBrushColor(), Color, 0.0f});
+	}
+	else
+	{
+		return;
+	}
+	StartFeelTicker();
+}
+
+UBorder *ULoadoutV2ScreenWidget::GetLitItem() const
+{
+	const bool bSlotGrid = IsGridOpen();
+	if (bSlotGrid || !bOnLoadoutSide)
+	{
+		const int32 Tile = bSlotGrid ? Selected : InvSelected;
+		return (bSlotGrid || !bOnInvFilters) && GridTiles.IsValidIndex(Tile) ? GridTiles[Tile].Get() : nullptr;
+	}
+	return bLoadoutOpen && LineRows.IsValidIndex(Selected) ? LineRows[Selected].Get() : nullptr;
+}
+
+void ULoadoutV2ScreenWidget::PressItem(UBorder *Item)
+{
+	if (!Item)
+	{
+		return;
+	}
+	// UI_Theme 5a: a pressed item is darker and a little lower for a moment. The action itself has already happened:
+	// nothing waits on this.
+	ItemFades.RemoveAll([Item](const FItemFade &Each)
+						{
+							if (Each.Item == Item)
+							{
+								Item->SetBrushColor(Each.To); // its fade ends at once: the press starts from its own colour
+								return true;
+							}
+							return false;
+						});
+	if (ItemPresses.ContainsByPredicate([Item](const FItemPress &Each) { return Each.Item == Item; }))
+	{
+		return; // already down
+	}
+	const FLinearColor Normal = Item->GetBrushColor();
+	const FLinearColor Darkened(Normal.R * WoRMenuFeel::PRESS_DARKEN, Normal.G * WoRMenuFeel::PRESS_DARKEN, Normal.B * WoRMenuFeel::PRESS_DARKEN, Normal.A);
+	Item->SetBrushColor(Darkened);
+	Item->SetRenderTranslation(FVector2D(0.0f, WoRMenuFeel::PRESS_OFFSET));
+	ItemPresses.Add(FItemPress{Item, Normal, Darkened, 0.0f});
+	StartFeelTicker();
+}
+
+float ULoadoutV2ScreenWidget::GetGridScrollTarget() const
+{
+	return GridGlideElapsed >= 0.0f ? GridGlideTo : GridScroll ? GridScroll->GetScrollOffset() : 0.0f;
+}
+
+void ULoadoutV2ScreenWidget::StartFeelTicker()
+{
+	if (!FeelTicker.IsValid())
+	{
+		// The core ticker, only while something is moving (a fade, a press, a glide): not a widget Tick.
+		FeelTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float DeltaSeconds) { return TickFeel(DeltaSeconds); }));
+	}
+}
+
+bool ULoadoutV2ScreenWidget::TickFeel(float DeltaSeconds)
+{
+	for (int32 Index = ItemFades.Num() - 1; Index >= 0; --Index)
+	{
+		FItemFade &Fade = ItemFades[Index];
+		Fade.Elapsed += DeltaSeconds;
+		const float Alpha = WoRMenuFeel::EaseOut(Fade.Elapsed / WoRMenuFeel::HIGHLIGHT_FADE_SECONDS);
+		const bool bDone = Fade.Elapsed >= WoRMenuFeel::HIGHLIGHT_FADE_SECONDS;
+		if (UBorder *Item = Fade.Item.Get())
+		{
+			Item->SetBrushColor(bDone ? Fade.To : FMath::Lerp(Fade.From, Fade.To, Alpha)); // the end is the colour itself, not a sum that may miss it by a hair
+		}
+		if (bDone || !Fade.Item.IsValid())
+		{
+			ItemFades.RemoveAtSwap(Index);
+		}
+	}
+	for (int32 Index = ItemPresses.Num() - 1; Index >= 0; --Index)
+	{
+		FItemPress &Press = ItemPresses[Index];
+		Press.Elapsed += DeltaSeconds;
+		if (Press.Elapsed < WoRMenuFeel::PRESS_SECONDS && Press.Item.IsValid())
+		{
+			continue;
+		}
+		UBorder *Item = Press.Item.Get();
+		const FLinearColor Normal = Press.Normal;
+		const bool bStillDark = Item && Item->GetBrushColor() == Press.Darkened; // a redraw since may have recoloured it
+		ItemPresses.RemoveAtSwap(Index);
+		if (Item)
+		{
+			Item->SetRenderTranslation(FVector2D::ZeroVector);
+			if (bStillDark)
+			{
+				SetItemColor(Item, Normal); // back up through the fade
+			}
+		}
+	}
+	if (GridGlideElapsed >= 0.0f)
+	{
+		GridGlideElapsed += DeltaSeconds;
+		const float Alpha = WoRMenuFeel::EaseOut(GridGlideElapsed / WoRMenuFeel::SCROLL_GLIDE_SECONDS);
+		GridScroll->SetScrollOffset(FMath::Lerp(GridGlideFrom, GridGlideTo, Alpha));
+		if (GridGlideElapsed >= WoRMenuFeel::SCROLL_GLIDE_SECONDS)
+		{
+			GridGlideElapsed = GRID_GLIDE_IDLE;
+		}
+	}
+	if (ItemFades.IsEmpty() && ItemPresses.IsEmpty() && GridGlideElapsed < 0.0f)
+	{
+		FeelTicker.Reset(); // returning false takes the ticker off
+		return false;
+	}
+	return true;
+}
+
+void ULoadoutV2ScreenWidget::ScrollToSelection()
+{
+	using namespace LoadoutV2ScreenStyle;
+	const bool bSlotGrid = IsGridOpen();
+	// The list's lit line is brought into view when the selection or the list changes, not on every refresh (a hover
+	// refreshes too, and would pull a list dragged by its scroll bar back).
+	const int32 Line = bSlotGrid ? SlotIndex : Selected;
+	const int32 LineCount = bSlotGrid ? Slots.Num() : GetLineCount();
+	const uint32 ListKey = HashCombine(HashCombine(GetTypeHash(Line), GetTypeHash(LineCount)), HashCombine(GetTypeHash(static_cast<uint8>(Mode)), GetTypeHash(static_cast<uint8>(Tab))));
+	if (ListKey != ScrolledViewKey && bLoadoutOpen && LineRows.IsValidIndex(Line) && Line < LineCount)
+	{
+		ScrolledViewKey = ListKey;
+		ListScroll->ScrollWidgetIntoView(LineRows[Line], /*AnimateScroll=*/true); // UI_Theme 5a: a glide, no jump
+	}
+	// The grid's lit tile, the same way. The offset is set at once (ScrollWidgetIntoView waits a frame), so the card is
+	// placed beside the tile where it will be drawn (PlaceBox). Before the grid has been drawn its height isn't known:
+	// it opens at the top anyway, and the scroll is tried again once it is drawn (SettleViewNextFrame).
+	const int32 Tile = bSlotGrid ? Selected : bOnLoadoutSide || bOnInvFilters ? static_cast<int32>(INDEX_NONE) : InvSelected;
+	const int32 TileCount = bSlotGrid ? Items.Num() : InvPage.Tiles.Num();
+	const int32 Columns = GetGridColumns();
+	const uint32 GridKey = HashCombine(HashCombine(HashCombine(GetTypeHash(Tile), GetTypeHash(TileCount)), HashCombine(GetTypeHash(SlotIndex), GetTypeHash(bSlotGrid))),
+									   HashCombine(HashCombine(GetTypeHash(Columns), GetTypeHash(static_cast<uint8>(InvTab))),
+												   HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), HashCombine(GetTypeHash(bGridFiltered), GetTypeHash(static_cast<uint8>(GridFilter))))));
+	const float ViewHeight = GridScroll->GetCachedGeometry().GetLocalSize().Y;
+	if (GridKey != GridScrolledKey && Tile >= 0 && Tile < TileCount && ViewHeight > 0.0f)
+	{
+		GridScrolledKey = GridKey;
+		// UI_Theme 5a: the grid glides to the row (TickFeel); the card is placed at once where the tile will end up
+		// (GetGridScrollTarget). A glide under way is turned to the new row from where it is.
+		const float Target = WoRLoadoutV2Grid::ScrollToRow(GetGridScrollTarget(), Tile / Columns, TilePitch, ViewHeight);
+		if (Target != GridScroll->GetScrollOffset())
+		{
+			GridGlideFrom = GridScroll->GetScrollOffset();
+			GridGlideTo = Target;
+			GridGlideElapsed = 0.0f;
+			StartFeelTicker();
+		}
+		else
+		{
+			GridGlideElapsed = GRID_GLIDE_IDLE;
+		}
+	}
+}
+
+void ULoadoutV2ScreenWidget::RefreshBox()
+{
+	using namespace LoadoutV2ScreenStyle;
 	// The box: the focused entry's details, or in the window the entry being built.
 	// A box line: its text, whether it is lit, and (B-485) its icon and a tier badge.
 	struct FBoxLine
@@ -1670,7 +1919,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		// B-485: a line is a row: its icon, its text, a tier badge.
 		UHorizontalBox *BoxRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UImage *Icon = MakeIcon(WidgetTree, BoxIconSize);
-		UTextBlock *Text = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+		UTextBlock *Text = MakeText(WidgetTree, LineFontSize, TextColor); // wrapped at a set width in the fill below
 		UImage *TierIcon = MakeIcon(WidgetTree, BadgeSize);
 		AddToRow(BoxRow, Icon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Top);
 		AddToRow(BoxRow, Text, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -1691,6 +1940,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		{
 			const FBoxLine &Line = BoxText[Index];
 			BoxTexts[Index]->SetText(Line.Text);
+			// UI_Theme 5a: measured this frame: the line wraps at the room it has (less its icon and its tier badge).
+			BoxTexts[Index]->SetWrapTextAt(CardTextWidth - (bAnyBoxIcon ? BoxIconSize + WordGap : 0.0f) - (Line.bHasTier ? BadgeSize + WordGap : 0.0f));
 			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bWarn ? WarnColor : Line.bLit ? CyanColor : Line.bQuiet ? DimColor : TextColor));
 			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), Line.Icon.Name, /*bKeepSpace=*/bAnyBoxIcon);
 			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr, GetTierTooltip(Line.Tier));
@@ -1701,7 +1952,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			}
 		}
 	}
-	PlaceBox(bGrid); // D-248 step 2, D-249: the card, beside the lit tile or level with the lit line
+	PlaceBox(IsGridOpen()); // D-248 step 2, D-249: the card, beside the lit tile or level with the lit line
 
 	FText Compare;
 	if (Mode == ELoadoutV2Mode::WindowItems && bComparing && Items.IsValidIndex(Selected) && Slots.IsValidIndex(SlotIndex))
@@ -1892,8 +2143,6 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 
 	// What the grid shows: a weapon slot's choices while one is being filled (D-248), else the inventory's tab (D-249).
 	const TArray<FLoadoutV2GridTile> Tiles = bSlotGrid ? GetGridTiles() : GetInventoryTiles();
-	const int32 SelectedTile = bSlotGrid ? Selected : bOnLoadoutSide || bOnInvFilters ? static_cast<int32>(INDEX_NONE) : InvSelected;
-	const int32 HoveredTile = bSlotGrid ? HoveredLine : HoveredInvTile; // in a slot's grid the hovered line is a tile
 	const int32 Columns = GetGridColumns();
 	if (bSlotGrid)
 	{
@@ -2008,7 +2257,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 			continue;
 		}
 		const FLoadoutV2GridTile &Tile = Tiles[Index];
-		GridTiles[Index]->SetBrushColor(Index == SelectedTile ? FocusColor : Index == HoveredTile ? HoverColor : Tile.bLocked ? LockedTileColor : PlateColor);
+		GridTiles[Index]->SetBrushColor(GetTileColor(Index, Tile.bLocked, bSlotGrid));
 		const bool bPicture = SetIcon(GridTileIcons[Index], FindIcon(Tile.Icon), Tile.Icon.Name);
 		GridTileIcons[Index]->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, Tile.bLocked ? LockedTileOpacity : 1.0f));
 		GridTileWords[Index]->SetText(Tile.Icon.Name);
@@ -2018,17 +2267,6 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		SetShown(GridTileLocks[Index], Tile.bLocked);
 		GridTileCounts[Index]->SetText(FText::Format(LOCTEXT("GridTileCount", "x{0}"), FText::AsNumber(Tile.Count)));
 		SetShown(GridTileCounts[Index], Tile.Count > 1);
-	}
-	// The lit tile's row is brought into view when the selection or the tiles change (as the list's line). The offset
-	// is set here, at once (ScrollWidgetIntoView waits a frame), so the card is placed beside the tile where it will be
-	// drawn (PlaceBox). Before the grid has been drawn its height isn't known: it opens at the top anyway.
-	const uint32 ViewKey = HashCombine(HashCombine(HashCombine(GetTypeHash(SelectedTile), GetTypeHash(Tiles.Num())), HashCombine(GetTypeHash(SlotIndex), GetTypeHash(CurrentTab))),
-									   HashCombine(HashCombine(GetTypeHash(bSlotGrid), GetTypeHash(Columns)), GetTypeHash(static_cast<uint8>(InvTab))));
-	const float ViewHeight = GridScroll->GetCachedGeometry().GetLocalSize().Y;
-	if (ViewKey != GridScrolledKey && SelectedTile >= 0 && SelectedTile < Tiles.Num() && ViewHeight > 0.0f) // not drawn yet: tried again once it is (SettleViewNextFrame)
-	{
-		GridScrolledKey = ViewKey;
-		GridScroll->SetScrollOffset(WoRLoadoutV2Grid::ScrollToRow(GridScroll->GetScrollOffset(), SelectedTile / Columns, TilePitch, ViewHeight));
 	}
 }
 
@@ -2055,8 +2293,9 @@ void ULoadoutV2ScreenWidget::SettleViewNextFrame()
 void ULoadoutV2ScreenWidget::HandleGridScrolled(float /*CurrentOffset*/)
 {
 	// The wheel or the scroll bar moved the tiles: the card is placed again beside its tile. (The tile under a resting
-	// mouse is found again on the mouse's next move.)
-	RefreshView();
+	// mouse is found again on the mouse's next move.) The player's own scroll ends a glide.
+	GridGlideElapsed = GRID_GLIDE_IDLE;
+	RefreshSelection();
 }
 
 void ULoadoutV2ScreenWidget::PlaceBox(bool bSlotGrid)
@@ -2075,9 +2314,8 @@ void ULoadoutV2ScreenWidget::PlaceBox(bool bSlotGrid)
 	BoxFrame->SetBrushColor(CyanColor);
 	BoxFrame->SetPadding(FMargin(CardFrameWidth));
 	const FGeometry &Area = ListArea->GetCachedGeometry();
-	const FGeometry &View = GridScroll->GetCachedGeometry();
-	const bool bDrawn = View.GetLocalSize().Y > 0.0f && Area.GetLocalSize().Y > 0.0f;
-	const float AreaHeight = Area.GetLocalSize().Y > 0.0f ? Area.GetLocalSize().Y : ListMaxHeight;
+	const bool bDrawn = Area.GetLocalSize().Y > 0.0f;
+	const float AreaHeight = bDrawn ? Area.GetLocalSize().Y : ListMaxHeight;
 	const float GridLeft = bLoadoutOpen ? GridSlotsWidth + GridGap : 0.0f;
 	BoxSizer->ForceLayoutPrepass(); // the card's size with the lines just written
 	const FVector2D CardSize = BoxSizer->GetDesiredSize();
@@ -2087,30 +2325,37 @@ void ULoadoutV2ScreenWidget::PlaceBox(bool bSlotGrid)
 	const int32 TileCount = bSlotGrid ? Items.Num() : InvPage.Tiles.Num();
 	if (Tile >= 0 && Tile < TileCount)
 	{
-		// The tiles' view inside the columns' area: inside the grid panel's padding; its top is read from the drawn grid
-		// (the header and the tabs above it), a fixed guess before the grid's first draw.
+		// The tiles' view inside the columns' area: inside the grid panel's padding, under its header and its filter
+		// tabs. UI_Theme 5a: measured here from what those two ask for (not read from the last drawn frame), so the card
+		// is in its place the same frame, the first one too.
 		const int32 Columns = GetGridColumns();
-		const FVector2D ViewOrigin(GridLeft + BoxPadding, bDrawn ? Area.AbsoluteToLocal(View.GetAbsolutePosition()).Y : GridViewTopFallback);
+		GridSizer->ForceLayoutPrepass();
+		const FVector2D ViewOrigin(GridLeft + BoxPadding, BoxPadding + GridHeaderRow->GetDesiredSize().Y + LineGap + GridTabsRow->GetDesiredSize().Y + SectionGap);
 		// The card keeps to the tiles' width (not over the scroll bar) and may use the room down to the area's bottom
 		// (past the tiles' own view, over the legend).
 		const FVector2D ViewSize(TilePitch * Columns, FMath::Max(AreaHeight - ViewOrigin.Y, 0.0));
-		const FVector2D TilePosition = WoRLoadoutV2Grid::GetTilePosition(Tile, Columns, TilePitch, TilePadding, GridScroll->GetScrollOffset());
+		const FVector2D TilePosition = WoRLoadoutV2Grid::GetTilePosition(Tile, Columns, TilePitch, TilePadding, GetGridScrollTarget());
 		const WoRLoadoutV2Grid::FCardPlace Place = WoRLoadoutV2Grid::PlaceCard(TilePosition, TileSize, CardSize, ViewSize, CardGap);
 		BoxSlot->SetPosition(ViewOrigin + Place.Position);
-		UE_LOG(LogWoRUI, Verbose, TEXT("[LoadoutV2] card for tile %d at %s (%s, %s)%s"), Tile, *Place.Position.ToString(), Place.bLeft ? TEXT("left") : TEXT("right"),
-			   Place.bUp ? TEXT("bottoms level") : TEXT("tops level"), bDrawn ? TEXT("") : TEXT(" - grid not drawn yet, guessed"));
+		UE_LOG(LogWoRUI, Verbose, TEXT("[LoadoutV2] card for tile %d at %s (%s, %s)"), Tile, *Place.Position.ToString(), Place.bLeft ? TEXT("left") : TEXT("right"),
+			   Place.bUp ? TEXT("bottoms level") : TEXT("tops level"));
 	}
 	else
 	{
 		// A line of the loadout's list: level with that line, kept inside the area.
+		// shortcut: the line's place is the one it was last drawn at, so on the frame the list itself scrolls the card
+		// is level with where the line was; measure the lines (their heights differ) if a long list shows it.
 		const int32 Line = GetBoxLine();
 		const bool bLineDrawn = bDrawn && LineRows.IsValidIndex(Line) && LineRows[Line]->GetCachedGeometry().GetLocalSize().Y > 0.0f;
 		const double LineTop = bLineDrawn ? Area.AbsoluteToLocal(LineRows[Line]->GetCachedGeometry().GetAbsolutePosition()).Y : 0.0;
 		BoxSlot->SetPosition(FVector2D(GridLeft + CardGap, FMath::Clamp(LineTop, 0.0, FMath::Max(AreaHeight - CardSize.Y, 0.0))));
 	}
-	// What was measured here can be a frame old: the wrapped text's height right after the lines changed, the grid's
-	// place before its first draw. One more refresh next frame sets the card (and a scroll not yet made) right.
-	SettleViewNextFrame();
+	// UI_Theme 5a: the card is measured and placed this frame. Only the screen's own height can't be known before its
+	// first draw (how far down the card may go, how far the grid must scroll): that one time, one more refresh follows.
+	if (!bDrawn)
+	{
+		SettleViewNextFrame();
+	}
 }
 
 // ==================== THE INVENTORY'S SIDE (D-249 piece 1) ====================
@@ -2121,6 +2366,7 @@ void ULoadoutV2ScreenWidget::ToggleLoadout()
 	{
 		Message = LOCTEXT("LoadoutBusy", "Finish or leave what the loadout is doing first.");
 		RefreshView();
+		PlayCue(EWoRMenuCue::Refused);
 		return;
 	}
 	bLoadoutOpen = !bLoadoutOpen;
@@ -2132,6 +2378,8 @@ void ULoadoutV2ScreenWidget::ToggleLoadout()
 	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] loadout %s; keys on the %s side; %d tiles to a row"), bLoadoutOpen ? TEXT("in") : TEXT("out"),
 		   bOnLoadoutSide ? TEXT("loadout's") : TEXT("inventory's"), GetGridColumns());
 	RefreshData();
+	PressItem(LoadoutButton);
+	PlayCue(EWoRMenuCue::Confirm);
 }
 
 bool ULoadoutV2ScreenWidget::FocusLoadoutSide()
@@ -2200,7 +2448,7 @@ void ULoadoutV2ScreenWidget::MoveInventoryTile(int32 DeltaX, int32 DeltaY)
 	if (Target != INDEX_NONE && Target != InvSelected)
 	{
 		InvSelected = Target;
-		RefreshView();
+		RefreshSelection(); // only the lit tile moved
 	}
 }
 
@@ -2251,6 +2499,153 @@ void ULoadoutV2ScreenWidget::CycleInventorySort()
 
 // ==================== KEYS ====================
 
+void ULoadoutV2ScreenWidget::PlayCue(EWoRMenuCue Cue)
+{
+	// UI_Theme 5a: a sound on every action. A cue with no sound set is silent (the cue is still noted, for the specs).
+	LastCue = Cue;
+	const TSoftObjectPtr<USoundBase> &Sound = Cue == EWoRMenuCue::Move		? MoveSound
+											: Cue == EWoRMenuCue::Confirm ? ConfirmSound
+											: Cue == EWoRMenuCue::Back	? BackSound
+																			: RefusedSound;
+	if (Cue == EWoRMenuCue::None || Sound.IsNull())
+	{
+		return;
+	}
+	if (USoundBase *Loaded = Sound.LoadSynchronous()) // small one-shot cues; loaded on first use and kept below
+	{
+		LoadedCueSounds.AddUnique(Loaded);
+		UGameplayStatics::PlaySound2D(this, Loaded, 1.0f, 1.0f, Cue == EWoRMenuCue::Move ? WoRMenuFeel::MOVE_SOUND_START_SECONDS : 0.0f);
+	}
+}
+
+uint32 ULoadoutV2ScreenWidget::GetFocusKey() const
+{
+	return HashCombine(HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(InvSelected)), HashCombine(GetTypeHash(bOnLoadoutSide), GetTypeHash(bOnInvFilters))),
+					   HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), GetTypeHash(static_cast<uint8>(Mode))));
+}
+
+bool ULoadoutV2ScreenWidget::IsLitRefused() const
+{
+	if (IsGridOpen() || bOnLoadoutSide)
+	{
+		return Selected >= 0 && Selected < GetLineCount() && IsLineRefused(Selected);
+	}
+	return true; // TODO: D-249 piece 2: A on an inventory tile only says equipping from here comes next
+}
+
+bool ULoadoutV2ScreenWidget::MoveInDirection(int32 DeltaX, int32 DeltaY)
+{
+	const uint32 FocusBefore = GetFocusKey();
+	ON_SCOPE_EXIT
+	{
+		if (GetFocusKey() != FocusBefore)
+		{
+			PlayCue(EWoRMenuCue::Move); // only when something moved: an edge is silent
+		}
+	};
+	if (!bOnLoadoutSide && IsInventoryGrid())
+	{
+		MoveInventoryTile(DeltaX, DeltaY); // D-249: the inventory's side
+		return true;
+	}
+	if (IsGridOpen())
+	{
+		MoveInGrid(DeltaX, DeltaY); // D-248: a slot's grid, tile to tile
+		return true;
+	}
+	if (DeltaX > 0 && bOnLoadoutSide && IsLoadoutAtTopLevel())
+	{
+		FocusInventorySide(); // D-249: Right from the loadout's list: the inventory's side
+		return true;
+	}
+	if (DeltaY != 0)
+	{
+		MoveSelection(DeltaY);
+		return true;
+	}
+	return false;
+}
+
+void ULoadoutV2ScreenWidget::StartHold(const FKey &Key, int32 DeltaX, int32 DeltaY)
+{
+	HeldKey = Key;
+	HeldDirection = FIntPoint(DeltaX, DeltaY);
+	HoldRepeat.Start();
+	if (!HoldTicker.IsValid())
+	{
+		// The core ticker, only while a direction is held (not a widget Tick): it runs while the game is paused too.
+		HoldTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float DeltaSeconds) { return TickHold(DeltaSeconds); }));
+	}
+}
+
+void ULoadoutV2ScreenWidget::StopHold()
+{
+	HeldKey = EKeys::Invalid;
+	if (HoldTicker.IsValid())
+	{
+		FTSTicker::GetCoreTicker().RemoveTicker(HoldTicker);
+		HoldTicker.Reset();
+	}
+}
+
+bool ULoadoutV2ScreenWidget::TickHold(float DeltaSeconds)
+{
+	// The key's release is only heard while this screen has the keys: without them (the game's window left, the
+	// focus gone elsewhere) the repeat ends, it never runs on by itself.
+	const bool bHasKeys = FSlateApplication::Get().IsActive() && (HasAnyUserFocus() || HasFocusedDescendants());
+	if (!HeldKey.IsValid() || !IsActivated() || !bHasKeys)
+	{
+		HoldTicker.Reset(); // returning false takes the ticker off
+		HeldKey = EKeys::Invalid;
+		return false;
+	}
+	for (int32 Repeats = HoldRepeat.Advance(DeltaSeconds); Repeats > 0; --Repeats)
+	{
+		MoveInDirection(HeldDirection.X, HeldDirection.Y);
+	}
+	return true;
+}
+
+FReply ULoadoutV2ScreenWidget::NativeOnKeyUp(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
+{
+	if (InKeyEvent.GetKey() == HeldKey)
+	{
+		StopHold();
+	}
+	return Super::NativeOnKeyUp(InGeometry, InKeyEvent);
+}
+
+void ULoadoutV2ScreenWidget::NativeOnFocusLost(const FFocusEvent &InFocusEvent)
+{
+	StopHold(); // the key's release would go elsewhere
+	Super::NativeOnFocusLost(InFocusEvent);
+}
+
+void ULoadoutV2ScreenWidget::NativeOnDeactivated()
+{
+	StopHold();
+	// Whatever was moving ends where it was going.
+	for (const FItemFade &Fade : ItemFades)
+	{
+		if (UBorder *Item = Fade.Item.Get())
+		{
+			Item->SetBrushColor(Fade.To);
+		}
+	}
+	ItemFades.Reset();
+	for (const FItemPress &Press : ItemPresses)
+	{
+		if (UBorder *Item = Press.Item.Get())
+		{
+			Item->SetRenderTranslation(FVector2D::ZeroVector);
+			Item->SetBrushColor(Press.Normal);
+		}
+	}
+	ItemPresses.Reset();
+	GridGlideElapsed = GRID_GLIDE_IDLE;
+	Super::NativeOnDeactivated();
+}
+
 void ULoadoutV2ScreenWidget::MoveSelection(int32 Delta)
 {
 	const int32 Count = GetLineCount();
@@ -2270,7 +2665,7 @@ void ULoadoutV2ScreenWidget::MoveSelection(int32 Delta)
 			RefreshData(); // the EQUIPPED line drops its "A again" warning
 			return;
 		}
-		RefreshView();
+		RefreshSelection(); // only the lit line moved
 	}
 }
 
@@ -2340,11 +2735,16 @@ void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
 			return;
 		}
 		LastClickActionSeconds = Now;
+		UBorder *Pressed = GetLitItem();
+		const bool bRefused = IsLitRefused();
 		PressA();
+		PressItem(Pressed);
+		PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Confirm);
 	}
 	else
 	{
 		MoveSelection(Line - Selected);
+		PlayCue(EWoRMenuCue::Move);
 	}
 }
 
@@ -2401,7 +2801,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, co
 					   bList && bLoadoutOpen ? WoRMenuStyle::FindChipUnder(TabChips, Position) : INDEX_NONE, bGrid ? FindTileUnder(Position) : FindLineUnder(Position)) ||
 			bOtherChanged)
 		{
-			RefreshView();
+			RefreshHover(); // a chip or a filter tab lights through the full view; a line or a tile through the light one
 		}
 	}
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
@@ -2434,7 +2834,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseWheel(const FGeometry &InGeometry, c
 		if (Target != InvSelected && !bOnInvFilters)
 		{
 			InvSelected = Target;
-			RefreshView();
+			RefreshSelection();
 		}
 		return FReply::Handled();
 	}
@@ -2494,6 +2894,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 				bOnInvFilters = false;
 				Message = FText::GetEmpty();
 				RefreshView();
+				PlayCue(EWoRMenuCue::Move);
 			}
 			return FReply::Handled();
 		}
@@ -2813,6 +3214,7 @@ void ULoadoutV2ScreenWidget::PressSetActive()
 
 bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 {
+	PlayCue(EWoRMenuCue::Back);
 	Message = FText::GetEmpty();
 	if (bRenaming)
 	{
@@ -2889,14 +3291,26 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent); // B-440e: typing a name; the box keeps Enter and Esc
 	}
+	// UI_Theme 5a: a held direction repeats on our own clock (StartHold, TickHold), the same on every PC; the
+	// system's key repeats are ignored.
+	const int32 DeltaX = IsRightKey(Key) ? 1 : IsLeftKey(Key) ? -1 : 0;
+	const int32 DeltaY = IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0;
+	if (DeltaX != 0 || DeltaY != 0)
+	{
+		if (InKeyEvent.IsRepeat())
+		{
+			return FReply::Handled();
+		}
+		if (MoveInDirection(DeltaX, DeltaY))
+		{
+			StartHold(Key, DeltaX, DeltaY);
+			return FReply::Handled();
+		}
+		return Super::NativeOnKeyDown(InGeometry, InKeyEvent); // a direction with nothing to do here (Left on the loadout's list)
+	}
 	if (!bOnLoadoutSide && IsInventoryGrid())
 	{
 		// D-249: the keys on the inventory's side. The character keys and Back fall through to the shared handling.
-		if (IsUpKey(Key) || IsDownKey(Key) || IsLeftKey(Key) || IsRightKey(Key))
-		{
-			MoveInventoryTile(IsRightKey(Key) ? 1 : IsLeftKey(Key) ? -1 : 0, IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0);
-			return FReply::Handled();
-		}
 		if (IsTabPrevKey(Key) || IsTabNextKey(Key) || IsSecondActionKey(Key) || IsHelpKey(Key) || IsConfirmKey(Key) || IsToggleKey(Key))
 		{
 			if (InKeyEvent.IsRepeat())
@@ -2906,25 +3320,30 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			if (IsTabPrevKey(Key) || IsTabNextKey(Key))
 			{
 				MoveInventoryTab(IsTabNextKey(Key) ? 1 : -1);
+				PlayCue(EWoRMenuCue::Move);
 			}
 			else if (IsSecondActionKey(Key))
 			{
-				ToggleLoadout();
+				ToggleLoadout(); // plays its own cue
 			}
 			else if (IsHelpKey(Key))
 			{
 				CycleInventorySort();
+				PlayCue(EWoRMenuCue::Confirm);
 			}
 			else if (IsConfirmKey(Key) && bOnInvFilters)
 			{
 				bOnInvFilters = false; // the filter is already the lit one: back to its tiles
 				RefreshView();
+				PlayCue(EWoRMenuCue::Confirm);
 			}
 			else if (IsConfirmKey(Key) && InvPage.Tiles.IsValidIndex(InvSelected))
 			{
 				// TODO: D-249 piece 2: Equip from here (the loadout comes in and asks for the slot); piece 3: Give / Store.
 				Message = LOCTEXT("InventoryVerbsLater", "Equipping from here comes next. For now: open the loadout and pick a slot.");
 				RefreshView();
+				PressItem(GetLitItem());
+				PlayCue(EWoRMenuCue::Refused);
 			}
 			return FReply::Handled(); // X does nothing on this side
 		}
@@ -2933,38 +3352,25 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			return FReply::Handled(); // the loadout's own keys (the view, Set active) do nothing from this side
 		}
 	}
-	else if (bOnLoadoutSide && IsLoadoutAtTopLevel() && IsRightKey(Key))
-	{
-		FocusInventorySide(); // D-249: Right from the loadout's list: the inventory's side
-		return FReply::Handled();
-	}
 	if (IsGridOpen())
 	{
-		// D-248 step 1: in the grid the arrows go tile to tile, and the tab keys turn the filter.
-		if (IsUpKey(Key) || IsDownKey(Key) || IsLeftKey(Key) || IsRightKey(Key))
-		{
-			MoveInGrid(IsRightKey(Key) ? 1 : IsLeftKey(Key) ? -1 : 0, IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0);
-			return FReply::Handled();
-		}
+		// D-248 step 1: in the grid the tab keys turn the filter (the arrows: MoveInDirection).
 		if (IsTabPrevKey(Key) || IsTabNextKey(Key))
 		{
 			if (!InKeyEvent.IsRepeat())
 			{
 				CycleGridFilter(IsTabNextKey(Key) ? 1 : -1);
+				PlayCue(EWoRMenuCue::Move);
 			}
 			return FReply::Handled();
 		}
-	}
-	if (IsUpKey(Key) || IsDownKey(Key))
-	{
-		MoveSelection(IsDownKey(Key) ? 1 : -1);
-		return FReply::Handled();
 	}
 	if (IsSubTabPrevKey(Key) || IsSubTabNextKey(Key))
 	{
 		if (!InKeyEvent.IsRepeat())
 		{
 			MoveMember(IsSubTabNextKey(Key) ? 1 : -1);
+			PlayCue(EWoRMenuCue::Move);
 		}
 		return FReply::Handled();
 	}
@@ -2973,6 +3379,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		if (!InKeyEvent.IsRepeat())
 		{
 			SwitchTab(IsTabNextKey(Key) ? 1 : -1);
+			PlayCue(EWoRMenuCue::Move);
 		}
 		return FReply::Handled();
 	}
@@ -2996,7 +3403,11 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 	{
 		if (!InKeyEvent.IsRepeat())
 		{
+			UBorder *Pressed = IsConfirmKey(Key) ? GetLitItem() : nullptr; // the item A was pressed on, before it acts
+			const bool bRefused = IsConfirmKey(Key) && IsLitRefused();
 			IsConfirmKey(Key) ? PressA() : IsToggleKey(Key) ? PressCompare() : PressConfirm();
+			PressItem(Pressed);
+			PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Confirm);
 		}
 		return FReply::Handled();
 	}
