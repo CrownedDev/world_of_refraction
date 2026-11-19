@@ -35,6 +35,7 @@
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
 #include "UI/Menus/LoadoutSavedModel.h"
+#include "UI/Menus/LoadoutV2GridModel.h"
 #include "UI/Menus/LoadoutV2InventoryModel.h"
 #include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
@@ -54,7 +55,9 @@ class UTexture2D;
 class UInventoryComponent;
 class ULoadoutComponent;
 class UTextBlock;
+class UUniformGridPanel;
 class UVerticalBox;
+class UWidget;
 
 /** B-476c: which part of the screen takes the keys. */
 enum class ELoadoutV2Mode : uint8
@@ -135,6 +138,8 @@ struct FLoadoutV2WindowItem
 	FText Refusal;
 	/** The piece already in the slot: A Removes it. */
 	bool bEquipped = false;
+	/** D-248: worn (in this slot, or in another entry of the loadout): the tick on its tile. */
+	bool bWorn = false;
 	/** B-534 (D-231): the crystal socket's Restore line: A tops the gem up (Line says what it spends). */
 	bool bRestore = false;
 	FWeaponInventoryEntry Weapon;
@@ -191,6 +196,20 @@ public:
 	/** B, Esc: one step back (the name box, the saved list, the ask, the list, the window, Options), else closes the screen. */
 	void PressBack() { HandleBackAction(); }
 
+	// D-248 step 1: the picture grid (WoRLoadoutV2Grid), shown while a weapon slot (Main hand, Off hand) is being filled:
+	// the entry's slots stay in the list on the left, the choices are tiles beside it. The specs call these too.
+	bool IsGridOpen() const;
+	/** The tiles as drawn, one per line of GetItems(). */
+	TArray<FLoadoutV2GridTile> GetGridTiles() const;
+	/** The filter tabs after All: the weapon types among the slot's pieces. */
+	const TArray<EWeaponType> &GetGridTypes() const { return GridTypes; }
+	/** The arrows in the grid: one tile left / right, one row up / down. */
+	void MoveInGrid(int32 DeltaX, int32 DeltaY);
+	/** LB / RB in the grid: the next filter tab (All, then each type present), in a ring. */
+	void CycleGridFilter(int32 Delta);
+	/** A click on a filter tab: 0 is All, then GetGridTypes() in order. */
+	void ClickGridTab(int32 GridTab);
+
 	const FLoadoutV2WeaponsPage &GetPage() const { return Page; }
 	ELoadoutV2Mode GetMode() const { return Mode; }
 	bool IsAdding() const { return Mode == ELoadoutV2Mode::WindowKind || Mode == ELoadoutV2Mode::WindowSlots || Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk; }
@@ -229,6 +248,8 @@ private:
 	/** The list's lines in the current mode. */
 	int32 GetLineCount() const;
 	FText GetLineName(int32 Line) const;
+	/** D-248 (Crown): the quiet line under a piece's name: "Sword (F)". Empty where the line is not a weapon or adapter. */
+	FText GetLineSubName(int32 Line) const;
 	FText GetLineDetail(int32 Line) const;
 	/** B-485: a list line's icons: the weapon type at its start, its socket badges and a tier badge after its name. */
 	struct FLineIcons
@@ -286,6 +307,24 @@ private:
 
 	// Options.
 	void SelectOption();
+
+	// D-248 step 1: the grid.
+	/** After the slot's pieces are listed: the types present, the piece count, then the filter (only its type stays). */
+	void ApplyGridFilter();
+	/** Shows or hides the grid and gives the three columns their widths; fills the tabs and tiles when shown. */
+	void RefreshGrid(bool bShown);
+	int32 FindTileUnder(const FVector2D &ScreenPosition) const;
+	int32 FindGridTabUnder(const FVector2D &ScreenPosition) const;
+	/** Debug: the grid as shown (WoRLoadoutV2Grid::GetGridString), logged when it opens or its filter changes. */
+	void LogGrid() const;
+	TArray<EWeaponType> GridTypes;
+	bool bGridFiltered = false;
+	EWeaponType GridFilter = EWeaponType::Sword;
+	/** Every piece the slot lists, stacks counted in full, before the filter ("14 weapons"). */
+	int32 GridPieceCount = 0;
+	/** The tile the grid was last scrolled to, so only a change scrolls it. */
+	uint32 GridScrolledKey = 0;
+	int32 HoveredGridTab = INDEX_NONE;
 
 	// B-482: the mouse.
 	/** The shown list line under ScreenPosition; INDEX_NONE for none. */
@@ -422,6 +461,11 @@ private:
 	TArray<TObjectPtr<UBorder>> LineRows;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> LineNames;
+	/** D-248: the quiet line under a row's name ("Sword (F)"), and the name column's box (narrower beside the grid). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> LineSubNames;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USizeBox>> LineNameColumns;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> LineDetails;
 	UPROPERTY(Transient)
@@ -461,4 +505,40 @@ private:
 	TArray<TObjectPtr<UImage>> BoxIcons;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> BoxTierIcons;
+
+	// D-248 step 1: the grid's panel between the list and the box (hidden outside the grid), and its parts. Tabs and
+	// tiles are made the first time they are needed and refilled after, never rebuilt (as the list's rows).
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> GridSizer;
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> BoxSizer;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GridTitleText;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GridCountText;
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> GridTabsRow;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> GridTabs;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> GridTabIcons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> GridTabLabels;
+	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> GridScroll;
+	UPROPERTY(Transient)
+	TObjectPtr<UUniformGridPanel> GridTilePanel;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> GridTiles;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> GridTileIcons;
+	/** The type in a word, shown on a tile whose type has no picture in the icon table. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> GridTileWords;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> GridTileTicks;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> GridTileLocks;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> GridTileCounts;
 };
