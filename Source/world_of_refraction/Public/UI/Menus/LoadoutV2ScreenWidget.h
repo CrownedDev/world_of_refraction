@@ -34,7 +34,9 @@
 
 #include "CoreMinimal.h"
 #include "Types/SlateEnums.h"
+#include "UI/Menus/InventoryScreenModel.h"
 #include "UI/Menus/LoadoutSavedModel.h"
+#include "UI/Menus/LoadoutV2GridModel.h"
 #include "UI/Menus/LoadoutV2InventoryModel.h"
 #include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/Menus/LoadoutScreenModel.h"
@@ -54,7 +56,9 @@ class UTexture2D;
 class UInventoryComponent;
 class ULoadoutComponent;
 class UTextBlock;
+class UUniformGridPanel;
 class UVerticalBox;
+class UWidget;
 
 /** B-476c: which part of the screen takes the keys. */
 enum class ELoadoutV2Mode : uint8
@@ -135,6 +139,8 @@ struct FLoadoutV2WindowItem
 	FText Refusal;
 	/** The piece already in the slot: A Removes it. */
 	bool bEquipped = false;
+	/** D-248: worn (in this slot, or in another entry of the loadout): the tick on its tile. */
+	bool bWorn = false;
 	/** B-534 (D-231): the crystal socket's Restore line: A tops the gem up (Line says what it spends). */
 	bool bRestore = false;
 	FWeaponInventoryEntry Weapon;
@@ -193,6 +199,52 @@ public:
 	/** B, Esc: one step back (the name box, the saved list, the ask, the list, the window, Options), else closes the screen. */
 	void PressBack() { HandleBackAction(); }
 
+	// D-249 piece 1: Inventory and Loadout are one screen. The inventory is home: the Gear / Pouch / Chest tabs and
+	// their things in the grid (read from the inventory screen's model, WoRInventoryScreen), the lit tile's details in
+	// the card. Y (and a click on the Loadout button, top right) brings the loadout in on the left and the grid narrows;
+	// Y again closes it. Left off the grid's first column goes to the loadout's side, Right from its list comes back.
+	// The specs call these too.
+	/** Opens the screen with the loadout already in and the keys on its side (the game menu's Loadout page, the Gate). */
+	static ULoadoutV2ScreenWidget *OpenWithLoadout(APlayerController *PC);
+	bool IsLoadoutOpen() const { return bLoadoutOpen; }
+	/** The keys are on the inventory's side (its tiles, or its filter row). */
+	bool IsOnInventorySide() const { return !bOnLoadoutSide; }
+	/** Y on the inventory's side, or the Loadout button: the loadout in or out. Refused while the loadout is in the
+	 *  middle of something (Options, a window, a slot's list): finish or leave that first. */
+	void ToggleLoadout();
+	/** The keys go to the loadout's side (it must be open) or back to the inventory's (the loadout must be at a tab's
+	 *  top level). False when they can't. */
+	bool FocusLoadoutSide();
+	bool FocusInventorySide();
+	/** The arrows on the inventory's side: tile to tile; Up off the top row reaches the filter row (Left / Right pick,
+	 *  Down returns); Left off the first column goes to the loadout's side when it is open. */
+	void MoveInventoryTile(int32 DeltaX, int32 DeltaY);
+	/** LB / RB on the inventory's side: Gear, Pouch, Chest, in a ring. */
+	void MoveInventoryTab(int32 Delta);
+	/** The View button / H on the inventory's side: the next sort. */
+	void CycleInventorySort();
+	EInventoryScreenTab GetInventoryTab() const { return InvTab; }
+	EInventoryScreenSort GetInventorySort() const { return InvSort; }
+	int32 GetInventoryTile() const { return InvSelected; }
+	bool IsOnInventoryFilters() const { return bOnInvFilters; }
+	const FInventoryScreenPage &GetInventorySide() const { return InvPage; }
+	/** Tiles to a row: fewer while the loadout is in. */
+	int32 GetGridColumns() const { return bLoadoutOpen ? WoRLoadoutV2Grid::COLUMNS : WoRLoadoutV2Grid::COLUMNS_WIDE; }
+
+	// D-248 step 1: the picture grid (WoRLoadoutV2Grid), shown while a weapon slot (Main hand, Off hand) is being filled:
+	// the entry's slots stay in the list on the left, the choices are tiles beside it. The specs call these too.
+	bool IsGridOpen() const;
+	/** The tiles as drawn, one per line of GetItems(). */
+	TArray<FLoadoutV2GridTile> GetGridTiles() const;
+	/** The filter tabs after All: the weapon types among the slot's pieces. */
+	const TArray<EWeaponType> &GetGridTypes() const { return GridTypes; }
+	/** The arrows in the grid: one tile left / right, one row up / down. */
+	void MoveInGrid(int32 DeltaX, int32 DeltaY);
+	/** LB / RB in the grid: the next filter tab (All, then each type present), in a ring. */
+	void CycleGridFilter(int32 Delta);
+	/** A click on a filter tab: 0 is All, then GetGridTypes() in order. */
+	void ClickGridTab(int32 GridTab);
+
 	const FLoadoutV2WeaponsPage &GetPage() const { return Page; }
 	ELoadoutV2Mode GetMode() const { return Mode; }
 	bool IsAdding() const { return Mode == ELoadoutV2Mode::WindowKind || Mode == ELoadoutV2Mode::WindowSlots || Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk; }
@@ -231,6 +283,8 @@ private:
 	/** The list's lines in the current mode. */
 	int32 GetLineCount() const;
 	FText GetLineName(int32 Line) const;
+	/** D-248 (Crown): the quiet line under a piece's name: "Sword (F)". Empty where the line is not a weapon or adapter. */
+	FText GetLineSubName(int32 Line) const;
 	FText GetLineDetail(int32 Line) const;
 	/** B-485: a list line's icons: the weapon type at its start, its socket badges and a tier badge after its name. */
 	struct FLineIcons
@@ -288,6 +342,72 @@ private:
 
 	// Options.
 	void SelectOption();
+
+	// D-249 piece 1: the inventory's side.
+	/** The loadout is at a tab's top level (its entries, the Skills tab's entries): the only place the keys may leave it. */
+	bool IsLoadoutAtTopLevel() const { return Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries; }
+	/** The grid shows the inventory's tab (always, but while a weapon slot is being filled: then it shows its choices). */
+	bool IsInventoryGrid() const { return !IsGridOpen(); }
+	/** The inventory's page for the shown member, tab, filter and sort, read fresh. */
+	void RefreshInventorySide();
+	/** The inventory's tiles as grid tiles (FInventoryScreenTile to FLoadoutV2GridTile). */
+	TArray<FLoadoutV2GridTile> GetInventoryTiles() const;
+	/** The tile the card shows on the inventory's side: the one under the mouse, else the lit one. */
+	int32 GetInventoryBoxTile() const { return InvPage.Tiles.IsValidIndex(HoveredInvTile) ? HoveredInvTile : InvSelected; }
+	/** The inventory's side has the card: the keys are there and no slot is being filled. */
+	bool IsInventoryBox() const { return !bOnLoadoutSide && IsInventoryGrid(); }
+	void SelectInventoryTab(EInventoryScreenTab NewTab);
+	void SelectInventoryFilter(int32 Index);
+	bool bLoadoutOpen = false;
+	bool bOnLoadoutSide = false;
+	bool bOnInvFilters = false;
+	EInventoryScreenTab InvTab = EInventoryScreenTab::Gear;
+	EInventoryScreenFilter InvFilter = EInventoryScreenFilter::All;
+	EInventoryScreenSort InvSort = EInventoryScreenSort::Kind;
+	TArray<EInventoryScreenFilter> InvFilters;
+	FInventoryScreenPage InvPage;
+	int32 InvSelected = 0;
+	int32 HoveredInvTile = INDEX_NONE;
+	int32 HoveredInvTab = INDEX_NONE;
+	/** The columns the tiles were last laid out in (their rows and columns are set again when it changes). */
+	int32 GridColumnsLaidOut = 0;
+	WoRMenuStyle::FChipRow InvTabChips;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> LoadoutTabsPanel;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> LoadoutButton;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> LoadoutButtonText;
+
+	// D-248 step 1: the grid.
+	/** After the slot's pieces are listed: the types present, the piece count, then the filter (only its type stays). */
+	void ApplyGridFilter();
+	/** Shows or hides the grid and gives the list and the grid their widths; fills the tabs and tiles when shown. */
+	void RefreshGrid(bool bShown);
+	/** D-248 step 2: where the details box is drawn. While the grid shows it is the card beside the lit (or hovered)
+	 *  tile (WoRLoadoutV2Grid::PlaceCard), in a light frame; otherwise it sits right of the list, as before. Called
+	 *  once the box's lines are written, so the card's size is the one it will have. */
+	void PlaceBox(bool bGrid);
+	/** One more RefreshView on the next frame (once; not a Tick): what PlaceBox measured can be a frame old (wrapped
+	 *  text after a width change, the grid before its first draw). The settling refresh asks for no further one. */
+	void SettleViewNextFrame();
+	bool bSettlePending = false;
+	bool bSettlingView = false;
+	/** The grid was scrolled by the wheel or its bar: the card is placed again beside its tile. */
+	UFUNCTION()
+	void HandleGridScrolled(float CurrentOffset);
+	int32 FindTileUnder(const FVector2D &ScreenPosition) const;
+	int32 FindGridTabUnder(const FVector2D &ScreenPosition) const;
+	/** Debug: the grid as shown (WoRLoadoutV2Grid::GetGridString), logged when it opens or its filter changes. */
+	void LogGrid() const;
+	TArray<EWeaponType> GridTypes;
+	bool bGridFiltered = false;
+	EWeaponType GridFilter = EWeaponType::Sword;
+	/** Every piece the slot lists, stacks counted in full, before the filter ("14 weapons"). */
+	int32 GridPieceCount = 0;
+	/** The tile the grid was last scrolled to, so only a change scrolls it. */
+	uint32 GridScrolledKey = 0;
+	int32 HoveredGridTab = INDEX_NONE;
 
 	// B-482: the mouse.
 	/** The shown list line under ScreenPosition; INDEX_NONE for none. */
@@ -434,6 +554,11 @@ private:
 	TArray<TObjectPtr<UBorder>> LineRows;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> LineNames;
+	/** D-248: the quiet line under a row's name ("Sword (F)"), and the name column's box (narrower beside the grid). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> LineSubNames;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USizeBox>> LineNameColumns;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> LineDetails;
 	UPROPERTY(Transient)
@@ -473,4 +598,43 @@ private:
 	TArray<TObjectPtr<UImage>> BoxIcons;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UImage>> BoxTierIcons;
+
+	// D-248 step 1: the grid's panel between the list and the box (hidden outside the grid), and its parts. Tabs and
+	// tiles are made the first time they are needed and refilled after, never rebuilt (as the list's rows).
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> GridSizer;
+	UPROPERTY(Transient)
+	TObjectPtr<USizeBox> BoxSizer;
+	/** D-248 step 2: the thin frame around the details box; light while the box is the card beside a tile. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> BoxFrame;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GridTitleText;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GridCountText;
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> GridTabsRow;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> GridTabs;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> GridTabIcons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> GridTabLabels;
+	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> GridScroll;
+	UPROPERTY(Transient)
+	TObjectPtr<UUniformGridPanel> GridTilePanel;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> GridTiles;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> GridTileIcons;
+	/** The type in a word, shown on a tile whose type has no picture in the icon table. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> GridTileWords;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> GridTileTicks;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> GridTileLocks;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> GridTileCounts;
 };

@@ -4,9 +4,14 @@
 
 #include "Algo/IndexOf.h"
 #include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/EditableTextBox.h"
 #include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
+#include "Components/UniformGridPanel.h"
+#include "Components/UniformGridSlot.h"
+#include "Containers/Ticker.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
@@ -49,6 +54,70 @@ namespace LoadoutV2ScreenStyle
 	constexpr float NameColumnWidth = 460.0f;
 	/** The list panel's tallest, until the screen has been drawn once and its own area's height is known (RefreshView). */
 	constexpr float ListMaxHeight = 700.0f;
+	// D-248 (mockup menus/loadout/v4/1b): while a weapon slot is being filled the list narrows to the slots and the
+	// grid takes the rest of the row; the two widths and the gap add up to ListWidth + ColumnGap + BoxWidth. Step 2: the
+	// details are a card beside the lit tile (the details box, moved there), so the grid has the box's width too.
+	constexpr float GridGap = 24.0f;
+	constexpr float GridSlotsWidth = 520.0f;
+	constexpr float GridWidth = ListWidth + ColumnGap + BoxWidth - GridSlotsWidth - GridGap;
+	constexpr float GridNameColumnWidth = 290.0f;
+	// The mockup's tile (72 px at 720p). Ten of them with their padding, the panel's padding and the scroll bar's room
+	// fill GridWidth.
+	constexpr float TileSize = 108.0f;
+	constexpr float TilePadding = 3.0f;
+	constexpr float TileIconSize = 72.0f;
+	/** A tile with the padding around it: the grid's row and column step. */
+	constexpr float TilePitch = TileSize + TilePadding * 2.0f;
+	// The card: the details box beside the lit tile, in a thin light frame so it reads over the tiles.
+	constexpr float CardWidth = 520.0f;
+	constexpr float CardGap = 6.0f;
+	constexpr float CardFrameWidth = 2.0f;
+	/** Where the tiles' view starts under the grid panel's top (its padding, the header, the filter tabs), until the
+	 *  grid has been drawn once and the real place is known. */
+	constexpr float GridViewTopFallback = 150.0f;
+	// D-249: the inventory's tabs, in the row's order (the inventory screen's own Loadout tab is not one of them).
+	const EInventoryScreenTab InventoryTabOrder[] = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch, EInventoryScreenTab::Chest};
+	constexpr int32 INVENTORY_TAB_COUNT = UE_ARRAY_COUNT(InventoryTabOrder);
+	constexpr float TileMarkInset = 6.0f;
+	constexpr float TileTickSize = 24.0f;
+	constexpr float GridTabIconSize = 36.0f;
+	constexpr float GridTabPadding = 9.0f;
+	constexpr float LockedTileOpacity = 0.35f;
+	// The lock, drawn from two plain blocks until the icon table has one: a shackle over a body.
+	constexpr float LockBodyWidth = 16.0f;
+	constexpr float LockBodyHeight = 11.0f;
+	constexpr float LockShackleWidth = 8.0f;
+	constexpr float LockShackleHeight = 6.0f;
+	/** A tile that can't go in the slot: darker than a plate. */
+	inline const FLinearColor LockedTileColor = FLinearColor::FromSRGBColor(FColor(30, 31, 36));
+
+	/** The worn tick: a small violet corner with a tick in it. */
+	UWidget *MakeTick(UWidgetTree *Tree)
+	{
+		UBorder *Corner = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Corner->SetBrushColor(FocusColor);
+		Corner->SetHorizontalAlignment(HAlign_Center);
+		Corner->SetVerticalAlignment(VAlign_Center);
+		UTextBlock *Mark = MakeText(Tree, SmallFontSize, TextColor, true);
+		Mark->SetText(NSLOCTEXT("WoRLoadoutV2Screen", "WornTick", "✓"));
+		Corner->SetContent(Mark);
+		return MakeSized(Tree, TileTickSize, TileTickSize, Corner);
+	}
+
+	/** The lock: a narrow block (the shackle) on a wider one (the body). */
+	UWidget *MakeLock(UWidgetTree *Tree)
+	{
+		UVerticalBox *Lock = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		const auto AddBlock = [Tree, Lock](float Width, float Height)
+		{
+			UBorder *Block = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+			Block->SetBrushColor(DimColor);
+			AddToColumn(Lock, MakeSized(Tree, Width, Height, Block))->SetHorizontalAlignment(HAlign_Center);
+		};
+		AddBlock(LockShackleWidth, LockShackleHeight);
+		AddBlock(LockBodyWidth, LockBodyHeight);
+		return Lock;
+	}
 	constexpr float BoxPadding = 24.0f;
 	// B-485: icon sizes (the mockups' 22 px at 720p, here at 1080p).
 	constexpr float RowIconSize = 36.0f;
@@ -193,6 +262,20 @@ ULoadoutV2ScreenWidget *ULoadoutV2ScreenWidget::Open(APlayerController *PC)
 	return Cast<ULoadoutV2ScreenWidget>(Root->PushToMenu(ULoadoutV2ScreenWidget::StaticClass()));
 }
 
+ULoadoutV2ScreenWidget *ULoadoutV2ScreenWidget::OpenWithLoadout(APlayerController *PC)
+{
+	ULoadoutV2ScreenWidget *Screen = Open(PC);
+	if (Screen)
+	{
+		if (!Screen->bLoadoutOpen)
+		{
+			Screen->ToggleLoadout();
+		}
+		Screen->FocusLoadoutSide();
+	}
+	return Screen;
+}
+
 TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 {
 	using namespace LoadoutV2ScreenStyle;
@@ -213,12 +296,25 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		AddToColumn(ChipRows, MakeChipRowPanel(WidgetTree, PartyConstants::MAX_PARTY_MEMBERS, LOCTEXT("KeySubTabPrev", "{SubTabPrev}"),
 											   LOCTEXT("KeySubTabNext", "{SubTabNext}"), MemberChips))
 			->SetHorizontalAlignment(HAlign_Left);
-		AddToColumn(ChipRows, MakeChipRowPanel(WidgetTree, LoadoutV2Chip_Count, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), TabChips),
-					FMargin(0.0f, LineGap, 0.0f, 0.0f))
-			->SetHorizontalAlignment(HAlign_Left);
+		// D-249 (mockups menus/inventory/v3): one tab line: the loadout's tabs first, shown only while the loadout is in,
+		// then the inventory's (Gear, Pouch, Chest), always there. LB / RB turn the tabs of the side the keys are on.
+		UHorizontalBox *TabLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		LoadoutTabsPanel = MakeChipRowPanel(WidgetTree, LoadoutV2Chip_Count, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), TabChips);
+		AddToRow(TabLine, LoadoutTabsPanel, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+		AddToRow(TabLine, MakeChipRowPanel(WidgetTree, INVENTORY_TAB_COUNT, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), InvTabChips));
+		AddToColumn(ChipRows, TabLine, FMargin(0.0f, LineGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Left);
 		AddToRow(Header, ChipRows, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		// Top right: the loadout in use (while the loadout is in), and under it the Loadout button (Y, or a click).
+		UVerticalBox *HeaderRight = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		LoadoutNameText = MakeText(WidgetTree, RowFontSize, TextColor, true);
-		AddToRow(Header, LoadoutNameText, FMargin(0.0f), VAlign_Top);
+		AddToColumn(HeaderRight, LoadoutNameText)->SetHorizontalAlignment(HAlign_Right);
+		LoadoutButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		LoadoutButton->SetBrushColor(PlateColor);
+		LoadoutButton->SetPadding(FMargin(TabPaddingX, TabPaddingY));
+		LoadoutButtonText = MakeHintText(WidgetTree, RowFontSize, TextColor, true); // not a hint bar: the button takes the click itself
+		LoadoutButton->SetContent(LoadoutButtonText);
+		AddToColumn(HeaderRight, LoadoutButton, FMargin(0.0f, LineGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
+		AddToRow(Header, HeaderRight, FMargin(0.0f), VAlign_Top);
 		// B-482b: as wide as the list and the box, so the loadout's title ends where the box does (it was cut off).
 		AddToColumn(Main, MakeSized(WidgetTree, ListWidth + ColumnGap + BoxWidth, 0.0f, Header))->SetHorizontalAlignment(HAlign_Left);
 		// B-476c (UIScreens B-479c): the list on the left, the box on the right. B-483: each area in one panel frame:
@@ -251,28 +347,88 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		ListArea = Columns;
 		AddToRow(Columns, ListSizer, FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
 		UBorder *Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		DetailsBox = Box;
 		Box->SetBrushColor(PanelColor);
 		Box->SetPadding(FMargin(BoxPadding));
 		UVerticalBox *BoxColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Box->SetContent(BoxColumn);
-		// B-487b: the header: a small quiet line (the piece's icon and its type), then its name and tier badge.
-		BoxTypeRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		BoxTitleIcon = MakeIcon(WidgetTree, BoxIconSize);
-		BoxTypeText = MakeText(WidgetTree, SmallFontSize, DimColor);
-		AddToRow(BoxTypeRow, BoxTitleIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
-		AddToRow(BoxTypeRow, BoxTypeText, FMargin(0.0f), VAlign_Center);
-		AddToColumn(BoxColumn, BoxTypeRow, FMargin(0.0f, 0.0f, 0.0f, BoxLineGap));
+		// The header. D-248 (Crown): a piece's icon and name, then under it a quiet line, its type with the tier in
+		// brackets ("Sword (F)"); no tier badge. (B-487b had the type above the name and the tier as a badge.)
 		UHorizontalBox *BoxTitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		BoxTitleIcon = MakeIcon(WidgetTree, BoxIconSize);
 		BoxTitleText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		BoxTitleTier = MakeIcon(WidgetTree, BadgeSize);
+		AddToRow(BoxTitleRow, BoxTitleIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
 		AddToRow(BoxTitleRow, BoxTitleText, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		AddToRow(BoxTitleRow, BoxTitleTier, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
-		AddToColumn(BoxColumn, BoxTitleRow, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		AddToColumn(BoxColumn, BoxTitleRow, FMargin(0.0f, 0.0f, 0.0f, BoxLineGap));
+		BoxTypeRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		BoxTypeText = MakeText(WidgetTree, SmallFontSize, DimColor);
+		AddToRow(BoxTypeRow, BoxTypeText, FMargin(0.0f), VAlign_Center);
+		AddToColumn(BoxColumn, BoxTypeRow, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		BoxLines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		AddToColumn(BoxColumn, BoxLines);
-		AddToRow(Columns, MakeSized(WidgetTree, BoxWidth, 0.0f, Box), FMargin(0.0f), VAlign_Top);
-		AddToColumn(Main, Columns, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+
+		// D-248 step 1: the picture grid, between the list and the box; shown only while a weapon slot is being filled
+		// (RefreshGrid). Its header (the slot, the piece count), the filter tabs, the tiles in a scroll box, the legend.
+		UBorder *GridPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		GridPanel->SetBrushColor(PanelColor);
+		GridPanel->SetPadding(FMargin(BoxPadding));
+		UVerticalBox *GridColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		GridPanel->SetContent(GridColumn);
+		UHorizontalBox *GridHeader = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		GridTitleText = MakeText(WidgetTree, RowFontSize, TextColor, true);
+		GridCountText = MakeText(WidgetTree, LineFontSize, DimColor);
+		AddToRow(GridHeader, GridTitleText, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToRow(GridHeader, GridCountText, FMargin(0.0f), VAlign_Center);
+		AddToColumn(GridColumn, GridHeader, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		GridTabsRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		AddToColumn(GridColumn, GridTabsRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+		// The wheel: over a grid with more rows than fit, the scroll box takes it and scrolls (its default); otherwise
+		// it reaches NativeOnMouseWheel and moves the lit tile one step.
+		GridScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+		GridScroll->OnUserScrolled.AddUniqueDynamic(this, &ULoadoutV2ScreenWidget::HandleGridScrolled); // the card moves with its tile
+		GridTilePanel = WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass());
+		GridTilePanel->SetSlotPadding(FMargin(TilePadding));
+		GridScroll->AddChild(GridTilePanel);
+		AddToColumn(GridColumn, GridScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		UHorizontalBox *GridLegend = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UTextBlock *WornWord = MakeText(WidgetTree, SmallFontSize, DimColor);
+		WornWord->SetText(LOCTEXT("GridLegendWorn", "worn"));
+		UTextBlock *LockWord = MakeText(WidgetTree, SmallFontSize, DimColor);
+		LockWord->SetText(LOCTEXT("GridLegendLocked", "can't go in this slot (why: in the details)"));
+		AddToRow(GridLegend, MakeTick(WidgetTree), FMargin(0.0f, 0.0f, WordGap, 0.0f));
+		AddToRow(GridLegend, WornWord, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+		AddToRow(GridLegend, MakeLock(WidgetTree), FMargin(0.0f, 0.0f, WordGap, 0.0f));
+		AddToRow(GridLegend, LockWord);
+		AddToColumn(GridColumn, GridLegend, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+		GridSizer = MakeSized(WidgetTree, GridWidth, 0.0f, GridPanel);
+		GridSizer->SetMaxDesiredHeight(ListMaxHeight);
+		AddToRow(Columns, GridSizer, FMargin(0.0f), VAlign_Top);
+		SetShown(GridSizer, false);
+
+		// D-248 step 2: the details box sits on a layer over the columns, not in their row, so it can be the card
+		// beside a tile (PlaceBox). Outside the grid it is placed where the row had it: right of the list, at the top.
+		// The frame around it is the panel's colour there (unseen) and light while it is the card.
+		BoxFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		BoxFrame->SetBrushColor(PanelColor);
+		BoxFrame->SetPadding(FMargin(0.0f));
+		BoxFrame->SetContent(Box);
+		DetailsBox = BoxFrame; // hidden as one when the box has nothing to say
+		BoxSizer = MakeSized(WidgetTree, BoxWidth, 0.0f, BoxFrame);
+		UCanvasPanel *BoxLayer = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		BoxLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible); // the layer covers the columns: only what is on it takes the mouse
+		BoxSizer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		UCanvasPanelSlot *BoxSlot = BoxLayer->AddChildToCanvas(BoxSizer);
+		BoxSlot->SetAutoSize(true);
+		BoxSlot->SetPosition(FVector2D(ListWidth + ColumnGap, 0.0f));
+		UOverlay *ColumnsLayers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		for (UWidget *Layer : {static_cast<UWidget *>(Columns), static_cast<UWidget *>(BoxLayer)})
+		{
+			UOverlaySlot *LayerSlot = ColumnsLayers->AddChildToOverlay(Layer);
+			LayerSlot->SetHorizontalAlignment(HAlign_Fill);
+			LayerSlot->SetVerticalAlignment(VAlign_Fill);
+		}
+		AddToColumn(Main, ColumnsLayers, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 		CompareText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 		AddToColumn(Main, CompareText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
@@ -304,6 +460,11 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 	WoRMenuStyle::SetShown(NameBox, false);
 	SkillEntry = 0; // B-476d: the Skills tab opens on its entries
 	SkillRowSelected = 0;
+	bOnInvFilters = false;
+	if (Tab == ELoadoutV2Tab::Inventory)
+	{
+		Tab = ELoadoutV2Tab::Weapons; // D-249: the loadout's own Inventory tab is gone
+	}
 	if (Tab == ELoadoutV2Tab::Skills)
 	{
 		Mode = ELoadoutV2Mode::SkillEntries;
@@ -340,8 +501,10 @@ bool ULoadoutV2ScreenWidget::FindActive(ULoadoutComponent *&OutLoadout, UInvento
 void ULoadoutV2ScreenWidget::RefreshData()
 {
 	SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // B-482: the lines may have changed under the mouse; its next move lights again
+	HoveredGridTab = INDEX_NONE;
 	Members = WoRLoadoutScreen::BuildMembers(GetWorld());
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
+	RefreshInventorySide(); // D-249: the inventory's tab for the shown member
 	Page = FLoadoutV2WeaponsPage();
 	InventoryPage = FLoadoutV2InventoryPage();
 	LoadoutName = FText::GetEmpty();
@@ -484,9 +647,74 @@ void ULoadoutV2ScreenWidget::LogSkillsTab() const
 	UE_LOG(LogWoRUI, Log, TEXT("%s"), *WoRLoadoutV2Skills::GetSkillsString(SkillsPage)); // B-476d debug: the tab as shown
 }
 
+void ULoadoutV2ScreenWidget::RefreshInventorySide()
+{
+	InvFilters = WoRInventoryScreen::GetFilters(InvTab);
+	if (!InvFilters.Contains(InvFilter))
+	{
+		InvFilter = EInventoryScreenFilter::All; // the tab has no such filter (the Pouch has none)
+	}
+	bOnInvFilters = bOnInvFilters && InvFilters.Num() > 0;
+	InvPage = Members.IsValidIndex(MemberIndex) ? WoRInventoryScreen::BuildPage(GetWorld(), Members[MemberIndex].Key, InvTab, InvFilter, InvSort) : FInventoryScreenPage();
+	InvSelected = InvPage.Tiles.Num() > 0 ? FMath::Clamp(InvSelected, 0, InvPage.Tiles.Num() - 1) : 0;
+	HoveredInvTile = INDEX_NONE; // the tiles may have changed under the mouse; its next move lights again
+}
+
+TArray<FLoadoutV2GridTile> ULoadoutV2ScreenWidget::GetInventoryTiles() const
+{
+	TArray<FLoadoutV2GridTile> Tiles;
+	for (const FInventoryScreenTile &Each : InvPage.Tiles)
+	{
+		FLoadoutV2GridTile &Tile = Tiles.AddDefaulted_GetRef();
+		Tile.Icon = Each.Icon;
+		if (Tile.Icon.Name.IsEmpty())
+		{
+			Tile.Icon.Name = Each.Mark; // the word on a tile with no picture: the inventory screen's letter
+		}
+		Tile.Count = Each.IsStack() ? FMath::Max(Each.Row.Count, 1) : 1;
+		Tile.bWorn = Each.bWorn;
+	}
+	return Tiles;
+}
+
 void ULoadoutV2ScreenWidget::RefreshDetails()
 {
 	Details.Reset();
+	if (IsInventoryBox())
+	{
+		// D-249: the lit or hovered inventory tile, as the inventory screen's panel words it: its name, under it its
+		// kind and tier, its lines and its note.
+		const int32 TileIndex = GetInventoryBoxTile();
+		if (bOnInvFilters || !InvPage.Tiles.IsValidIndex(TileIndex))
+		{
+			return;
+		}
+		const FInventoryScreenTile &Tile = InvPage.Tiles[TileIndex];
+		FLoadoutV2DetailLine &Piece = Details.AddDefaulted_GetRef();
+		Piece.Kind = ELoadoutV2DetailKind::Piece;
+		Piece.Label = Tile.Name;
+		Piece.Value = Tile.Tier;
+		Piece.Icon = Tile.Icon;
+		Piece.TypeName = Tile.KindLine;
+		Piece.bHasTier = !Tile.Tier.IsEmpty();
+		Piece.Tier = Tile.TierValue;
+		for (const FLoadoutScreenDetail &Detail : Tile.Details)
+		{
+			if (Detail.Label.IsEmpty())
+			{
+				Details.Add(WoRLoadoutV2::MakeNoteLine(Detail.Value));
+				continue;
+			}
+			FLoadoutV2DetailLine &Line = Details.AddDefaulted_GetRef();
+			Line.Label = Detail.Label;
+			Line.Value = Detail.Value;
+		}
+		if (!Tile.Note.IsEmpty())
+		{
+			Details.Add(WoRLoadoutV2::MakeNoteLine(Tile.Note));
+		}
+		return;
+	}
 	if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk || IsApparelSocketOpen())
 	{
 		// B-484: in a slot's list, the highlighted (or hovered) piece alone (B-476e: the apparel socket's list too).
@@ -635,13 +863,8 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		}
 		// Crown (2026-11-18): a filled slot leads with its piece (the slot's word is the quiet text beside it,
 		// GetLineDetail); an empty one leads with the slot's word.
-		if (!LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]))
-		{
-			return GetSlotName(Slots[Line]);
-		}
-		const FLineIcons Icons = GetLineIcons(Line);
-		const FText Piece = GetSlotValue(Slots[Line]);
-		return !Icons.bHasTier || WoRIcons::GetTierBadge(Icons.Tier) ? Piece : FText::Format(LOCTEXT("SlotPieceTier", "{0}  {1}"), Piece, WoRGameNames::GetTierLetter(Icons.Tier));
+		// D-248: the tier is in the quiet line under the name (GetLineSubName), not a badge or a letter after it.
+		return LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]) ? GetSlotValue(Slots[Line]) : GetSlotName(Slots[Line]);
 	}
 	case ELoadoutV2Mode::SkillEntries:
 		return SkillsPage.Entries.IsValidIndex(Line) ? SkillsPage.Entries[Line].Name : FText::GetEmpty();
@@ -693,11 +916,40 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 			// B-485: the socket shows as a badge when the icon table has one; else its name in brackets, as before.
 			const bool bBadge = Entry.SocketBadges.Num() > 0 && FindIcon(Entry.SocketBadges[0]) != nullptr;
 			const FText Name = bBadge ? Entry.Name : NameWithSocket(Entry.Name, Entry.SocketName);
-			// B-516b: the tier is a badge when the table has one, else its letter after the name.
-			return WoRIcons::GetTierBadge(Entry.Tier) ? Name : FText::Format(LOCTEXT("EntryNameTier", "{0}  {1}"), Name, WoRGameNames::GetTierLetter(Entry.Tier));
+			// D-248: a weapon's or adapter's tier is in the quiet line under its name (GetLineSubName). B-516b stays for
+			// the character's own evolution: a badge when the table has one, else its letter after the name.
+			return Entry.Kind != ELoadoutV2EntryKind::Evolution || WoRIcons::GetTierBadge(Entry.Tier)
+					   ? Name
+					   : FText::Format(LOCTEXT("EntryNameTier", "{0}  {1}"), Name, WoRGameNames::GetTierLetter(Entry.Tier));
 		}
 		return LOCTEXT("AddWeapon", "+ Add equipment");
 	}
+}
+
+FText ULoadoutV2ScreenWidget::GetLineSubName(int32 Line) const
+{
+	if (Mode == ELoadoutV2Mode::WindowSlots && Slots.IsValidIndex(Line) && LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]))
+	{
+		switch (Slots[Line])
+		{
+		case ELoadoutV2Slot::MainHand:
+			return WoRLoadoutV2Grid::GetTypeTierLine(WoRGameNames::GetHeldWeaponTypeName(Draft.MainHand.Weapon), Draft.MainHand.Tier);
+		case ELoadoutV2Slot::OffHand:
+			return WoRLoadoutV2Grid::GetTypeTierLine(WoRGameNames::GetHeldWeaponTypeName(Draft.OffHand.Weapon), Draft.OffHand.Tier);
+		case ELoadoutV2Slot::Adapter:
+			return WoRLoadoutV2Grid::GetTypeTierLine(WoRGameNames::GetAdapterWord(), Draft.Adapter.Tier);
+		default:
+			return FText::GetEmpty(); // a socket's text has its tier ("Garnet (F)")
+		}
+	}
+	if (Mode == ELoadoutV2Mode::List && Tab == ELoadoutV2Tab::Weapons && Page.Entries.IsValidIndex(Line))
+	{
+		const FLoadoutV2Entry &Entry = Page.Entries[Line];
+		return Entry.Kind == ELoadoutV2EntryKind::Weapon	? WoRLoadoutV2Grid::GetTypeTierLine(Entry.TypeIcon.Name, Entry.Tier) // a pair: what the two make, the main hand's tier
+			 : Entry.Kind == ELoadoutV2EntryKind::Adapter ? WoRLoadoutV2Grid::GetTypeTierLine(WoRGameNames::GetAdapterWord(), Entry.Tier)
+														  : FText::GetEmpty();
+	}
+	return FText::GetEmpty();
 }
 
 FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
@@ -804,14 +1056,16 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 			Icons.Type = Entry->TypeIcon;
 			Icons.Socket1 = Entry->SocketBadges.IsValidIndex(0) ? Entry->SocketBadges[0] : FLoadoutV2Icon();
 			Icons.Socket2 = Entry->SocketBadges.IsValidIndex(1) ? Entry->SocketBadges[1] : FLoadoutV2Icon();
-			Icons.bHasTier = Mode == ELoadoutV2Mode::List; // B-516b (D-223): the Equipment list's tier badge
+			// D-248: a weapon's or adapter's tier is written under its name (GetLineSubName), no badge. B-516b's badge
+			// stays on the character's own evolution.
+			Icons.bHasTier = Mode == ELoadoutV2Mode::List && Entry->Kind == ELoadoutV2EntryKind::Evolution;
 			Icons.Tier = Entry->Tier;
 		}
 		return Icons;
 	}
 	if (Mode == ELoadoutV2Mode::WindowSlots && Slots.IsValidIndex(Line) && LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]))
 	{
-		// A filled slot's piece: its icon and tier, as its line in a slot's list shows them.
+		// A filled slot's piece: its icon. D-248: its tier is written under its name (GetLineSubName), no badge.
 		switch (Slots[Line])
 		{
 		case ELoadoutV2Slot::MainHand:
@@ -821,8 +1075,6 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 			Icons.Type.Kind = ELoadoutV2IconKind::WeaponType;
 			Icons.Type.WeaponType = Piece.Weapon->WeaponType;
 			Icons.Type.Name = WoRGameNames::GetHeldWeaponTypeName(Piece.Weapon);
-			Icons.bHasTier = true;
-			Icons.Tier = Piece.Tier;
 			break;
 		}
 		case ELoadoutV2Slot::Adapter:
@@ -830,8 +1082,6 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 			FRingInventoryEntry Adapter = Draft.Adapter;
 			Adapter.AttachedItem = Draft.Socket1; // the entry's socket, as the draft holds it
 			Icons.Type = WoRLoadoutV2::MakeAdapterIcon(Adapter);
-			Icons.bHasTier = true;
-			Icons.Tier = Draft.Adapter.Tier;
 			break;
 		}
 		case ELoadoutV2Slot::Evolution:
@@ -1017,6 +1267,12 @@ FText ULoadoutV2ScreenWidget::GetTitle() const
 
 FText ULoadoutV2ScreenWidget::GetHints() const
 {
+	if (!bOnLoadoutSide && IsInventoryGrid())
+	{
+		// D-249: the keys are on the inventory's side.
+		return bLoadoutOpen ? LOCTEXT("HintsInventorySideOpen", "{Arrows}  Left at the edge: loadout        {Tabs}  Tab        {SubTabs}  Character        {Help}  Sort        {Second}  Close loadout        {Back}  Back")
+							: LOCTEXT("HintsInventorySide", "{Tabs}  Tab        {SubTabs}  Character        {Help}  Sort        {Second}  Loadout        {Back}  Back");
+	}
 	switch (Mode)
 	{
 	case ELoadoutV2Mode::Options:
@@ -1037,6 +1293,13 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		if (Items.IsValidIndex(Selected) && Items[Selected].bRestore)
 		{
 			return LOCTEXT("HintsItemsRestore", "{Confirm}  Restore        {Second}  Confirm        {Back}  Back");
+		}
+		if (IsGridOpen())
+		{
+			// D-248 step 1: the tab keys turn the grid's filter.
+			return Items.IsValidIndex(Selected) && Items[Selected].bEquipped
+					   ? LOCTEXT("HintsGridEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Tabs}  Filter        {Second}  Confirm        {Back}  Back")
+					   : LOCTEXT("HintsGrid", "{Confirm}  Pick        {Toggle}  Compare        {Tabs}  Filter        {Second}  Confirm        {Back}  Back");
 		}
 		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped
 				   ? LOCTEXT("HintsItemsEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Second}  Confirm        {Back}  Back")
@@ -1090,6 +1353,12 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 void ULoadoutV2ScreenWidget::RefreshView()
 {
 	using namespace LoadoutV2ScreenStyle;
+	if (!IsLoadoutAtTopLevel())
+	{
+		// D-249: the loadout is in the middle of something (Options, a window, a slot's list): it is in, and the keys are its.
+		bLoadoutOpen = true;
+		bOnLoadoutSide = true;
+	}
 	RefreshDetails();
 	if (!ListBox)
 	{
@@ -1105,10 +1374,43 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	SetChips(TabChips, BuildTabChips(),
 			 Tab == ELoadoutV2Tab::Apparel ? LoadoutV2Chip_Apparel : Tab == ELoadoutV2Tab::Skills ? LoadoutV2Chip_Skills : Tab == ELoadoutV2Tab::Inventory ? LoadoutV2Chip_Inventory : LoadoutV2Chip_Weapons,
 			 HoveredTabChip);
+	// D-249: the loadout's own Inventory tab is gone (the inventory is the grid beside it); its chip is hidden.
+	// OBSOLETE (D-249; delete after Crown's PIE pass): ELoadoutV2Tab::Inventory, RefreshInventory, WearFromInventory, IsOnInventoryList.
+	SetShown(TabChips.Chips[LoadoutV2Chip_Inventory].Get(), false);
+	SetShown(TabChips.Notes[LoadoutV2Chip_Inventory].Get(), false);
+	// The loadout's tabs and its name show only while it is in; the inventory's tabs are always there.
+	SetShown(LoadoutTabsPanel, bLoadoutOpen);
+	SetShown(LoadoutNameText, bLoadoutOpen);
+	TArray<FChipState> InvTabStates;
+	for (const EInventoryScreenTab Each : InventoryTabOrder)
+	{
+		InvTabStates.Add(FChipState{WoRInventoryScreen::GetTabName(Each)});
+	}
+	SetChips(InvTabChips, InvTabStates, static_cast<int32>(Algo::IndexOf(InventoryTabOrder, InvTab)), HoveredInvTab);
+	LoadoutButton->SetBrushColor(bLoadoutOpen ? FocusColor : PlateColor);
+	// The key is named only where it does this: with the keys on the loadout's side Y is the loadout's own (Options,
+	// Confirm), and the button is closed with a click.
+	WoRKeyHints::SetHint(LoadoutButtonText, !bLoadoutOpen	   ? LOCTEXT("LoadoutButtonOpen", "{Second}  Loadout")
+										   : bOnLoadoutSide ? LOCTEXT("LoadoutButtonClosePlain", "Close loadout")
+															: LOCTEXT("LoadoutButtonClose", "{Second}  Close loadout"));
 	LoadoutNameText->SetText(LoadoutName);
 	CellsText->SetText(IsOnSkillsTab() ? LOCTEXT("SkillsByEntry", "Skills by entry") : Page.CellsLine); // mockup 6: cells are the Weapons tab's
 	TitleText->SetText(GetTitle());
 	SetShown(TitleText, Mode != ELoadoutV2Mode::List && Mode != ELoadoutV2Mode::SkillEntries);
+	// D-248 step 1: while a weapon slot is being filled its choices are the grid's tiles, and the list keeps showing
+	// the entry's slots with the one being filled lit. So the rows below are drawn as the slots list; the real mode,
+	// selection and hover (a tile's) come back before the box is drawn.
+	const bool bGrid = IsGridOpen();
+	RefreshGrid(bGrid);
+	TOptional<TGuardValue<ELoadoutV2Mode>> RowsMode;
+	TOptional<TGuardValue<int32>> RowsSelected;
+	TOptional<TGuardValue<int32>> RowsHovered;
+	if (bGrid)
+	{
+		RowsMode.Emplace(Mode, ELoadoutV2Mode::WindowSlots);
+		RowsSelected.Emplace(Selected, SlotIndex);
+		RowsHovered.Emplace(HoveredLine, INDEX_NONE);
+	}
 	const int32 Count = GetLineCount();
 	while (LineRows.Num() < Count)
 	{
@@ -1131,9 +1433,15 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		UImage *Socket1Icon = MakeIcon(WidgetTree, BadgeSize);
 		UImage *Socket2Icon = MakeIcon(WidgetTree, BadgeSize);
 		UImage *TierIcon = MakeIcon(WidgetTree, BadgeSize);
+		// D-248 (Crown): under a piece's name, its type with the tier in brackets ("Sword (F)"); hidden on other lines.
+		UTextBlock *SubName = MakeText(WidgetTree, SmallFontSize, DimColor);
+		SubName->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		UVerticalBox *NameStack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		AddToColumn(NameStack, Name);
+		AddToColumn(NameStack, SubName);
 		UHorizontalBox *NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		AddToRow(NameRow, TypeStack, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
-		AddToRow(NameRow, Name, FMargin(0.0f), VAlign_Center);
+		AddToRow(NameRow, NameStack, FMargin(0.0f), VAlign_Center);
 		AddToRow(NameRow, TierIcon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
 		AddToRow(NameRow, Socket1Icon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
 		AddToRow(NameRow, Socket2Icon, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
@@ -1145,6 +1453,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		AddToColumn(ListBox, Row, FMargin(0.0f, 0.0f, 0.0f, RowGap));
 		LineRows.Add(Row);
 		LineNames.Add(Name);
+		LineSubNames.Add(SubName);
+		LineNameColumns.Add(NameColumn);
 		LineDetails.Add(Detail);
 		LineTags.Add(Tag);
 		LineTypeIcons.Add(TypeIcon);
@@ -1162,11 +1472,17 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			continue;
 		}
 		const bool bRefused = IsLineRefused(Index);
-		LineRows[Index]->SetBrushColor(Index == Selected ? FocusColor : Index == HoveredLine ? HoverColor : PlateColor);
+		// D-249: with the keys on the inventory's side the list's own line is only marked, not lit.
+		const bool bKeysHere = bOnLoadoutSide || bGrid;
+		LineRows[Index]->SetBrushColor(Index == Selected ? (bKeysHere ? FocusColor : HoverColor) : Index == HoveredLine ? HoverColor : PlateColor);
 		// A weapon line in a slot's list has its type after its name ("Simple Sword · Sword"); the box keeps the bare name.
 		const bool bWeaponLine = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk) && Items.IsValidIndex(Index) && Items[Index].Weapon.IsValid();
 		LineNames[Index]->SetText(bWeaponLine ? WoRLoadoutV2::GetWeaponRowName(GetLineName(Index), Items[Index].Weapon.Weapon) : GetLineName(Index));
 		LineNames[Index]->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor)); // refused: stays, greyed
+		const FText SubName = GetLineSubName(Index);
+		LineSubNames[Index]->SetText(SubName);
+		SetShown(LineSubNames[Index], !SubName.IsEmpty());
+		LineNameColumns[Index]->SetWidthOverride(GridNameColumnWidth); // D-249: the list always has the narrow column beside the grid
 		WoRKeyHints::SetHint(LineDetails[Index], GetLineDetail(Index));
 		// B-482b: on the entries list the detail is the row's right end ("ACTIVE", "1/5 left"), in the accent colour.
 		const bool bListMode = Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries; // B-476d: "4/9" as "1/5 left"
@@ -1185,7 +1501,8 @@ void ULoadoutV2ScreenWidget::RefreshView()
 										FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Icons.Tier)));
 		// A name with a badge after it keeps its own width, so the badge sits right after it; with none it fills the
 		// column and a long one ends in "...", as before the icons.
-		if (UHorizontalBoxSlot *NameSlot = Cast<UHorizontalBoxSlot>(LineNames[Index]->Slot))
+		// (The name sits in a stack with its quiet line: the stack is what the row sizes.)
+		if (UHorizontalBoxSlot *NameSlot = Cast<UHorizontalBoxSlot>(LineNames[Index]->GetParent()->Slot))
 		{
 			NameSlot->SetSize(FSlateChildSize(bSocketBadge || bTierBadge ? ESlateSizeRule::Automatic : ESlateSizeRule::Fill));
 		}
@@ -1204,6 +1521,10 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		ScrolledViewKey = ViewKey;
 		ListScroll->ScrollWidgetIntoView(LineRows[Selected], /*AnimateScroll=*/false);
 	}
+	// The rows are drawn: back to the real mode, selection and hover (the grid's, when it shows).
+	RowsHovered.Reset();
+	RowsSelected.Reset();
+	RowsMode.Reset();
 
 	// The box: the focused entry's details, or in the window the entry being built.
 	// A box line: its text, whether it is lit, and (B-485) its icon and a tier badge.
@@ -1214,8 +1535,10 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		FLoadoutV2Icon Icon;
 		bool bHasTier = false;
 		EItemTier Tier = EItemTier::F_Tier;
-		/** B-487b: a piece's type line: dim, above its name. */
+		/** A quiet line: a piece's "Type (Tier)" under its name (D-248), a note. */
 		bool bQuiet = false;
+		/** D-248: why a tile's piece can't go in the slot, in the warning colour. */
+		bool bWarn = false;
 	};
 	TArray<FBoxLine> BoxText;
 	FBoxLine BoxType; // the header's quiet line: the piece's icon and type
@@ -1224,9 +1547,13 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	// B-484: in a slot's list the box is the highlighted piece's own details (Details, from RefreshDetails), not the
 	// entry's slots; a line with nothing to show (a note) falls back to the slots.
 	const bool bPieceBox = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk || Mode == ELoadoutV2Mode::WindowSlots || IsOnInventoryList() ||
-							IsApparelSocketOpen()) &&
-						   !Details.IsEmpty(); // B-503u: the slot rows too; B-531: the Inventory tab's pieces; B-476e: the apparel socket's picks
-	if (IsAdding() && !bPieceBox)
+							IsInventoryBox() || IsApparelSocketOpen()) &&
+						   !Details.IsEmpty(); // B-503u: the slot rows too; B-531: the Inventory tab's pieces; D-249: an inventory tile; B-476e: the apparel socket's picks
+	if (IsInventoryBox() && Details.IsEmpty())
+	{
+		// D-249: the keys are on the inventory's side and no tile is lit (an empty tab, the filter row): no card.
+	}
+	else if (IsAdding() && !bPieceBox)
 	{
 		BoxTitle = bEditing ? EditEntry.Name : LOCTEXT("BoxNewEntry", "New entry");
 		for (int32 Index = 0; Index < Slots.Num(); ++Index)
@@ -1284,21 +1611,20 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			switch (Line.Kind)
 			{
 			case ELoadoutV2DetailKind::Piece:
-				// B-487b: a piece is two lines: its type with its icon, quiet; then its name and tier.
+			{
+				// D-248 (Crown): a piece is two lines: its name with its icon; then under it, quiet, its type with the tier
+				// in brackets ("Sword (F)"). No tier badge. (B-487b had the type above and the tier as a badge.)
+				BoxLine.bLit = true;
+				BoxLine.Text = Line.TypeName.IsEmpty() && Line.bHasTier ? FText::Format(LOCTEXT("BoxPiece", "{0}  {1}"), Line.Label, Line.Value) : Line.Label;
+				BoxText.Add(BoxLine);
 				if (!Line.TypeName.IsEmpty())
 				{
-					FBoxLine TypeLine{Line.TypeName};
-					TypeLine.Icon = Line.Icon;
+					FBoxLine TypeLine{Line.bHasTier ? WoRLoadoutV2Grid::GetTypeTierLine(Line.TypeName, Line.Tier) : Line.TypeName};
 					TypeLine.bQuiet = true;
 					BoxText.Add(TypeLine);
-					BoxLine.Icon = FLoadoutV2Icon();
 				}
-				BoxLine.bLit = true;
-				// B-485: a piece's tier is a badge after its name when the icon table has it; else its letter, as before.
-				BoxLine.bHasTier = Line.bHasTier && WoRIcons::GetTierBadge(Line.Tier) != nullptr;
-				BoxLine.Tier = Line.Tier;
-				BoxLine.Text = BoxLine.bHasTier ? Line.Label : FText::Format(LOCTEXT("BoxPiece", "{0}  {1}"), Line.Label, Line.Value);
-				break;
+				continue;
+			}
 			case ELoadoutV2DetailKind::Effect:
 				BoxLine.Text = FText::Format(LOCTEXT("BoxEffect", "{0}{1}"), FText::FromString(FString::ChrN(Line.Depth * IndentSpaces, TEXT(' '))), Line.Value);
 				break;
@@ -1321,21 +1647,33 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		// B-487b: the first piece's own lines are the header, in place of a plain name above them.
 		if (!Details.IsEmpty() && Details[0].Kind == ELoadoutV2DetailKind::Piece)
 		{
-			if (BoxText[0].bQuiet)
-			{
-				BoxType = BoxText[0];
-				BoxText.RemoveAt(0);
-			}
 			BoxHeader = BoxText[0];
 			BoxText.RemoveAt(0);
+			if (BoxText.Num() > 0 && BoxText[0].bQuiet)
+			{
+				BoxType = BoxText[0]; // its "Type (Tier)" line, under the name
+				BoxText.RemoveAt(0);
+			}
+		}
+		// D-248 step 1: a tile has no line of its own, so what the list's line said is the box's first line: why the
+		// piece can't go in the slot (a locked tile), else its cells and whether the off hand comes off.
+		if (IsGridOpen() && Items.IsValidIndex(GetBoxLine()))
+		{
+			const FLoadoutV2WindowItem &Item = Items[GetBoxLine()];
+			FBoxLine Note{Item.Refusal.IsEmpty() ? Item.Line : Item.Refusal};
+			Note.bWarn = !Item.Refusal.IsEmpty();
+			Note.bQuiet = !Note.bWarn;
+			if (!Note.Text.IsEmpty())
+			{
+				BoxText.Insert(Note, 0);
+			}
 		}
 	}
 	const auto GetTierTooltip = [](EItemTier Tier) { return FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Tier)); };
 	BoxTitleText->SetText(BoxTitle);
 	BoxTypeText->SetText(BoxType.Text);
-	const FLoadoutV2Icon &HeaderIcon = BoxType.Text.IsEmpty() ? BoxHeader.Icon : BoxType.Icon; // a piece with no type keeps its icon
-	const bool bHeaderIcon = SetIcon(BoxTitleIcon, FindIcon(HeaderIcon), HeaderIcon.Name);
-	SetShown(BoxTypeRow, bHeaderIcon || !BoxType.Text.IsEmpty());
+	SetIcon(BoxTitleIcon, FindIcon(BoxHeader.Icon), BoxHeader.Icon.Name); // beside the name
+	SetShown(BoxTypeRow, !BoxType.Text.IsEmpty());
 	const bool bTitleTier = SetIcon(BoxTitleTier, BoxHeader.bHasTier ? WoRIcons::GetTierBadge(BoxHeader.Tier) : nullptr, GetTierTooltip(BoxHeader.Tier));
 	if (UHorizontalBoxSlot *TitleSlot = Cast<UHorizontalBoxSlot>(BoxTitleText->Slot))
 	{
@@ -1369,7 +1707,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		{
 			const FBoxLine &Line = BoxText[Index];
 			BoxTexts[Index]->SetText(Line.Text);
-			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bLit ? CyanColor : Line.bQuiet ? DimColor : TextColor));
+			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bWarn ? WarnColor : Line.bLit ? CyanColor : Line.bQuiet ? DimColor : TextColor));
 			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), Line.Icon.Name, /*bKeepSpace=*/bAnyBoxIcon);
 			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr, GetTierTooltip(Line.Tier));
 			// A name with its tier badge keeps its own width, so the badge sits right after it; other lines fill and wrap.
@@ -1379,6 +1717,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			}
 		}
 	}
+	PlaceBox(bGrid); // D-248 step 2, D-249: the card, beside the lit tile or level with the lit line
 
 	FText Compare;
 	if (Mode == ELoadoutV2Mode::ApparelItems && bComparing && Items.IsValidIndex(Selected) && !bApparelSocket) // a socket pick has nothing worn beside it
@@ -1428,6 +1767,508 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	WoRKeyHints::SetHint(HintsText, GetHints(), HintArguments);
 }
 
+// ==================== THE GRID (D-248 step 1) ====================
+
+bool ULoadoutV2ScreenWidget::IsGridOpen() const
+{
+	return Mode == ELoadoutV2Mode::WindowItems && Slots.IsValidIndex(SlotIndex) &&
+		   (Slots[SlotIndex] == ELoadoutV2Slot::MainHand || Slots[SlotIndex] == ELoadoutV2Slot::OffHand);
+}
+
+TArray<FLoadoutV2GridTile> ULoadoutV2ScreenWidget::GetGridTiles() const
+{
+	TArray<FLoadoutV2GridTile> Tiles;
+	for (const FLoadoutV2WindowItem &Item : Items)
+	{
+		FLoadoutV2GridTile &Tile = Tiles.AddDefaulted_GetRef();
+		if (Item.Weapon.Weapon)
+		{
+			Tile.Icon.Kind = ELoadoutV2IconKind::WeaponType;
+			Tile.Icon.WeaponType = Item.Weapon.Weapon->WeaponType;
+			Tile.Icon.Name = WoRGameNames::GetWeaponTypeName(Item.Weapon.Weapon->WeaponType);
+		}
+		Tile.Count = Item.Count;
+		Tile.bWorn = Item.bWorn;
+		Tile.bLocked = !Item.Refusal.IsEmpty();
+	}
+	return Tiles;
+}
+
+void ULoadoutV2ScreenWidget::ApplyGridFilter()
+{
+	TArray<EWeaponType> Types;
+	GridPieceCount = 0;
+	for (const FLoadoutV2WindowItem &Item : Items)
+	{
+		if (Item.Weapon.Weapon)
+		{
+			Types.Add(Item.Weapon.Weapon->WeaponType);
+			GridPieceCount += Item.Count;
+		}
+	}
+	GridTypes = WoRLoadoutV2Grid::GetTypesPresent(Types);
+	bGridFiltered = bGridFiltered && GridTypes.Contains(GridFilter); // a type that left the list: back to All
+	if (bGridFiltered)
+	{
+		Items.RemoveAll([this](const FLoadoutV2WindowItem &Item) { return !Item.Weapon.Weapon || Item.Weapon.Weapon->WeaponType != GridFilter; });
+	}
+}
+
+void ULoadoutV2ScreenWidget::LogGrid() const
+{
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] grid, %s, filter %s, %d piece(s):\n%s"), Slots.IsValidIndex(SlotIndex) ? *GetSlotName(Slots[SlotIndex]).ToString() : TEXT("?"),
+		   bGridFiltered ? *WoRGameNames::GetWeaponTypeName(GridFilter).ToString() : TEXT("All"), GridPieceCount,
+		   *WoRLoadoutV2Grid::GetGridString(GetGridTiles(), WoRLoadoutV2Grid::COLUMNS, Selected));
+}
+
+void ULoadoutV2ScreenWidget::MoveInGrid(int32 DeltaX, int32 DeltaY)
+{
+	if (!IsGridOpen())
+	{
+		return;
+	}
+	const int32 Target = WoRLoadoutV2Grid::Move(Selected, Items.Num(), WoRLoadoutV2Grid::COLUMNS, DeltaX, DeltaY);
+	if (Target != INDEX_NONE && Target != Selected)
+	{
+		MoveSelection(Target - Selected);
+	}
+}
+
+void ULoadoutV2ScreenWidget::ClickGridTab(int32 GridTab)
+{
+	if (!IsGridOpen() || GridTab < 0 || GridTab > GridTypes.Num())
+	{
+		return;
+	}
+	const bool bFiltered = GridTab > 0;
+	const EWeaponType Type = bFiltered ? GridTypes[GridTab - 1] : GridFilter;
+	if (bFiltered == bGridFiltered && (!bFiltered || Type == GridFilter))
+	{
+		return;
+	}
+	bGridFiltered = bFiltered;
+	GridFilter = Type;
+	Selected = 0;
+	bComparing = false;
+	bRemoveArmed = false;
+	Message = FText::GetEmpty();
+	RefreshData();
+	LogGrid();
+}
+
+void ULoadoutV2ScreenWidget::CycleGridFilter(int32 Delta)
+{
+	const int32 TabCount = GridTypes.Num() + 1; // All, then each type
+	const int32 Current = bGridFiltered ? GridTypes.IndexOfByKey(GridFilter) + 1 : 0;
+	ClickGridTab(((Current + (Delta < 0 ? -1 : 1)) % TabCount + TabCount) % TabCount);
+}
+
+int32 ULoadoutV2ScreenWidget::FindTileUnder(const FVector2D &ScreenPosition) const
+{
+	// A tile scrolled out of the panel is not under the mouse.
+	if (!GridScroll || !GridScroll->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+	{
+		return INDEX_NONE;
+	}
+	const int32 Count = FMath::Min(IsGridOpen() ? Items.Num() : InvPage.Tiles.Num(), GridTiles.Num()); // a slot's choices, or the inventory's tab
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		if (GridTiles[Index] && GridTiles[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+int32 ULoadoutV2ScreenWidget::FindGridTabUnder(const FVector2D &ScreenPosition) const
+{
+	const int32 Count = FMath::Min(IsGridOpen() ? GridTypes.Num() + 1 : InvFilters.Num(), GridTabs.Num()); // the weapon types, or the inventory's filters
+	for (int32 Index = 0; Index < Count; ++Index)
+	{
+		if (GridTabs[Index] && GridTabs[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
+{
+	using namespace LoadoutV2ScreenStyle;
+	// D-249: the grid is always there. With the loadout in, the list has its column on the left and the grid the rest
+	// of the row; with it out the grid has the whole row.
+	SetShown(ListSizer, bLoadoutOpen);
+	SetShown(GridSizer, true);
+	ListSizer->SetWidthOverride(GridSlotsWidth);
+	if (UHorizontalBoxSlot *ListSlot = Cast<UHorizontalBoxSlot>(ListSizer->Slot))
+	{
+		ListSlot->SetPadding(FMargin(0.0f, 0.0f, GridGap, 0.0f));
+	}
+	GridSizer->SetWidthOverride(bLoadoutOpen ? GridWidth : ListWidth + ColumnGap + BoxWidth);
+	const float AreaHeight = ListArea->GetCachedGeometry().GetLocalSize().Y;
+	GridSizer->SetMaxDesiredHeight(AreaHeight > 0.0f ? AreaHeight : ListMaxHeight); // as the list's panel
+
+	// What the grid shows: a weapon slot's choices while one is being filled (D-248), else the inventory's tab (D-249).
+	const TArray<FLoadoutV2GridTile> Tiles = bSlotGrid ? GetGridTiles() : GetInventoryTiles();
+	const int32 SelectedTile = bSlotGrid ? Selected : bOnLoadoutSide || bOnInvFilters ? static_cast<int32>(INDEX_NONE) : InvSelected;
+	const int32 HoveredTile = bSlotGrid ? HoveredLine : HoveredInvTile; // in a slot's grid the hovered line is a tile
+	const int32 Columns = GetGridColumns();
+	if (bSlotGrid)
+	{
+		GridTitleText->SetText(GetSlotName(Slots[SlotIndex]));
+		GridCountText->SetText(FText::Format(LOCTEXT("GridCount", "{0} {0}|plural(one=weapon,other=weapons)"), GridPieceCount));
+	}
+	else
+	{
+		GridTitleText->SetText(InvPage.Heading.IsEmpty() ? WoRInventoryScreen::GetTabName(InvTab) : InvPage.Heading);
+		GridCountText->SetText(Tiles.IsEmpty() ? InvPage.EmptyNote
+											   : FText::Format(LOCTEXT("InvCount", "{0} {0}|plural(one=tile,other=tiles) · Sort: {1}"), Tiles.Num(), WoRInventoryScreen::GetSortName(InvSort)));
+	}
+
+	// The filter tabs. A slot's grid: All, then a picture for each weapon type present (its word where the icon table
+	// has no picture). The inventory: the tab's own filter row, in words (none on the Pouch).
+	const int32 TabCount = bSlotGrid ? GridTypes.Num() + 1 : InvFilters.Num();
+	while (GridTabs.Num() < TabCount)
+	{
+		UBorder *GridTab = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		GridTab->SetPadding(FMargin(GridTabPadding));
+		GridTab->SetVerticalAlignment(VAlign_Center);
+		UHorizontalBox *Content = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		GridTab->SetContent(Content);
+		UImage *Icon = MakeIcon(WidgetTree, GridTabIconSize);
+		UTextBlock *Label = MakeText(WidgetTree, SmallFontSize, TextColor, true);
+		AddToRow(Content, Icon);
+		AddToRow(Content, Label);
+		AddToRow(GridTabsRow, GridTab, FMargin(0.0f, 0.0f, TabGap, 0.0f));
+		GridTabs.Add(GridTab);
+		GridTabIcons.Add(Icon);
+		GridTabLabels.Add(Label);
+	}
+	const int32 CurrentTab = bSlotGrid ? (bGridFiltered ? GridTypes.IndexOfByKey(GridFilter) + 1 : 0) : InvFilters.IndexOfByKey(InvFilter);
+	for (int32 Index = 0; Index < GridTabs.Num(); ++Index)
+	{
+		const bool bTabShown = Index < TabCount;
+		SetShown(GridTabs[Index], bTabShown);
+		if (!bTabShown)
+		{
+			continue;
+		}
+		GridTabs[Index]->SetBrushColor(Index == CurrentTab ? FocusColor : Index == HoveredGridTab ? HoverColor : PlateColor);
+		FLoadoutV2Icon Icon;
+		FText Word = LOCTEXT("GridTabAll", "All");
+		if (!bSlotGrid)
+		{
+			Word = WoRInventoryScreen::GetFilterName(InvFilters[Index]);
+		}
+		else if (Index > 0)
+		{
+			Icon.Kind = ELoadoutV2IconKind::WeaponType;
+			Icon.WeaponType = GridTypes[Index - 1];
+			Icon.Name = WoRGameNames::GetWeaponTypeName(Icon.WeaponType);
+			Word = Icon.Name;
+		}
+		const bool bPicture = SetIcon(GridTabIcons[Index], FindIcon(Icon), Icon.Name);
+		GridTabLabels[Index]->SetText(Word);
+		SetShown(GridTabLabels[Index], !bPicture);
+	}
+
+	// The tiles, made the first time they are needed and refilled after. Their rows and columns are set again when the
+	// grid's width changes (the loadout in or out).
+	if (GridColumnsLaidOut != Columns)
+	{
+		for (int32 Index = 0; Index < GridTiles.Num(); ++Index)
+		{
+			if (UUniformGridSlot *TileSlot = Cast<UUniformGridSlot>(GridTiles[Index]->Slot))
+			{
+				TileSlot->SetRow(Index / Columns);
+				TileSlot->SetColumn(Index % Columns);
+			}
+		}
+		GridColumnsLaidOut = Columns;
+	}
+	while (GridTiles.Num() < Tiles.Num())
+	{
+		const int32 Index = GridTiles.Num();
+		UBorder *Tile = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		UOverlay *Layers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		Tile->SetContent(MakeSized(WidgetTree, TileSize, TileSize, Layers));
+		const auto AddLayer = [Layers](UWidget *Layer, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, float Inset)
+		{
+			UOverlaySlot *LayerSlot = Layers->AddChildToOverlay(Layer);
+			LayerSlot->SetHorizontalAlignment(HAlign);
+			LayerSlot->SetVerticalAlignment(VAlign);
+			LayerSlot->SetPadding(FMargin(Inset));
+		};
+		UImage *Icon = MakeIcon(WidgetTree, TileIconSize);
+		UTextBlock *Word = MakeText(WidgetTree, SmallFontSize, DimColor);
+		UWidget *Tick = MakeTick(WidgetTree);
+		UWidget *Lock = MakeLock(WidgetTree);
+		UTextBlock *CountText = MakeText(WidgetTree, SmallFontSize, TextColor, true);
+		AddLayer(Icon, HAlign_Center, VAlign_Center, 0.0f);
+		AddLayer(Word, HAlign_Center, VAlign_Center, 0.0f);
+		AddLayer(Tick, HAlign_Left, VAlign_Top, 0.0f);
+		AddLayer(Lock, HAlign_Right, VAlign_Top, TileMarkInset);
+		AddLayer(CountText, HAlign_Right, VAlign_Bottom, TileMarkInset);
+		GridTilePanel->AddChildToUniformGrid(Tile, Index / Columns, Index % Columns);
+		GridTiles.Add(Tile);
+		GridTileIcons.Add(Icon);
+		GridTileWords.Add(Word);
+		GridTileTicks.Add(Tick);
+		GridTileLocks.Add(Lock);
+		GridTileCounts.Add(CountText);
+	}
+	for (int32 Index = 0; Index < GridTiles.Num(); ++Index)
+	{
+		const bool bTileShown = Tiles.IsValidIndex(Index);
+		SetShown(GridTiles[Index], bTileShown);
+		if (!bTileShown)
+		{
+			continue;
+		}
+		const FLoadoutV2GridTile &Tile = Tiles[Index];
+		GridTiles[Index]->SetBrushColor(Index == SelectedTile ? FocusColor : Index == HoveredTile ? HoverColor : Tile.bLocked ? LockedTileColor : PlateColor);
+		const bool bPicture = SetIcon(GridTileIcons[Index], FindIcon(Tile.Icon), Tile.Icon.Name);
+		GridTileIcons[Index]->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, Tile.bLocked ? LockedTileOpacity : 1.0f));
+		GridTileWords[Index]->SetText(Tile.Icon.Name);
+		GridTileWords[Index]->SetColorAndOpacity(FSlateColor(Tile.bLocked ? OffColor : DimColor));
+		SetShown(GridTileWords[Index], !bPicture);
+		SetShown(GridTileTicks[Index], Tile.bWorn);
+		SetShown(GridTileLocks[Index], Tile.bLocked);
+		GridTileCounts[Index]->SetText(FText::Format(LOCTEXT("GridTileCount", "x{0}"), FText::AsNumber(Tile.Count)));
+		SetShown(GridTileCounts[Index], Tile.Count > 1);
+	}
+	// The lit tile's row is brought into view when the selection or the tiles change (as the list's line). The offset
+	// is set here, at once (ScrollWidgetIntoView waits a frame), so the card is placed beside the tile where it will be
+	// drawn (PlaceBox). Before the grid has been drawn its height isn't known: it opens at the top anyway.
+	const uint32 ViewKey = HashCombine(HashCombine(HashCombine(GetTypeHash(SelectedTile), GetTypeHash(Tiles.Num())), HashCombine(GetTypeHash(SlotIndex), GetTypeHash(CurrentTab))),
+									   HashCombine(HashCombine(GetTypeHash(bSlotGrid), GetTypeHash(Columns)), GetTypeHash(static_cast<uint8>(InvTab))));
+	const float ViewHeight = GridScroll->GetCachedGeometry().GetLocalSize().Y;
+	if (ViewKey != GridScrolledKey && SelectedTile >= 0 && SelectedTile < Tiles.Num() && ViewHeight > 0.0f) // not drawn yet: tried again once it is (SettleViewNextFrame)
+	{
+		GridScrolledKey = ViewKey;
+		GridScroll->SetScrollOffset(WoRLoadoutV2Grid::ScrollToRow(GridScroll->GetScrollOffset(), SelectedTile / Columns, TilePitch, ViewHeight));
+	}
+}
+
+void ULoadoutV2ScreenWidget::SettleViewNextFrame()
+{
+	if (bSettlingView || bSettlePending)
+	{
+		return; // this refresh is the settling one, or one is already asked for
+	}
+	bSettlePending = true;
+	// The core ticker, not a world timer: it runs while the game is paused too. One shot (it returns false).
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float)
+	{
+		bSettlePending = false;
+		if (ListBox)
+		{
+			TGuardValue<bool> Settling(bSettlingView, true);
+			RefreshView();
+		}
+		return false;
+	}));
+}
+
+void ULoadoutV2ScreenWidget::HandleGridScrolled(float /*CurrentOffset*/)
+{
+	// The wheel or the scroll bar moved the tiles: the card is placed again beside its tile. (The tile under a resting
+	// mouse is found again on the mouse's next move.)
+	RefreshView();
+}
+
+void ULoadoutV2ScreenWidget::PlaceBox(bool bSlotGrid)
+{
+	using namespace LoadoutV2ScreenStyle;
+	UCanvasPanelSlot *BoxSlot = Cast<UCanvasPanelSlot>(BoxSizer->Slot);
+	if (!BoxSlot)
+	{
+		return;
+	}
+	// D-249: the details box is always a card now (the grid has the room it stood in): beside the lit or hovered tile
+	// when it shows a tile's piece, else at the grid's left edge, level with the lit line of the loadout's list. It
+	// lies over tiles, so the mouse and the wheel go through it to them.
+	BoxSizer->SetWidthOverride(CardWidth);
+	BoxSizer->SetVisibility(ESlateVisibility::HitTestInvisible);
+	BoxFrame->SetBrushColor(CyanColor);
+	BoxFrame->SetPadding(FMargin(CardFrameWidth));
+	const FGeometry &Area = ListArea->GetCachedGeometry();
+	const FGeometry &View = GridScroll->GetCachedGeometry();
+	const bool bDrawn = View.GetLocalSize().Y > 0.0f && Area.GetLocalSize().Y > 0.0f;
+	const float AreaHeight = Area.GetLocalSize().Y > 0.0f ? Area.GetLocalSize().Y : ListMaxHeight;
+	const float GridLeft = bLoadoutOpen ? GridSlotsWidth + GridGap : 0.0f;
+	BoxSizer->ForceLayoutPrepass(); // the card's size with the lines just written
+	const FVector2D CardSize = BoxSizer->GetDesiredSize();
+
+	const bool bInventoryTile = !bSlotGrid && IsInventoryBox() && !bOnInvFilters;
+	const int32 Tile = bSlotGrid ? GetBoxLine() : bInventoryTile ? GetInventoryBoxTile() : static_cast<int32>(INDEX_NONE);
+	const int32 TileCount = bSlotGrid ? Items.Num() : InvPage.Tiles.Num();
+	if (Tile >= 0 && Tile < TileCount)
+	{
+		// The tiles' view inside the columns' area: inside the grid panel's padding; its top is read from the drawn grid
+		// (the header and the tabs above it), a fixed guess before the grid's first draw.
+		const int32 Columns = GetGridColumns();
+		const FVector2D ViewOrigin(GridLeft + BoxPadding, bDrawn ? Area.AbsoluteToLocal(View.GetAbsolutePosition()).Y : GridViewTopFallback);
+		// The card keeps to the tiles' width (not over the scroll bar) and may use the room down to the area's bottom
+		// (past the tiles' own view, over the legend).
+		const FVector2D ViewSize(TilePitch * Columns, FMath::Max(AreaHeight - ViewOrigin.Y, 0.0));
+		const FVector2D TilePosition = WoRLoadoutV2Grid::GetTilePosition(Tile, Columns, TilePitch, TilePadding, GridScroll->GetScrollOffset());
+		const WoRLoadoutV2Grid::FCardPlace Place = WoRLoadoutV2Grid::PlaceCard(TilePosition, TileSize, CardSize, ViewSize, CardGap);
+		BoxSlot->SetPosition(ViewOrigin + Place.Position);
+		UE_LOG(LogWoRUI, Verbose, TEXT("[LoadoutV2] card for tile %d at %s (%s, %s)%s"), Tile, *Place.Position.ToString(), Place.bLeft ? TEXT("left") : TEXT("right"),
+			   Place.bUp ? TEXT("bottoms level") : TEXT("tops level"), bDrawn ? TEXT("") : TEXT(" - grid not drawn yet, guessed"));
+	}
+	else
+	{
+		// A line of the loadout's list: level with that line, kept inside the area.
+		const int32 Line = GetBoxLine();
+		const bool bLineDrawn = bDrawn && LineRows.IsValidIndex(Line) && LineRows[Line]->GetCachedGeometry().GetLocalSize().Y > 0.0f;
+		const double LineTop = bLineDrawn ? Area.AbsoluteToLocal(LineRows[Line]->GetCachedGeometry().GetAbsolutePosition()).Y : 0.0;
+		BoxSlot->SetPosition(FVector2D(GridLeft + CardGap, FMath::Clamp(LineTop, 0.0, FMath::Max(AreaHeight - CardSize.Y, 0.0))));
+	}
+	// What was measured here can be a frame old: the wrapped text's height right after the lines changed, the grid's
+	// place before its first draw. One more refresh next frame sets the card (and a scroll not yet made) right.
+	SettleViewNextFrame();
+}
+
+// ==================== THE INVENTORY'S SIDE (D-249 piece 1) ====================
+
+void ULoadoutV2ScreenWidget::ToggleLoadout()
+{
+	if (!IsLoadoutAtTopLevel())
+	{
+		Message = LOCTEXT("LoadoutBusy", "Finish or leave what the loadout is doing first.");
+		RefreshView();
+		return;
+	}
+	bLoadoutOpen = !bLoadoutOpen;
+	if (!bLoadoutOpen)
+	{
+		bOnLoadoutSide = false; // the keys have nowhere else to be
+	}
+	Message = FText::GetEmpty();
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] loadout %s; keys on the %s side; %d tiles to a row"), bLoadoutOpen ? TEXT("in") : TEXT("out"),
+		   bOnLoadoutSide ? TEXT("loadout's") : TEXT("inventory's"), GetGridColumns());
+	RefreshData();
+}
+
+bool ULoadoutV2ScreenWidget::FocusLoadoutSide()
+{
+	if (!bLoadoutOpen || bOnLoadoutSide)
+	{
+		return false;
+	}
+	bOnLoadoutSide = true;
+	bOnInvFilters = false;
+	HoveredInvTile = INDEX_NONE;
+	Message = FText::GetEmpty();
+	RefreshView();
+	return true;
+}
+
+bool ULoadoutV2ScreenWidget::FocusInventorySide()
+{
+	if (!bOnLoadoutSide || !IsLoadoutAtTopLevel())
+	{
+		return false;
+	}
+	bOnLoadoutSide = false;
+	SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE);
+	Message = FText::GetEmpty();
+	RefreshView();
+	return true;
+}
+
+void ULoadoutV2ScreenWidget::MoveInventoryTile(int32 DeltaX, int32 DeltaY)
+{
+	if (bOnLoadoutSide || !IsInventoryGrid())
+	{
+		return;
+	}
+	const int32 Columns = GetGridColumns();
+	Message = FText::GetEmpty();
+	if (bOnInvFilters)
+	{
+		// On the filter row: Left / Right pick the filter, Down goes back to the tiles.
+		if (DeltaY > 0)
+		{
+			bOnInvFilters = false;
+			RefreshView();
+		}
+		else if (DeltaX != 0)
+		{
+			SelectInventoryFilter(InvFilters.IndexOfByKey(InvFilter) + (DeltaX > 0 ? 1 : -1));
+		}
+		return;
+	}
+	if (DeltaX < 0 && InvSelected % Columns == 0 && FocusLoadoutSide())
+	{
+		return; // off the grid's left edge: the loadout's side, when it is in (else Left runs on into the row before)
+	}
+	if (DeltaY < 0 && InvSelected < Columns)
+	{
+		if (InvFilters.Num() > 0)
+		{
+			bOnInvFilters = true; // off the top row: the filter row
+			RefreshView();
+		}
+		return;
+	}
+	const int32 Target = WoRLoadoutV2Grid::Move(InvSelected, InvPage.Tiles.Num(), Columns, DeltaX, DeltaY);
+	if (Target != INDEX_NONE && Target != InvSelected)
+	{
+		InvSelected = Target;
+		RefreshView();
+	}
+}
+
+void ULoadoutV2ScreenWidget::SelectInventoryTab(EInventoryScreenTab NewTab)
+{
+	if (NewTab == InvTab || !IsInventoryGrid())
+	{
+		return;
+	}
+	InvTab = NewTab;
+	InvFilter = EInventoryScreenFilter::All;
+	InvSelected = 0;
+	bOnInvFilters = false;
+	Message = FText::GetEmpty();
+	RefreshData();
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] inventory tab %s:\n%s"), *WoRInventoryScreen::GetTabName(InvTab).ToString(),
+		   *WoRLoadoutV2Grid::GetGridString(GetInventoryTiles(), GetGridColumns(), InvSelected));
+}
+
+void ULoadoutV2ScreenWidget::MoveInventoryTab(int32 Delta)
+{
+	using namespace LoadoutV2ScreenStyle;
+	const int32 Current = FMath::Max(0, static_cast<int32>(Algo::IndexOf(InventoryTabOrder, InvTab)));
+	SelectInventoryTab(InventoryTabOrder[((Current + (Delta < 0 ? -1 : 1)) % INVENTORY_TAB_COUNT + INVENTORY_TAB_COUNT) % INVENTORY_TAB_COUNT]);
+}
+
+void ULoadoutV2ScreenWidget::SelectInventoryFilter(int32 Index)
+{
+	if (!InvFilters.IsValidIndex(Index) || InvFilters[Index] == InvFilter || !IsInventoryGrid())
+	{
+		return;
+	}
+	InvFilter = InvFilters[Index];
+	InvSelected = 0;
+	RefreshData();
+}
+
+void ULoadoutV2ScreenWidget::CycleInventorySort()
+{
+	if (!IsInventoryGrid())
+	{
+		return;
+	}
+	InvSort = WoRInventoryScreen::GetNextSort(InvSort);
+	InvSelected = 0;
+	RefreshData();
+}
+
 // ==================== KEYS ====================
 
 void ULoadoutV2ScreenWidget::MoveSelection(int32 Delta)
@@ -1475,13 +2316,13 @@ void ULoadoutV2ScreenWidget::ClickTabChip(int32 Chip)
 	{
 		return;
 	}
-	if (Chip == LoadoutV2Chip_Inventory || Chip == LoadoutV2Chip_Weapons || Chip == LoadoutV2Chip_Skills || Chip == LoadoutV2Chip_Apparel)
+	if (Chip == LoadoutV2Chip_Weapons || Chip == LoadoutV2Chip_Skills || Chip == LoadoutV2Chip_Apparel)
 	{
-		// B-476d: the chips are the tabs in order (B-531: Inventory, then Weapons, Skills, Apparel).
-		const ELoadoutV2Tab Target = Chip == LoadoutV2Chip_Skills	   ? ELoadoutV2Tab::Skills
-								   : Chip == LoadoutV2Chip_Apparel   ? ELoadoutV2Tab::Apparel
-								   : Chip == LoadoutV2Chip_Inventory ? ELoadoutV2Tab::Inventory
-																	 : ELoadoutV2Tab::Weapons;
+		// B-476d: the chips are the tabs in order. D-249: the Inventory chip is hidden and answers nothing (the
+		// inventory is the grid beside the loadout).
+		const ELoadoutV2Tab Target = Chip == LoadoutV2Chip_Skills	 ? ELoadoutV2Tab::Skills
+								   : Chip == LoadoutV2Chip_Apparel ? ELoadoutV2Tab::Apparel
+																   : ELoadoutV2Tab::Weapons;
 		if (Target != Tab)
 		{
 			ShowTab(Target);
@@ -1530,12 +2371,13 @@ void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
 
 int32 ULoadoutV2ScreenWidget::FindLineUnder(const FVector2D &ScreenPosition) const
 {
-	// A line scrolled out of the panel is not under the mouse, wherever its own place would be.
-	if (ListScroll && !ListScroll->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+	// A line scrolled out of the panel is not under the mouse, wherever its own place would be; nor is any line while
+	// the loadout is out (D-249: its list is not drawn, its last place is stale).
+	if (!bLoadoutOpen || (ListScroll && !ListScroll->GetCachedGeometry().IsUnderLocation(ScreenPosition)))
 	{
 		return INDEX_NONE;
 	}
-	const int32 Count = FMath::Min(GetLineCount(), LineRows.Num());
+	const int32 Count = FMath::Min(IsGridOpen() ? Slots.Num() : GetLineCount(), LineRows.Num()); // beside the grid the rows are the slots
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		if (LineRows[Index] && LineRows[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
@@ -1565,8 +2407,20 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, co
 	{
 		const FVector2D Position = InMouseEvent.GetScreenSpacePosition();
 		const bool bList = Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries; // a tab's top level (B-476d)
+		// D-248: while the grid shows, the hovered line is a tile (the box follows it), and a filter tab lights too.
+		const bool bGrid = IsGridOpen();
+		// D-249: the grid's filter tabs light in both its uses; an inventory tile and an inventory tab light too (the
+		// card follows the tile while the keys are on the inventory's side).
+		const int32 GridTab = FindGridTabUnder(Position);
+		const int32 InvTile = bGrid ? static_cast<int32>(INDEX_NONE) : FindTileUnder(Position);
+		const int32 InvTabChip = bGrid ? static_cast<int32>(INDEX_NONE) : WoRMenuStyle::FindChipUnder(InvTabChips, Position);
+		const bool bOtherChanged = GridTab != HoveredGridTab || InvTile != HoveredInvTile || InvTabChip != HoveredInvTab;
+		HoveredGridTab = GridTab;
+		HoveredInvTile = InvTile;
+		HoveredInvTab = InvTabChip;
 		if (SetHovered(bList ? WoRMenuStyle::FindChipUnder(MemberChips, Position) : INDEX_NONE,
-					   bList ? WoRMenuStyle::FindChipUnder(TabChips, Position) : INDEX_NONE, FindLineUnder(Position)))
+					   bList && bLoadoutOpen ? WoRMenuStyle::FindChipUnder(TabChips, Position) : INDEX_NONE, bGrid ? FindTileUnder(Position) : FindLineUnder(Position)) ||
+			bOtherChanged)
 		{
 			RefreshView();
 		}
@@ -1576,7 +2430,11 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, co
 
 void ULoadoutV2ScreenWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEvent)
 {
-	if (SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE))
+	const bool bTabWasLit = HoveredGridTab != INDEX_NONE || HoveredInvTile != INDEX_NONE || HoveredInvTab != INDEX_NONE;
+	HoveredGridTab = INDEX_NONE;
+	HoveredInvTile = INDEX_NONE;
+	HoveredInvTab = INDEX_NONE;
+	if (SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE) || bTabWasLit)
 	{
 		RefreshView();
 	}
@@ -1589,7 +2447,19 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseWheel(const FGeometry &InGeometry, c
 	{
 		return Super::NativeOnMouseWheel(InGeometry, InMouseEvent);
 	}
-	MoveSelection(InMouseEvent.GetWheelDelta() > 0.0f ? -1 : 1); // wheel up: the line above, as Up
+	const int32 Step = InMouseEvent.GetWheelDelta() > 0.0f ? -1 : 1; // wheel up: the line (or tile) before, as Up
+	if (!bOnLoadoutSide && IsInventoryGrid())
+	{
+		// D-249: on the inventory's side (the grid had nothing to scroll, or it would have taken the wheel): the lit tile.
+		const int32 Target = InvPage.Tiles.Num() > 0 ? FMath::Clamp(InvSelected + Step, 0, InvPage.Tiles.Num() - 1) : 0;
+		if (Target != InvSelected && !bOnInvFilters)
+		{
+			InvSelected = Target;
+			RefreshView();
+		}
+		return FReply::Handled();
+	}
+	MoveSelection(Step);
 	return FReply::Handled();
 }
 
@@ -1600,6 +2470,12 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent); // typing a name: the box keeps the mouse
 	}
 	const FVector2D Position = InMouseEvent.GetScreenSpacePosition();
+	// D-249: the Loadout button, top right: the loadout in or out, from either side.
+	if (LoadoutButton && LoadoutButton->GetCachedGeometry().IsUnderLocation(Position))
+	{
+		ToggleLoadout();
+		return FReply::Handled();
+	}
 	if (Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries)
 	{
 		const int32 MemberChip = WoRMenuStyle::FindChipUnder(MemberChips, Position);
@@ -1608,16 +2484,71 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 			ClickMemberChip(MemberChip);
 			return FReply::Handled();
 		}
-		const int32 TabChip = WoRMenuStyle::FindChipUnder(TabChips, Position);
+		const int32 TabChip = bLoadoutOpen ? WoRMenuStyle::FindChipUnder(TabChips, Position) : static_cast<int32>(INDEX_NONE); // not drawn while the loadout is out
 		if (TabChip != INDEX_NONE)
 		{
+			FocusLoadoutSide(); // D-249: a click on the loadout's side brings the keys there
 			ClickTabChip(TabChip);
 			return FReply::Handled();
 		}
 	}
+	if (IsInventoryGrid() && (!bOnLoadoutSide || IsLoadoutAtTopLevel()))
+	{
+		// D-249: the inventory's side: one of its tabs, a filter, a tile. The click brings the keys there.
+		const int32 InvTabChip = WoRMenuStyle::FindChipUnder(InvTabChips, Position);
+		const int32 FilterTab = FindGridTabUnder(Position);
+		const int32 Tile = FindTileUnder(Position);
+		if (InvTabChip != INDEX_NONE || FilterTab != INDEX_NONE || Tile != INDEX_NONE)
+		{
+			FocusInventorySide();
+			if (InvTabChip != INDEX_NONE)
+			{
+				SelectInventoryTab(LoadoutV2ScreenStyle::InventoryTabOrder[InvTabChip]);
+			}
+			else if (FilterTab != INDEX_NONE)
+			{
+				SelectInventoryFilter(FilterTab);
+			}
+			else
+			{
+				InvSelected = Tile;
+				bOnInvFilters = false;
+				Message = FText::GetEmpty();
+				RefreshView();
+			}
+			return FReply::Handled();
+		}
+	}
+	if (IsGridOpen())
+	{
+		// D-248: a filter tab, a tile (as a line: focus, then A), or a slot row beside the grid (that slot opens).
+		const int32 GridTab = FindGridTabUnder(Position);
+		const int32 Tile = FindTileUnder(Position);
+		const int32 SlotRow = FindLineUnder(Position);
+		if (GridTab != INDEX_NONE)
+		{
+			ClickGridTab(GridTab);
+		}
+		else if (Tile != INDEX_NONE)
+		{
+			ClickLine(Tile);
+		}
+		else if (SlotRow != INDEX_NONE && SlotRow != SlotIndex)
+		{
+			HandleBackAction(); // back to the slots
+			Selected = SlotRow;
+			PressA(); // and into the clicked one
+		}
+		else
+		{
+			return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+		}
+		return FReply::Handled();
+	}
 	const int32 Line = FindLineUnder(Position);
 	if (Line != INDEX_NONE)
 	{
+		FocusLoadoutSide(); // D-249: a click on the loadout's list brings the keys there
 		ClickLine(Line);
 		return FReply::Handled();
 	}
@@ -1630,9 +2561,12 @@ void ULoadoutV2ScreenWidget::SwitchTab(int32 Delta)
 	{
 		return;
 	}
-	// B-476d: Weapons | Skills | Apparel, in a ring (Cosmetics later). B-531: Inventory first.
-	const int32 TabCount = static_cast<int32>(ELoadoutV2Tab::Last) + 1;
-	ShowTab(static_cast<ELoadoutV2Tab>(((static_cast<int32>(Tab) + (Delta < 0 ? -1 : 1)) % TabCount + TabCount) % TabCount));
+	// B-476d: Weapons | Skills | Apparel, in a ring (Cosmetics later). D-249: the loadout's own Inventory tab is out
+	// of the ring (it is gone; the inventory is the grid beside the loadout).
+	const int32 First = static_cast<int32>(ELoadoutV2Tab::Weapons);
+	const int32 TabCount = static_cast<int32>(ELoadoutV2Tab::Last) - First + 1;
+	const int32 Current = FMath::Max(static_cast<int32>(Tab) - First, 0);
+	ShowTab(static_cast<ELoadoutV2Tab>(First + ((Current + (Delta < 0 ? -1 : 1)) % TabCount + TabCount) % TabCount));
 }
 
 void ULoadoutV2ScreenWidget::ShowTab(ELoadoutV2Tab NewTab)
@@ -1771,12 +2705,17 @@ void ULoadoutV2ScreenWidget::PressA()
 		bComparing = false;
 		bRemoveArmed = false;
 		PickedSocket = INDEX_NONE;
+		bGridFiltered = false; // D-248: a slot's grid opens on All
 		Message = FText::GetEmpty();
 		RefreshData();
 		if (Items.IsEmpty())
 		{
 			Message = LOCTEXT("NothingToPick", "You own nothing that goes here.");
 			RefreshView();
+		}
+		if (IsGridOpen())
+		{
+			LogGrid();
 		}
 		return;
 	case ELoadoutV2Mode::WindowItems:
@@ -1940,6 +2879,12 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		CancelRename(); // B-440e
 		return true;
 	}
+	if (!bOnLoadoutSide && bOnInvFilters)
+	{
+		bOnInvFilters = false; // D-249: off the inventory's filter row, back to its tiles
+		RefreshView();
+		return true;
+	}
 	switch (Mode)
 	{
 	case ELoadoutV2Mode::Options:
@@ -1984,6 +2929,8 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		RefreshView();
 		return true;
 	case ELoadoutV2Mode::WindowItems:
+		SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // D-248: a hovered tile's index is not a slot row's
+		HoveredGridTab = INDEX_NONE;
 		Mode = ELoadoutV2Mode::WindowSlots;
 		Selected = SlotIndex;
 		Items.Reset();
@@ -2009,6 +2956,72 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 	if (bRenaming)
 	{
 		return Super::NativeOnKeyDown(InGeometry, InKeyEvent); // B-440e: typing a name; the box keeps Enter and Esc
+	}
+	if (!bOnLoadoutSide && IsInventoryGrid())
+	{
+		// D-249: the keys on the inventory's side. The character keys and Back fall through to the shared handling.
+		if (IsUpKey(Key) || IsDownKey(Key) || IsLeftKey(Key) || IsRightKey(Key))
+		{
+			MoveInventoryTile(IsRightKey(Key) ? 1 : IsLeftKey(Key) ? -1 : 0, IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0);
+			return FReply::Handled();
+		}
+		if (IsTabPrevKey(Key) || IsTabNextKey(Key) || IsSecondActionKey(Key) || IsHelpKey(Key) || IsConfirmKey(Key) || IsToggleKey(Key))
+		{
+			if (InKeyEvent.IsRepeat())
+			{
+				return FReply::Handled();
+			}
+			if (IsTabPrevKey(Key) || IsTabNextKey(Key))
+			{
+				MoveInventoryTab(IsTabNextKey(Key) ? 1 : -1);
+			}
+			else if (IsSecondActionKey(Key))
+			{
+				ToggleLoadout();
+			}
+			else if (IsHelpKey(Key))
+			{
+				CycleInventorySort();
+			}
+			else if (IsConfirmKey(Key) && bOnInvFilters)
+			{
+				bOnInvFilters = false; // the filter is already the lit one: back to its tiles
+				RefreshView();
+			}
+			else if (IsConfirmKey(Key) && InvPage.Tiles.IsValidIndex(InvSelected))
+			{
+				// TODO: D-249 piece 2: Equip from here (the loadout comes in and asks for the slot); piece 3: Give / Store.
+				Message = LOCTEXT("InventoryVerbsLater", "Equipping from here comes next. For now: open the loadout and pick a slot.");
+				RefreshView();
+			}
+			return FReply::Handled(); // X does nothing on this side
+		}
+		if (Key == EKeys::V || Key == EKeys::Gamepad_LeftThumbstick || Key == EKeys::Six)
+		{
+			return FReply::Handled(); // the loadout's own keys (the view, Set active) do nothing from this side
+		}
+	}
+	else if (bOnLoadoutSide && IsLoadoutAtTopLevel() && IsRightKey(Key))
+	{
+		FocusInventorySide(); // D-249: Right from the loadout's list: the inventory's side
+		return FReply::Handled();
+	}
+	if (IsGridOpen())
+	{
+		// D-248 step 1: in the grid the arrows go tile to tile, and the tab keys turn the filter.
+		if (IsUpKey(Key) || IsDownKey(Key) || IsLeftKey(Key) || IsRightKey(Key))
+		{
+			MoveInGrid(IsRightKey(Key) ? 1 : IsLeftKey(Key) ? -1 : 0, IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0);
+			return FReply::Handled();
+		}
+		if (IsTabPrevKey(Key) || IsTabNextKey(Key))
+		{
+			if (!InKeyEvent.IsRepeat())
+			{
+				CycleGridFilter(IsTabNextKey(Key) ? 1 : -1);
+			}
+			return FReply::Handled();
+		}
 	}
 	if (IsUpKey(Key) || IsDownKey(Key))
 	{
@@ -2683,6 +3696,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 		{
 			FLoadoutV2WindowItem &Equipped = Items.AddDefaulted_GetRef();
 			Equipped.bEquipped = true;
+			Equipped.bWorn = true;
 			Equipped.Weapon = InSlot;
 			Equipped.Name = WeaponName(InSlot);
 			// B-513, B-515: what the two hands make ("Sword and Shield"); a weapon alone has its type after its name.
@@ -2690,6 +3704,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 		}
 		const TArray<FLoadoutV2OffHandChoice> OffHands = bMain ? TArray<FLoadoutV2OffHandChoice>() : WoRLoadoutV2::BuildOffHandChoices(Draft.MainHand, Inventory->Weapons, Class);
 		const int32 FirstPiece = Items.Num();
+		ON_SCOPE_EXIT { ApplyGridFilter(); };					// D-248: declared first, so it runs after the stacking below
 		ON_SCOPE_EXIT { StackPieceLines(Items, FirstPiece); }; // B-531 (D-230)
 		for (const FWeaponInventoryEntry &Owned : Inventory->Weapons)
 		{
@@ -2714,7 +3729,8 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			// The type is after the name (the row's draw, GetWeaponRowName).
 			Item.Line = bOffHandComesOff ? FText::Format(LOCTEXT("WeaponItemLineOffHand", "{0} · the off hand comes off"), CellsLine(Result.Value)) : CellsLine(Result.Value);
 			const FLoadoutV2OffHandChoice *Pair = OffHands.FindByPredicate([&Owned](const FLoadoutV2OffHandChoice &Each) { return Each.Weapon.PersistentID == Owned.PersistentID; });
-			Item.Refusal = IsElsewhere(Owned.PersistentID) ? LOCTEXT("RefuseInOtherEntry", "In another entry.")
+			Item.bWorn = IsElsewhere(Owned.PersistentID); // D-248: worn in another entry: the tick on its tile
+			Item.Refusal = Item.bWorn ? LOCTEXT("RefuseInOtherEntry", "In another entry.")
 						   : Pair && !Pair->Refusal.IsEmpty() ? Pair->Refusal
 															  : Result.Key;
 		}
@@ -2883,6 +3899,8 @@ void ULoadoutV2ScreenWidget::PickItem()
 		return;
 	}
 	// A piece is picked: back to the slots, the draft shown in the box.
+	SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // D-248: a hovered tile's index is not a slot row's
+	HoveredGridTab = INDEX_NONE;
 	Mode = ELoadoutV2Mode::WindowSlots;
 	Selected = FMath::Min(SlotIndex + 1, Slots.Num() - 1);
 	Items.Reset();

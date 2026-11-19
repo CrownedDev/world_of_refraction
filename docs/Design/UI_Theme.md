@@ -60,6 +60,25 @@ Updating `ElementColors.h` to match is a separate code job (`UI_ScreenInventory.
 
 Focus must be **bright**, never dark: Expedition 33 players complained its black selection highlight was hard to see ([Steam discussion](https://steamcommunity.com/app/1903340/discussions/0/592896433808511656)). Metaphor's director: each menu has its own look but must stay "simple, practical, and usable" ([Kotaku](https://kotaku.com/-metaphor-refantazio-persona-5-menu-ui-hashino-1851667088)); Hidris's set fits that.
 
+## 5a. Feel: menus must answer at once (Crown, 2026-11-20)
+
+Crown: moving and clicking "feels stiff when it should feel responsive". Rules for every menu, from proven practice:
+
+| Rule | Value | Why / source |
+|---|---|---|
+| Feedback the same frame as the input | under 100 ms, never a frame late | Nielsen's response-time limits ([nngroup](https://www.nngroup.com/articles/response-times-3-important-limits/)) |
+| Highlight and press motion | 80-150 ms, decelerating ease (never linear) | Material motion ([duration and easing](https://m1.material.io/motion/duration-easing.html)); Atlassian motion tokens |
+| Panels sliding in / out | 200-300 ms, decelerating ease | same |
+| The highlight travels or fades to the new item | 80-120 ms; optional 1.03-1.05x pop | Persona 5's menus, praised for speed and motion |
+| A sound on every action | move (soft), confirm (firm), back (lower), refused ("nope") | "Juice it or lose it" (GDC 2012): sound is the cheapest feel |
+| Our own hold-to-repeat | 350 ms to the first repeat, then every 90 ms | shipped games set it themselves; the OS repeat differs per PC |
+| Never block input | the next input cuts any transition short | Hades, Expedition 33 |
+| Scroll follows focus smoothly | 100-150 ms glide, no jump | |
+| A move redraws only what changed | the old and new item, the card | a per-step hitch reads as stiff |
+
+**Sounds (Crown, 2026-11-20: use the deckbuilder's for now):** Stormwave Audio's Glass Sound Effects Vol. I (bought by Crown 2026-10-13, commercial use allowed, raw files never redistributed): "Glass Clink 15" for presses and moves (starts at 0.125 s), "Small Glass Break 3" for confirm, as in the deckbuilder's `UiSound.cs`. Back and refused cues: picked when wired. Crown may replace them later.
+
+
 ## 6. Combat HUD use (mockup)
 
 Layout (Crown, 2026-11-03): party cards stacked **top-left**, turn order strip **top-right**, command menu **bottom-left**, input hints bottom-right. The top centre shows the **target's name, rank and Combat Tier** (it replaced the "Turn 3 · Orthos" label; the strip already shows whose turn it is). Later: Expedition 33's arrangement, the active character standing between the two halves of the command menu.
