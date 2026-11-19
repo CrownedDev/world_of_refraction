@@ -1338,6 +1338,7 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 void ULoadoutV2ScreenWidget::RefreshView()
 {
 	using namespace LoadoutV2ScreenStyle;
+	++FullRefreshCount;
 	if (!IsLoadoutAtTopLevel())
 	{
 		// D-249: the loadout is in the middle of something (Options, a window, a slot's list): it is in, and the keys are its.
@@ -1457,9 +1458,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			continue;
 		}
 		const bool bRefused = IsLineRefused(Index);
-		// D-249: with the keys on the inventory's side the list's own line is only marked, not lit.
-		const bool bKeysHere = bOnLoadoutSide || bGrid;
-		LineRows[Index]->SetBrushColor(Index == Selected ? (bKeysHere ? FocusColor : HoverColor) : Index == HoveredLine ? HoverColor : PlateColor);
+		LineRows[Index]->SetBrushColor(GetLineColor(Index, bGrid));
 		// A weapon line in a slot's list has its type after its name ("Simple Sword · Sword"); the box keeps the bare name.
 		const bool bWeaponLine = (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk) && Items.IsValidIndex(Index) && Items[Index].Weapon.IsValid();
 		LineNames[Index]->SetText(bWeaponLine ? WoRLoadoutV2::GetWeaponRowName(GetLineName(Index), Items[Index].Weapon.Weapon) : GetLineName(Index));
@@ -1498,19 +1497,115 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	// height until the next key or mouse move; follow the geometry itself if that shows.
 	const float AreaHeight = ListArea->GetCachedGeometry().GetLocalSize().Y;
 	ListSizer->SetMaxDesiredHeight(AreaHeight > 0.0f ? AreaHeight : ListMaxHeight);
-	// The selected line is brought into view when the selection or the list changes, not on every refresh (a hover
-	// refreshes too, and would pull a list dragged by its scroll bar back).
-	const uint32 ViewKey = HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(Count)), HashCombine(GetTypeHash(static_cast<uint8>(Mode)), GetTypeHash(static_cast<uint8>(Tab))));
-	if (ViewKey != ScrolledViewKey && LineRows.IsValidIndex(Selected) && Selected < Count)
-	{
-		ScrolledViewKey = ViewKey;
-		ListScroll->ScrollWidgetIntoView(LineRows[Selected], /*AnimateScroll=*/false);
-	}
 	// The rows are drawn: back to the real mode, selection and hover (the grid's, when it shows).
 	RowsHovered.Reset();
 	RowsSelected.Reset();
 	RowsMode.Reset();
 
+	ScrollToSelection();
+	RefreshBox();
+}
+
+void ULoadoutV2ScreenWidget::RefreshSelection()
+{
+	using namespace LoadoutV2ScreenStyle;
+	// UI_Theme 5a: a move redraws only what changed. Only the selection or the hover moved, so the lines and tiles
+	// keep their text and pictures: the old and the new one are recoloured, and the card is filled again.
+	++LightRefreshCount;
+	RefreshDetails();
+	if (!ListBox)
+	{
+		return; // headless: no tree
+	}
+	const bool bSlotGrid = IsGridOpen();
+	const int32 LineCount = FMath::Min(bSlotGrid ? Slots.Num() : GetLineCount(), LineRows.Num()); // beside a slot's grid the lines are the slots
+	for (int32 Index = 0; Index < LineCount; ++Index)
+	{
+		SetItemColor(LineRows[Index], GetLineColor(Index, bSlotGrid));
+	}
+	const int32 TileCount = FMath::Min(bSlotGrid ? Items.Num() : InvPage.Tiles.Num(), GridTiles.Num());
+	for (int32 Index = 0; Index < TileCount; ++Index)
+	{
+		SetItemColor(GridTiles[Index], GetTileColor(Index, bSlotGrid && !Items[Index].Refusal.IsEmpty(), bSlotGrid));
+	}
+	ScrollToSelection();
+	RefreshBox();
+}
+
+void ULoadoutV2ScreenWidget::RefreshHover()
+{
+	// The chips and the filter tabs are coloured by the full view; a hovered line or tile only needs the light one.
+	const uint32 ChipKey = HashCombine(HashCombine(GetTypeHash(HoveredMemberChip), GetTypeHash(HoveredTabChip)), HashCombine(GetTypeHash(HoveredGridTab), GetTypeHash(HoveredInvTab)));
+	if (ChipKey != HoverChipKey)
+	{
+		HoverChipKey = ChipKey;
+		RefreshView();
+		return;
+	}
+	RefreshSelection();
+}
+
+FLinearColor ULoadoutV2ScreenWidget::GetLineColor(int32 Index, bool bSlotGrid) const
+{
+	using namespace LoadoutV2ScreenStyle;
+	// Beside a slot's grid the lines are the entry's slots: the one being filled is lit, and the mouse lights tiles.
+	const int32 Lit = bSlotGrid ? SlotIndex : Selected;
+	const int32 Hovered = bSlotGrid ? static_cast<int32>(INDEX_NONE) : HoveredLine;
+	// D-249: with the keys on the inventory's side the list's own line is only marked, not lit.
+	const bool bKeysHere = bOnLoadoutSide || bSlotGrid;
+	return Index == Lit ? (bKeysHere ? FocusColor : HoverColor) : Index == Hovered ? HoverColor : PlateColor;
+}
+
+FLinearColor ULoadoutV2ScreenWidget::GetTileColor(int32 Index, bool bLocked, bool bSlotGrid) const
+{
+	using namespace LoadoutV2ScreenStyle;
+	const int32 Lit = bSlotGrid ? Selected : bOnLoadoutSide || bOnInvFilters ? static_cast<int32>(INDEX_NONE) : InvSelected;
+	const int32 Hovered = bSlotGrid ? HoveredLine : HoveredInvTile; // in a slot's grid the hovered line is a tile
+	return Index == Lit ? FocusColor : Index == Hovered ? HoverColor : bLocked ? LockedTileColor : PlateColor;
+}
+
+void ULoadoutV2ScreenWidget::SetItemColor(UBorder *Item, const FLinearColor &Color)
+{
+	if (Item && Item->GetBrushColor() != Color)
+	{
+		Item->SetBrushColor(Color);
+	}
+}
+
+void ULoadoutV2ScreenWidget::ScrollToSelection()
+{
+	using namespace LoadoutV2ScreenStyle;
+	const bool bSlotGrid = IsGridOpen();
+	// The list's lit line is brought into view when the selection or the list changes, not on every refresh (a hover
+	// refreshes too, and would pull a list dragged by its scroll bar back).
+	const int32 Line = bSlotGrid ? SlotIndex : Selected;
+	const int32 LineCount = bSlotGrid ? Slots.Num() : GetLineCount();
+	const uint32 ListKey = HashCombine(HashCombine(GetTypeHash(Line), GetTypeHash(LineCount)), HashCombine(GetTypeHash(static_cast<uint8>(Mode)), GetTypeHash(static_cast<uint8>(Tab))));
+	if (ListKey != ScrolledViewKey && bLoadoutOpen && LineRows.IsValidIndex(Line) && Line < LineCount)
+	{
+		ScrolledViewKey = ListKey;
+		ListScroll->ScrollWidgetIntoView(LineRows[Line], /*AnimateScroll=*/false);
+	}
+	// The grid's lit tile, the same way. The offset is set at once (ScrollWidgetIntoView waits a frame), so the card is
+	// placed beside the tile where it will be drawn (PlaceBox). Before the grid has been drawn its height isn't known:
+	// it opens at the top anyway, and the scroll is tried again once it is drawn (SettleViewNextFrame).
+	const int32 Tile = bSlotGrid ? Selected : bOnLoadoutSide || bOnInvFilters ? static_cast<int32>(INDEX_NONE) : InvSelected;
+	const int32 TileCount = bSlotGrid ? Items.Num() : InvPage.Tiles.Num();
+	const int32 Columns = GetGridColumns();
+	const uint32 GridKey = HashCombine(HashCombine(HashCombine(GetTypeHash(Tile), GetTypeHash(TileCount)), HashCombine(GetTypeHash(SlotIndex), GetTypeHash(bSlotGrid))),
+									   HashCombine(HashCombine(GetTypeHash(Columns), GetTypeHash(static_cast<uint8>(InvTab))),
+												   HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), HashCombine(GetTypeHash(bGridFiltered), GetTypeHash(static_cast<uint8>(GridFilter))))));
+	const float ViewHeight = GridScroll->GetCachedGeometry().GetLocalSize().Y;
+	if (GridKey != GridScrolledKey && Tile >= 0 && Tile < TileCount && ViewHeight > 0.0f)
+	{
+		GridScrolledKey = GridKey;
+		GridScroll->SetScrollOffset(WoRLoadoutV2Grid::ScrollToRow(GridScroll->GetScrollOffset(), Tile / Columns, TilePitch, ViewHeight));
+	}
+}
+
+void ULoadoutV2ScreenWidget::RefreshBox()
+{
+	using namespace LoadoutV2ScreenStyle;
 	// The box: the focused entry's details, or in the window the entry being built.
 	// A box line: its text, whether it is lit, and (B-485) its icon and a tier badge.
 	struct FBoxLine
@@ -1701,7 +1796,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			}
 		}
 	}
-	PlaceBox(bGrid); // D-248 step 2, D-249: the card, beside the lit tile or level with the lit line
+	PlaceBox(IsGridOpen()); // D-248 step 2, D-249: the card, beside the lit tile or level with the lit line
 
 	FText Compare;
 	if (Mode == ELoadoutV2Mode::WindowItems && bComparing && Items.IsValidIndex(Selected) && Slots.IsValidIndex(SlotIndex))
@@ -1892,8 +1987,6 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 
 	// What the grid shows: a weapon slot's choices while one is being filled (D-248), else the inventory's tab (D-249).
 	const TArray<FLoadoutV2GridTile> Tiles = bSlotGrid ? GetGridTiles() : GetInventoryTiles();
-	const int32 SelectedTile = bSlotGrid ? Selected : bOnLoadoutSide || bOnInvFilters ? static_cast<int32>(INDEX_NONE) : InvSelected;
-	const int32 HoveredTile = bSlotGrid ? HoveredLine : HoveredInvTile; // in a slot's grid the hovered line is a tile
 	const int32 Columns = GetGridColumns();
 	if (bSlotGrid)
 	{
@@ -2008,7 +2101,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 			continue;
 		}
 		const FLoadoutV2GridTile &Tile = Tiles[Index];
-		GridTiles[Index]->SetBrushColor(Index == SelectedTile ? FocusColor : Index == HoveredTile ? HoverColor : Tile.bLocked ? LockedTileColor : PlateColor);
+		GridTiles[Index]->SetBrushColor(GetTileColor(Index, Tile.bLocked, bSlotGrid));
 		const bool bPicture = SetIcon(GridTileIcons[Index], FindIcon(Tile.Icon), Tile.Icon.Name);
 		GridTileIcons[Index]->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, Tile.bLocked ? LockedTileOpacity : 1.0f));
 		GridTileWords[Index]->SetText(Tile.Icon.Name);
@@ -2018,17 +2111,6 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		SetShown(GridTileLocks[Index], Tile.bLocked);
 		GridTileCounts[Index]->SetText(FText::Format(LOCTEXT("GridTileCount", "x{0}"), FText::AsNumber(Tile.Count)));
 		SetShown(GridTileCounts[Index], Tile.Count > 1);
-	}
-	// The lit tile's row is brought into view when the selection or the tiles change (as the list's line). The offset
-	// is set here, at once (ScrollWidgetIntoView waits a frame), so the card is placed beside the tile where it will be
-	// drawn (PlaceBox). Before the grid has been drawn its height isn't known: it opens at the top anyway.
-	const uint32 ViewKey = HashCombine(HashCombine(HashCombine(GetTypeHash(SelectedTile), GetTypeHash(Tiles.Num())), HashCombine(GetTypeHash(SlotIndex), GetTypeHash(CurrentTab))),
-									   HashCombine(HashCombine(GetTypeHash(bSlotGrid), GetTypeHash(Columns)), GetTypeHash(static_cast<uint8>(InvTab))));
-	const float ViewHeight = GridScroll->GetCachedGeometry().GetLocalSize().Y;
-	if (ViewKey != GridScrolledKey && SelectedTile >= 0 && SelectedTile < Tiles.Num() && ViewHeight > 0.0f) // not drawn yet: tried again once it is (SettleViewNextFrame)
-	{
-		GridScrolledKey = ViewKey;
-		GridScroll->SetScrollOffset(WoRLoadoutV2Grid::ScrollToRow(GridScroll->GetScrollOffset(), SelectedTile / Columns, TilePitch, ViewHeight));
 	}
 }
 
@@ -2056,7 +2138,7 @@ void ULoadoutV2ScreenWidget::HandleGridScrolled(float /*CurrentOffset*/)
 {
 	// The wheel or the scroll bar moved the tiles: the card is placed again beside its tile. (The tile under a resting
 	// mouse is found again on the mouse's next move.)
-	RefreshView();
+	RefreshSelection();
 }
 
 void ULoadoutV2ScreenWidget::PlaceBox(bool bSlotGrid)
@@ -2200,7 +2282,7 @@ void ULoadoutV2ScreenWidget::MoveInventoryTile(int32 DeltaX, int32 DeltaY)
 	if (Target != INDEX_NONE && Target != InvSelected)
 	{
 		InvSelected = Target;
-		RefreshView();
+		RefreshSelection(); // only the lit tile moved
 	}
 }
 
@@ -2270,7 +2352,7 @@ void ULoadoutV2ScreenWidget::MoveSelection(int32 Delta)
 			RefreshData(); // the EQUIPPED line drops its "A again" warning
 			return;
 		}
-		RefreshView();
+		RefreshSelection(); // only the lit line moved
 	}
 }
 
@@ -2401,7 +2483,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, co
 					   bList && bLoadoutOpen ? WoRMenuStyle::FindChipUnder(TabChips, Position) : INDEX_NONE, bGrid ? FindTileUnder(Position) : FindLineUnder(Position)) ||
 			bOtherChanged)
 		{
-			RefreshView();
+			RefreshHover(); // a chip or a filter tab lights through the full view; a line or a tile through the light one
 		}
 	}
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
@@ -2417,6 +2499,7 @@ void ULoadoutV2ScreenWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEven
 	{
 		RefreshView();
 	}
+	HoverChipKey = 0;
 	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
@@ -2434,7 +2517,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseWheel(const FGeometry &InGeometry, c
 		if (Target != InvSelected && !bOnInvFilters)
 		{
 			InvSelected = Target;
-			RefreshView();
+			RefreshSelection();
 		}
 		return FReply::Handled();
 	}

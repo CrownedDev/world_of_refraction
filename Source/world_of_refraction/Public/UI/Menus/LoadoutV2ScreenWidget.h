@@ -257,6 +257,9 @@ public:
 	const TArray<FLoadoutScreenRow> &GetApparelRows() const { return ApparelRows; }
 	bool IsRenaming() const { return bRenaming; }
 	static bool IsSimpleView() { return bSimpleView; }
+	/** UI_Theme 5a: how many times the whole view was redrawn, and how many times only the selection (the specs read these). */
+	int32 GetFullRefreshCount() const { return FullRefreshCount; }
+	int32 GetLightRefreshCount() const { return LightRefreshCount; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -275,6 +278,24 @@ private:
 	void RefreshData();
 	void RefreshView();
 	void RefreshDetails();
+	// UI_Theme 5a: a move redraws only what changed.
+	/** The light view, for when only the selection or the hover moved: the lines and tiles are recoloured (their text
+	 *  and pictures stay), the lit one is scrolled into view, and the card is filled again. */
+	void RefreshSelection();
+	/** After the mouse moved: the full view when a chip or a filter tab lit or went out, else the light one. */
+	void RefreshHover();
+	/** The card (the details box), the compare line, the message and the hints. */
+	void RefreshBox();
+	/** The lit line and the lit tile, brought into view when they changed. */
+	void ScrollToSelection();
+	FLinearColor GetLineColor(int32 Index, bool bSlotGrid) const;
+	FLinearColor GetTileColor(int32 Index, bool bLocked, bool bSlotGrid) const;
+	/** Gives a line or a tile its colour, only when it differs from what it has. */
+	void SetItemColor(UBorder *Item, const FLinearColor &Color);
+	int32 FullRefreshCount = 0;
+	int32 LightRefreshCount = 0;
+	/** The chips and filter tabs the mouse was last over (RefreshHover). */
+	uint32 HoverChipKey = 0;
 	/** The shown member's loadout component, inventory and active loadout; false when the member isn't here. */
 	bool FindActive(ULoadoutComponent *&OutLoadout, UInventoryComponent *&OutInventory, const FCombatLoadout *&OutActive) const;
 
