@@ -370,7 +370,8 @@ private:
 	void SetItemColor(UBorder *Item, const FLinearColor &Color);
 	int32 FullRefreshCount = 0;
 	int32 LightRefreshCount = 0;
-	/** The chips and filter tabs the mouse was last over (RefreshHover). */
+	/** The chips and filter tabs the mouse is over, as one number, and the one the full view last drew (RefreshHover). */
+	uint32 GetHoverChipKey() const;
 	uint32 HoverChipKey = 0;
 	/** The shown member's loadout component, inventory and active loadout; false when the member isn't here. */
 	bool FindActive(ULoadoutComponent *&OutLoadout, UInventoryComponent *&OutInventory, const FCombatLoadout *&OutActive) const;

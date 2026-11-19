@@ -12,6 +12,7 @@
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
 #include "Containers/Ticker.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
@@ -1343,6 +1344,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	using namespace LoadoutV2ScreenStyle;
 	++FullRefreshCount;
 	ItemFades.Reset(); // the whole view gives every line and tile its colour outright
+	HoverChipKey = GetHoverChipKey(); // the chips and filter tabs are drawn as hovered now (RefreshHover)
 	if (!IsLoadoutAtTopLevel())
 	{
 		// D-249: the loadout is in the middle of something (Options, a window, a slot's list): it is in, and the keys are its.
@@ -1539,14 +1541,17 @@ void ULoadoutV2ScreenWidget::RefreshSelection()
 void ULoadoutV2ScreenWidget::RefreshHover()
 {
 	// The chips and the filter tabs are coloured by the full view; a hovered line or tile only needs the light one.
-	const uint32 ChipKey = HashCombine(HashCombine(GetTypeHash(HoveredMemberChip), GetTypeHash(HoveredTabChip)), HashCombine(GetTypeHash(HoveredGridTab), GetTypeHash(HoveredInvTab)));
-	if (ChipKey != HoverChipKey)
+	if (GetHoverChipKey() != HoverChipKey)
 	{
-		HoverChipKey = ChipKey;
 		RefreshView();
 		return;
 	}
 	RefreshSelection();
+}
+
+uint32 ULoadoutV2ScreenWidget::GetHoverChipKey() const
+{
+	return HashCombine(HashCombine(GetTypeHash(HoveredMemberChip), GetTypeHash(HoveredTabChip)), HashCombine(GetTypeHash(HoveredGridTab), GetTypeHash(HoveredInvTab)));
 }
 
 FLinearColor ULoadoutV2ScreenWidget::GetLineColor(int32 Index, bool bSlotGrid) const
@@ -1659,11 +1664,12 @@ bool ULoadoutV2ScreenWidget::TickFeel(float DeltaSeconds)
 		FItemFade &Fade = ItemFades[Index];
 		Fade.Elapsed += DeltaSeconds;
 		const float Alpha = WoRMenuFeel::EaseOut(Fade.Elapsed / WoRMenuFeel::HIGHLIGHT_FADE_SECONDS);
+		const bool bDone = Fade.Elapsed >= WoRMenuFeel::HIGHLIGHT_FADE_SECONDS;
 		if (UBorder *Item = Fade.Item.Get())
 		{
-			Item->SetBrushColor(FMath::Lerp(Fade.From, Fade.To, Alpha));
+			Item->SetBrushColor(bDone ? Fade.To : FMath::Lerp(Fade.From, Fade.To, Alpha)); // the end is the colour itself, not a sum that may miss it by a hair
 		}
-		if (Fade.Elapsed >= WoRMenuFeel::HIGHLIGHT_FADE_SECONDS || !Fade.Item.IsValid())
+		if (bDone || !Fade.Item.IsValid())
 		{
 			ItemFades.RemoveAtSwap(Index);
 		}
@@ -1934,7 +1940,8 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 		{
 			const FBoxLine &Line = BoxText[Index];
 			BoxTexts[Index]->SetText(Line.Text);
-			BoxTexts[Index]->SetWrapTextAt(CardTextWidth - (bAnyBoxIcon ? BoxIconSize + WordGap : 0.0f)); // UI_Theme 5a: measured this frame
+			// UI_Theme 5a: measured this frame: the line wraps at the room it has (less its icon and its tier badge).
+			BoxTexts[Index]->SetWrapTextAt(CardTextWidth - (bAnyBoxIcon ? BoxIconSize + WordGap : 0.0f) - (Line.bHasTier ? BadgeSize + WordGap : 0.0f));
 			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bWarn ? WarnColor : Line.bLit ? CyanColor : Line.bQuiet ? DimColor : TextColor));
 			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), Line.Icon.Name, /*bKeepSpace=*/bAnyBoxIcon);
 			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr, GetTierTooltip(Line.Tier));
@@ -2583,7 +2590,10 @@ void ULoadoutV2ScreenWidget::StopHold()
 
 bool ULoadoutV2ScreenWidget::TickHold(float DeltaSeconds)
 {
-	if (!HeldKey.IsValid() || !IsActivated())
+	// The key's release is only heard while this screen has the keys: without them (the game's window left, the
+	// focus gone elsewhere) the repeat ends, it never runs on by itself.
+	const bool bHasKeys = FSlateApplication::Get().IsActive() && (HasAnyUserFocus() || HasFocusedDescendants());
+	if (!HeldKey.IsValid() || !IsActivated() || !bHasKeys)
 	{
 		HoldTicker.Reset(); // returning false takes the ticker off
 		HeldKey = EKeys::Invalid;
@@ -2807,7 +2817,6 @@ void ULoadoutV2ScreenWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEven
 	{
 		RefreshView();
 	}
-	HoverChipKey = 0;
 	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
