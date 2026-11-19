@@ -407,8 +407,9 @@ private:
 	 *  tile (WoRLoadoutV2Grid::PlaceCard), in a light frame; otherwise it sits right of the list, as before. Called
 	 *  once the box's lines are written, so the card's size is the one it will have. */
 	void PlaceBox(bool bGrid);
-	/** One more RefreshView on the next frame (once; not a Tick): what PlaceBox measured can be a frame old (wrapped
-	 *  text after a width change, the grid before its first draw). The settling refresh asks for no further one. */
+	/** One more RefreshView on the next frame (once; not a Tick), asked for only before the screen's first draw, when
+	 *  its own height is not known yet (UI_Theme 5a: otherwise the card is measured and placed the same frame). The
+	 *  settling refresh asks for no further one. */
 	void SettleViewNextFrame();
 	bool bSettlePending = false;
 	bool bSettlingView = false;
@@ -623,6 +624,9 @@ private:
 	TObjectPtr<UTextBlock> GridCountText;
 	UPROPERTY(Transient)
 	TObjectPtr<UHorizontalBox> GridTabsRow;
+	/** The grid's header line (the slot or tab, the count): with the tabs row, what stands above the tiles (PlaceBox). */
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> GridHeaderRow;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> GridTabs;
 	UPROPERTY(Transient)

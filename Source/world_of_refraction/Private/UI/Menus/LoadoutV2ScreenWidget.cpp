@@ -70,9 +70,9 @@ namespace LoadoutV2ScreenStyle
 	constexpr float CardWidth = 520.0f;
 	constexpr float CardGap = 6.0f;
 	constexpr float CardFrameWidth = 2.0f;
-	/** Where the tiles' view starts under the grid panel's top (its padding, the header, the filter tabs), until the
-	 *  grid has been drawn once and the real place is known. */
-	constexpr float GridViewTopFallback = 150.0f;
+	/** The room a line of the card's text has: the card less its frame and its padding. The lines wrap at a width set
+	 *  from this (not at the width they were last drawn at), so the card's height is right the moment it is filled. */
+	constexpr float CardTextWidth = CardWidth - CardFrameWidth * 2.0f - BoxPadding * 2.0f;
 	// D-249: the inventory's tabs, in the row's order (the inventory screen's own Loadout tab is not one of them).
 	const EInventoryScreenTab InventoryTabOrder[] = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch, EInventoryScreenTab::Chest};
 	constexpr int32 INVENTORY_TAB_COUNT = UE_ARRAY_COUNT(InventoryTabOrder);
@@ -374,6 +374,7 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		UVerticalBox *GridColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		GridPanel->SetContent(GridColumn);
 		UHorizontalBox *GridHeader = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		GridHeaderRow = GridHeader;
 		GridTitleText = MakeText(WidgetTree, RowFontSize, TextColor, true);
 		GridCountText = MakeText(WidgetTree, LineFontSize, DimColor);
 		AddToRow(GridHeader, GridTitleText, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -1765,7 +1766,7 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 		// B-485: a line is a row: its icon, its text, a tier badge.
 		UHorizontalBox *BoxRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UImage *Icon = MakeIcon(WidgetTree, BoxIconSize);
-		UTextBlock *Text = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+		UTextBlock *Text = MakeText(WidgetTree, LineFontSize, TextColor); // wrapped at a set width in the fill below
 		UImage *TierIcon = MakeIcon(WidgetTree, BadgeSize);
 		AddToRow(BoxRow, Icon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Top);
 		AddToRow(BoxRow, Text, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -1786,6 +1787,7 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 		{
 			const FBoxLine &Line = BoxText[Index];
 			BoxTexts[Index]->SetText(Line.Text);
+			BoxTexts[Index]->SetWrapTextAt(CardTextWidth - (bAnyBoxIcon ? BoxIconSize + WordGap : 0.0f)); // UI_Theme 5a: measured this frame
 			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bWarn ? WarnColor : Line.bLit ? CyanColor : Line.bQuiet ? DimColor : TextColor));
 			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), Line.Icon.Name, /*bKeepSpace=*/bAnyBoxIcon);
 			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr, GetTierTooltip(Line.Tier));
@@ -2157,9 +2159,8 @@ void ULoadoutV2ScreenWidget::PlaceBox(bool bSlotGrid)
 	BoxFrame->SetBrushColor(CyanColor);
 	BoxFrame->SetPadding(FMargin(CardFrameWidth));
 	const FGeometry &Area = ListArea->GetCachedGeometry();
-	const FGeometry &View = GridScroll->GetCachedGeometry();
-	const bool bDrawn = View.GetLocalSize().Y > 0.0f && Area.GetLocalSize().Y > 0.0f;
-	const float AreaHeight = Area.GetLocalSize().Y > 0.0f ? Area.GetLocalSize().Y : ListMaxHeight;
+	const bool bDrawn = Area.GetLocalSize().Y > 0.0f;
+	const float AreaHeight = bDrawn ? Area.GetLocalSize().Y : ListMaxHeight;
 	const float GridLeft = bLoadoutOpen ? GridSlotsWidth + GridGap : 0.0f;
 	BoxSizer->ForceLayoutPrepass(); // the card's size with the lines just written
 	const FVector2D CardSize = BoxSizer->GetDesiredSize();
@@ -2169,30 +2170,37 @@ void ULoadoutV2ScreenWidget::PlaceBox(bool bSlotGrid)
 	const int32 TileCount = bSlotGrid ? Items.Num() : InvPage.Tiles.Num();
 	if (Tile >= 0 && Tile < TileCount)
 	{
-		// The tiles' view inside the columns' area: inside the grid panel's padding; its top is read from the drawn grid
-		// (the header and the tabs above it), a fixed guess before the grid's first draw.
+		// The tiles' view inside the columns' area: inside the grid panel's padding, under its header and its filter
+		// tabs. UI_Theme 5a: measured here from what those two ask for (not read from the last drawn frame), so the card
+		// is in its place the same frame, the first one too.
 		const int32 Columns = GetGridColumns();
-		const FVector2D ViewOrigin(GridLeft + BoxPadding, bDrawn ? Area.AbsoluteToLocal(View.GetAbsolutePosition()).Y : GridViewTopFallback);
+		GridSizer->ForceLayoutPrepass();
+		const FVector2D ViewOrigin(GridLeft + BoxPadding, BoxPadding + GridHeaderRow->GetDesiredSize().Y + LineGap + GridTabsRow->GetDesiredSize().Y + SectionGap);
 		// The card keeps to the tiles' width (not over the scroll bar) and may use the room down to the area's bottom
 		// (past the tiles' own view, over the legend).
 		const FVector2D ViewSize(TilePitch * Columns, FMath::Max(AreaHeight - ViewOrigin.Y, 0.0));
 		const FVector2D TilePosition = WoRLoadoutV2Grid::GetTilePosition(Tile, Columns, TilePitch, TilePadding, GridScroll->GetScrollOffset());
 		const WoRLoadoutV2Grid::FCardPlace Place = WoRLoadoutV2Grid::PlaceCard(TilePosition, TileSize, CardSize, ViewSize, CardGap);
 		BoxSlot->SetPosition(ViewOrigin + Place.Position);
-		UE_LOG(LogWoRUI, Verbose, TEXT("[LoadoutV2] card for tile %d at %s (%s, %s)%s"), Tile, *Place.Position.ToString(), Place.bLeft ? TEXT("left") : TEXT("right"),
-			   Place.bUp ? TEXT("bottoms level") : TEXT("tops level"), bDrawn ? TEXT("") : TEXT(" - grid not drawn yet, guessed"));
+		UE_LOG(LogWoRUI, Verbose, TEXT("[LoadoutV2] card for tile %d at %s (%s, %s)"), Tile, *Place.Position.ToString(), Place.bLeft ? TEXT("left") : TEXT("right"),
+			   Place.bUp ? TEXT("bottoms level") : TEXT("tops level"));
 	}
 	else
 	{
 		// A line of the loadout's list: level with that line, kept inside the area.
+		// shortcut: the line's place is the one it was last drawn at, so on the frame the list itself scrolls the card
+		// is level with where the line was; measure the lines (their heights differ) if a long list shows it.
 		const int32 Line = GetBoxLine();
 		const bool bLineDrawn = bDrawn && LineRows.IsValidIndex(Line) && LineRows[Line]->GetCachedGeometry().GetLocalSize().Y > 0.0f;
 		const double LineTop = bLineDrawn ? Area.AbsoluteToLocal(LineRows[Line]->GetCachedGeometry().GetAbsolutePosition()).Y : 0.0;
 		BoxSlot->SetPosition(FVector2D(GridLeft + CardGap, FMath::Clamp(LineTop, 0.0, FMath::Max(AreaHeight - CardSize.Y, 0.0))));
 	}
-	// What was measured here can be a frame old: the wrapped text's height right after the lines changed, the grid's
-	// place before its first draw. One more refresh next frame sets the card (and a scroll not yet made) right.
-	SettleViewNextFrame();
+	// UI_Theme 5a: the card is measured and placed this frame. Only the screen's own height can't be known before its
+	// first draw (how far down the card may go, how far the grid must scroll): that one time, one more refresh follows.
+	if (!bDrawn)
+	{
+		SettleViewNextFrame();
+	}
 }
 
 // ==================== THE INVENTORY'S SIDE (D-249 piece 1) ====================
