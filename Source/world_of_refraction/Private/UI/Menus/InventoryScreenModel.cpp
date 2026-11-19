@@ -258,8 +258,10 @@ namespace InventoryScreenBuild
 
 const TArray<EInventoryScreenTab> &WoRInventoryScreen::GetTabs()
 {
-	static const TArray<EInventoryScreenTab> Tabs = {EInventoryScreenTab::Gear, EInventoryScreenTab::Loadout, EInventoryScreenTab::Pouch,
-													 EInventoryScreenTab::Chest}; // B-543: Loadout next to Gear
+	// D-249: the Loadout tab (B-543, next to Gear) is gone: the merged screen's Loadout button replaces it.
+	// OBSOLETE (D-249; delete after Crown's PIE pass): EInventoryScreenTab::Loadout and what handles it here and in
+	// UInventoryScreenWidget (OpenLoadoutScreen).
+	static const TArray<EInventoryScreenTab> Tabs = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch, EInventoryScreenTab::Chest};
 	return Tabs;
 }
 

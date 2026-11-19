@@ -438,7 +438,7 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 		DeactivateWidget();
 		break;
 	case EPauseMenuPage::Loadout:
-		ULoadoutV2ScreenWidget::Open(GetOwningPlayer()); // over this menu: Back returns here
+		ULoadoutV2ScreenWidget::OpenWithLoadout(GetOwningPlayer()); // over this menu: Back returns here. D-249: the one screen, the loadout in
 		break;
 	case EPauseMenuPage::Character:
 		UCharacterSheetWidget::Open(GetOwningPlayer());
@@ -450,7 +450,10 @@ void UPauseMenuWidget::OpenPage(const FPauseMenuPage &Page)
 		USettingsScreenWidget::Open(GetOwningPlayer());
 		break;
 	case EPauseMenuPage::Inventory:
-		UInventoryScreenWidget::Open(GetOwningPlayer());
+		// D-249: Inventory and Loadout are one screen; this page opens it with the loadout out.
+		// OBSOLETE (D-249; delete after Crown's PIE pass and pieces 2-3): UInventoryScreenWidget. Its Give / Store / Take
+		// are not on the merged screen yet; until then it opens with wor.UI.InventoryScreen.
+		ULoadoutV2ScreenWidget::Open(GetOwningPlayer());
 		break;
 	case EPauseMenuPage::Journal:
 		UJournalScreenWidget::Open(GetOwningPlayer());
