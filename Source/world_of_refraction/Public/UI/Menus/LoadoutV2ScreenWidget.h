@@ -311,8 +311,20 @@ private:
 	// D-248 step 1: the grid.
 	/** After the slot's pieces are listed: the types present, the piece count, then the filter (only its type stays). */
 	void ApplyGridFilter();
-	/** Shows or hides the grid and gives the three columns their widths; fills the tabs and tiles when shown. */
+	/** Shows or hides the grid and gives the list and the grid their widths; fills the tabs and tiles when shown. */
 	void RefreshGrid(bool bShown);
+	/** D-248 step 2: where the details box is drawn. While the grid shows it is the card beside the lit (or hovered)
+	 *  tile (WoRLoadoutV2Grid::PlaceCard), in a light frame; otherwise it sits right of the list, as before. Called
+	 *  once the box's lines are written, so the card's size is the one it will have. */
+	void PlaceBox(bool bGrid);
+	/** One more RefreshView on the next frame (once; not a Tick): what PlaceBox measured can be a frame old (wrapped
+	 *  text after a width change, the grid before its first draw). The settling refresh asks for no further one. */
+	void SettleViewNextFrame();
+	bool bSettlePending = false;
+	bool bSettlingView = false;
+	/** The grid was scrolled by the wheel or its bar: the card is placed again beside its tile. */
+	UFUNCTION()
+	void HandleGridScrolled(float CurrentOffset);
 	int32 FindTileUnder(const FVector2D &ScreenPosition) const;
 	int32 FindGridTabUnder(const FVector2D &ScreenPosition) const;
 	/** Debug: the grid as shown (WoRLoadoutV2Grid::GetGridString), logged when it opens or its filter changes. */
@@ -512,6 +524,9 @@ private:
 	TObjectPtr<USizeBox> GridSizer;
 	UPROPERTY(Transient)
 	TObjectPtr<USizeBox> BoxSizer;
+	/** D-248 step 2: the thin frame around the details box; light while the box is the card beside a tile. */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> BoxFrame;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> GridTitleText;
 	UPROPERTY(Transient)
