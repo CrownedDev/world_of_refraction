@@ -1255,6 +1255,7 @@ The queue of questions only Crown can answer.
 **Answer (Crown):** Inventory follows `docs/Design/screen_mockups/menus/inventory/v2/1_gear_grid.png`: "i like this one why because we can equip from here". Equipment follows option B, `menus/loadout/v4/1b_equipment_grid_tooltip.png` (weapon sets on the left, a wide picture grid, the focused piece's details in a pop-up card beside it): "i like the dropdown idea". This replaces the v2 list mockups for these two pages.
 **Approved by the reference-backed default (Crown vetoes):** (1) pieces that don't fit the focused slot stay in the grid, greyed with a lock, the reason in the card (Diablo IV and Baldur's Gate 3 show unusable items greyed rather than hiding them); (2) pictures are one per weapon type for now, one per weapon later from renders of the models; (3) Inventory's Equip asks which weapon set and hand, and equips without leaving the page (Baldur's Gate 3 equips from the inventory in place).
 **Open (Crown):** keep the loadout screen's own Inventory tab (D-230) or fold it into Equipment's grid; whether Equipment adds a character preview later; Give and Store may need building.
+**Name rows (Crown):** a piece is written as its name, and under it its type with the tier in brackets, no tier badge: "Simple Sword" / "Sword (F)" ("we dont need an icon").
 **Build order:** one piece at a time with Crown's look at each: the grid, then the card, then the buttons.
 
 ### D-247 — Bows and guns use no ammunition: the arrow or bullet is part of the attack
