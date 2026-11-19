@@ -21,6 +21,7 @@
 #include "GameFramework/Actor.h"
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
+#include "Kismet/GameplayStatics.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Loadout/LoadoutConstants.h"
@@ -29,6 +30,7 @@
 #include "Pool/PoolSubsystem.h"
 #include "Misc/ScopeExit.h"
 #include "Player/WoRHubController.h"
+#include "Sound/SoundBase.h"
 #include "UI/Menus/LoadoutApparelModel.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/WoRIconTable.h"
@@ -2357,6 +2359,7 @@ void ULoadoutV2ScreenWidget::ToggleLoadout()
 	{
 		Message = LOCTEXT("LoadoutBusy", "Finish or leave what the loadout is doing first.");
 		RefreshView();
+		PlayCue(EWoRMenuCue::Refused);
 		return;
 	}
 	bLoadoutOpen = !bLoadoutOpen;
@@ -2369,6 +2372,7 @@ void ULoadoutV2ScreenWidget::ToggleLoadout()
 		   bOnLoadoutSide ? TEXT("loadout's") : TEXT("inventory's"), GetGridColumns());
 	RefreshData();
 	PressItem(LoadoutButton);
+	PlayCue(EWoRMenuCue::Confirm);
 }
 
 bool ULoadoutV2ScreenWidget::FocusLoadoutSide()
@@ -2488,8 +2492,50 @@ void ULoadoutV2ScreenWidget::CycleInventorySort()
 
 // ==================== KEYS ====================
 
+void ULoadoutV2ScreenWidget::PlayCue(EWoRMenuCue Cue)
+{
+	// UI_Theme 5a: a sound on every action. A cue with no sound set is silent (the cue is still noted, for the specs).
+	LastCue = Cue;
+	const TSoftObjectPtr<USoundBase> &Sound = Cue == EWoRMenuCue::Move		? MoveSound
+											: Cue == EWoRMenuCue::Confirm ? ConfirmSound
+											: Cue == EWoRMenuCue::Back	? BackSound
+																			: RefusedSound;
+	if (Cue == EWoRMenuCue::None || Sound.IsNull())
+	{
+		return;
+	}
+	if (USoundBase *Loaded = Sound.LoadSynchronous()) // small one-shot cues; loaded on first use and kept below
+	{
+		LoadedCueSounds.AddUnique(Loaded);
+		UGameplayStatics::PlaySound2D(this, Loaded, 1.0f, 1.0f, Cue == EWoRMenuCue::Move ? WoRMenuFeel::MOVE_SOUND_START_SECONDS : 0.0f);
+	}
+}
+
+uint32 ULoadoutV2ScreenWidget::GetFocusKey() const
+{
+	return HashCombine(HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(InvSelected)), HashCombine(GetTypeHash(bOnLoadoutSide), GetTypeHash(bOnInvFilters))),
+					   HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), GetTypeHash(static_cast<uint8>(Mode))));
+}
+
+bool ULoadoutV2ScreenWidget::IsLitRefused() const
+{
+	if (IsGridOpen() || bOnLoadoutSide)
+	{
+		return Selected >= 0 && Selected < GetLineCount() && IsLineRefused(Selected);
+	}
+	return true; // TODO: D-249 piece 2: A on an inventory tile only says equipping from here comes next
+}
+
 bool ULoadoutV2ScreenWidget::MoveInDirection(int32 DeltaX, int32 DeltaY)
 {
+	const uint32 FocusBefore = GetFocusKey();
+	ON_SCOPE_EXIT
+	{
+		if (GetFocusKey() != FocusBefore)
+		{
+			PlayCue(EWoRMenuCue::Move); // only when something moved: an edge is silent
+		}
+	};
 	if (!bOnLoadoutSide && IsInventoryGrid())
 	{
 		MoveInventoryTile(DeltaX, DeltaY); // D-249: the inventory's side
@@ -2680,12 +2726,15 @@ void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
 		}
 		LastClickActionSeconds = Now;
 		UBorder *Pressed = GetLitItem();
+		const bool bRefused = IsLitRefused();
 		PressA();
 		PressItem(Pressed);
+		PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Confirm);
 	}
 	else
 	{
 		MoveSelection(Line - Selected);
+		PlayCue(EWoRMenuCue::Move);
 	}
 }
 
@@ -2836,6 +2885,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 				bOnInvFilters = false;
 				Message = FText::GetEmpty();
 				RefreshView();
+				PlayCue(EWoRMenuCue::Move);
 			}
 			return FReply::Handled();
 		}
@@ -3155,6 +3205,7 @@ void ULoadoutV2ScreenWidget::PressSetActive()
 
 bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 {
+	PlayCue(EWoRMenuCue::Back);
 	Message = FText::GetEmpty();
 	if (bRenaming)
 	{
@@ -3260,25 +3311,30 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			if (IsTabPrevKey(Key) || IsTabNextKey(Key))
 			{
 				MoveInventoryTab(IsTabNextKey(Key) ? 1 : -1);
+				PlayCue(EWoRMenuCue::Move);
 			}
 			else if (IsSecondActionKey(Key))
 			{
-				ToggleLoadout();
+				ToggleLoadout(); // plays its own cue
 			}
 			else if (IsHelpKey(Key))
 			{
 				CycleInventorySort();
+				PlayCue(EWoRMenuCue::Confirm);
 			}
 			else if (IsConfirmKey(Key) && bOnInvFilters)
 			{
 				bOnInvFilters = false; // the filter is already the lit one: back to its tiles
 				RefreshView();
+				PlayCue(EWoRMenuCue::Confirm);
 			}
 			else if (IsConfirmKey(Key) && InvPage.Tiles.IsValidIndex(InvSelected))
 			{
 				// TODO: D-249 piece 2: Equip from here (the loadout comes in and asks for the slot); piece 3: Give / Store.
 				Message = LOCTEXT("InventoryVerbsLater", "Equipping from here comes next. For now: open the loadout and pick a slot.");
 				RefreshView();
+				PressItem(GetLitItem());
+				PlayCue(EWoRMenuCue::Refused);
 			}
 			return FReply::Handled(); // X does nothing on this side
 		}
@@ -3295,6 +3351,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			if (!InKeyEvent.IsRepeat())
 			{
 				CycleGridFilter(IsTabNextKey(Key) ? 1 : -1);
+				PlayCue(EWoRMenuCue::Move);
 			}
 			return FReply::Handled();
 		}
@@ -3304,6 +3361,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		if (!InKeyEvent.IsRepeat())
 		{
 			MoveMember(IsSubTabNextKey(Key) ? 1 : -1);
+			PlayCue(EWoRMenuCue::Move);
 		}
 		return FReply::Handled();
 	}
@@ -3312,6 +3370,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		if (!InKeyEvent.IsRepeat())
 		{
 			SwitchTab(IsTabNextKey(Key) ? 1 : -1);
+			PlayCue(EWoRMenuCue::Move);
 		}
 		return FReply::Handled();
 	}
@@ -3336,8 +3395,10 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		if (!InKeyEvent.IsRepeat())
 		{
 			UBorder *Pressed = IsConfirmKey(Key) ? GetLitItem() : nullptr; // the item A was pressed on, before it acts
+			const bool bRefused = IsConfirmKey(Key) && IsLitRefused();
 			IsConfirmKey(Key) ? PressA() : IsToggleKey(Key) ? PressCompare() : PressConfirm();
 			PressItem(Pressed);
+			PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Confirm);
 		}
 		return FReply::Handled();
 	}

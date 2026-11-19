@@ -53,6 +53,7 @@ class UEditableTextBox;
 class UHorizontalBox;
 class UImage;
 class UScrollBox;
+class USoundBase;
 class USizeBox;
 class UTexture2D;
 class UInventoryComponent;
@@ -157,7 +158,7 @@ struct FLoadoutV2WindowItem
 	FLoadoutScreenChoice Socket;
 };
 
-UCLASS()
+UCLASS(Config = Game)
 class WORLD_OF_REFRACTION_API ULoadoutV2ScreenWidget : public UWoRActivatableWidget
 {
 	GENERATED_BODY()
@@ -262,6 +263,8 @@ public:
 	const TArray<FLoadoutScreenRow> &GetApparelRows() const { return ApparelRows; }
 	bool IsRenaming() const { return bRenaming; }
 	static bool IsSimpleView() { return bSimpleView; }
+	/** UI_Theme 5a: the last sound cue asked for (noted even when no sound is set, so the specs read it). */
+	EWoRMenuCue GetLastCue() const { return LastCue; }
 	/** UI_Theme 5a: how many times the whole view was redrawn, and how many times only the selection (the specs read these). */
 	int32 GetFullRefreshCount() const { return FullRefreshCount; }
 	int32 GetLightRefreshCount() const { return LightRefreshCount; }
@@ -296,6 +299,26 @@ private:
 	FIntPoint HeldDirection = FIntPoint::ZeroValue;
 	FWoRHoldRepeat HoldRepeat;
 	FTSTicker::FDelegateHandle HoldTicker;
+
+	// UI_Theme 5a: a sound on every action: a move, a confirm, a back, a refusal. Soft references, set in
+	// DefaultGame.ini under [/Script/world_of_refraction.LoadoutV2ScreenWidget] (MoveSound=/Game/...); unset: silent.
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Sound")
+	TSoftObjectPtr<USoundBase> MoveSound;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Sound")
+	TSoftObjectPtr<USoundBase> ConfirmSound;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Sound")
+	TSoftObjectPtr<USoundBase> BackSound;
+	UPROPERTY(Config, EditDefaultsOnly, Category = "Sound")
+	TSoftObjectPtr<USoundBase> RefusedSound;
+	/** The cues loaded so far, kept so they stay loaded. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<USoundBase>> LoadedCueSounds;
+	EWoRMenuCue LastCue = EWoRMenuCue::None;
+	void PlayCue(EWoRMenuCue Cue);
+	/** What the keys are on, as one number: a move is heard only when it changed. */
+	uint32 GetFocusKey() const;
+	/** A on the lit item would only be refused (a greyed line, a locked tile): the Refused cue, not Confirm. */
+	bool IsLitRefused() const;
 
 	// UI_Theme 5a: motion. The highlight fades to the new item, a pressed item dips, the grid glides to its lit row.
 	// One core ticker runs them, only while something is moving (TickFeel); the next input cuts any of them short.

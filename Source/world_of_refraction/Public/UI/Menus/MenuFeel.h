@@ -32,6 +32,20 @@ namespace WoRMenuFeel
 	}
 }
 
+/** UI_Theme 5a: a sound on every action. */
+enum class EWoRMenuCue : uint8
+{
+	None,
+	/** The highlight moved (soft). */
+	Move,
+	/** Something was done (firm). */
+	Confirm,
+	/** A step back (lower). */
+	Back,
+	/** It can't be done ("nope"). */
+	Refused
+};
+
 /** Our own hold-to-repeat. Start it when a direction key goes down (that press acts at once, by itself); feed Advance
  *  the time of each frame while the key stays down: it returns how many repeats are due now. */
 struct FWoRHoldRepeat
