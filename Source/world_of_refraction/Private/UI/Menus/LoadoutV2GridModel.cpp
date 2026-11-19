@@ -52,6 +52,50 @@ FText WoRLoadoutV2Grid::GetTypeTierLine(const FText &TypeName, EItemTier Tier)
 	return TypeName.IsEmpty() ? Letter : FText::Format(LOCTEXT("TypeTierLine", "{0} ({1})"), TypeName, Letter);
 }
 
+FVector2D WoRLoadoutV2Grid::GetTilePosition(int32 Index, int32 Columns, float RowPitch, float Padding, float ScrollOffset)
+{
+	if (Index < 0 || Columns <= 0)
+	{
+		return FVector2D::ZeroVector;
+	}
+	return FVector2D((Index % Columns) * RowPitch + Padding, (Index / Columns) * RowPitch + Padding - ScrollOffset);
+}
+
+float WoRLoadoutV2Grid::ScrollToRow(float Offset, int32 Row, float RowPitch, float ViewHeight)
+{
+	const float RowTop = FMath::Max(Row, 0) * RowPitch;
+	const float RowBottom = RowTop + RowPitch;
+	if (RowTop < Offset)
+	{
+		return RowTop;
+	}
+	if (RowBottom > Offset + ViewHeight)
+	{
+		return FMath::Max(RowBottom - ViewHeight, 0.0f);
+	}
+	return Offset;
+}
+
+WoRLoadoutV2Grid::FCardPlace WoRLoadoutV2Grid::PlaceCard(const FVector2D &TilePosition, float TileSize, const FVector2D &CardSize, const FVector2D &ViewSize, float Gap)
+{
+	FCardPlace Place;
+	Place.Position.X = TilePosition.X + TileSize + Gap;
+	if (Place.Position.X + CardSize.X > ViewSize.X)
+	{
+		Place.bLeft = true;
+		Place.Position.X = TilePosition.X - Gap - CardSize.X;
+	}
+	Place.Position.Y = TilePosition.Y;
+	if (Place.Position.Y + CardSize.Y > ViewSize.Y)
+	{
+		Place.bUp = true;
+		Place.Position.Y = TilePosition.Y + TileSize - CardSize.Y;
+	}
+	Place.Position.X = FMath::Clamp(Place.Position.X, 0.0, FMath::Max(ViewSize.X - CardSize.X, 0.0));
+	Place.Position.Y = FMath::Clamp(Place.Position.Y, 0.0, FMath::Max(ViewSize.Y - CardSize.Y, 0.0));
+	return Place;
+}
+
 FString WoRLoadoutV2Grid::GetGridString(const TArray<FLoadoutV2GridTile> &Tiles, int32 Columns, int32 Selected)
 {
 	FString Out;

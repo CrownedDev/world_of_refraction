@@ -1,7 +1,9 @@
 // LoadoutV2GridSpec.cpp
 // D-248 step 1: the Equipment tab's picture grid, headless: which filter tabs show, where the keys go from a tile, the
 // "Type (Tier)" line under a piece's name, the grid as text; and on the screen with no party the grid is closed and
-// its keys do nothing. Unproven here: the grid on screen with a character's weapons (PIE sheet D-248-grid-step1).
+// its keys do nothing. Step 2: a tile's place in the view, the scroll that shows a row, and where the pop-up card goes
+// (right of the tile, left or bottoms level near an edge, always inside the view). Unproven here: the grid and the card
+// on screen with a character's weapons (PIE sheets D-248-grid-step1, D-248-card-step2).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -63,6 +65,55 @@ void FLoadoutV2GridSpec::Define()
 		Tiles[2].bLocked = true;
 		TestEqual(TEXT("two to a row, the second selected"), WoRLoadoutV2Grid::GetGridString(Tiles, 2, 1), FString(TEXT("Sword (worn)  [Sword x2]\nBow (locked)")));
 		TestEqual(TEXT("no tiles"), WoRLoadoutV2Grid::GetGridString({}, 2, 0), FString(TEXT("(no tiles)")));
+	});
+
+	It("finds a tile's place in the view, and the scroll that shows a row (D-248 step 2)", [this]()
+	{
+		constexpr int32 Columns = 10;
+		constexpr float Pitch = 114.0f;
+		constexpr float Padding = 3.0f;
+		TestTrue(TEXT("the first tile"), WoRLoadoutV2Grid::GetTilePosition(0, Columns, Pitch, Padding, 0.0f).Equals(FVector2D(3.0, 3.0)));
+		TestTrue(TEXT("the fourth in the second row"), WoRLoadoutV2Grid::GetTilePosition(13, Columns, Pitch, Padding, 0.0f).Equals(FVector2D(345.0, 117.0)));
+		TestTrue(TEXT("scrolled down a row: it is a row higher"), WoRLoadoutV2Grid::GetTilePosition(13, Columns, Pitch, Padding, Pitch).Equals(FVector2D(345.0, 3.0)));
+
+		constexpr float ViewHeight = 300.0f; // two rows and a part of a third
+		TestEqual(TEXT("a row in view: no move"), WoRLoadoutV2Grid::ScrollToRow(0.0f, 1, Pitch, ViewHeight), 0.0f);
+		TestEqual(TEXT("a row cut off at the bottom: down until its bottom shows"), WoRLoadoutV2Grid::ScrollToRow(0.0f, 2, Pitch, ViewHeight), 3.0f * Pitch - ViewHeight);
+		TestEqual(TEXT("a row above the view: up to its top"), WoRLoadoutV2Grid::ScrollToRow(400.0f, 1, Pitch, ViewHeight), Pitch);
+		TestEqual(TEXT("the first row: the top"), WoRLoadoutV2Grid::ScrollToRow(400.0f, 0, Pitch, ViewHeight), 0.0f);
+	});
+
+	It("puts the card beside the tile, on its left or with their bottoms level near an edge, and keeps it in the view (D-248 step 2)", [this]()
+	{
+		constexpr float Tile = 108.0f;
+		constexpr float Gap = 6.0f;
+		const FVector2D Card(520.0, 400.0);
+		const FVector2D View(1156.0, 700.0);
+
+		const WoRLoadoutV2Grid::FCardPlace Right = WoRLoadoutV2Grid::PlaceCard(FVector2D(117.0, 3.0), Tile, Card, View, Gap);
+		TestTrue(TEXT("room on the right: there, tops level"), !Right.bLeft && !Right.bUp && Right.Position.Equals(FVector2D(117.0 + Tile + Gap, 3.0)));
+
+		const WoRLoadoutV2Grid::FCardPlace Left = WoRLoadoutV2Grid::PlaceCard(FVector2D(1029.0, 3.0), Tile, Card, View, Gap);
+		TestTrue(TEXT("no room on the right: on the left"), Left.bLeft && !Left.bUp && Left.Position.Equals(FVector2D(1029.0 - Gap - Card.X, 3.0)));
+
+		const WoRLoadoutV2Grid::FCardPlace Up = WoRLoadoutV2Grid::PlaceCard(FVector2D(117.0, 573.0), Tile, Card, View, Gap);
+		TestTrue(TEXT("it would run past the bottom: bottoms level"), !Up.bLeft && Up.bUp && Up.Position.Equals(FVector2D(117.0 + Tile + Gap, 573.0 + Tile - Card.Y)));
+
+		const WoRLoadoutV2Grid::FCardPlace Corner = WoRLoadoutV2Grid::PlaceCard(FVector2D(1029.0, 573.0), Tile, Card, View, Gap);
+		TestTrue(TEXT("the bottom right corner: left and up"), Corner.bLeft && Corner.bUp);
+
+		// A tile scrolled half out of the top: the card stays inside the view.
+		const WoRLoadoutV2Grid::FCardPlace Clipped = WoRLoadoutV2Grid::PlaceCard(FVector2D(117.0, -60.0), Tile, Card, View, Gap);
+		TestEqual(TEXT("not above the view"), Clipped.Position.Y, 0.0);
+
+		// A card taller and wider than the view starts at the view's corner.
+		const WoRLoadoutV2Grid::FCardPlace Huge = WoRLoadoutV2Grid::PlaceCard(FVector2D(117.0, 300.0), Tile, FVector2D(2000.0, 900.0), View, Gap);
+		TestTrue(TEXT("a card bigger than the view: its corner"), Huge.Position.Equals(FVector2D(0.0, 0.0)));
+
+		for (const WoRLoadoutV2Grid::FCardPlace &Place : {Right, Left, Up, Corner, Clipped})
+		{
+			TestTrue(TEXT("inside the view"), Place.Position.X >= 0.0 && Place.Position.Y >= 0.0 && Place.Position.X + Card.X <= View.X && Place.Position.Y + Card.Y <= View.Y);
+		}
 	});
 
 	It("on the screen with no party the grid is closed and its keys do nothing (headless)", [this]()
