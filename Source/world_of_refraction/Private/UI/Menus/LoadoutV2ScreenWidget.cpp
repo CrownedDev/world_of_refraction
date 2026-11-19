@@ -4,11 +4,14 @@
 
 #include "Algo/IndexOf.h"
 #include "Components/Border.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Components/EditableTextBox.h"
 #include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/UniformGridPanel.h"
 #include "Components/UniformGridSlot.h"
+#include "Containers/Ticker.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
@@ -49,17 +52,27 @@ namespace LoadoutV2ScreenStyle
 	constexpr float NameColumnWidth = 460.0f;
 	/** The list panel's tallest, until the screen has been drawn once and its own area's height is known (RefreshView). */
 	constexpr float ListMaxHeight = 700.0f;
-	// D-248 step 1 (mockup menus/loadout/v4/1b): the grid sits between the list and the box, so both get narrower while
-	// it shows. The three widths and the two gaps add up to ListWidth + ColumnGap + BoxWidth.
-	// TODO: step 2 moves the details to a pop-up card; the grid then takes the box's width (10 tiles a row, as drawn).
+	// D-248 (mockup menus/loadout/v4/1b): while a weapon slot is being filled the list narrows to the slots and the
+	// grid takes the rest of the row; the two widths and the gap add up to ListWidth + ColumnGap + BoxWidth. Step 2: the
+	// details are a card beside the lit tile (the details box, moved there), so the grid has the box's width too.
 	constexpr float GridGap = 24.0f;
 	constexpr float GridSlotsWidth = 520.0f;
-	constexpr float GridBoxWidth = 420.0f;
-	constexpr float GridWidth = ListWidth + ColumnGap + BoxWidth - GridSlotsWidth - GridBoxWidth - GridGap * 2.0f;
+	constexpr float GridWidth = ListWidth + ColumnGap + BoxWidth - GridSlotsWidth - GridGap;
 	constexpr float GridNameColumnWidth = 290.0f;
-	constexpr float TileSize = 90.0f;
+	// The mockup's tile (72 px at 720p). Ten of them with their padding, the panel's padding and the scroll bar's room
+	// fill GridWidth.
+	constexpr float TileSize = 108.0f;
 	constexpr float TilePadding = 3.0f;
-	constexpr float TileIconSize = 60.0f;
+	constexpr float TileIconSize = 72.0f;
+	/** A tile with the padding around it: the grid's row and column step. */
+	constexpr float TilePitch = TileSize + TilePadding * 2.0f;
+	// The card: the details box beside the lit tile, in a thin light frame so it reads over the tiles.
+	constexpr float CardWidth = 520.0f;
+	constexpr float CardGap = 6.0f;
+	constexpr float CardFrameWidth = 2.0f;
+	/** Where the tiles' view starts under the grid panel's top (its padding, the header, the filter tabs), until the
+	 *  grid has been drawn once and the real place is known. */
+	constexpr float GridViewTopFallback = 150.0f;
 	constexpr float TileMarkInset = 6.0f;
 	constexpr float TileTickSize = 24.0f;
 	constexpr float GridTabIconSize = 36.0f;
@@ -302,7 +315,6 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		ListArea = Columns;
 		AddToRow(Columns, ListSizer, FMargin(0.0f, 0.0f, ColumnGap, 0.0f), VAlign_Top);
 		UBorder *Box = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		DetailsBox = Box;
 		Box->SetBrushColor(PanelColor);
 		Box->SetPadding(FMargin(BoxPadding));
 		UVerticalBox *BoxColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
@@ -342,7 +354,8 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		// The wheel: over a grid with more rows than fit, the scroll box takes it and scrolls (its default); otherwise
 		// it reaches NativeOnMouseWheel and moves the lit tile one step.
 		GridScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
-		GridTilePanel =WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass());
+		GridScroll->OnUserScrolled.AddUniqueDynamic(this, &ULoadoutV2ScreenWidget::HandleGridScrolled); // the card moves with its tile
+		GridTilePanel = WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass());
 		GridTilePanel->SetSlotPadding(FMargin(TilePadding));
 		GridScroll->AddChild(GridTilePanel);
 		AddToColumn(GridColumn, GridScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -358,12 +371,32 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		AddToColumn(GridColumn, GridLegend, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 		GridSizer = MakeSized(WidgetTree, GridWidth, 0.0f, GridPanel);
 		GridSizer->SetMaxDesiredHeight(ListMaxHeight);
-		AddToRow(Columns, GridSizer, FMargin(0.0f, 0.0f, GridGap, 0.0f), VAlign_Top);
+		AddToRow(Columns, GridSizer, FMargin(0.0f), VAlign_Top);
 		SetShown(GridSizer, false);
 
-		BoxSizer = MakeSized(WidgetTree, BoxWidth, 0.0f, Box);
-		AddToRow(Columns, BoxSizer, FMargin(0.0f), VAlign_Top);
-		AddToColumn(Main, Columns, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		// D-248 step 2: the details box sits on a layer over the columns, not in their row, so it can be the card
+		// beside a tile (PlaceBox). Outside the grid it is placed where the row had it: right of the list, at the top.
+		// The frame around it is the panel's colour there (unseen) and light while it is the card.
+		BoxFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		BoxFrame->SetBrushColor(PanelColor);
+		BoxFrame->SetPadding(FMargin(0.0f));
+		BoxFrame->SetContent(Box);
+		DetailsBox = BoxFrame; // hidden as one when the box has nothing to say
+		BoxSizer = MakeSized(WidgetTree, BoxWidth, 0.0f, BoxFrame);
+		UCanvasPanel *BoxLayer = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass());
+		BoxLayer->SetVisibility(ESlateVisibility::SelfHitTestInvisible); // the layer covers the columns: only what is on it takes the mouse
+		BoxSizer->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		UCanvasPanelSlot *BoxSlot = BoxLayer->AddChildToCanvas(BoxSizer);
+		BoxSlot->SetAutoSize(true);
+		BoxSlot->SetPosition(FVector2D(ListWidth + ColumnGap, 0.0f));
+		UOverlay *ColumnsLayers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+		for (UWidget *Layer : {static_cast<UWidget *>(Columns), static_cast<UWidget *>(BoxLayer)})
+		{
+			UOverlaySlot *LayerSlot = ColumnsLayers->AddChildToOverlay(Layer);
+			LayerSlot->SetHorizontalAlignment(HAlign_Fill);
+			LayerSlot->SetVerticalAlignment(VAlign_Fill);
+		}
+		AddToColumn(Main, ColumnsLayers, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
 		CompareText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
 		AddToColumn(Main, CompareText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
@@ -1530,6 +1563,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 			}
 		}
 	}
+	PlaceBox(bGrid); // D-248 step 2: beside the lit tile while the grid shows, else right of the list
 
 	FText Compare;
 	if (Mode == ELoadoutV2Mode::WindowItems && bComparing && Items.IsValidIndex(Selected) && Slots.IsValidIndex(SlotIndex))
@@ -1705,10 +1739,9 @@ int32 ULoadoutV2ScreenWidget::FindGridTabUnder(const FVector2D &ScreenPosition) 
 void ULoadoutV2ScreenWidget::RefreshGrid(bool bShown)
 {
 	using namespace LoadoutV2ScreenStyle;
-	// The three columns: the list and the box give the grid its room while it shows.
+	// The list narrows to the slots and the grid takes the rest of the row (the details box is the card: PlaceBox).
 	SetShown(GridSizer, bShown);
 	ListSizer->SetWidthOverride(bShown ? GridSlotsWidth : ListWidth);
-	BoxSizer->SetWidthOverride(bShown ? GridBoxWidth : BoxWidth);
 	if (UHorizontalBoxSlot *ListSlot = Cast<UHorizontalBoxSlot>(ListSizer->Slot))
 	{
 		ListSlot->SetPadding(FMargin(0.0f, 0.0f, bShown ? GridGap : ColumnGap, 0.0f));
@@ -1818,13 +1851,87 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bShown)
 		GridTileCounts[Index]->SetText(FText::Format(LOCTEXT("GridTileCount", "x{0}"), FText::AsNumber(Tile.Count)));
 		SetShown(GridTileCounts[Index], Tile.Count > 1);
 	}
-	// The selected tile is brought into view when the selection or the tiles change (as the list's line).
+	// The selected tile's row is brought into view when the selection or the tiles change (as the list's line). The
+	// offset is set here, at once (ScrollWidgetIntoView waits a frame), so the card is placed beside the tile where it
+	// will be drawn (PlaceBox). Before the grid has been drawn its height isn't known: it opens at the top anyway.
 	const uint32 ViewKey = HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(Tiles.Num())), HashCombine(GetTypeHash(SlotIndex), GetTypeHash(CurrentTab)));
-	if (ViewKey != GridScrolledKey && GridTiles.IsValidIndex(Selected) && Selected < Tiles.Num())
+	const float ViewHeight = GridScroll->GetCachedGeometry().GetLocalSize().Y;
+	if (ViewKey != GridScrolledKey && Selected >= 0 && Selected < Tiles.Num() && ViewHeight > 0.0f) // not drawn yet: tried again once it is (SettleViewNextFrame)
 	{
 		GridScrolledKey = ViewKey;
-		GridScroll->ScrollWidgetIntoView(GridTiles[Selected], /*AnimateScroll=*/false);
+		GridScroll->SetScrollOffset(WoRLoadoutV2Grid::ScrollToRow(GridScroll->GetScrollOffset(), Selected / WoRLoadoutV2Grid::COLUMNS, TilePitch, ViewHeight));
 	}
+}
+
+void ULoadoutV2ScreenWidget::SettleViewNextFrame()
+{
+	if (bSettlingView || bSettlePending)
+	{
+		return; // this refresh is the settling one, or one is already asked for
+	}
+	bSettlePending = true;
+	// The core ticker, not a world timer: it runs while the game is paused too. One shot (it returns false).
+	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float)
+	{
+		bSettlePending = false;
+		if (ListBox && IsGridOpen())
+		{
+			TGuardValue<bool> Settling(bSettlingView, true);
+			RefreshView();
+		}
+		return false;
+	}));
+}
+
+void ULoadoutV2ScreenWidget::HandleGridScrolled(float /*CurrentOffset*/)
+{
+	// The wheel or the scroll bar moved the tiles: the card is placed again beside its tile. (The tile under a resting
+	// mouse is found again on the mouse's next move.)
+	if (IsGridOpen())
+	{
+		RefreshView();
+	}
+}
+
+void ULoadoutV2ScreenWidget::PlaceBox(bool bGrid)
+{
+	using namespace LoadoutV2ScreenStyle;
+	UCanvasPanelSlot *BoxSlot = Cast<UCanvasPanelSlot>(BoxSizer->Slot);
+	if (!BoxSlot)
+	{
+		return;
+	}
+	const int32 Tile = GetBoxLine(); // the tile under the mouse, else the lit one: the piece the box shows
+	const bool bCard = bGrid && Items.IsValidIndex(Tile);
+	BoxSizer->SetWidthOverride(bCard ? CardWidth : BoxWidth);
+	// The card lies over tiles: the mouse and the wheel go through it to them. (Outside the grid its icons keep their tooltips.)
+	BoxSizer->SetVisibility(bCard ? ESlateVisibility::HitTestInvisible : ESlateVisibility::SelfHitTestInvisible);
+	BoxFrame->SetBrushColor(bCard ? CyanColor : PanelColor);
+	BoxFrame->SetPadding(FMargin(bCard ? CardFrameWidth : 0.0f));
+	if (!bCard)
+	{
+		BoxSlot->SetPosition(FVector2D(ListWidth + ColumnGap, 0.0f)); // where the columns' row had it
+		return;
+	}
+	// The tiles' view inside the columns' area: right of the slots and the gap, inside the grid panel's padding; its
+	// top is read from the drawn grid (the header and the tabs above it), a fixed guess before the grid's first draw.
+	const FGeometry &Area = ListArea->GetCachedGeometry();
+	const FGeometry &View = GridScroll->GetCachedGeometry();
+	const bool bDrawn = View.GetLocalSize().Y > 0.0f && Area.GetLocalSize().Y > 0.0f;
+	const FVector2D ViewOrigin(GridSlotsWidth + GridGap + BoxPadding, bDrawn ? Area.AbsoluteToLocal(View.GetAbsolutePosition()).Y : GridViewTopFallback);
+	const float AreaHeight = Area.GetLocalSize().Y > 0.0f ? Area.GetLocalSize().Y : ListMaxHeight;
+	// The card keeps to the tiles' width (not over the scroll bar) and may use the room down to the area's bottom
+	// (past the tiles' own view, over the legend).
+	const FVector2D ViewSize(TilePitch * WoRLoadoutV2Grid::COLUMNS, FMath::Max(AreaHeight - ViewOrigin.Y, 0.0));
+	BoxSizer->ForceLayoutPrepass(); // the card's size with the lines just written
+	const FVector2D TilePosition = WoRLoadoutV2Grid::GetTilePosition(Tile, WoRLoadoutV2Grid::COLUMNS, TilePitch, TilePadding, GridScroll->GetScrollOffset());
+	const WoRLoadoutV2Grid::FCardPlace Place = WoRLoadoutV2Grid::PlaceCard(TilePosition, TileSize, BoxSizer->GetDesiredSize(), ViewSize, CardGap);
+	BoxSlot->SetPosition(ViewOrigin + Place.Position);
+	UE_LOG(LogWoRUI, Verbose, TEXT("[LoadoutV2] card for tile %d at %s (%s, %s)%s"), Tile, *Place.Position.ToString(), Place.bLeft ? TEXT("left") : TEXT("right"),
+		   Place.bUp ? TEXT("bottoms level") : TEXT("tops level"), bDrawn ? TEXT("") : TEXT(" - grid not drawn yet, guessed"));
+	// What was measured here can be a frame old: the wrapped text's height right after the width changed, the grid's
+	// place before its first draw. One more refresh next frame sets the card (and a scroll not yet made) right.
+	SettleViewNextFrame();
 }
 
 // ==================== KEYS ====================
