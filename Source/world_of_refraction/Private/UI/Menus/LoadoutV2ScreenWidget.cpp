@@ -1340,6 +1340,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 {
 	using namespace LoadoutV2ScreenStyle;
 	++FullRefreshCount;
+	ItemFades.Reset(); // the whole view gives every line and tile its colour outright
 	if (!IsLoadoutAtTopLevel())
 	{
 		// D-249: the loadout is in the middle of something (Options, a window, a slot's list): it is in, and the keys are its.
@@ -1567,10 +1568,141 @@ FLinearColor ULoadoutV2ScreenWidget::GetTileColor(int32 Index, bool bLocked, boo
 
 void ULoadoutV2ScreenWidget::SetItemColor(UBorder *Item, const FLinearColor &Color)
 {
-	if (Item && Item->GetBrushColor() != Color)
+	if (!Item)
 	{
-		Item->SetBrushColor(Color);
+		return;
 	}
+	// UI_Theme 5a: the highlight fades to the new item (and off the old one), it does not jump. A fade under way is
+	// turned to the new colour from where it is, so the next input cuts it short.
+	FItemFade *Fade = ItemFades.FindByPredicate([Item](const FItemFade &Each) { return Each.Item == Item; });
+	if (Fade)
+	{
+		if (Fade->To == Color)
+		{
+			return;
+		}
+		Fade->From = Item->GetBrushColor();
+		Fade->To = Color;
+		Fade->Elapsed = 0.0f;
+	}
+	else if (Item->GetBrushColor() != Color)
+	{
+		ItemFades.Add(FItemFade{Item, Item->GetBrushColor(), Color, 0.0f});
+	}
+	else
+	{
+		return;
+	}
+	StartFeelTicker();
+}
+
+UBorder *ULoadoutV2ScreenWidget::GetLitItem() const
+{
+	const bool bSlotGrid = IsGridOpen();
+	if (bSlotGrid || !bOnLoadoutSide)
+	{
+		const int32 Tile = bSlotGrid ? Selected : InvSelected;
+		return (bSlotGrid || !bOnInvFilters) && GridTiles.IsValidIndex(Tile) ? GridTiles[Tile].Get() : nullptr;
+	}
+	return bLoadoutOpen && LineRows.IsValidIndex(Selected) ? LineRows[Selected].Get() : nullptr;
+}
+
+void ULoadoutV2ScreenWidget::PressItem(UBorder *Item)
+{
+	if (!Item)
+	{
+		return;
+	}
+	// UI_Theme 5a: a pressed item is darker and a little lower for a moment. The action itself has already happened:
+	// nothing waits on this.
+	ItemFades.RemoveAll([Item](const FItemFade &Each)
+						{
+							if (Each.Item == Item)
+							{
+								Item->SetBrushColor(Each.To); // its fade ends at once: the press starts from its own colour
+								return true;
+							}
+							return false;
+						});
+	if (ItemPresses.ContainsByPredicate([Item](const FItemPress &Each) { return Each.Item == Item; }))
+	{
+		return; // already down
+	}
+	const FLinearColor Normal = Item->GetBrushColor();
+	const FLinearColor Darkened(Normal.R * WoRMenuFeel::PRESS_DARKEN, Normal.G * WoRMenuFeel::PRESS_DARKEN, Normal.B * WoRMenuFeel::PRESS_DARKEN, Normal.A);
+	Item->SetBrushColor(Darkened);
+	Item->SetRenderTranslation(FVector2D(0.0f, WoRMenuFeel::PRESS_OFFSET));
+	ItemPresses.Add(FItemPress{Item, Normal, Darkened, 0.0f});
+	StartFeelTicker();
+}
+
+float ULoadoutV2ScreenWidget::GetGridScrollTarget() const
+{
+	return GridGlideElapsed >= 0.0f ? GridGlideTo : GridScroll ? GridScroll->GetScrollOffset() : 0.0f;
+}
+
+void ULoadoutV2ScreenWidget::StartFeelTicker()
+{
+	if (!FeelTicker.IsValid())
+	{
+		// The core ticker, only while something is moving (a fade, a press, a glide): not a widget Tick.
+		FeelTicker = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateWeakLambda(this, [this](float DeltaSeconds) { return TickFeel(DeltaSeconds); }));
+	}
+}
+
+bool ULoadoutV2ScreenWidget::TickFeel(float DeltaSeconds)
+{
+	for (int32 Index = ItemFades.Num() - 1; Index >= 0; --Index)
+	{
+		FItemFade &Fade = ItemFades[Index];
+		Fade.Elapsed += DeltaSeconds;
+		const float Alpha = WoRMenuFeel::EaseOut(Fade.Elapsed / WoRMenuFeel::HIGHLIGHT_FADE_SECONDS);
+		if (UBorder *Item = Fade.Item.Get())
+		{
+			Item->SetBrushColor(FMath::Lerp(Fade.From, Fade.To, Alpha));
+		}
+		if (Fade.Elapsed >= WoRMenuFeel::HIGHLIGHT_FADE_SECONDS || !Fade.Item.IsValid())
+		{
+			ItemFades.RemoveAtSwap(Index);
+		}
+	}
+	for (int32 Index = ItemPresses.Num() - 1; Index >= 0; --Index)
+	{
+		FItemPress &Press = ItemPresses[Index];
+		Press.Elapsed += DeltaSeconds;
+		if (Press.Elapsed < WoRMenuFeel::PRESS_SECONDS && Press.Item.IsValid())
+		{
+			continue;
+		}
+		UBorder *Item = Press.Item.Get();
+		const FLinearColor Normal = Press.Normal;
+		const bool bStillDark = Item && Item->GetBrushColor() == Press.Darkened; // a redraw since may have recoloured it
+		ItemPresses.RemoveAtSwap(Index);
+		if (Item)
+		{
+			Item->SetRenderTranslation(FVector2D::ZeroVector);
+			if (bStillDark)
+			{
+				SetItemColor(Item, Normal); // back up through the fade
+			}
+		}
+	}
+	if (GridGlideElapsed >= 0.0f)
+	{
+		GridGlideElapsed += DeltaSeconds;
+		const float Alpha = WoRMenuFeel::EaseOut(GridGlideElapsed / WoRMenuFeel::SCROLL_GLIDE_SECONDS);
+		GridScroll->SetScrollOffset(FMath::Lerp(GridGlideFrom, GridGlideTo, Alpha));
+		if (GridGlideElapsed >= WoRMenuFeel::SCROLL_GLIDE_SECONDS)
+		{
+			GridGlideElapsed = GRID_GLIDE_IDLE;
+		}
+	}
+	if (ItemFades.IsEmpty() && ItemPresses.IsEmpty() && GridGlideElapsed < 0.0f)
+	{
+		FeelTicker.Reset(); // returning false takes the ticker off
+		return false;
+	}
+	return true;
 }
 
 void ULoadoutV2ScreenWidget::ScrollToSelection()
@@ -1585,7 +1717,7 @@ void ULoadoutV2ScreenWidget::ScrollToSelection()
 	if (ListKey != ScrolledViewKey && bLoadoutOpen && LineRows.IsValidIndex(Line) && Line < LineCount)
 	{
 		ScrolledViewKey = ListKey;
-		ListScroll->ScrollWidgetIntoView(LineRows[Line], /*AnimateScroll=*/false);
+		ListScroll->ScrollWidgetIntoView(LineRows[Line], /*AnimateScroll=*/true); // UI_Theme 5a: a glide, no jump
 	}
 	// The grid's lit tile, the same way. The offset is set at once (ScrollWidgetIntoView waits a frame), so the card is
 	// placed beside the tile where it will be drawn (PlaceBox). Before the grid has been drawn its height isn't known:
@@ -1600,7 +1732,20 @@ void ULoadoutV2ScreenWidget::ScrollToSelection()
 	if (GridKey != GridScrolledKey && Tile >= 0 && Tile < TileCount && ViewHeight > 0.0f)
 	{
 		GridScrolledKey = GridKey;
-		GridScroll->SetScrollOffset(WoRLoadoutV2Grid::ScrollToRow(GridScroll->GetScrollOffset(), Tile / Columns, TilePitch, ViewHeight));
+		// UI_Theme 5a: the grid glides to the row (TickFeel); the card is placed at once where the tile will end up
+		// (GetGridScrollTarget). A glide under way is turned to the new row from where it is.
+		const float Target = WoRLoadoutV2Grid::ScrollToRow(GetGridScrollTarget(), Tile / Columns, TilePitch, ViewHeight);
+		if (Target != GridScroll->GetScrollOffset())
+		{
+			GridGlideFrom = GridScroll->GetScrollOffset();
+			GridGlideTo = Target;
+			GridGlideElapsed = 0.0f;
+			StartFeelTicker();
+		}
+		else
+		{
+			GridGlideElapsed = GRID_GLIDE_IDLE;
+		}
 	}
 }
 
@@ -2139,7 +2284,8 @@ void ULoadoutV2ScreenWidget::SettleViewNextFrame()
 void ULoadoutV2ScreenWidget::HandleGridScrolled(float /*CurrentOffset*/)
 {
 	// The wheel or the scroll bar moved the tiles: the card is placed again beside its tile. (The tile under a resting
-	// mouse is found again on the mouse's next move.)
+	// mouse is found again on the mouse's next move.) The player's own scroll ends a glide.
+	GridGlideElapsed = GRID_GLIDE_IDLE;
 	RefreshSelection();
 }
 
@@ -2179,7 +2325,7 @@ void ULoadoutV2ScreenWidget::PlaceBox(bool bSlotGrid)
 		// The card keeps to the tiles' width (not over the scroll bar) and may use the room down to the area's bottom
 		// (past the tiles' own view, over the legend).
 		const FVector2D ViewSize(TilePitch * Columns, FMath::Max(AreaHeight - ViewOrigin.Y, 0.0));
-		const FVector2D TilePosition = WoRLoadoutV2Grid::GetTilePosition(Tile, Columns, TilePitch, TilePadding, GridScroll->GetScrollOffset());
+		const FVector2D TilePosition = WoRLoadoutV2Grid::GetTilePosition(Tile, Columns, TilePitch, TilePadding, GetGridScrollTarget());
 		const WoRLoadoutV2Grid::FCardPlace Place = WoRLoadoutV2Grid::PlaceCard(TilePosition, TileSize, CardSize, ViewSize, CardGap);
 		BoxSlot->SetPosition(ViewOrigin + Place.Position);
 		UE_LOG(LogWoRUI, Verbose, TEXT("[LoadoutV2] card for tile %d at %s (%s, %s)"), Tile, *Place.Position.ToString(), Place.bLeft ? TEXT("left") : TEXT("right"),
@@ -2222,6 +2368,7 @@ void ULoadoutV2ScreenWidget::ToggleLoadout()
 	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] loadout %s; keys on the %s side; %d tiles to a row"), bLoadoutOpen ? TEXT("in") : TEXT("out"),
 		   bOnLoadoutSide ? TEXT("loadout's") : TEXT("inventory's"), GetGridColumns());
 	RefreshData();
+	PressItem(LoadoutButton);
 }
 
 bool ULoadoutV2ScreenWidget::FocusLoadoutSide()
@@ -2421,6 +2568,25 @@ void ULoadoutV2ScreenWidget::NativeOnFocusLost(const FFocusEvent &InFocusEvent)
 void ULoadoutV2ScreenWidget::NativeOnDeactivated()
 {
 	StopHold();
+	// Whatever was moving ends where it was going.
+	for (const FItemFade &Fade : ItemFades)
+	{
+		if (UBorder *Item = Fade.Item.Get())
+		{
+			Item->SetBrushColor(Fade.To);
+		}
+	}
+	ItemFades.Reset();
+	for (const FItemPress &Press : ItemPresses)
+	{
+		if (UBorder *Item = Press.Item.Get())
+		{
+			Item->SetRenderTranslation(FVector2D::ZeroVector);
+			Item->SetBrushColor(Press.Normal);
+		}
+	}
+	ItemPresses.Reset();
+	GridGlideElapsed = GRID_GLIDE_IDLE;
 	Super::NativeOnDeactivated();
 }
 
@@ -2513,7 +2679,9 @@ void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
 			return;
 		}
 		LastClickActionSeconds = Now;
+		UBorder *Pressed = GetLitItem();
 		PressA();
+		PressItem(Pressed);
 	}
 	else
 	{
@@ -3167,7 +3335,9 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 	{
 		if (!InKeyEvent.IsRepeat())
 		{
+			UBorder *Pressed = IsConfirmKey(Key) ? GetLitItem() : nullptr; // the item A was pressed on, before it acts
 			IsConfirmKey(Key) ? PressA() : IsToggleKey(Key) ? PressCompare() : PressConfirm();
+			PressItem(Pressed);
 		}
 		return FReply::Handled();
 	}

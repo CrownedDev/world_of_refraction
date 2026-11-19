@@ -297,6 +297,40 @@ private:
 	FWoRHoldRepeat HoldRepeat;
 	FTSTicker::FDelegateHandle HoldTicker;
 
+	// UI_Theme 5a: motion. The highlight fades to the new item, a pressed item dips, the grid glides to its lit row.
+	// One core ticker runs them, only while something is moving (TickFeel); the next input cuts any of them short.
+	struct FItemFade
+	{
+		TWeakObjectPtr<UBorder> Item;
+		FLinearColor From;
+		FLinearColor To;
+		float Elapsed = 0.0f;
+	};
+	struct FItemPress
+	{
+		TWeakObjectPtr<UBorder> Item;
+		/** The colour it had, and the darker one it wears while down. */
+		FLinearColor Normal;
+		FLinearColor Darkened;
+		float Elapsed = 0.0f;
+	};
+	/** The lit line or tile: what A is pressed on. Null with nothing lit, or headless. */
+	UBorder *GetLitItem() const;
+	/** The item goes darker and a little lower for WoRMenuFeel::PRESS_SECONDS, then comes back. */
+	void PressItem(UBorder *Item);
+	void StartFeelTicker();
+	bool TickFeel(float DeltaSeconds);
+	/** Where the grid's scroll is going (a glide's end), else where it is: the card is placed against this. */
+	float GetGridScrollTarget() const;
+	TArray<FItemFade> ItemFades;
+	TArray<FItemPress> ItemPresses;
+	static constexpr float GRID_GLIDE_IDLE = -1.0f;
+	float GridGlideFrom = 0.0f;
+	float GridGlideTo = 0.0f;
+	/** How long the grid has been gliding; GRID_GLIDE_IDLE when it isn't. */
+	float GridGlideElapsed = GRID_GLIDE_IDLE;
+	FTSTicker::FDelegateHandle FeelTicker;
+
 	// UI_Theme 5a: a move redraws only what changed.
 	/** The light view, for when only the selection or the hover moved: the lines and tiles are recoloured (their text
 	 *  and pictures stay), the lit one is scrolled into view, and the card is filled again. */
@@ -309,7 +343,7 @@ private:
 	void ScrollToSelection();
 	FLinearColor GetLineColor(int32 Index, bool bSlotGrid) const;
 	FLinearColor GetTileColor(int32 Index, bool bLocked, bool bSlotGrid) const;
-	/** Gives a line or a tile its colour, only when it differs from what it has. */
+	/** Gives a line or a tile its colour, only when it differs from what it has: it fades to it (HIGHLIGHT_FADE_SECONDS). */
 	void SetItemColor(UBorder *Item, const FLinearColor &Color);
 	int32 FullRefreshCount = 0;
 	int32 LightRefreshCount = 0;
