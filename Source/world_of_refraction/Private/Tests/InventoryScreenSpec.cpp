@@ -212,6 +212,7 @@ void FInventoryScreenSpec::Define()
 			TestFalse(TEXT("the keys can't leave a window"), Screen->FocusInventorySide());
 			Screen->ToggleLoadout();
 			TestTrue(TEXT("nor can the loadout be closed"), Screen->IsLoadoutOpen() && !Screen->GetMessage().IsEmpty());
+			TestTrue(TEXT("and that is the Refused cue (UI_Theme 5a)"), Screen->GetLastCue() == EWoRMenuCue::Refused);
 			Screen->PressBack();
 			TestFalse(TEXT("Back leaves the window"), Screen->IsAdding());
 		}
