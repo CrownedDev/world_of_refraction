@@ -66,8 +66,9 @@ namespace BattleHUDStyle
 	constexpr float CardGap = 8.0f;
 	constexpr float RightColumnGap = 16.0f; // between the turn order and the enemy cards
 	// shortcut: the command menu sits a fixed height above the bottom margin, not the featured card's real height,
-	// upgrade to the card's measured height if its lines outgrow this. TODO: tune in PIE.
-	constexpr float FeaturedCardReserve = 220.0f;
+	// upgrade to the card's measured height if its lines outgrow this. Today's full card with two identity lines is
+	// about 225 by its fonts and bars; the rest is room for one wrapped line. TODO: tune in PIE.
+	constexpr float FeaturedCardReserve = 250.0f;
 
 	// B-391b: a damage number's text is centred on its point and sits above it.
 	const FVector2D DamageNumberAlignment(0.5f, 1.0f);
