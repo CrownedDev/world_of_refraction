@@ -89,6 +89,7 @@ namespace BattleCommandMenuBuild
 		if (Key == EKeys::Gamepad_LeftThumbstick) return INVTEXT("L3");
 		if (Key == EKeys::Gamepad_DPad_Down) return LOCTEXT("DPadDown", "D-pad down");
 		if (Key == EKeys::Gamepad_DPad_Right) return LOCTEXT("DPadRight", "D-pad right");
+		if (Key == EKeys::BackSpace) return LOCTEXT("Backspace", "Backspace"); // as the other menus' hints (WoRKeyHintText)
 		return Key.GetDisplayName(/*bLongDisplayName=*/false);
 	}
 
@@ -569,6 +570,10 @@ UBattleMenuHintsWidget *UBattleCommandMenuWidget::GetHintsWidget()
 		if (HintsWidget)
 		{
 			HintsWidget->SetHints(this, bShowing ? Hints : TArray<FBattleMenuHint>());
+		}
+		else
+		{
+			UE_LOG(LogWoRUI, Warning, TEXT("[BattleCommandMenu] Could not make the corner hints widget: Defend, Flee, End Turn and Back have no hints"));
 		}
 	}
 	return HintsWidget;
