@@ -42,8 +42,11 @@
 
 Separate from combat: a standard third-person follow camera tuned toward Expedition 33's exploration feel (longer arm, light lag). `Resources_Design.md` "Hub camera".
 
+**Limits (D-255, unbuilt: B-583):** 10 degrees up, 55 down. From contact to the fight: 30 either side and 10 up or down from where it pointed, and the engaged character stands still. Numbers are defaults.
+
 ## Changelog
 
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-26 | Created from the June design + D-074 | docs/combat-camera |
+| 2026-11-22 | D-255: hub and contact look limits | dev (docs) |
