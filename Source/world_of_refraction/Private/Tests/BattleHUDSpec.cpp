@@ -397,22 +397,27 @@ void FBattleHUDSpec::Define()
 
 		It("gives each menu key to the row it presses, as PressMenuKey does", [this]()
 		{
-			const TArray<EPieMenuCategory> Rows = {EPieMenuCategory::Attack, EPieMenuCategory::Abilities, EPieMenuCategory::ResonateWeapon,
-												   EPieMenuCategory::Items, EPieMenuCategory::Defend};
+			// B-436g (D-258): the main menu is Attack, Skills, Items, then the corner hints; Back is a key past it.
+			const TArray<EPieMenuCategory> Rows = {EPieMenuCategory::Attack, EPieMenuCategory::Skills, EPieMenuCategory::Items,
+												   EPieMenuCategory::Defend, EPieMenuCategory::Back};
 			const TArray<FCombatMenuKey> &Keys = ACombatPlayerController::GetMenuKeys();
 			const auto KeyCategory = [&Keys](int32 KeyIndex)
 			{ return Keys.IsValidIndex(KeyIndex) ? Keys[KeyIndex].Category : EPieMenuCategory::None; };
 
-			const TArray<int32> Main = BattleHUDView::AssignMenuKeys(Rows, {true, true, true, false, true}, /*bAtMainMenu=*/true);
+			const TArray<int32> Main = BattleHUDView::AssignMenuKeys(Rows, {true, true, false, true, true}, /*bAtMainMenu=*/true);
 			TestTrue(TEXT("Attack row: Attack key"), KeyCategory(Main[0]) == EPieMenuCategory::Attack);
-			TestTrue(TEXT("Abilities row: Skills key"), KeyCategory(Main[1]) == EPieMenuCategory::Abilities);
-			TestEqual(TEXT("the weapon resonance after it: no key (Skills presses Abilities)"), Main[2], INDEX_NONE);
-			TestEqual(TEXT("greyed Items row: no key"), Main[3], INDEX_NONE);
-			TestTrue(TEXT("Defend row: Defend key"), KeyCategory(Main[4]) == EPieMenuCategory::Defend);
+			TestTrue(TEXT("Skills row: Skills key"), KeyCategory(Main[1]) == EPieMenuCategory::Skills);
+			TestEqual(TEXT("greyed Items row: no key"), Main[2], INDEX_NONE);
+			TestTrue(TEXT("Defend row: Defend key"), KeyCategory(Main[3]) == EPieMenuCategory::Defend);
 
 			const TArray<int32> Sub = BattleHUDView::AssignMenuKeys(Rows, {true, true, true, true, true}, /*bAtMainMenu=*/false);
 			TestEqual(TEXT("off the main menu: no Attack key"), Sub[0], INDEX_NONE);
-			TestEqual(TEXT("off the main menu: no Items key"), Sub[3], INDEX_NONE);
+			TestEqual(TEXT("off the main menu: no Items key"), Sub[2], INDEX_NONE);
+			TestEqual(TEXT("off the main menu: no Defend key (D-258c: RB is the infusion level there)"), Sub[3], INDEX_NONE);
+			if (TestTrue(TEXT("Back row: a Back key"), Keys.IsValidIndex(Sub[4]) && KeyCategory(Sub[4]) == EPieMenuCategory::Back))
+			{
+				TestTrue(TEXT("the first Back key shows: Backspace, not Esc"), Keys[Sub[4]].Keyboard == EKeys::BackSpace);
+			}
 		});
 	});
 

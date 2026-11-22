@@ -107,8 +107,9 @@ namespace BattleHUDView
 
 	/** For each menu row (Categories[i], Enabled[i]), the index into ACombatPlayerController::GetMenuKeys() of the key
 	 *  that presses it, or INDEX_NONE. Mirrors UCombatCommandMenuSubsystem::PressMenuKey: a key goes to the first
-	 *  enabled row it presses; the category keys (CommandMenuRules::IsMainMenuKey) only when bAtMainMenu; Defend and the
-	 *  infusion keys wherever their rows show. */
+	 *  enabled row it presses; the category keys (CommandMenuRules::IsMainMenuKey, Defend among them since D-258c) only
+	 *  when bAtMainMenu; Back and the infusion keys wherever their rows show. A row two keys press shows the first in the
+	 *  key table (B-436g: Back shows Backspace, not Esc). */
 	WORLD_OF_REFRACTION_API TArray<int32> AssignMenuKeys(const TArray<EPieMenuCategory> &Categories, const TArray<bool> &Enabled,
 														  bool bAtMainMenu);
 
