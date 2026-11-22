@@ -212,8 +212,7 @@ namespace InventoryScreenBuild
 		}
 		else
 		{
-			Tile.Details.Add({LOCTEXT("DetailStack", "Stack"), FText::Format(LOCTEXT("StackOfMax", "{0} of {1}"), FText::AsNumber(Row.Count),
-																		 FText::AsNumber(InventoryConstants::ITEM_STACK_MAX))});
+			Tile.Details.Add({LOCTEXT("DetailStack", "Stack"), FText::AsNumber(Row.Count)}); // D-250: no stack limit
 		}
 		Tile.Note = CrystalDescription::GetItemEffectText(Row.Item); // B-460
 		// B-487: a crystal is its element's diamond (Ice has none of its own: it is keyed Water), a stone the stone;
@@ -392,7 +391,17 @@ FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, 
 		const FName PouchKey = WoRGive::GetPouchKey(World, Member); // a recruit carries the host's (B-361)
 		Page.Slots = Pool->GetItemSlotCount(PouchKey);
 		Page.LockedSlots = FMath::Max(0, InventoryConstants::ITEM_SLOTS_MAX - Page.Slots);
-		Page.Heading = FText::Format(LOCTEXT("PouchHeading", "Pouch  {0} of {1} slots"), FText::AsNumber(Page.Tiles.Num()), FText::AsNumber(Page.Slots));
+		// D-250: the counter is the fight-item pick, not how much is carried (that has no limit).
+		Page.Heading = FText::Format(LOCTEXT("PouchHeading", "Pouch  {0}/{1} fight items"), FText::AsNumber(Pool->GetUsedItemSlots(PouchKey)),
+									 FText::AsNumber(Page.Slots));
+		for (FInventoryScreenTile &Tile : Page.Tiles)
+		{
+			if (Tile.IsStack() && Pool->IsFightItem(PouchKey, Tile.Row.Item))
+			{
+				Tile.Details.Add({LOCTEXT("DetailFightItem", "Fight item"),
+								  FText::Format(LOCTEXT("FightItemUpTo", "up to {0} a fight"), FText::AsNumber(InventoryConstants::ITEM_STACK_MAX))});
+			}
+		}
 		Page.EmptyNote = LOCTEXT("EmptyPouch", "The pouch is empty.");
 		break;
 	}
@@ -462,7 +471,7 @@ TArray<FInventoryScreenReceiver> WoRInventoryScreen::BuildReceivers(UWorld *Worl
 		const bool bFull = Pool->GetCarryRoom(Pouch, Tile.Row.Item) <= 0;
 		Receiver.Note = bFull			  ? LOCTEXT("ReceiverFull", "full")
 						: FreeSlots > 0 ? FText::Format(LOCTEXT("ReceiverFree", "{0} {0}|plural(one=slot,other=slots) free"), FreeSlots)
-										: LOCTEXT("ReceiverStackRoom", "room in the stack");
+										: FText::GetEmpty(); // D-250: carrying has no limit; only free fight-item slots are worth saying
 		if (!Receiver.Refusal.IsEmpty())
 		{
 			continue;
