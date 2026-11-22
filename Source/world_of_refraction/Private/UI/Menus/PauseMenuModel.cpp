@@ -168,6 +168,22 @@ FPauseMenuHeader WoRPauseMenu::BuildHeader(const UWorld *World)
 	return Header;
 }
 
+FText WoRPauseMenu::GetClassLine(const UCharacterData *Data)
+{
+	if (!Data)
+	{
+		return FText::GetEmpty();
+	}
+	const FText ClassName = WoRGameNames::GetCharacterClassName(Data->CharacterClass);
+	return Data->HasInnateElement() ? FText::Format(LOCTEXT("ElementAndClass", "{0} {1}"), WoRGameNames::GetElementName(Data->GetElement()), ClassName)
+									: ClassName;
+}
+
+FText WoRPauseMenu::GetSheetLine(const UCharacterData *Data, const FGuid &MemberId, const UWorld *World)
+{
+	return WoRPlayerBuild::IsPlayerCharacter(Data) ? WoRPlayerBuild::GetDetailLine(Data, MemberId, World) : GetClassLine(Data);
+}
+
 TArray<FPauseMenuMember> WoRPauseMenu::BuildParty(const UWorld *World)
 {
 	TArray<FPauseMenuMember> Rows;
@@ -187,12 +203,8 @@ TArray<FPauseMenuMember> WoRPauseMenu::BuildParty(const UWorld *World)
 		}
 		FPauseMenuMember Row;
 		Row.Name = WoRPlayerBuild::GetCardName(Data, Member.MemberId, World); // D-229: You or the player's tag
-		const FText ClassName = WoRGameNames::GetCharacterClassName(Data->CharacterClass);
-		// D-241: a player character reads as its identity (Spirit of ... / Body of ...), on the party list and its sheet.
-		Row.ClassLine = WoRPlayerBuild::IsPlayerCharacter(Data) ? WoRPlayerBuild::GetDetailLine(Data, Member.MemberId, World)
-						: Data->HasInnateElement() ? FText::Format(LOCTEXT("ElementAndClass", "{0} {1}"),
-																   WoRGameNames::GetElementName(Data->GetElement()), ClassName)
-												   : ClassName;
+		Row.ClassLine = GetClassLine(Data);
+		Row.SheetLine = GetSheetLine(Data, Member.MemberId, World);
 		// As the party strip: a member with no carried vitals (the hub) reads full.
 		Row.MaxHP = Data->CalculateMaxHealth();
 		Row.MaxEP = Data->CalculateMaxEnergy();

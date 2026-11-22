@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 
 class APlayerController;
+class UCharacterData;
 class UWorld;
 
 /** The menu's pages, in list order. */
@@ -57,7 +58,10 @@ struct FPauseMenuHeader
 struct FPauseMenuMember
 {
 	FText Name;
+	/** The party list's line under the name: element and class (D-254: no Spirit of ... / Body of ...). */
 	FText ClassLine;
+	/** The Character sheet's line: a player character's Spirit of ... / Body of ... (D-241), else ClassLine. */
+	FText SheetLine;
 	/** The Combat Tier letter; empty when the member isn't spawned in this level. */
 	FText Tier;
 	int32 HP = 0;
@@ -99,6 +103,14 @@ namespace WoRPauseMenu
 
 	/** The local party, in order. */
 	WORLD_OF_REFRACTION_API TArray<FPauseMenuMember> BuildParty(const UWorld *World);
+
+	/** D-254: a member's line on the party list: "Fire Caster", or the class alone with no innate element. The same
+	 *  for a player character and a recruit. */
+	WORLD_OF_REFRACTION_API FText GetClassLine(const UCharacterData *Data);
+
+	/** D-254 / D-241: a member's line on the Character sheet (the player's profile): a player character's
+	 *  Spirit of ... / Body of ... (WoRPlayerBuild::GetDetailLine), else GetClassLine. */
+	WORLD_OF_REFRACTION_API FText GetSheetLine(const UCharacterData *Data, const FGuid &MemberId, const UWorld *World);
 
 	/** Quit, after the hold: in a run the run is abandoned (nothing kept, back to the hub); outside one the
 	 *  game saves and goes back to the menu level's title (B-537), or closes while there is no menu level. */
