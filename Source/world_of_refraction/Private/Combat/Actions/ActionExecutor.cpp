@@ -2960,6 +2960,21 @@ FActionResult UActionExecutor::ExecuteItem(
 		return Result;
 	}
 
+	// D-253: the Healing Stone is for the living. A dead target is refused here, before anything is spent
+	// (a use that reaches the item executor spends its charge even when it fails, Q-060).
+	if (ItemIdentity::GetItemEffectType(Id) == EItemEffectType::HealingBoost)
+	{
+		for (AActor *ItemTarget : Targets)
+		{
+			if (!IsTargetAlive(ItemTarget))
+			{
+				Result.bSuccess = false;
+				Result.ErrorMessage = TEXT("Target is dead");
+				return Result;
+			}
+		}
+	}
+
 	// === Find and use item slot in LoadoutComponent ===
 	ULoadoutComponent *Loadout = GetLoadoutComponent(User);
 	int32 ItemSlotIndex = -1;
