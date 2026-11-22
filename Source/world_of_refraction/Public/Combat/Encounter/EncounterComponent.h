@@ -34,8 +34,10 @@
 #include "Field/FieldSkillTypes.h"
 #include "Components/ActorComponent.h"
 #include "CoreMinimal.h"
+#include "Player/WoRCameraRules.h"
 #include "EncounterComponent.generated.h"
 
+class APlayerController;
 class AStaticMeshActor;
 class UCharacterData;
 class UEncounterData;
@@ -121,6 +123,17 @@ public:
 	/** This encounter's own enemies (its team, else the owner pawn alone). */
 	TArray<UCharacterData *> GetOwnTeam() const;
 
+	/** D-255 (B-583): from contact the engaged player stands (its move input ignored, one count, so the field wheel's
+	 *  own ignore calls stay balanced) and its look stays within WoRCameraRules' contact range of where it pointed.
+	 *  Not a remote co-op player's server-side controller; once. HandleOverlap calls it; public for the spec. */
+	void HoldEngagedPlayer(APlayerController *Player);
+
+	/** D-255 (d): gives back what HoldEngagedPlayer took (the camera's limits as it found them). RearmEncounter and
+	 *  EndPlay call it; nothing when nothing is held. */
+	void ReleaseEngagedPlayer();
+
+	bool IsHoldingEngagedPlayer() const { return HeldPlayer.IsValid(); }
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -185,4 +198,8 @@ private:
 
 	/** Latch while the join window runs; cleared only on abort. */
 	bool bTriggered = false;
+
+	/** D-255 (B-583): the player HoldEngagedPlayer holds, and its camera's limits before the hold. */
+	TWeakObjectPtr<APlayerController> HeldPlayer;
+	WoRCameraRules::FLookLimits HeldPlayerLimits;
 };

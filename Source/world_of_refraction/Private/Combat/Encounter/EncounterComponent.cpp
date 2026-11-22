@@ -100,6 +100,7 @@ void UEncounterComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		ArenaSphere->Destroy();
 	}
+	ReleaseEngagedPlayer(); // an owner removed mid-window must not leave the player standing
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -226,6 +227,11 @@ void UEncounterComponent::HandleOverlap(UPrimitiveComponent *OverlappedComponent
 	bTriggered = true;
 	PendingBattleParty.Reset();
 	PendingBattleParty.Add(OtherActor);
+	// D-255: the player who made contact (walking in or a field hit) stands and looks near where it looked.
+	if (const APawn *Engaged = Cast<APawn>(OtherActor))
+	{
+		HoldEngagedPlayer(Cast<APlayerController>(Engaged->GetController()));
+	}
 
 	ArenaCenter = (OtherActor->GetActorLocation() + GetOwner()->GetActorLocation()) * 0.5f;
 
@@ -465,6 +471,41 @@ void UEncounterComponent::RearmEncounter()
 	PendingFirstStrike = EFirstStrike::None;
 	PendingFieldStrike = FFieldStrike();
 	bTriggered = false;
+	ReleaseEngagedPlayer(); // D-255 (d): the fight didn't start, so the player moves and looks freely again
+}
+
+void UEncounterComponent::HoldEngagedPlayer(APlayerController *Player)
+{
+	const bool bRemotePlayer = Player && !Player->IsLocalController() && Player->GetNetConnection();
+	if (!Player || bRemotePlayer || HeldPlayer.IsValid())
+	{
+		return; // shortcut: a remote co-op player isn't held (its input and camera live on its own machine), upgrade with a client RPC if co-op play shows it
+	}
+	HeldPlayer = Player;
+	Player->SetIgnoreMoveInput(true);
+	if (APlayerCameraManager *Camera = Player->PlayerCameraManager)
+	{
+		HeldPlayerLimits = WoRCameraRules::Read(*Camera);
+		WoRCameraRules::Apply(*Camera, WoRCameraRules::MakeContactLimits(Player->GetControlRotation(), HeldPlayerLimits));
+	}
+	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] %s held at contact: no move, look near %s"), *Player->GetName(),
+		   *Player->GetControlRotation().ToCompactString());
+}
+
+void UEncounterComponent::ReleaseEngagedPlayer()
+{
+	APlayerController *Player = HeldPlayer.Get();
+	HeldPlayer.Reset();
+	if (!Player)
+	{
+		return;
+	}
+	Player->SetIgnoreMoveInput(false);
+	if (APlayerCameraManager *Camera = Player->PlayerCameraManager)
+	{
+		WoRCameraRules::Apply(*Camera, HeldPlayerLimits);
+	}
+	UE_LOG(LogTemp, Log, TEXT("[EncounterComponent] %s released: move and look given back"), *Player->GetName());
 }
 
 bool UEncounterComponent::StrikeFromField(AActor *Attacker, const FFieldStrike &Strike)
