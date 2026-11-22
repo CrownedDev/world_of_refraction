@@ -1250,6 +1250,13 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-260 — The action pips move to the command menu, which is one frame with Act attached on top
+**Status:** ANSWERED for the place and the grouping (Crown, 2026-11-22); the look waits for Crown's word on the drawings · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-436g
+**Answer (Crown):** "im thinking why dont we have it on the action menu instead?"; then, shown a drawing with the pips above Attack: "this works though i think we should group the command menu in one frame then we can have the acts above it attached but somewhat seperate if that makes sense maybe show me some other menus to see how it looks i.e the skills items etc"
+**Ruled:** (1) B-436g moves D-259's pips from the card to the command menu. (2) The menu's rows share one frame, and Act sits on top of it, attached but set apart.
+**Until B-436g:** the card shows the pips (B-581), so no build lacks an action count.
+**Proposed in the drawings sent 2026-11-22, not ruled yet:** Act as a narrower tab on the frame's top edge, on every sub-menu too; "Skills 1/3" in that tab; a cost drawn as pips at a row's right end; the same frame for Skills, Items and targeting.
+
 ### D-259 — The fight card's actions are pips: "Act: ●●○"
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown, from the fight card's screenshot) · **Blocks:** B-581
 **Answer (Crown):** "and the actions shoudld we not just turn them into pips? i.e Act: * * * for example"
