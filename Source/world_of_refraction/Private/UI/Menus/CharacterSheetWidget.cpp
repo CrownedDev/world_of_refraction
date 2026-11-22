@@ -327,7 +327,7 @@ void UCharacterSheetWidget::Refresh()
 	const FPauseMenuMember &Who = Page.Who;
 	const FText ValueFormat = LOCTEXT("VitalValue", "{0} / {1}");
 	NameText->SetText(Who.Tier.IsEmpty() ? Who.Name : FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Who.Name, Who.Tier));
-	ClassLineText->SetText(Who.ClassLine);
+	ClassLineText->SetText(Who.SheetLine); // D-254: Spirit of ... / Body of ... stay on the sheet
 	const float HPFraction = Who.MaxHP > 0 ? static_cast<float>(Who.HP) / Who.MaxHP : 0.0f;
 	HPBar->SetPercent(HPFraction);
 	HPValue->SetText(FText::Format(ValueFormat, FText::AsNumber(Who.HP), FText::AsNumber(Who.MaxHP)));

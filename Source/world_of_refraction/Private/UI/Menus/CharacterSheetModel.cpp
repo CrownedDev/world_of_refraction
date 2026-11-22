@@ -225,7 +225,7 @@ FString WoRCharacterSheet::GetCharacterSheetString(UWorld *World)
 	{
 		const FCharacterSheetPage Page = BuildPage(World, Index);
 		Out += FString::Printf(TEXT("\n  %s (%s): HP %d/%d, EP %d/%d, Max Actions %d (+%d/%d), regain %d%s"), *Page.Who.Name.ToString(),
-							   *Page.Who.ClassLine.ToString(), Page.Who.HP, Page.Who.MaxHP, Page.Who.EP, Page.Who.MaxEP, Page.MaxActions,
+							   *Page.Who.SheetLine.ToString().Replace(TEXT("\n"), TEXT(" / ")), Page.Who.HP, Page.Who.MaxHP, Page.Who.EP, Page.Who.MaxEP, Page.MaxActions,
 							   Page.ActionPointProgress, Page.PointsPerAction, Page.ActionRegain,
 							   Page.Refusal.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(" (%s)"), *Page.Refusal.ToString()));
 		for (const FCharacterSheetPillar &Pillar : Page.Pillars)
