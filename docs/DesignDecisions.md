@@ -1271,6 +1271,20 @@ The queue of questions only Crown can answer.
 **Defaults for the amendment (Crown vetoes):** (g) the game menu's party list drops them as well. (h) The title's save slot keeps them (Crown's D-241). (i) A list keeps them under the name only when one player has two characters in it, to tell the two apart. (j) No new profile screen.
 **Process:** under D-251 the B-436 pieces this fight needs pass by agent QA against the mockup; they no longer wait for Crown's PIE pass.
 
+### Q-579 — The potions' price, and what can't be done with a potion (D-253, built in B-579)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-579) · **Blocks:** nothing
+**Question:** D-253 gives the potions' strength and says they are sold for less than a tier F Sapphire or Citrine. It doesn't give the price, or say whether a potion can be sold, dismantled, merged or socketed.
+**Answer (defaults):**
+1. **A potion costs half a tier F crystal's Prisms price, and no essence.** Today that is 12 Prisms, against 25 Prisms and 10 Elemental Essence for a tier F Sapphire or Citrine. The price follows the tier F price if that changes.
+2. **A potion can't be sold or dismantled.** Its price has no essence in it, so dismantling one would turn Prisms into essence. The vendor says "A potion can't be sold or dismantled".
+3. **A potion can't be merged and fits no socket.** It has one strength, so there is no tier to merge up to (D-253 says no tiers and not socketable).
+4. **One stack per potion.** A potion made at any tier is stored as the same Health Potion or Energy Potion.
+5. **It can be used on any living target, an enemy too,** as every other item can. The fight menu asks Allies or Enemies as it does for the others.
+6. **The AI's energy item search finds the Energy Potion as well as a Citrine.** Nothing was changed for that: it looks for an item that gives energy.
+**Reference:** Final Fantasy and Expedition 33 sell their basic potions and tints for the common money only, cheaper than their rarer restoratives (from memory, not looked up). The deckbuilder has no potion.
+**Not built here:** which merchants stock potions. That is written in each merchant's asset, and this job changed no asset. The five merchants that already sell crystals should get the two rows: `DA_Merchant_Blacksmith`, `DA_Merchant_Jewler`, `DA_Merchant_CombatMaster`, `DA_Merchant_Refractor`, `DA_Merchant_Evolutionist` (the list in `MerchantShopSystem.md`, not read from the assets). Until then potions come from the test kit.
+**Built:** B-579.
+
 ### Q-580 — What exactly death takes, and what can land on the dead (D-253, built in B-580)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-580, from building it and its review) · **Blocks:** nothing
 **Question:** D-253 says death takes buffs and debuffs, and that what is part of the character stays. Building it needed the edges.
