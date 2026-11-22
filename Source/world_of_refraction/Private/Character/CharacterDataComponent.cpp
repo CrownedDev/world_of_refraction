@@ -627,6 +627,12 @@ void UCharacterDataComponent::CheckDeath()
         {
             if (AActor *Owner = GetOwner())
             {
+                // D-253: Sapphire's death-save is raised by the Healing Boost held now and then takes the
+                // holder's buffs and debuffs, as a death does. Asked before the charge is consumed (the
+                // ward may be removed by it). Every other Last Stand is unchanged.
+                const bool bSaveTakesEffects = SEM->DoesNextLastStandTakeEffects(Owner);
+                const float SaveBoostPercent = bSaveTakesEffects ? SEM->GetTotalStatModifier(Owner, ESkillEffectType::HealingReceivedBuff) : 0.0f;
+
                 // Charge-aware: consume ONE charge on the matched LastStand effect (multi-life). The
                 // returned value is the restore HP as a PERCENT of MaxHP; a negative sentinel means
                 // no LastStand effect is present.
@@ -639,16 +645,35 @@ void UCharacterDataComponent::CheckDeath()
                     const float HPFraction = (LastStandPercent > 0.0f)
                                                  ? (LastStandPercent / 100.0f)
                                                  : ItemConstants::REVIVE_HP_PERCENT;
-                    CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * HPFraction));
+                    // The HP is written first: the character is alive and above 0 before anything reacts to
+                    // its effects going.
+                    CurrentHP = GetBoostedRevivalHP(HPFraction, SaveBoostPercent);
+                    if (bSaveTakesEffects)
+                    {
+                        SEM->RemoveEffectsOnDeath(Owner);
+                        // Again, now that its buffs are gone: losing a MaxHP buff changes MaxHP, and the saved HP
+                        // is a share of what the character has without them.
+                        CurrentHP = GetBoostedRevivalHP(HPFraction, SaveBoostPercent);
+                    }
                     OnHPChanged.Broadcast(CurrentHP, MaxHP);
-                    UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s last stand at %d HP (%.0f%% of MaxHP)"),
-                           *Owner->GetName(), CurrentHP, HPFraction * 100.0f);
+                    UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s last stand at %d HP (%.0f%% of MaxHP, +%.0f%% Healing Boost)"),
+                           *Owner->GetName(), CurrentHP, HPFraction * 100.0f, SaveBoostPercent);
                     return;
                 }
             }
         }
 
+        // D-253: death takes buffs and debuffs. The Healing Boost held at this moment is kept as one number for a
+        // later Sapphire revive (per-fight state on the fighter, D-064), then the effects go, before anyone hears
+        // of the death (a card redraws from what is left).
+        USkillEffectManager *Effects = GetSkillEffectManager();
+        AActor *Fallen = GetOwner();
+        HealingBoostAtDeath = (Effects && Fallen) ? Effects->GetTotalStatModifier(Fallen, ESkillEffectType::HealingReceivedBuff) : 0.0f;
         bIsAlive = false;
+        if (Effects && Fallen)
+        {
+            Effects->RemoveEffectsOnDeath(Fallen);
+        }
         OnDied.Broadcast(GetOwner());
     }
 }
@@ -658,12 +683,19 @@ bool UCharacterDataComponent::HasServerAuthority() const
     return WoRAuthority::HasAuthority(GetOwner());
 }
 
+int32 UCharacterDataComponent::GetBoostedRevivalHP(float MaxHPFraction, float HealingBoostPercent) const
+{
+    const float Boosted = MaxHP * MaxHPFraction * (1.0f + FMath::Max(0.0f, HealingBoostPercent) / CombatConstants::STAT_PERCENT_DIVISOR);
+    return FMath::Clamp(FMath::RoundToInt(Boosted), 1, FMath::Max(1, MaxHP));
+}
+
 void UCharacterDataComponent::ServerResurrect(int32 HPToRestore)
 {
     if (!HasServerAuthority() || bIsAlive)
         return;
 
     bIsAlive = true;
+    HealingBoostAtDeath = 0.0f; // used for this revival's number, or not at all: it is not a buff the revived keep
     CurrentHP = FMath::Clamp(HPToRestore, 1, MaxHP);
     OnResurrected.Broadcast(GetOwner());
     OnHPChanged.Broadcast(CurrentHP, MaxHP);

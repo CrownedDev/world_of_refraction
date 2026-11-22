@@ -259,6 +259,14 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Combat")
     void ServerResurrect(int32 HPToRestore);
 
+    /** D-253: the HP a revival or a death-save leaves: MaxHPFraction of max HP, raised by HealingBoostPercent
+     *  (a Healing Boost total, in percent), from 1 to max HP. */
+    int32 GetBoostedRevivalHP(float MaxHPFraction, float HealingBoostPercent) const;
+
+    /** D-253: the Healing Boost total (percent) this character held when its HP reached 0. Death takes the buff
+     *  itself; this one number stays for a Sapphire revive and is cleared by it. 0 while alive. */
+    float GetHealingBoostAtDeath() const { return HealingBoostAtDeath; }
+
     // ========================================
     // EVENTS
     // ========================================
@@ -807,4 +815,7 @@ private:
 
     UPROPERTY()
     mutable USkillEffectManager *CachedSkillEffectManager = nullptr;
+
+    /** GetHealingBoostAtDeath. Per-fight state on the fighter (D-064); server side, read by the revive that uses it. */
+    float HealingBoostAtDeath = 0.0f;
 };

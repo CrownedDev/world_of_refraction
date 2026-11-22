@@ -293,7 +293,11 @@ void UItemExecutor::ExecuteDefyDeathEffect(AActor *User, AActor *Target, FCrysta
 	// REVIVE_HP_PERCENT (30%), not tier-scaled — tier scales the Last Stand window, not the revive.
 	if (!TargetComp->bIsAlive)
 	{
-		const int32 ReviveHP = FMath::RoundToInt(TargetComp->MaxHP * ItemConstants::REVIVE_HP_PERCENT);
+		// D-253 (h): Sapphire revives a dead ally, not a dead enemy. That is refused one level up, before anything
+		// is spent (UActionExecutor::IsReviveOfDeadAlly, in ValidateAction and ExecuteItem, the only caller).
+		// D-253: the Healing Boost the target held when it died counts in this one number (30% becomes 34.5% with
+		// an F boost). Death took the buff itself; ServerResurrect clears the remembered number.
+		const int32 ReviveHP = TargetComp->GetBoostedRevivalHP(ItemConstants::REVIVE_HP_PERCENT, TargetComp->GetHealingBoostAtDeath());
 		TargetComp->ServerResurrect(ReviveHP);
 		OutResult.HealingDone = ReviveHP;
 		OutResult.bSuccess = true;
@@ -314,6 +318,7 @@ void UItemExecutor::ExecuteDefyDeathEffect(AActor *User, AActor *Target, FCrysta
 		/*EffectValue = revive HP%*/ ItemConstants::LAST_STAND_HP_PERCENT,
 		/*Duration = protection window*/ WindowTurns);
 	LastStand.Charges = 1; // one death absorbed; bCanStack stays false (equal re-apply refreshes window)
+	LastStand.bDeathSaveTakesEffects = true; // D-253: the save counts the Healing Boost, then buffs and debuffs go
 	SEM->ApplyEffect(Target, LastStand, User, DisplayName, -1);
 
 	OutResult.bSuccess = true;
