@@ -71,7 +71,8 @@ enum class EPieMenuCategory : uint8
 	Flee UMETA(DisplayName = "Flee"),	  // Leave a normal fight (D-091)
 	MoveRow UMETA(DisplayName = "Move Row"), // Free one-row step, once per turn (D-096); DataIndex 1 = forward
 	HandToAI UMETA(DisplayName = "Let AI Play"), // Hand this party member to the AI (D-026, B-071)
-	EndTurn UMETA(DisplayName = "End Turn") // B-170e: end the turn, the actions left stay banked
+	EndTurn UMETA(DisplayName = "End Turn"), // B-170e: end the turn, the actions left stay banked
+	Skills UMETA(DisplayName = "Skills")	 // B-436g (D-258a): the main menu's Skills, straight in with one kind, else the kinds
 };
 
 /**
@@ -147,6 +148,14 @@ struct WORLD_OF_REFRACTION_API FPieMenuButtonData
 	/** Index in the source array */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
 	int32 DataIndex = -1;
+
+	/** B-436g (D-260): what the action costs, drawn as pips at a row's right (0: none). DisplayName no longer carries it. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
+	int32 ActionCost = 0;
+
+	/** B-436g (D-260): how many of an item this fight can still use, drawn beside its name (0: not an item). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Button")
+	int32 Quantity = 0;
 
 	// ==================== CONSTRUCTORS ====================
 

@@ -62,16 +62,17 @@ namespace CommandMenuRules
 	}
 
 	/** B-391 (Q-391): a category key that works on the main menu only (one key per category, two presses to act,
-	 *  FeelGuide 13). Defend and the infusion keys keep their own rules (B-093). B-170e: End Turn too (its button shows
-	 *  only in an action-pips fight, so its key does nothing otherwise). */
+	 *  FeelGuide 13). The infusion keys and Back keep their own rules (B-093, B-436g). B-170e: End Turn too (its button
+	 *  shows only in an action-pips fight, so its key does nothing otherwise). B-436g (D-258c): Defend too, so a press
+	 *  of RB past the main menu is only ever the infusion level; one Skills key replaces Skills and Spells. */
 	inline bool IsMainMenuKey(EPieMenuCategory Key)
 	{
 		switch (Key)
 		{
 		case EPieMenuCategory::Attack:
-		case EPieMenuCategory::Abilities:
-		case EPieMenuCategory::Refractions:
+		case EPieMenuCategory::Skills:
 		case EPieMenuCategory::Items:
+		case EPieMenuCategory::Defend:
 		case EPieMenuCategory::Flee:
 		case EPieMenuCategory::SwitchWeapon:
 		case EPieMenuCategory::ChangeRing:
@@ -83,7 +84,9 @@ namespace CommandMenuRules
 	}
 
 	/** B-391 (Q-391): whether a key presses a button. The Skills key (Abilities) also presses a weapon resonance, and
-	 *  the Spells key (Refractions) a breakthrough or a ring resonance, so each class's skills and spells share a key. */
+	 *  the Spells key (Refractions) a breakthrough or a ring resonance, so each class's skills and spells share a key.
+	 *  OBSOLETE (B-436g, D-258a) past its first line: the main menu has one Skills button, so only Key == Button can
+	 *  match there. Kept until PIE (docs/PIE/Sweep.md). */
 	inline bool KeyPressesButton(EPieMenuCategory Key, EPieMenuCategory Button)
 	{
 		if (Key == Button)
@@ -178,8 +181,8 @@ public:
 
     /** B-093: a key press for a menu button (Defend, CycleSource, CycleLevel). Presses the
      *  button the menu would show for it now, through HandleSelection, so the key obeys every
-     *  rule the button does: Defend from the main menu or a submenu, the infusion keys in the
-     *  target picker when it offers them. False (nothing done) when there's no such button.
+     *  rule the button does: Defend from the main menu (D-258c), the infusion keys in the target picker when it
+     *  offers them, Back anywhere past the main menu (B-436g). False (nothing done) when there's no such button.
      *  B-391: the category keys (CommandMenuRules::IsMainMenuKey) press their main-menu button, from the main menu
      *  only (CommandMenuRules::KeyPressesButton: the first enabled match in menu order). */
     bool PressMenuKey(EPieMenuCategory Category);
@@ -247,6 +250,10 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
     int32 GetPendingInfusionLevel() const { return PendingInfusionLevel; }
 
+    /** B-436g (D-260): where the open menu is, for its frame's header: "Skills > Abilities", "Attack > choose a
+     *  target". Empty on the main menu and when closed. */
+    FText GetViewTitle() const;
+
     // ==================== DEBUG ====================
 
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu|Debug",
@@ -291,6 +298,8 @@ private:
     EPieMenuCategory ActiveSubmenuType = EPieMenuCategory::None;
     // Pending action awaiting target selection
     EPieMenuCategory PendingActionCategory = EPieMenuCategory::None;
+    /** B-436g: the pending action's name, for GetViewTitle. */
+    FText PendingActionLabel;
     FString PendingActionID;
     TWeakObjectPtr<UObject> PendingActionData;
     // Slot index for identity-by-index buttons (consumables). DataReference is
@@ -335,6 +344,13 @@ private:
     // ==================== MAIN MENU ====================
 
     TArray<FPieMenuButtonData> BuildMainMenuButtons() const;
+    /** B-436g (D-258a, D-260): the actor's kinds of skill, names only (no counts), without Back. */
+    TArray<FPieMenuButtonData> BuildSkillKindButtons() const;
+    /** B-436g: Skills pressed: straight into the one kind's list, else the kinds. */
+    void OpenSkills();
+    void OpenSkillKinds();
+    /** B-436g: broadcasts the open submenu's list (a school's spell list as its schools); false for none. */
+    bool BroadcastCurrentSubmenu();
 
     // ==================== BUTTON CREATORS ====================
 
@@ -363,8 +379,8 @@ private:
     FPieMenuButtonData CreateDefendButton() const;
     /** B-170e (ActionPips.md §3.5): "End Turn", on the main menu of an action-pips fight only. */
     FPieMenuButtonData CreateEndTurnButton() const;
-    /** B-170e: in an action-pips fight, adds the action cost to an Attack, Ability, Spell or Item button's label
-     *  ("Fireball (2 actions)") and greys it with the reason when the current actor can't pay it now or ever
+    /** B-170e: in an action-pips fight, puts the action cost on an Attack, Ability, Spell or Item button (ActionCost,
+     *  B-436g; the widget draws it) and greys it with the reason when the current actor can't pay it now or ever
      *  (ActionPipsText::GetCostRefusedReason). A button already greyed keeps its own reason. Nothing otherwise. */
     void ShowActionCost(FPieMenuButtonData &Button) const;
 
