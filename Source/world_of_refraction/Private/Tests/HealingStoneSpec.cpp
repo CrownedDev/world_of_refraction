@@ -8,12 +8,14 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Misc/ScopeExit.h"
 #include "WoRTestWorld.h"
 #include "AI/AIDecisionManager.h"
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/CombatCharacter.h"
 #include "Combat/Actions/ActionExecutor.h"
+#include "Combat/TurnManager.h"
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
@@ -148,7 +150,7 @@ void FHealingStoneSpec::Define()
 		TestEqual(TEXT("HP went up by the raised heal"), Char->CurrentHP, HPBefore + Expected);
 	});
 
-	It("ends on time: it lasts the tier's turns of the holder, then is gone", [this]()
+	It("ends on time: used off the holder's turn, it lasts the tier's turns of the holder, then is gone", [this]()
 	{
 		if (!Effects) return;
 		TestTrue(TEXT("the use lands"), Executor->ExecuteItem(Hero, HEALING_STONE_TEST_F, {Hero}).bSuccess);
@@ -162,6 +164,47 @@ void FHealingStoneSpec::Define()
 		Effects->ProcessStartOfTurnEffects(Hero);
 		TestEqual(TEXT("gone when the next turn starts"), GetBoost(Hero), 0.0f);
 		TestEqual(TEXT("a heal is plain again"), Effects->HealActor(Hero, HEALING_STONE_TEST_HEAL, Hero), HEALING_STONE_TEST_HEAL);
+	});
+
+	It("used on the holder's own turn, counts that turn: it is gone one turn start sooner (the holder-turn rule, D-051)", [this]()
+	{
+		if (!Effects) return;
+		UTurnManager *TurnManager = TestWorld->GetSubsystem<UTurnManager>();
+		AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("TurnManager"), TurnManager) || !TestNotNull(TEXT("Foe"), Foe)) return;
+		TurnManager->InitializeCombat({Hero}, {Foe});
+		ON_SCOPE_EXIT
+		{
+			if (TurnManager->IsCombatActive())
+			{
+				TurnManager->EndCombat();
+			}
+		};
+		if (!TestTrue(TEXT("it is the holder's turn"), TurnManager->GetCurrentActor() == Hero)) return;
+
+		TestTrue(TEXT("the use lands"), Executor->ExecuteItem(Hero, HEALING_STONE_TEST_F, {Hero}).bSuccess);
+		const int32 Turns = CrystalEffectTable::GetHealingBoostDuration(HEALING_STONE_TEST_F);
+		Effects->ProcessEndOfTurnEffects(Hero); // the landing turn ends: the first of its turns
+		for (int32 Turn = 1; Turn < Turns; ++Turn)
+		{
+			Effects->ProcessStartOfTurnEffects(Hero);
+			TestTrue(TEXT("on during each later turn"), GetBoost(Hero) > 0.0f);
+			Effects->ProcessEndOfTurnEffects(Hero);
+		}
+		Effects->ProcessStartOfTurnEffects(Hero);
+		TestEqual(TEXT("gone when the turn after its last starts"), GetBoost(Hero), 0.0f);
+	});
+
+	It("adds up from two tiers, and the same tier again only refreshes (Q-577b)", [this]()
+	{
+		if (!Effects) return;
+		const FCrystalId StoneE(ECrystalType::HealingStone, EItemTier::E_Tier);
+		const float BoostF = CrystalEffectTable::GetHealingBoostPercent(HEALING_STONE_TEST_F);
+		TestTrue(TEXT("F lands"), Executor->ExecuteItem(Hero, HEALING_STONE_TEST_F, {Hero}).bSuccess);
+		TestTrue(TEXT("F again lands"), Executor->ExecuteItem(Hero, HEALING_STONE_TEST_F, {Hero}).bSuccess);
+		TestEqual(TEXT("the same tier again does not add"), GetBoost(Hero), BoostF);
+		TestTrue(TEXT("E lands"), Executor->ExecuteItem(Hero, StoneE, {Hero}).bSuccess);
+		TestEqual(TEXT("another tier adds its own percent"), GetBoost(Hero), BoostF + CrystalEffectTable::GetHealingBoostPercent(StoneE));
 	});
 
 	It("is refused on a dead target, with no boost given (D-253)", [this]()
