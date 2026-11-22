@@ -13,6 +13,7 @@
 #include "GenericPlatform/ICursor.h"
 #include "Input/Events.h"
 #include "Layout/WidgetPath.h"
+#include "Misc/App.h"
 #include "Misc/AutomationTest.h"
 #include "Misc/ScopeExit.h"
 #include "Widgets/Input/SButton.h"
@@ -83,6 +84,13 @@ void FAgentPlayHoldSpec::Define()
 			AddInfo(TEXT("no Slate application here: skipped"));
 			return;
 		}
+		// The test puts the application in the background and takes the hold itself. In an editor a person or an agent
+		// is using, that would close open menus and end a live hold, so it only runs unattended (Scripts/ue/test.sh).
+		if (!FApp::IsUnattended() || WoRAgentPlayHold::IsTaken())
+		{
+			AddInfo(TEXT("an editor in use (not unattended, or the hold is taken): skipped"));
+			return;
+		}
 		FSlateApplication &Slate = FSlateApplication::Get();
 		int32 Clicks = 0;
 		const TSharedRef<SButton> Button = SNew(SButton).OnClicked_Lambda([&Clicks]()
@@ -125,6 +133,7 @@ void FAgentPlayHoldSpec::Define()
 		};
 		ON_SCOPE_EXIT
 		{
+			Slate.ReleaseAllPointerCapture(); // a failed check between press and release leaves the button holding it
 			Slate.RoutePointerMoveEvent(FWidgetPath(), MakeEvent({}, EKeys::Invalid), false); // off the button
 			WoRAgentPlayHold::Release();
 			Slate.ProcessApplicationActivationEvent(bWasActive);
