@@ -4,6 +4,8 @@
 //     never moved, and moving it changes nothing in the game or the editor's hover. Real clicks still land where
 //     they are made.
 //   - The editor's "use less CPU in the background" throttle is off (in memory only, never saved).
+//   - Slate handles pointer capture while this editor is in the background, so a pressed button still holds the
+//     agent's pointer until the release and clicks (without it, a UButton never fires).
 // Taken by the first tool that plays; given back by Release, when PIE ends, or when the module unloads.
 
 #pragma once
