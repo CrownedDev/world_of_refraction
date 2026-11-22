@@ -3,6 +3,7 @@
 #include "Loadout/Entries/FApparelEntry.h"
 
 #include "Equipment/Apparel/ApparelData.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Loadout/FCombatLoadout.h"
 #include "Combat/Resistance/EWoRDamageType.h"
@@ -57,7 +58,8 @@ FResistanceBonus FApparelEntry::GetResistance() const
 
 bool ApparelRules::CanSocket(const FRuntimeAttachedItem &Attachment)
 {
-	return Attachment.IsCrystal() || Attachment.IsEvolution(); // Crown, D-164: an evolution too
+	// Crown, D-164: an evolution too. B-579 (D-253): a potion fits no socket.
+	return (Attachment.IsCrystal() && !CrystalTypeHelpers::IsPotionType(Attachment.Crystal.Id.Type)) || Attachment.IsEvolution();
 }
 
 bool ApparelRules::AddApparel(FCombatLoadout &Loadout, const FApparelEntry &Entry)
