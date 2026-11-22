@@ -137,7 +137,7 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs GGiveTestKitCmd(
 		TEXT("wor.Debug.GiveTestKit"),
-		TEXT("DEBUG (B-573): test setup for agent play, found by kind (no asset path). [apparel] [adapters] [evolution] [skill] [member] [weapons]; "
+		TEXT("DEBUG (B-573): test setup for agent play, found by kind (no asset path). [apparel] [adapters] [evolution] [skill] [member] [weapons] [potions]; "
 			 "no argument gives all. Hub only."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &Args, UWorld *World)
@@ -149,6 +149,24 @@ namespace
 					GEngine->AddOnScreenDebugMessage(-1, TEST_KIT_SCREEN_SECONDS, FColor::Cyan, Report);
 				}
 			}));
+}
+
+FString WoRAgentTestKit::GivePotions(UPoolSubsystem &Pool, FName CharacterKey)
+{
+	int32 Given = 0;
+	for (const ECrystalType Kind : {ECrystalType::HealthPotion, ECrystalType::EnergyPotion})
+	{
+		const FCrystalId Potion(Kind, EItemTier::F_Tier);
+		const int32 Missing = POTIONS_OF_EACH - Pool.GetCarriedCount(CharacterKey, Potion);
+		if (Missing > 0)
+		{
+			Pool.CarryOrStore(CharacterKey, Potion, Missing);
+			Given += Missing;
+		}
+	}
+	return FString::Printf(TEXT("potions: %d given, %d Health and %d Energy carried"), Given,
+						   Pool.GetCarriedCount(CharacterKey, FCrystalId(ECrystalType::HealthPotion, EItemTier::F_Tier)),
+						   Pool.GetCarriedCount(CharacterKey, FCrystalId(ECrystalType::EnergyPotion, EItemTier::F_Tier)));
 }
 
 int32 WoRAgentTestKit::GiveRings(UInventoryComponent &Inventory, const TArray<URingData *> &Rings)
@@ -219,9 +237,13 @@ FString WoRAgentTestKit::GiveTestKit(UWorld *World, const TArray<FString> &Parts
 	{
 		Lines.Add(AddMember(*World, *Pawn, *Session));
 	}
+	if (Wants(TEXT("potions")))
+	{
+		Lines.Add(GivePotions(*Pool, CharacterKey));
+	}
 	if (Lines.IsEmpty())
 	{
-		return TEXT("nothing asked: apparel | adapters | evolution | skill | member | weapons (or no argument for all)");
+		return TEXT("nothing asked: apparel | adapters | evolution | skill | member | weapons | potions (or no argument for all)");
 	}
 	return FString::Join(Lines, TEXT("\n"));
 }
