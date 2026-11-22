@@ -1259,6 +1259,21 @@ The queue of questions only Crown can answer.
 **Position (Crown, 2026-11-22: "As the picture"):** as the newest `refine_final/1_main_menu.png`: the acting character's big card bottom left, the others in a row to its right along the bottom. This settles the "bottom right" in the first message. **Defaults (Crown vetoes):** (b) The action-point progress ("+0/100") moves to inspect. (c) Actions above Max keep a mark, as Q-170f3 asks: "Act: 3/2 ◆", explained in inspect. (d) "Skills 2/3" still joins the line once a skill is used, as Q-170j asks. (e) Inspect reuses the Status panel, for the clicked character. (f) The hub, trial and menu cards are unchanged.
 **Process:** under D-251 the B-436 pieces this fight needs pass by agent QA against the mockup; they no longer wait for Crown's PIE pass.
 
+### Q-580 — What exactly death takes, and what can land on the dead (D-253, built in B-580)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-580, from building it and its review) · **Blocks:** nothing
+**Question:** D-253 says death takes buffs and debuffs, and that what is part of the character stays. Building it needed the edges.
+**Answer (defaults):**
+1. **Part of the character is a permanent effect from its own gear** (weapon, adapter, apparel, the innate evolution; a boss's or a gate's passives). Everything else goes: every timed effect, every effect a skill or an item gave even if it has no end, shields, wards and barriers, and action changes waiting for a turn.
+2. **A timed buff the character's own gear gave goes too, and a revive does not give it back.** A gear or reaction effect written with a number of turns is a buff; one that should always be there has to be written as permanent.
+3. **Nothing lands on the dead.** An effect that would not survive a death is refused on a dead character, and so is status buildup. So the debuff a killing blow carries, an on-hit burn and its buildup do not show on the corpse.
+4. **Every item but a Sapphire is refused on a dead character, and is not spent.** D-253 ruled this for the Healing Stone; it is the same for all, so a mis-click on a corpse costs nothing. A Sapphire is refused on a dead enemy.
+5. **Sapphire's death-save takes every buff the holder has,** another Last Stand from a skill included. A permanent Last Stand from gear stays. Another Last Stand's own save takes nothing and is exactly as it was.
+6. **A debuff carried by the very hit that triggered Sapphire's save lands after the save,** so the saved character keeps that one: the save clears what was held at that moment.
+7. **The hit that kills is still reflected** (Q-032 stands): the target's reflect is read before the damage.
+**Reference:** Final Fantasy: a knocked-out character loses its buffs and most status effects, and a Phoenix Down brings it back with none. Pokémon: fainting clears stat changes. Both from memory, not looked up. The deckbuilder has no rule for a death that takes effects.
+**Not built, say if wanted:** giving timed gear effects back on a revive; a cap on what one save can clear.
+**Built:** B-580.
+
 ### D-253 — Potions; death takes buffs and debuffs; the Healing Stone counts in a Sapphire revival
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown, answering Q-577 and the Sapphire question) · **Blocks:** B-577, B-579, B-580
 **Answer (Crown):** "okay lets add potions and enegy potions which will be less powerfull then sapphire and citrine crystals also healing stone can only be used on alive as when you die you loose buffs and debuffs while healingstone ffect is included with sappire revival you still loose all buffs and debuffs including the healing stone one"
