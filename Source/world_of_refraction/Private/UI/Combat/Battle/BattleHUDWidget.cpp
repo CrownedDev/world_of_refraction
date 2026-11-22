@@ -40,6 +40,7 @@
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
+#include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDButton.h"
 #include "Widgets/Layout/Anchors.h"
 #include "WoRLog.h"
@@ -68,7 +69,11 @@ namespace BattleHUDStyle
 	// shortcut: the command menu sits a fixed height above the bottom margin, not the featured card's real height,
 	// upgrade to the card's measured height if its lines outgrow this. Today's full card with two identity lines is
 	// about 225 by its fonts and bars; the rest is room for one wrapped line. TODO: tune in PIE.
+	// OBSOLETE (B-436g): the menu stacks on the card in the party column (MenuCardGap); used only by GetCommandMenuOffset.
 	constexpr float FeaturedCardReserve = 250.0f;
+	/** B-436g (D-260, B-574 item 22): the menu sits this far above the featured card, whatever the card's height. */
+	constexpr float MenuCardGap = 10.0f;
+	const FVector2D MenuHintsAnchor(1.0f, 1.0f); // B-436g (D-258): the corner hints, bottom right
 
 	// B-391b: a damage number's text is centred on its point and sits above it.
 	const FVector2D DamageNumberAlignment(0.5f, 1.0f);
@@ -376,7 +381,32 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		}
 		BattleHUDBuild::Place(Canvas, RightColumn, BattleHUDStyle::RightColumnAnchor, BattleHUDBuild::Inset(BattleHUDStyle::RightColumnAnchor));
 
-		// One card per combatant, made here once. A party card sits on the canvas itself (B-391c: it takes a hover, its
+		// B-436g (D-260): one bottom-left column, the command menu just above the party cards, so the menu follows the
+		// featured card's real height with no measuring. The party cards share one overlay, bottom-aligned
+		// (LayoutPartyCards sets each one's left padding).
+		UVerticalBox *PartyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("PartyColumn"));
+		PartyColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		if (CommandMenu)
+		{
+			if (UVerticalBoxSlot *MenuSlot = PartyColumn->AddChildToVerticalBox(CommandMenu))
+			{
+				MenuSlot->SetHorizontalAlignment(HAlign_Left);
+				MenuSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::MenuCardGap));
+			}
+		}
+		UOverlay *PartyRow = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("PartyCards"));
+		PartyRow->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		if (UVerticalBoxSlot *RowSlot = PartyColumn->AddChildToVerticalBox(PartyRow))
+		{
+			RowSlot->SetHorizontalAlignment(HAlign_Left);
+		}
+		BattleHUDBuild::Place(Canvas, PartyColumn, BattleHUDStyle::PartyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor));
+		if (UWidget *Hints = CommandMenu ? CommandMenu->GetHintsWidget() : nullptr)
+		{
+			BattleHUDBuild::Place(Canvas, Hints, BattleHUDStyle::MenuHintsAnchor, BattleHUDBuild::Inset(BattleHUDStyle::MenuHintsAnchor));
+		}
+
+		// One card per combatant, made here once. A party card sits in the overlay (B-391c: it takes a hover, its
 		// tooltip), so LayoutPartyCards can move it to the corner or along the row without re-parenting anything.
 		for (FBattleHUDCard &Card : Cards)
 		{
@@ -384,7 +414,11 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 			if (Card.bParty)
 			{
 				Frame->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleHUDWidget, HandleCardMouseDown)); // D-254: click to inspect
-				BattleHUDBuild::Place(Canvas, Frame, BattleHUDStyle::PartyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor));
+				if (UOverlaySlot *CardSlot = PartyRow->AddChildToOverlay(Frame))
+				{
+					CardSlot->SetHorizontalAlignment(HAlign_Left);
+					CardSlot->SetVerticalAlignment(VAlign_Bottom);
+				}
 			}
 			else if (UVerticalBoxSlot *ColumnSlot = EnemyColumn->AddChildToVerticalBox(Frame))
 			{
@@ -449,6 +483,10 @@ void UBattleHUDWidget::RefreshPools()
 	if (Cards.IsValidIndex(InspectedCard))
 	{
 		StatusPanelText = BuildInspectText(Cards[InspectedCard]); // its actions line follows the bank
+	}
+	if (CommandMenu)
+	{
+		CommandMenu->RefreshActionsLine(); // B-436g (D-260): the pips are on the menu's tab, live from the same events
 	}
 	PushToWidgets();
 }
@@ -597,6 +635,16 @@ int32 UBattleHUDWidget::GetFeaturedCardIndex() const
 	return Cards.IndexOfByPredicate([](const FBattleHUDCard &Card) { return Card.bParty; });
 }
 
+void UBattleHUDWidget::SetCommandMenu(UBattleCommandMenuWidget *Menu)
+{
+	if (WidgetTree && WidgetTree->RootWidget)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[BattleHUD] SetCommandMenu after the HUD was built: the menu is not placed"));
+		return;
+	}
+	CommandMenu = Menu;
+}
+
 FVector2D UBattleHUDWidget::GetCommandMenuOffset()
 {
 	return FVector2D(BattleHUDStyle::ScreenMargin,
@@ -608,8 +656,8 @@ void UBattleHUDWidget::LayoutPartyCards()
 	const int32 Featured = GetFeaturedCardIndex();
 	const float FullCardOuterWidth = BattleHUDStyle::CardWidth + 2.0f * BattleHUDStyle::CardPadding;
 	const float CompactCardOuterWidth = BattleHUDStyle::CompactCardWidth + 2.0f * BattleHUDStyle::CardPadding;
-	const FVector2D Corner = BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor);
-	float CompactX = Corner.X + FullCardOuterWidth + BattleHUDStyle::CardGap;
+	// B-436g: left offsets inside the party overlay, which sits at the bottom-left margin.
+	float CompactX = FullCardOuterWidth + BattleHUDStyle::CardGap;
 	for (int32 Index = 0; Index < Cards.Num(); ++Index)
 	{
 		const FBattleHUDCard &Card = Cards[Index];
@@ -619,9 +667,9 @@ void UBattleHUDWidget::LayoutPartyCards()
 		}
 		const bool bFeatured = Index == Featured;
 		BattleHUDCard::SetCompact(Card, !bFeatured);
-		if (UCanvasPanelSlot *CardSlot = Card.Frame ? Cast<UCanvasPanelSlot>(Card.Frame->Slot) : nullptr)
+		if (UOverlaySlot *CardSlot = Card.Frame ? Cast<UOverlaySlot>(Card.Frame->Slot) : nullptr)
 		{
-			CardSlot->SetPosition(FVector2D(bFeatured ? Corner.X : CompactX, Corner.Y));
+			CardSlot->SetPadding(FMargin(bFeatured ? 0.0f : CompactX, 0.0f, 0.0f, 0.0f));
 		}
 		if (!bFeatured)
 		{

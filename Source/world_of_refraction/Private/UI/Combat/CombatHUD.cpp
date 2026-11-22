@@ -99,18 +99,23 @@ void UCombatHUD::Build(APlayerController *PC, const TArray<AActor *> &LocalParty
 void UCombatHUD::BuildNewHUD(APlayerController *PC, const TArray<AActor *> &LocalParty, const TArray<AActor *> &OpposingParty)
 {
     // Full screen; Initialise before AddToViewport so the widget builds one card per combatant once.
+    // B-436g (D-260): the menu is made first and handed to the HUD, which stacks it on the featured card.
+    BattleMenu = CreateWidget<UBattleCommandMenuWidget>(PC, UBattleCommandMenuWidget::StaticClass());
     BattleHUD = CreateWidget<UBattleHUDWidget>(PC, UBattleHUDWidget::StaticClass());
     if (BattleHUD)
     {
         BattleHUD->Initialise(LocalParty, OpposingParty);
+        BattleHUD->SetCommandMenu(BattleMenu);
         BattleHUD->AddToViewport(CombatHUDLayout::PanelZOrder);
     }
 
-    BattleMenu = CreateWidget<UBattleCommandMenuWidget>(PC, UBattleCommandMenuWidget::StaticClass());
     if (BattleMenu)
     {
-        BattleMenu->AddToViewport(CombatHUDLayout::MenuZOrder);
-        PlaceInViewport(BattleMenu, CombatHUDLayout::BattleMenuAnchor, UBattleHUDWidget::GetCommandMenuOffset());
+        if (!BattleHUD) // OBSOLETE (B-436g): the old placement, only without a HUD. Kept until PIE (docs/PIE/Sweep.md).
+        {
+            BattleMenu->AddToViewport(CombatHUDLayout::MenuZOrder);
+            PlaceInViewport(BattleMenu, CombatHUDLayout::BattleMenuAnchor, UBattleHUDWidget::GetCommandMenuOffset());
+        }
         // Replays an already-open menu, so turn 1 (fired inside InitializeCombat) is not missed.
         BattleMenu->Initialise();
     }
@@ -179,7 +184,10 @@ TArray<UUserWidget *> UCombatHUD::GetAllWidgets() const
     Widgets.Add(CommandMenu);
     Widgets.Add(DefensePrompt);
     Widgets.Add(BattleHUD); // B-391's new HUD: hidden for a boss cinematic too (B-406)
-    Widgets.Add(BattleMenu);
+    if (!BattleHUD)
+    {
+        Widgets.Add(BattleMenu); // B-436g: inside the HUD it hides with it, and keeps showing exactly while open
+    }
     Widgets.RemoveAll([](const UUserWidget *Widget) { return Widget == nullptr; });
     return Widgets;
 }
