@@ -25,6 +25,15 @@ namespace ItemConstants
      *  protection WINDOW, not the revive amount). */
     constexpr float LAST_STAND_HP_PERCENT = 50.0f;
 
+    // ==================== POTIONS (B-579, D-253) ====================
+    /** Health Potion: percent of the target's max HP given on use. One strength, under Sapphire's 30% revive. The
+     *  target's Healing Boost raises it, as any heal. */
+    constexpr float HEALTH_POTION_HP_PERCENT = 25.0f;
+    /** Energy Potion: percent of the target's max EP given on use. One strength, under the weakest Citrine's 30%. */
+    constexpr float ENERGY_POTION_EP_PERCENT = 25.0f;
+    /** A potion costs this share of a tier F crystal's Prisms price, and no essence (Q-579). */
+    constexpr int32 POTION_PRICE_DIVISOR = 2;
+
     // ==================== QUARTZ ====================
     /** Quartz F-A elemental ResistanceBuff magnitude (S-tier grants immunity
      *  instead). NOT the stat-crystal curve's 30 endpoint — unrelated value. */

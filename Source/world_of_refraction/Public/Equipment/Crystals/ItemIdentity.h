@@ -85,6 +85,12 @@ namespace ItemIdentity
             // Consume-only Healing Boost on a living target (D-252, D-253): routes to ExecuteHealingStoneEffect.
             // Not a heal (RestoreHealth) and not Sapphire (DefyDeath).
             return EItemEffectType::HealingBoost;
+        case ECrystalType::HealthPotion:
+            // B-579 (D-253): gives HP on use (ExecuteHealthPotionEffect). The AI's low-HP heal looks for this.
+            return EItemEffectType::RestoreHealth;
+        case ECrystalType::EnergyPotion:
+            // B-579 (D-253): gives EP on use, through Citrine's handler at the potion's own percent, with no build-up.
+            return EItemEffectType::EnergyRestore;
         default:
             return EItemEffectType::Damage;
         }
@@ -186,6 +192,10 @@ namespace ItemIdentity
             return TEXT("DurabilityStone");
         case ECrystalType::HealingStone:
             return TEXT("HealingStone");
+        case ECrystalType::HealthPotion:
+            return TEXT("Health Potion");
+        case ECrystalType::EnergyPotion:
+            return TEXT("Energy Potion");
         default:
             return TEXT("Unknown");
         }
@@ -207,6 +217,10 @@ namespace ItemIdentity
         if (Id.Type == ECrystalType::None)
         {
             return TEXT("(empty)");
+        }
+        if (CrystalTypeHelpers::IsPotionType(Id.Type))
+        {
+            return GetTypeName(Id.Type); // B-579: a potion has no tier to show
         }
         return FString::Printf(TEXT("%s (%s)"),
                                *GetTypeName(Id.Type),
