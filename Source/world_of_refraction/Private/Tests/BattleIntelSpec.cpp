@@ -37,6 +37,8 @@ namespace
 	constexpr int32 INTEL_ONE_TURN = 1;
 	constexpr int32 INTEL_TWO_TURNS = 2;
 	constexpr int32 INTEL_HIT_AMOUNT = 12;
+	constexpr int32 INTEL_PILLAR_COUNT = 3; // Mind, Body, Spirit
+	constexpr int32 INTEL_YOU_SPEC_TABS = 3; // you, a party member, an enemy
 	constexpr int32 HERO_CARD = 0;
 	constexpr int32 FOE_CARD = 1;
 
@@ -272,7 +274,7 @@ void FBattleIntelSpec::Define()
 		}
 		HUD->OpenIntel(0);
 		const TArray<FBattleIntelPage> &Pages = HUD->GetIntelPages();
-		if (!TestEqual(TEXT("a tab each: party first, then enemies"), Pages.Num(), 3))
+		if (!TestEqual(TEXT("a tab each: party first, then enemies"), Pages.Num(), INTEL_YOU_SPEC_TABS))
 		{
 			return;
 		}
@@ -280,7 +282,7 @@ void FBattleIntelSpec::Define()
 		TestEqual(TEXT("its heading keeps the name"), Pages[0].Heading.ToString(), HUD->GetCards()[0].Name.ToString());
 		TestTrue(TEXT("Spirit / Body under it"), Pages[0].Subline.ToString().StartsWith(TEXT("Spirit of")));
 		TestFalse(TEXT("and the full actions line (D-259)"), Pages[0].ActionsLine.IsEmpty());
-		TestEqual(TEXT("Pillars"), Pages[0].Pillars.Num(), 3);
+		TestEqual(TEXT("Pillars"), Pages[0].Pillars.Num(), INTEL_PILLAR_COUNT);
 		TestEqual(TEXT("another party member's tab keeps its name"), Pages[1].Tab.ToString(), HUD->GetCards()[1].Name.ToString());
 		TestTrue(TEXT("the enemy last"), Pages[2].bEnemy && !Pages[0].bEnemy && !Pages[1].bEnemy);
 		HUD->Teardown();

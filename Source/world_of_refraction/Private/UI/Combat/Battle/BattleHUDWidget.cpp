@@ -453,6 +453,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 
 		// B-586 (D-261): the Intel panel, centred like the status panel; the two never show together.
 		IntelPanel = WidgetTree->ConstructWidget<UBattleIntelWidget>(UBattleIntelWidget::StaticClass(), TEXT("Intel"));
+		IntelPanel->SetVisibility(ESlateVisibility::Collapsed); // closed until the first push says otherwise
 		IntelPanel->OnTabClicked.BindUObject(this, &UBattleHUDWidget::HandleIntelTabClicked);
 		BattleHUDBuild::Place(Canvas, IntelPanel, BattleHUDStyle::StatusPanelAnchor, FVector2D::ZeroVector);
 
@@ -662,10 +663,21 @@ void UBattleHUDWidget::RefreshIntelPages()
 	IntelPages.Reset();
 	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
 	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	for (const int32 CardIndex : GetIntelCardOrder())
+	const TArray<int32> Order = GetIntelCardOrder();
+	for (int32 Tab = 0; Tab < Order.Num(); ++Tab)
 	{
-		const FBattleHUDCard &Card = Cards[CardIndex];
-		IntelPages.Add(BattleIntelView::BuildPage(Card, GetStatusesOf(Card.Actor.Get()), Run));
+		const FBattleHUDCard &Card = Cards[Order[Tab]];
+		if (Tab == IntelTab)
+		{
+			IntelPages.Add(BattleIntelView::BuildPage(Card, GetStatusesOf(Card.Actor.Get()), Run));
+			continue;
+		}
+		// Review: pushes come on every HP or build-up change, so a tab not shown carries only what its tab needs.
+		FBattleIntelPage &Page = IntelPages.AddDefaulted_GetRef();
+		Page.Actor = Card.Actor;
+		Page.bEnemy = !Card.bParty;
+		Page.Heading = Card.Name;
+		Page.Tab = Card.bParty && BattleIntelView::IsYou(Card.Actor.Get()) ? LOCTEXT("IntelYouTab", "You") : Card.Name;
 	}
 }
 

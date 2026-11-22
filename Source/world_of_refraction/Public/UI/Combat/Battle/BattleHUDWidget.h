@@ -119,7 +119,7 @@ public:
 	void CloseIntel();
 	bool IsIntelOpen() const { return bIntelOpen; }
 	int32 GetIntelTab() const { return IntelTab; }
-	/** The pages as last built (rebuilt on every push while open). */
+	/** The pages as last built (rebuilt on every push while open): the open tab's in full, the others only their tab. */
 	const TArray<FBattleIntelPage> &GetIntelPages() const { return IntelPages; }
 	/** Card index of each tab: party cards, then enemies. */
 	TArray<int32> GetIntelCardOrder() const;
