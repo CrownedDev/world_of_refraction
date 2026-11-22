@@ -145,6 +145,18 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 	// B-268: a legacy authored CritDebuff is stored as the type that's read (CritChanceDebuff).
 	Effect.EffectType = SkillEffectClassification::ResolveLegacyAlias(Effect.EffectType);
 
+	// D-253: death takes buffs and debuffs, so nothing that would not survive a death lands on the dead: the
+	// debuff a killing blow carries, an on-hit burn, a shield, a waiting action change. What is part of the
+	// character (SurvivesDeath: its permanent gear effects, applied at battle prep) still applies.
+	if (const UCharacterDataComponent *DeadCheck = GetCharacterDataComponent(Target))
+	{
+		if (!DeadCheck->bIsAlive && !SurvivesDeath(Effect))
+		{
+			UE_LOG(LogWoREffects, Verbose, TEXT("[SkillEffectManager] %s is dead: %s not applied (D-253)"), *Target->GetName(), *Effect.EffectName);
+			return EEffectApplicationResult::Rejected;
+		}
+	}
+
 	// Check immunity
 	if (IsImmuneToEffectType(Target, Effect.EffectType))
 	{
@@ -234,6 +246,7 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 		Charge.MaxUses = Effect.Charges;
 		Charge.EffectID = Effect.EffectID;
 		Charge.SourceKey = Effect.SourceKey;
+		Charge.bPartOfCharacter = SurvivesDeath(Effect); // D-253: a permanent absorber its own gear gave stays at a death
 		const int32 Turns = Effect.bPermanent ? 0 : Effect.RemainingTurns; // 0: until spent (D-092 rule 3)
 		Absorbers->RemoveAbsorbsFrom(Effect.EffectID, Effect.SourceKey);
 		if (!Absorbers->ApplyAbsorb(Charge, Turns, Source).IsValid())
@@ -379,27 +392,46 @@ EEffectApplicationResult USkillEffectManager::ApplyEffect(AActor *Target, FActiv
 
 	// Fire-on-application (Option A: new effects only). Re-applications return before this point
 	// (replace and stack both exit in the ExistingEffect branch above), so a re-apply can never
-	// reach here — Option A safety by construction. Runs ApplyEffectLogic
-	// once on the STORED copy (Effects.Last()) so bProcessedThisTurn persists, then leaves the
-	// effect stored to keep ticking on its windows. Excludes Immediate (fires + tears down just
+	// reach here — Option A safety by construction. Excludes Immediate (fires + tears down just
 	// below) and bDelayFirstExecution opt-outs; Instant already returned at the IsInstant() lane.
-	if (!Effects.Last().bDelayFirstExecution &&
-		Effects.Last().ProcessTiming != ESkillEffectTiming::Immediate)
+	//
+	// B-580: the logic runs on a COPY, and the stored effect is found again by identity afterwards. No reference
+	// into the store is held across ApplyEffectLogic: a first tick can kill the holder or trigger Sapphire's save,
+	// and either takes the holder's effects (RemoveEffectsOnDeath), this new one included. `Effects` is not used
+	// below this line.
+	FActiveSkillEffect Fired = Effect;
+	const auto FindStored = [this, Target, &Fired]() { return FindEffectByIdentity(Target, Fired.EffectID, Fired.SourceKey); };
+	if (!Fired.bDelayFirstExecution && Fired.ProcessTiming != ESkillEffectTiming::Immediate)
 	{
-		ApplyEffectLogic(Target, Effects.Last());
-		Effects.Last().bProcessedThisTurn = true; // same-turn guard: skip a same-turn window re-fire
+		ApplyEffectLogic(Target, Fired);
+		if (FActiveSkillEffect *Stored = FindStored())
+		{
+			Stored->bProcessedThisTurn = true; // same-turn guard: skip a same-turn window re-fire
+		}
 	}
 
 	// Process immediate effects right away
 	if (Effect.ProcessTiming == ESkillEffectTiming::Immediate)
 	{
-		ApplyEffectLogic(Target, Effects.Last());
+		ApplyEffectLogic(Target, Fired);
 
 		// Immediate effects are one-shot, mark for removal
-		if (!Effect.bPermanent)
+		if (FActiveSkillEffect *Stored = Effect.bPermanent ? nullptr : FindStored())
 		{
-			Effects.Last().bPendingRemoval = true;
+			Stored->bPendingRemoval = true;
 		}
+	}
+
+	// The fires-once use is spent whether or not the holder outlived the first fire (recorded below for the rest).
+	if (!FindStored())
+	{
+		// Its own first fire took it away with the rest of the holder's effects: it was removed (and announced as
+		// removed) before it could be announced as applied, so listeners are not told of an effect that is not there.
+		if (Effect.bFiresOncePerMatch)
+		{
+			RecordFiredOnce(Target, FiredOnceKey);
+		}
+		return EEffectApplicationResult::Applied;
 	}
 
 	// Notify TurnManager if this is a speed effect
@@ -1616,6 +1648,95 @@ bool USkillEffectManager::ConsumeCharge(AActor *Actor, FActiveSkillEffect &Effec
 	return true;
 }
 
+namespace
+{
+	/** The Last Stand that fires when several are held: the highest EffectValue, the first on a tie. */
+	int32 FindBestLastStandIndex(const TArray<FActiveSkillEffect> &Effects)
+	{
+		int32 BestIndex = INDEX_NONE;
+		for (int32 Index = 0; Index < Effects.Num(); ++Index)
+		{
+			if (Effects[Index].EffectType == ESkillEffectType::LastStand &&
+				(BestIndex == INDEX_NONE || Effects[Index].EffectValue > Effects[BestIndex].EffectValue))
+			{
+				BestIndex = Index;
+			}
+		}
+		return BestIndex;
+	}
+}
+
+bool USkillEffectManager::DoesNextLastStandTakeEffects(AActor *Owner) const
+{
+	const TArray<FActiveSkillEffect> *Effects = ActiveEffects.Find(Owner);
+	const int32 BestIndex = Effects ? FindBestLastStandIndex(*Effects) : INDEX_NONE;
+	return BestIndex != INDEX_NONE && (*Effects)[BestIndex].bDeathSaveTakesEffects;
+}
+
+bool USkillEffectManager::SurvivesDeath(const FActiveSkillEffect &Effect)
+{
+	return Effect.bFromGear && Effect.bPermanent;
+}
+
+int32 USkillEffectManager::RemoveEffectsOnDeath(AActor *Target)
+{
+	if (!Target)
+	{
+		return 0;
+	}
+	TArray<FActiveSkillEffect> Removed;
+	if (TArray<FActiveSkillEffect> *Effects = ActiveEffects.Find(Target))
+	{
+		// Out of the store BEFORE any broadcast, as RemoveAllEffects does: listeners (the MaxHP / EP pool recompute,
+		// the GAS attribute mirror, the cards) re-read the target's effects.
+		TArray<FActiveSkillEffect> Kept;
+		for (FActiveSkillEffect &Effect : *Effects)
+		{
+			(SurvivesDeath(Effect) ? Kept : Removed).Add(MoveTemp(Effect));
+		}
+		if (Kept.IsEmpty())
+		{
+			ActiveEffects.Remove(Target);
+		}
+		else
+		{
+			*Effects = MoveTemp(Kept);
+		}
+	}
+
+	bool bSpeedChanged = false;
+	for (const FActiveSkillEffect &Effect : Removed)
+	{
+		bSpeedChanged |= IsSpeedEffect(Effect.EffectType);
+		OnEffectRemoved.Broadcast(Target, Effect);
+	}
+	if (bSpeedChanged)
+	{
+		NotifySpeedChanged(Target);
+	}
+
+	// The two other places a buff or debuff is kept: absorbers (Ward, Shield, Barrier) on the holder's tracker, but
+	// for a permanent one its own gear gave, and action changes waiting for a turn start.
+	int32 AbsorbersRemoved = 0;
+	if (UWoRTurnEffectTracker *Absorbers = Target->FindComponentByClass<UWoRTurnEffectTracker>())
+	{
+		AbsorbersRemoved = Absorbers->RemoveAbsorbsOnDeath();
+	}
+	if (UCharacterDataComponent *Holder = GetCharacterDataComponent(Target))
+	{
+		Holder->ClearWaitingActionChanges();
+	}
+
+	// ET-53's rule for a fight's end, at a death: the status bar empties too (D-253 default g).
+	if (UStatusBuildupManager *Bars = WoRFight::Get<UStatusBuildupManager>(Target))
+	{
+		Bars->ResetStatusBar(Target);
+	}
+	UE_LOG(LogWoREffects, Log, TEXT("[SkillEffectManager] %s lost %d buff(s) and debuff(s) and %d absorber(s) (death, D-253)"), *Target->GetName(),
+		   Removed.Num(), AbsorbersRemoved);
+	return Removed.Num() + AbsorbersRemoved;
+}
+
 float USkillEffectManager::ConsumeLastStandCharge(AActor *Owner)
 {
 	if (!Owner || !ActiveEffects.Contains(Owner))
@@ -1629,17 +1750,7 @@ float USkillEffectManager::ConsumeLastStandCharge(AActor *Owner)
 	// fires (best one wins) and consumes ONE of ITS charges; the others are left intact. We need the
 	// live array entry (not a GetEffectsByType copy) so ConsumeCharge can read its value AND remove
 	// it from THIS array when its charges hit 0.
-	int32 BestIndex = INDEX_NONE;
-	float BestValue = -1.0f;
-	for (int32 i = 0; i < Effects.Num(); ++i)
-	{
-		if (Effects[i].EffectType == ESkillEffectType::LastStand &&
-			(BestIndex == INDEX_NONE || Effects[i].EffectValue > BestValue))
-		{
-			BestValue = Effects[i].EffectValue;
-			BestIndex = i;
-		}
-	}
+	const int32 BestIndex = FindBestLastStandIndex(Effects);
 
 	if (BestIndex == INDEX_NONE)
 	{
