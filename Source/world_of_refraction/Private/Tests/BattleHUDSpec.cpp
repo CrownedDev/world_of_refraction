@@ -204,11 +204,13 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("compact: the name, the HP bar and the build-up bar stay"),
 					 Card.NameText->GetVisibility() != ESlateVisibility::Collapsed && Card.HPBar->GetVisibility() != ESlateVisibility::Collapsed &&
 						 Card.BuildupBar->GetVisibility() != ESlateVisibility::Collapsed);
-			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get(), Card.BuildupText.Get(), Card.ActionsText.Get(),
-												  Card.StatusText.Get()};
+			TestTrue(TEXT("compact: the build-up number stays on its bar (D-257)"),
+					 Card.BuildupText && Card.BuildupText->GetVisibility() != ESlateVisibility::Collapsed &&
+						 Card.BuildupText->GetParent() && Card.BuildupText->GetParent() == Card.BuildupBar->GetParent());
+			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get(), Card.ActionsText.Get(), Card.StatusText.Get()};
 			for (const UWidget *Hidden : HiddenWhenCompact)
 			{
-				TestTrue(TEXT("compact: the kind, EP, build-up line, actions and statuses are collapsed"),
+				TestTrue(TEXT("compact: the kind, EP, actions and statuses are collapsed"),
 						 Hidden && Hidden->GetVisibility() == ESlateVisibility::Collapsed);
 			}
 
@@ -319,7 +321,7 @@ void FBattleHUDSpec::Define()
 			TestEqual(TEXT("three at 80%"), BattleHUDView::CountCracksShown(0.8f), 3);
 			TestEqual(TEXT("all at the cap"), BattleHUDView::CountCracksShown(1.0f), BattleHUDView::CRACK_COUNT);
 
-			TestEqual(TEXT("line"), BattleHUDView::FormatBuildupLine(40.7f, 100.0f).ToString(), FString(TEXT("Status 40 / 100")));
+			TestEqual(TEXT("line"), BattleHUDView::FormatBuildupLine(40.7f, 100.0f).ToString(), FString(TEXT("40/100")));
 			TestTrue(TEXT("element colour"), BattleHUDView::GetBuildupColour(ESpellElement::Fire, false)
 												 .Equals(ElementColors::GetColorForElement(ESpellElement::Fire)));
 			TestTrue(TEXT("a Broken Darkness attacker darkens it"), BattleHUDView::GetBuildupColour(ESpellElement::Fire, true)

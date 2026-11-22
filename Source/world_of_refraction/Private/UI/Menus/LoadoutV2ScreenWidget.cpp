@@ -867,8 +867,8 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		{
 			return FText::GetEmpty();
 		}
-		// Crown (2026-11-18): a filled slot leads with its piece (the slot's word is the quiet text beside it,
-		// GetLineDetail); an empty one leads with the slot's word.
+		// Crown (2026-11-18): a filled slot leads with its piece, an empty one with the slot's word. D-257: a filled one
+		// has no slot word beside it.
 		// D-248: the tier is in the quiet line under the name (GetLineSubName), not a badge or a letter after it.
 		return LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]) ? GetSlotValue(Slots[Line]) : GetSlotName(Slots[Line]);
 	}
@@ -993,7 +993,7 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 		{
 			return FText::GetEmpty();
 		}
-		return LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]) ? GetSlotName(Slots[Line]) : GetSlotValue(Slots[Line]); // filled: which slot it is
+		return LoadoutV2ScreenStyle::IsSlotFilled(Draft, Slots[Line]) ? FText::GetEmpty() : GetSlotValue(Slots[Line]); // D-257: filled, the piece says it
 	case ELoadoutV2Mode::SkillEntries:
 		return SkillsPage.Entries.IsValidIndex(Line)
 				   ? FText::Format(LOCTEXT("SkillEntryCount", "{0}/{1}"), SkillsPage.Entries[Line].Filled, SkillsPage.Entries[Line].Total)
@@ -1048,9 +1048,7 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 	FLineIcons Icons;
 	if (const FLoadoutV2InventoryRow *Row = GetInventoryRow(Line))
 	{
-		// As the Add window's lines: a weapon's or adapter's icon at the start; a crystal's or evolution's badge after the name.
-		const bool bPieceIcon = Row->Kind == ELoadoutV2InventoryRowKind::Weapon || Row->Kind == ELoadoutV2InventoryRowKind::Adapter;
-		(bPieceIcon ? Icons.Type : Icons.Socket1) = Row->Icon;
+		Icons.Type = Row->Icon; // D-257: a piece's own icon leads its name, a crystal's as a weapon's
 		Icons.bHasTier = Row->bHasTier;
 		Icons.Tier = Row->Tier;
 		return Icons;
@@ -1096,7 +1094,7 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 		default:
 		{
 			const FRuntimeAttachedItem &Item = Slots[Line] == ELoadoutV2Slot::Socket2 ? Draft.Socket2 : Draft.Socket1;
-			Icons.Socket1 = WoRLoadoutV2::MakeSocketIcon(Item); // no tier badge: the text has it ("Garnet (F)", AttachmentText)
+			Icons.Type = WoRLoadoutV2::MakeSocketIcon(Item); // D-257: before the name; no tier badge: the text has it ("Garnet (F)", AttachmentText)
 			break;
 		}
 		}
@@ -1124,7 +1122,7 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 	if (!Attachment.IsEmpty())
 	{
 		const FLoadoutV2Icon Badge = WoRLoadoutV2::MakeSocketIcon(Attachment);
-		Icons.Socket1 = Item.IsSlotted() ? Badge : WoRIcons::AsLoose(Badge); // B-584 (D-256)
+		Icons.Type = Item.IsSlotted() ? Badge : WoRIcons::AsLoose(Badge); // B-584 (D-256); D-257: before the name
 		Icons.bHasTier = WoRLoadoutV2::GetAttachmentTier(Attachment, Icons.Tier);
 	}
 	return Icons;

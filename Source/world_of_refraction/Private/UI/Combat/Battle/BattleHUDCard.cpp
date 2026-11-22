@@ -1,6 +1,6 @@
 // BattleHUDCard.cpp
 // B-503k: a party card in a fight keeps the gear tooltip on hover but no gear line (Crown: no "Generic Primary Weapon").
-// B-503m: the HP and EP numbers are drawn on their bars (no separate lines); the build-up bar has a quiet label.
+// B-503m: the HP and EP numbers are drawn on their bars (no separate lines); B-585 (D-257): the build-up bar's too.
 
 #include "UI/Combat/Battle/BattleHUDCard.h"
 
@@ -41,6 +41,26 @@ namespace
 		return Bar;
 	}
 
+	/** A bar's number, centred over what Layers already holds. */
+	UTextBlock *AddBarNumber(UWidgetTree *Tree, UOverlay *Layers)
+	{
+		using namespace BattleCardStyle;
+
+		UTextBlock *Number = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
+		FSlateFontInfo Font = Number->GetFont();
+		Font.Size = BarFontSize;
+		Number->SetFont(Font);
+		Number->SetColorAndOpacity(FSlateColor(TextColor));
+		Number->SetShadowOffset(FVector2D(1.0f, 1.0f)); // readable on the fill and on the empty part
+		Number->SetShadowColorAndOpacity(BarTextShadowColor);
+		if (UOverlaySlot *TextSlot = Layers->AddChildToOverlay(Number))
+		{
+			TextSlot->SetHorizontalAlignment(HAlign_Center);
+			TextSlot->SetVerticalAlignment(VAlign_Center);
+		}
+		return Number;
+	}
+
 	/** B-503m: a pool's bar with its number drawn on it ("HP 129 / 129"); returns the row, to show or hide. */
 	USizeBox *BuildNumberBar(UWidgetTree *Tree, UVerticalBox *Rows, const FLinearColor &Fill, TObjectPtr<UProgressBar> &OutBar,
 							 TObjectPtr<UTextBlock> &OutText)
@@ -57,18 +77,7 @@ namespace
 			BarSlot->SetHorizontalAlignment(HAlign_Fill);
 			BarSlot->SetVerticalAlignment(VAlign_Fill);
 		}
-		OutText = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		FSlateFontInfo Font = OutText->GetFont();
-		Font.Size = BarFontSize;
-		OutText->SetFont(Font);
-		OutText->SetColorAndOpacity(FSlateColor(TextColor));
-		OutText->SetShadowOffset(FVector2D(1.0f, 1.0f)); // readable on the fill and on the empty part
-		OutText->SetShadowColorAndOpacity(BarTextShadowColor);
-		if (UOverlaySlot *TextSlot = Layers->AddChildToOverlay(OutText))
-		{
-			TextSlot->SetHorizontalAlignment(HAlign_Center);
-			TextSlot->SetVerticalAlignment(VAlign_Center);
-		}
+		OutText = AddBarNumber(Tree, Layers);
 		if (UVerticalBoxSlot *RowSlot = Rows->AddChildToVerticalBox(BarSize))
 		{
 			RowSlot->SetPadding(FMargin(RowPadding));
@@ -78,31 +87,13 @@ namespace
 
 	/** The buildup bar, with a row of crack marks laid over it: spacers weighted by the gaps between
 	 *  BattleHUDView::GetCrackPositions, a thin mark at each. Marks are Hidden (not Collapsed) so the row keeps its spacing.
-	 *  B-503m: a quiet "Status" label before it, so the empty bar isn't a mystery. */
-	void BuildBuildupBar(UWidgetTree *Tree, FBattleHUDCard &Card, UVerticalBox *Rows)
+	 *  B-585 (D-257): as tall as the card's HP bar, with no label; with bNumber its number on it, over the cracks. */
+	void BuildBuildupBar(UWidgetTree *Tree, FBattleHUDCard &Card, UVerticalBox *Rows, bool bNumber)
 	{
 		using namespace BattleCardStyle;
 
-		UHorizontalBox *Row = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UTextBlock *Label = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		FSlateFontInfo LabelFont = Label->GetFont();
-		LabelFont.Size = BuildupLabelFontSize;
-		Label->SetFont(LabelFont);
-		Label->SetColorAndOpacity(FSlateColor(BuildupLabelColor));
-		Label->SetText(LOCTEXT("BuildupBarLabel", "Status"));
-		if (UHorizontalBoxSlot *LabelSlot = Row->AddChildToHorizontalBox(Label))
-		{
-			LabelSlot->SetVerticalAlignment(VAlign_Center);
-			LabelSlot->SetPadding(FMargin(0.0f, 0.0f, BuildupLabelGap, 0.0f));
-		}
-
 		USizeBox *BarSize = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		BarSize->SetHeightOverride(BuildupBarHeight);
-		if (UHorizontalBoxSlot *BarRowSlot = Row->AddChildToHorizontalBox(BarSize))
-		{
-			BarRowSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			BarRowSlot->SetVerticalAlignment(VAlign_Center);
-		}
+		BarSize->SetHeightOverride(bNumber ? NumberBarHeight : BarHeight);
 		UOverlay *BarLayers = Tree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
 		BarSize->AddChild(BarLayers);
 
@@ -149,8 +140,12 @@ namespace
 			PreviousPosition = Position;
 		}
 		AddGap(1.0f - PreviousPosition);
+		if (bNumber)
+		{
+			Card.BuildupText = AddBarNumber(Tree, BarLayers);
+		}
 
-		if (UVerticalBoxSlot *BuildupSlot = Rows->AddChildToVerticalBox(Row))
+		if (UVerticalBoxSlot *BuildupSlot = Rows->AddChildToVerticalBox(BarSize))
 		{
 			BuildupSlot->SetPadding(FMargin(RowPadding));
 		}
@@ -235,11 +230,7 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 	}
 	if (Parts.bBuildupBar)
 	{
-		BuildBuildupBar(Tree, Card, Rows);
-	}
-	if (Parts.bBuildupLine)
-	{
-		Card.BuildupText = AddText(Tree, Rows, LineFontSize);
+		BuildBuildupBar(Tree, Card, Rows, Parts.bBuildupLine);
 	}
 	if (Parts.bActions)
 	{
@@ -320,7 +311,6 @@ void BattleHUDCard::SetCompact(const FBattleHUDCard &Card, bool bCompact)
 	}
 	ShowIf(Card.DetailText, !bCompact && !Card.DetailLine.IsEmpty());
 	ShowIf(Card.EPRow, !bCompact && Card.bShowEP);
-	ShowIf(Card.BuildupText, !bCompact);
 	ShowIf(Card.ActionsText, !bCompact);
 	ShowIf(Card.StatusText, !bCompact);
 }

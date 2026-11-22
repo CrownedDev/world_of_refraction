@@ -292,7 +292,7 @@ FText BattleHUDView::GetStatusLabel()
 
 FText BattleHUDView::FormatBuildupLine(float Current, float Max)
 {
-	return FormatPool(GetStatusLabel(), FMath::TruncToInt(Current), FMath::TruncToInt(Max));
+	return FText::Format(LOCTEXT("BuildupValue", "{0}/{1}"), FText::AsNumber(FMath::TruncToInt(Current)), FText::AsNumber(FMath::TruncToInt(Max)));
 }
 
 FLinearColor BattleHUDView::GetBuildupColour(ESpellElement PendingElement, bool bSourceInBrokenDarkness)

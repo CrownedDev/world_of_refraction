@@ -129,9 +129,10 @@ namespace BattleHUDView
 	/** How many cracks a bar this full shows: every crack at or below Fraction. */
 	WORLD_OF_REFRACTION_API int32 CountCracksShown(float Fraction);
 
+	// OBSOLETE (B-585, D-257): the bar has no word; delete after Crown's checkpoint 6.
 	WORLD_OF_REFRACTION_API FText GetStatusLabel();
 
-	/** "Status 40 / 100" (whole numbers, truncated as the old panel). */
+	/** "40/100", on the bar (D-257; whole numbers, truncated as the old panel). */
 	WORLD_OF_REFRACTION_API FText FormatBuildupLine(float Current, float Max);
 
 	/** The bar's fill, as the old panel's ApplyStatusBarTint: the pending element's colour (None / Generic the neutral
