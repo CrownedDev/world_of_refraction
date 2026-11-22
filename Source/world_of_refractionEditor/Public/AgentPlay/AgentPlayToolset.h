@@ -110,6 +110,7 @@ public:
 	 * @param Key An Unreal key name: "Tab", "SpaceBar", "Enter", "Escape", "W", "Gamepad_FaceButton_Bottom".
 	 * @param HoldMs Milliseconds held. Under 200 is a tap to the game.
 	 */
+	// The 50 here and on Click is WoRAgentPlaySchedule::DEFAULT_HOLD_MS: a UFUNCTION default must be a literal.
 	UFUNCTION(meta = (AICallable), Category = "WoRAgentPlay")
 	static WORLD_OF_REFRACTIONEDITOR_API UWoRAgentPlayResult *TapKey(const FString &Key, int32 HoldMs = 50);
 
@@ -188,6 +189,9 @@ public:
 
 	/** Inputs and screenshots of the running sequence not yet sent; 0 when idle. */
 	static WORLD_OF_REFRACTIONEDITOR_API int32 GetPendingEventCount();
+
+	/** Stops the running sequence, failing its result with Why; nothing when idle. The module calls it when it unloads. */
+	static WORLD_OF_REFRACTIONEDITOR_API void CancelSequence(const FString &Why);
 
 private:
 	static UWoRAgentPlayResult *Play(const TArray<FWoRAgentPlayStep> &Steps, const FString &ScreenshotDir);

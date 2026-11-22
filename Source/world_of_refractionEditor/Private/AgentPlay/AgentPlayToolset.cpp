@@ -16,6 +16,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include "Misc/StringOutputDevice.h"
 #include "UObject/StrongObjectPtr.h"
 #include "Widgets/SViewport.h"
@@ -142,6 +143,7 @@ namespace
 		}
 		else
 		{
+			GHeldMouseButtons.Reset(); // a stopped sequence's release never came: the next one starts with no button down
 			UE_LOG(LogWoRAgentPlay, Warning, TEXT("[AgentPlay] sequence stopped after %d of %d: %s"), Run->NextEvent, Run->Events.Num(), *Error);
 			Run->Result->SetError(FString::Printf(TEXT("%s (%d of %d sent)"), *Error, Run->NextEvent, Run->Events.Num()));
 		}
@@ -256,6 +258,14 @@ bool UWoRAgentPlayToolset::FindGame(FWoRAgentPlayGame &OutGame, FString &OutWhy)
 int32 UWoRAgentPlayToolset::GetPendingEventCount()
 {
 	return GRun ? GRun->Events.Num() - GRun->NextEvent : 0;
+}
+
+void UWoRAgentPlayToolset::CancelSequence(const FString &Why)
+{
+	if (GRun)
+	{
+		FinishRun(Why);
+	}
 }
 
 UWoRAgentPlayResult *UWoRAgentPlayToolset::Play(const TArray<FWoRAgentPlayStep> &Steps, const FString &ScreenshotDir)
@@ -387,11 +397,11 @@ FString UWoRAgentPlayToolset::RunConsoleCommand(const FString &Command)
 	FStringOutputDevice Output;
 	Output.SetAutoEmitLineTerminator(true);
 	GLog->AddOutputDevice(&Output); // most wor. commands answer in the log, not in the command's own output
-	Output.Reset();					// anything the log replays to a new listener is not this command's
+	ON_SCOPE_EXIT { GLog->RemoveOutputDevice(&Output); };
+	Output.Reset(); // anything the log replays to a new listener is not this command's
 	ULocalPlayer *Player = Game.World->GetFirstLocalPlayerFromController();
 	const bool bKnown = Player ? Player->Exec(Game.World, *Command, Output) : GEngine->Exec(Game.World, *Command, Output);
 	GLog->Flush();
-	GLog->RemoveOutputDevice(&Output);
 	if (!bKnown)
 	{
 		UKismetSystemLibrary::RaiseScriptError(FString::Printf(TEXT("'%s' is not a console command here"), *Command));

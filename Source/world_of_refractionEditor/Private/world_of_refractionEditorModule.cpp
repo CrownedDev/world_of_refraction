@@ -16,6 +16,7 @@ class FWorldOfRefractionEditorModule : public IModuleInterface
 	{
 		if (UObjectInitialized())
 		{
+			UWoRAgentPlayToolset::CancelSequence(TEXT("the editor module unloaded"));
 			UToolsetRegistry::UnregisterToolsetClass(UWoRAgentPlayToolset::StaticClass());
 		}
 	}
