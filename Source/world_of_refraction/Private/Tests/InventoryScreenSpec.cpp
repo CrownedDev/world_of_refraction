@@ -545,7 +545,7 @@ void FInventoryScreenSpec::Define()
 		Garnet.Item = FCrystalId(ECrystalType::Garnet, EItemTier::C_Tier);
 		Garnet.Count = 1;
 		const FInventoryScreenTile Tile = WoRInventoryScreen::BuildStackTile(Garnet);
-		TestTrue(TEXT("the element diamond, named for its tooltip"), Tile.Icon.Kind == EWoRIconKind::Element && Tile.Icon.Element == Tile.Element && !Tile.Icon.Name.IsEmpty());
+		TestTrue(TEXT("the element's loose gem (a stack is in no socket, B-584), named for its tooltip"), Tile.Icon.Kind == EWoRIconKind::LooseGem &&Tile.Icon.Element == Tile.Element && !Tile.Icon.Name.IsEmpty());
 		TestTrue(TEXT("a real element"), Tile.Element != ESpellElement::None);
 		TestTrue(TEXT("its tier as a badge"), Tile.bTierBadge && Tile.TierValue == EItemTier::C_Tier);
 		TestTrue(TEXT("its effect sentence gets the burn's icon"), !Tile.Note.IsEmpty() && Tile.EffectIcon.Kind == EWoRIconKind::Effect && Tile.EffectIcon.EffectType == ESkillEffectType::DOT);
