@@ -11,5 +11,6 @@ public class world_of_refractionEditorTarget : TargetRules
 		DefaultBuildSettings = BuildSettingsVersion.V7;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5_8;
 		ExtraModuleNames.Add("world_of_refraction");
+		ExtraModuleNames.Add("world_of_refractionEditor"); // B-573: the agent play tool, editor only
 	}
 }
