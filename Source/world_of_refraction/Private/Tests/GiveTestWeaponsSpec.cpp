@@ -1,6 +1,7 @@
 // GiveTestWeaponsSpec.cpp
 // wor.Debug.GiveTestWeapons, headless: every test asset present here loads as a weapon; the give adds the asked count of
-// each with the duplicate notice left on afterwards, names a missing one, and is refused by a full inventory.
+// each with the duplicate notice left on afterwards, names a missing one, and still gives past the old room of 20
+// (D-250, B-575: no inventory is full out of a fight).
 // Unproven here: the loadout screen and the weapons in the hand (PIE sheet debug-give-test-weapons).
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -41,7 +42,7 @@ void FGiveTestWeaponsSpec::Define()
 		TestTrue(TEXT("the set fits the weapon room"), Asked <= InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS);
 	});
 
-	It("gives the asked count of each weapon quietly, names a missing one, and is refused by a full inventory", [this]()
+	It("gives the asked count of each weapon quietly, names a missing one, and is never stopped by a full inventory (D-250)", [this]()
 	{
 		FWoRTestWorld TestWorld;
 		TestTrue(TEXT("test world created"), TestWorld.Create());
@@ -59,12 +60,14 @@ void FGiveTestWeaponsSpec::Define()
 		TestTrue(TEXT("the missing one is named as refused"), Lines.Last().EndsWith(TEXT("(REFUSED)")));
 		TestFalse(TEXT("the duplicate notice is back on"), Inventory->bSuppressDuplicateNotice);
 
-		while (Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())))
+		// D-250 (B-575): no inventory is ever full, so one past the old room of 20 still takes the give.
+		for (int32 Index = 0; Index <= InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS; ++Index)
 		{
+			TestTrue(TEXT("past the old room"), Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
 		}
 		Lines.Reset();
-		TestEqual(TEXT("a full inventory takes none"), WoRGiveTestWeapons::GiveWeapons(*Inventory, {Weapons[0]}, Count, Lines), 0);
-		TestTrue(TEXT("and says so"), Lines.Num() == 1 && Lines[0].EndsWith(TEXT("(REFUSED)")));
+		TestEqual(TEXT("it still takes the asked count"), WoRGiveTestWeapons::GiveWeapons(*Inventory, {Weapons[0]}, Count, Lines), Count);
+		TestTrue(TEXT("with no refusal"), Lines.Num() == 1 && !Lines[0].EndsWith(TEXT("(REFUSED)")));
 	});
 }
 
