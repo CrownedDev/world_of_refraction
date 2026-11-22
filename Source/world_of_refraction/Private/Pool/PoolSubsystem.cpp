@@ -235,7 +235,7 @@ bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAt
             return false;
         }
     }
-    // B-380d (Q-380d): the crystal that was in the socket goes back to storage as one crystal of its type and tier
+    // B-380d (Q-380d): the crystal that was in the socket goes back to its owner as one crystal of its type and tier
     // (D-097: items are never thrown away). An evolution taken out simply stays owned. TODO: the gear screen takes the
     // new crystal from the pouch or storage (the placeholder command makes one).
     const FRuntimeAttachedItem Previous = Owned->AttachedItem;

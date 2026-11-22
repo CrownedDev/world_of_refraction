@@ -107,12 +107,12 @@ BEGIN_DEFINE_SPEC(FBuyForSpec, "WoR.Economy.BuyFor", EAutomationTestFlags_Applic
 		return {Weapon, Gems};
 	}
 
-	/** One weapon more than the room of 20 that D-250 removed. A counted loop: no armoury ever refuses for room. */
+	/** One weapon past a test's full inventory. A counted loop: no armoury ever refuses for room (D-250). */
 	void FillPastOldRoom(UInventoryComponent &Inventory)
 	{
-		for (int32 Index = 0; Index <= InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS; ++Index)
+		for (int32 Index = 0; Index < WoRTestInventory::PAST_FULL_ITEMS; ++Index)
 		{
-			TestTrue(TEXT("past the old room"), Inventory.AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
+			TestTrue(TEXT("past full"), Inventory.AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
 		}
 	}
 END_DEFINE_SPEC(FBuyForSpec)
