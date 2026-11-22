@@ -1251,11 +1251,12 @@ The queue of questions only Crown can answer.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
 ### D-260 — The action pips move to the command menu, which is one frame with Act attached on top
-**Status:** ANSWERED for the place and the grouping (Crown, 2026-11-22); the look waits for Crown's word on the drawings · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-436g
+**Status:** ANSWERED, the place, the grouping and the look (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-436g
 **Answer (Crown):** "im thinking why dont we have it on the action menu instead?"; then, shown a drawing with the pips above Attack: "this works though i think we should group the command menu in one frame then we can have the acts above it attached but somewhat seperate if that makes sense maybe show me some other menus to see how it looks i.e the skills items etc"
 **Ruled:** (1) B-436g moves D-259's pips from the card to the command menu. (2) The menu's rows share one frame, and Act sits on top of it, attached but set apart.
 **Until B-436g:** the card shows the pips (B-581), so no build lacks an action count.
-**Proposed in the drawings sent 2026-11-22, not ruled yet:** Act as a narrower tab on the frame's top edge, on every sub-menu too; "Skills 1/3" in that tab; a cost drawn as pips at a row's right end; the same frame for Skills, Items and targeting.
+**The look (Crown, on the drawings: "yes i like how it looks also for skills we dont need the population number thats what seting the skills is for"):** Act as a narrower tab on the frame's top edge, on every sub-menu too; "Skills 1/3" in that tab; a cost drawn as pips at a row's right end; the same frame for Skills, Items and targeting. The pictures are `Design/screen_mockups/combat/hud/refine_final/11_menu_frame.png` and `12_menu_frame_submenus.png`; their names, costs and item counts are examples.
+**No skill counts:** the Skills kinds show their names only, since the loadout is where skills are set. Read as that count alone: an item's count and "Skills 1/3" (skills used this turn) stay as drawn.
 
 ### D-259 — The fight card's actions are pips: "Act: ●●○"
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown, from the fight card's screenshot) · **Blocks:** B-581
