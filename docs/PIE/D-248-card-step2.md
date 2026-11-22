@@ -19,20 +19,22 @@
 
 | # | Do this | You should see | Result |
 |---|---|---|---|
-| 1 | Equipment tab, A on a weapon set, A on Main hand | **Screenshot.** Two columns: the slots on the left, the grid filling the rest. No details box on the right. Ten tiles to a row | [ ] |
-| 2 | Look at the first tile's card | A card right of the lit tile, its top level with the tile's: the name, "Type (Tier)" under it, the stats and sockets, in a thin light frame | [ ] |
-| 3 | Right along the row | The card moves with the lit tile, always on its right while there is room | [ ] |
-| 4 | Go to the last tiles of a row (or move the mouse there) | **Screenshot.** The card is on the tile's left; none of it is off the panel's right edge | [ ] |
-| 5 | With enough weapons for the lower rows (or a small window): light a tile near the bottom | The card's bottom is level with the tile's bottom; none of it runs below the screen | [ ] |
-| 6 | Move the mouse over tiles | The card follows the tile under the mouse; moving off the tiles puts it back beside the lit tile | [ ] |
-| 7 | Move the mouse onto a tile the card covers | That tile lights under the mouse and the card moves to it (the card never blocks the mouse) | [ ] |
-| 8 | Light a locked tile | The card's first line, in orange, says why it can't go in | [ ] |
-| 9 | Main hand with an off hand set: light a weapon that can't pair | The card's first line ends "the off hand comes off" | [ ] |
-| 10 | Q / E (the filter), then a pick with A | As step 1: the filter turns, the card shows the first tile's piece; A picks and goes back to the slots | [ ] |
-| 11 | Back on the slots (B, or after a pick) | The details box is back on the right, in its old place and width, with no frame | [ ] |
-| 12 | The Equipment list, and the Inventory, Skills and Apparel tabs | The details box is where it was before this step | [ ] |
-| 13 | A on Augment socket 1 | The old list with the details box on the right (not a grid, no card) | [ ] |
-| 14 | X Compare in the grid | The compare line still shows under the columns | [ ] |
-| 15 | The mouse wheel with more rows than fit, then a key | The grid scrolls and the card moves with its tile (off the top or bottom it stays at the view's edge); a key brings the lit tile into view with its card | [ ] |
-| 16 | Open the grid and move tile to tile, watching the card as it arrives | It lands beside the tile and stays. Note here if it is seen to jump or shift a moment after it appears | [ ] |
-| 17 | The mouse wheel with the mouse over the card | The grid scrolls (or, with everything in view, the highlight moves a tile), as over a tile: the card does not stop the wheel | [ ] |
+| 1 | Equipment tab, A on a weapon set, A on Main hand | **Screenshot.** Two columns: the slots on the left, the grid filling the rest. No details box on the right. Ten tiles to a row | QA passed (agent) |
+| 2 | Look at the first tile's card | A card right of the lit tile, its top level with the tile's: the name, "Type (Tier)" under it, the stats and sockets, in a thin light frame | QA passed (agent) |
+| 3 | Right along the row | The card moves with the lit tile, always on its right while there is room | QA passed (agent) |
+| 4 | Go to the last tiles of a row (or move the mouse there) | **Screenshot.** The card is on the tile's left; none of it is off the panel's right edge | QA passed (agent) |
+| 5 | With enough weapons for the lower rows (or a small window): light a tile near the bottom | The card's bottom is level with the tile's bottom; none of it runs below the screen | Not tested (agent): no grid tall enough, no window resize |
+| 6 | Move the mouse over tiles | The card follows the tile under the mouse; moving off the tiles puts it back beside the lit tile | Not tested (agent): no mouse move |
+| 7 | Move the mouse onto a tile the card covers | That tile lights under the mouse and the card moves to it (the card never blocks the mouse) | Not tested (agent): no mouse move; a click does go through the card |
+| 8 | Light a locked tile | The card's first line, in orange, says why it can't go in | QA passed (agent) |
+| 9 | Main hand with an off hand set: light a weapon that can't pair | The card's first line ends "the off hand comes off" | QA passed (agent) |
+| 10 | Q / E (the filter), then a pick with A | As step 1: the filter turns, the card shows the first tile's piece; A picks and goes back to the slots | QA passed (agent) |
+| 11 | Back on the slots (B, or after a pick) | The details box is back on the right, in its old place and width, with no frame | Replaced by D-249 (agent): the card replaces the box |
+| 12 | The Equipment list, and the Inventory, Skills and Apparel tabs | The details box is where it was before this step | Replaced by D-249 (agent): the card replaces the box |
+| 13 | A on Augment socket 1 | The old list with the details box on the right (not a grid, no card) | Replaced by D-249 (agent): still a list, with the card as the box |
+| 14 | X Compare in the grid | The compare line still shows under the columns | QA passed (agent) |
+| 15 | The mouse wheel with more rows than fit, then a key | The grid scrolls and the card moves with its tile (off the top or bottom it stays at the view's edge); a key brings the lit tile into view with its card | Not tested (agent): no mouse wheel |
+| 16 | Open the grid and move tile to tile, watching the card as it arrives | It lands beside the tile and stays. Note here if it is seen to jump or shift a moment after it appears | QA failed (agent): the card moved down about 45 px between two still frames (sheet6, 48 / 48b) |
+| 17 | The mouse wheel with the mouse over the card | The grid scrolls (or, with everything in view, the highlight moves a tile), as over a tile: the card does not stop the wheel | Not tested (agent): no mouse wheel |
+
+**Agent run, 2026-11-22 (D-251 checkpoint 1):** two passes, each verdict audited against its screenshot by the brain. Screenshots: `qa/2026-11-22/` (sheet1 to 7 first pass, p2 second). Faults: B-574.

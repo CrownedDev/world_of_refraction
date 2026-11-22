@@ -1,6 +1,6 @@
 # Hands-off plan
 
-**Status: APPROVED (Crown, 2026-11-22: "Approve and start", D-251). Checkpoint 1 is running.**
+**Status: APPROVED (Crown, 2026-11-22: "Approve and start", D-251). Checkpoint 1: first run FAILED, 2026-11-22 (28 of 38 decided, 30 needed; the text-only tiles were found unprompted). Next: the test tool (B-573), then run again.**
 
 Crown: "I've become involved in the process again due to the detailed aspects of this part of the project, we need to make a plan to remove myself from it."
 
@@ -88,6 +88,11 @@ After the lock: milestone 2 (spells). Further weapon types come later, one at a 
 - The user supplies character animations and montages. It is Blueprint only, documents no co-op, and updates by re-migrating its folder.
 - Our turn rules, timed defence, saves and tests would all have to be rebuilt inside it.
 - It may be bought later as a feel reference. Nothing in this plan depends on it.
+
+## How an agent plays
+- Open the editor with `-saveddirsuffix=QA -ModelContextProtocolStartServer`: saves go to `Saved_QA/`, never Crown's. Stopping Play always writes the last-used slot, so never play-test without it.
+- Drive it with the Slate inspector tools (keys, screenshots). Esc ends PIE.
+- The brain checks each verdict against its screenshot. A check only partly seen is not a pass.
 
 ## Limits
 - An agent can't hear, and judges timing and feel poorly from screenshots. Those stay with Crown's checkpoints.
