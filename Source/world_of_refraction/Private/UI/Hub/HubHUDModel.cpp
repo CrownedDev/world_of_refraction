@@ -122,7 +122,7 @@ TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party, int32 Pla
 		FBattleHUDCard &Card = Cards.AddDefaulted_GetRef();
 		Card.bParty = true;
 		Card.Name = WoRPlayerBuild::GetCardName(Data, Member.MemberId, World); // D-229
-		Card.DetailLine = WoRPlayerBuild::GetDetailLine(Data, Member.MemberId, World); // D-241: Spirit of ... / Body of ...
+		// D-254: no Spirit of ... / Body of ... on the hub or trial card (Card.DetailLine stays empty); the Character sheet has them.
 		Card.bAlive = !Member.IsFallen();
 		const int32 MaxHP = Data->CalculateMaxHealth();
 		const int32 MaxEP = Data->CalculateMaxEnergy();
