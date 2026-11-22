@@ -1250,6 +1250,15 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-253 — Potions; death takes buffs and debuffs; the Healing Stone counts in a Sapphire revival
+**Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown, answering Q-577 and the Sapphire question) · **Blocks:** B-577, B-579, B-580
+**Answer (Crown):** "okay lets add potions and enegy potions which will be less powerfull then sapphire and citrine crystals also healing stone can only be used on alive as when you die you loose buffs and debuffs while healingstone ffect is included with sappire revival you still loose all buffs and debuffs including the healing stone one"
+**Ruled:** (1) a health potion and an energy potion, each weaker than Sapphire and Citrine. (2) The Healing Stone is used only on the living. (3) Death takes all buffs and debuffs. (4) The Healing Stone's boost counts in a Sapphire revival, and is then lost with the rest. Sapphire keeps its death-save and revive.
+**Read from Crown's words (veto if wrong):** (a) "Sapphire revival" is both the revive and the death-save: each is raised by the Healing Boost held at that moment (for a revive, the moment of death; it is remembered for that one number only), then buffs and debuffs are gone. Last Stands from other sources are unchanged. (b) What is part of the character is not a buff and stays: permanent gear and innate effects, and auras still being given.
+**Defaults (approved by the reference-backed default; Crown vetoes):** (c) Health Potion 25% of max HP, Energy Potion 25% of max EP: one strength, no tiers, no element, no status build-up, not socketable; under Sapphire's 30% revive and the weakest Citrine's 30%. (d) The stone boosts the Health Potion, not the Energy Potion. A character who can't gain EP from a Citrine gains none from the potion. (e) Both are fight items (picked, at most 10 a fight), used on the living, sold by the merchant for less than an F Sapphire or Citrine, and in the test kit. (f) The AI's low-HP heal becomes the Health Potion. (g) Death empties status bars too, as a fight's end does (ET-53). (h) Sapphire revives dead allies, not dead enemies.
+**Reference:** Expedition 33 keeps separate Healing, Energy and Revive Tints, the Healing Tint starting at 30% (https://bo3.gg/games/articles/how-to-get-all-tint-upgrades-in-clair-obscur-expedition-33 and https://maxroll.gg/clair-obscur-expedition-33/guides/getting-started-in-clair-obscur-expedition-33-beginners-guide, from search summaries). 25% sits under that because Crown wants potions weaker than the crystals. The deckbuilder has no potion rule; its Revive is a fixed 1 HP, where this game stays at 30%.
+**Found in the code (read, not played):** death clears no effects today; and a Sapphire revive can't happen in a fight, because `CombatCommandMenuSubsystem::ResolveTargets` lists only the living and `ActionExecutor::ValidateAction` refuses a dead target. Both are B-580.
+
 ### D-252 — The Healing Stone increases the amount healed instead of giving HP
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-577
 **Answer (Crown):** "lets also change what a healingstone does lets make it so it increases the amount healed rather than gives you health".
@@ -1258,12 +1267,12 @@ The queue of questions only Crown can answer.
 **Consequence:** nothing in the game uses this stone as a heal any more, and milestone 1 planned it as the likely potion: Q-577.
 
 ### Q-577 — What restores HP in the first battle, now the Healing Stone doesn't?
-**Status:** OPEN · **Raised:** 2026-11-22 · **Blocks:** the potion of D-251 milestone 1 (not B-577)
+**Status:** ANSWERED (Crown, 2026-11-22: D-253) · **Raised:** 2026-11-22 · **Blocks:** the potion of D-251 milestone 1 (not B-577)
 **Question:** what is milestone 1's one potion?
 **Context:** D-252 takes away the Healing Stone's instant heal. Milestone 1 has no spells, and its four abilities aren't written as heals, so a boost would have no healing to raise until Mend (milestone 2).
 **Options:** A a plain health potion as a separate item, which the stone can boost / B no healing until spells.
 **Recommendation:** A. Expedition 33 keeps a separate Healing Tint beside its stat and effect gear (from memory, not looked up), and HandsOffPlan already asks for one potion.
-**Answer (Crown):** _write here_
+**Answer (Crown):** A, and an energy potion with it: "okay lets add potions and enegy potions which will be less powerfull then sapphire and citrine crystals" (D-253).
 
 ### D-251 — Hands-off plan: agents check the pieces, Crown plays at four checkpoints; weapons and abilities before spells
 **Status:** ANSWERED (Crown, 2026-11-22: "Approve and start") · checkpoint 1 running · **Raised:** 2026-11-22 (Crown: "we need to make a plan to remove myself from it")
