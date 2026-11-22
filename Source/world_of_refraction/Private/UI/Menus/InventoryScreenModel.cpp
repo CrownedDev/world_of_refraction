@@ -470,7 +470,7 @@ TArray<FInventoryScreenReceiver> WoRInventoryScreen::BuildReceivers(UWorld *Worl
 		const int32 FreeSlots = Pool->GetItemSlotCount(Pouch) - Pool->GetUsedItemSlots(Pouch);
 		const bool bFull = Pool->GetCarryRoom(Pouch, Tile.Row.Item) <= 0;
 		Receiver.Note = bFull			  ? LOCTEXT("ReceiverFull", "full")
-						: FreeSlots > 0 ? FText::Format(LOCTEXT("ReceiverFree", "{0} {0}|plural(one=slot,other=slots) free"), FreeSlots)
+						: FreeSlots > 0 ? FText::Format(LOCTEXT("ReceiverFree", "{0} fight item {0}|plural(one=slot,other=slots) free"), FreeSlots)
 										: FText::GetEmpty(); // D-250: carrying has no limit; only free fight-item slots are worth saying
 		if (!Receiver.Refusal.IsEmpty())
 		{
