@@ -155,7 +155,8 @@ int32 WoRAgentTestKit::GiveRings(UInventoryComponent &Inventory, const TArray<UR
 {
 	int32 Given = 0;
 	int32 RefusedInARow = 0;
-	for (int32 Index = 0; RefusedInARow < Rings.Num() && Given < InventoryConstants::MAX_RING_INVENTORY_SLOTS; ++Index)
+	// D-250: no room refuses any more, so the kit stops at its own count of owned adapters (a second give adds none).
+	for (int32 Index = 0; RefusedInARow < Rings.Num() && Inventory.Rings.Num() < InventoryConstants::MAX_RING_INVENTORY_SLOTS; ++Index)
 	{
 		const bool bAdded = Inventory.AddRing(Rings[Index % Rings.Num()]);
 		Given += bAdded ? 1 : 0;

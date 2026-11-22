@@ -28,7 +28,8 @@ namespace WoRAgentTestKit
 	constexpr int32 SKILLS = 3;
 	constexpr int32 PARTY_MEMBERS = 2;
 
-	/** Adds the adapters in turn until the inventory refuses every one of them (its room is full). Returns how many. */
+	/** Adds the adapters in turn until the inventory owns InventoryConstants::MAX_RING_INVENTORY_SLOTS of them (the
+	 *  kit's count since D-250: no room is ever full) or refuses every one. Returns how many were added. */
 	WORLD_OF_REFRACTION_API int32 GiveRings(UInventoryComponent &Inventory, const TArray<URingData *> &Rings);
 
 	/** Runs wor.Debug.GiveTestKit on the played character; Parts as the command's arguments (empty: all). Returns one
