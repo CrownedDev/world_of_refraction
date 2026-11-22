@@ -1256,6 +1256,14 @@ The queue of questions only Crown can answer.
 **Answer (defaults):** (1) **A hit teaches its own type:** hitting an enemy with an element or a physical type shows that line's weakness or resistance; the rest stay "?". (2) **Kept for that enemy type until the run ends,** as Kit Sight's reads are (Q-572 point 4). (3) **Never hidden:** an enemy's bars and Effects, and everything about your own party. (4) **Keys:** V / R3 opens and closes Intel in a fight (`UIScreens.md`'s Details, `IA_UI_Details`); a click on a card opens it on that character's tab; Q / E and LB / RB move along the tabs while it is open, as in every tabbed menu.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 
+### D-262 — Intel shows a close-up of the character, with the panel on one side
+**Status:** ANSWERED (Crown, 2026-11-22, after B-586's play) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-587
+**Crown:** "we can improve the observation list ... make it so the observation when activated does a close up on the character and is on one side", with Final Fantasy XIII's enemy screen (the creature large in the middle, its details down both sides) and Expedition 33's item target (the camera cuts to a front shot of the character being targeted).
+**Ruled:** when Intel opens, and on every tab change, the fight camera cuts to a front close-up of that tab's character; the panel moves from the centre to one side so the character stays in view. The panel's content and keys stay as B-586 built them. Closing Intel gives the camera back to the turn view.
+**Defaults (Crown may change):** (a) the panel sits on the right, the character framed in the left two-thirds; (b) a cut, no blend, as B-400's target view; (c) the close-up reuses the target view's front shot (`FCombatCameraRules::ComputeTargetView`), a little nearer; (d) with Camera Movement Off the camera doesn't move and only the panel moves to the side.
+**Reference:** Final Fantasy XIII's Libra screen and Expedition 33's target close-up, both from Crown's shots.
+**Parked (Crown):** the command menu shown next to the acting character, as Expedition 33's item list: "id rather test that out when everythings in place". Not a job yet.
+
 ### D-261 — An Intel panel for the party and enemies; the B, S, D squares leave the player's card
 **Status:** ANSWERED (Crown, 2026-11-22, on the third draft) · **Raised:** 2026-11-22 (Crown, on the approved menu drawing) · **Blocks:** B-586; the status badges of B-436b
 **Answer (Crown):** "yes though i think the tabs should be merged into one for simplicity also seras tabe or whoever our character is would say you"
