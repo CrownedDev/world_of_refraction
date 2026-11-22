@@ -1275,6 +1275,14 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIV's Mantra and Krasis are timed boosts to the healing a character receives (from memory, not looked up). The deckbuilder's reference has no Healing Stone rule.
 **Consequence:** nothing in the game uses this stone as a heal any more, and milestone 1 planned it as the likely potion: Q-577.
 
+### Q-577b — Do Healing Stones add up?
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-577, from the review) · **Blocks:** nothing
+**Question:** D-252 says what one Healing Stone does. It doesn't say what a second one does while the first still lasts.
+**Answer (default):** as every other item effect already does (ET-39, ET-41, ET-42). The **same tier from the same user refreshes** it: the turns start again, the percent does not grow. A **different tier, or the same tier from another user, adds its own percent** (F and E together: 35%). Nothing was built for this; it is what the effect rules give, and a spec holds it.
+**Reference:** Final Fantasy XIV: two different healing-received buffs on one target both count, and the same buff applied again only refreshes (from memory, not looked up).
+**To know:** the largest reachable boost is one user with every tier (15 + 20 + 25 + 30 + 35 + 45 + 60 = 230%), at the cost of seven turns and seven stones. Say if a cap or strongest-only is wanted.
+**Built:** B-577.
+
 ### Q-577 — What restores HP in the first battle, now the Healing Stone doesn't?
 **Status:** ANSWERED (Crown, 2026-11-22: D-253) · **Raised:** 2026-11-22 · **Blocks:** the potion of D-251 milestone 1 (not B-577)
 **Question:** what is milestone 1's one potion?

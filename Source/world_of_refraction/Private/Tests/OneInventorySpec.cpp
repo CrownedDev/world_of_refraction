@@ -43,7 +43,7 @@ namespace
 
 	/** A stat stone: its use is a buff or debuff (StoneRowTable). Carried as a StatStone (B-353). */
 	const FCrystalId ONE_INVENTORY_STAT_STONE(ECrystalType::DamageStone, EItemTier::F_Tier);
-	/** Consume-only: it heals, and can't be socketed usefully. */
+	/** Consume-only: a Healing Boost (D-252), and it can't be socketed usefully. */
 	const FCrystalId ONE_INVENTORY_HEALING_STONE(ECrystalType::HealingStone, EItemTier::F_Tier);
 	/** Attach-only: the one kind with no use in a fight. */
 	const FCrystalId ONE_INVENTORY_DURABILITY_STONE(ECrystalType::DurabilityStone, EItemTier::F_Tier);
@@ -317,7 +317,7 @@ void FOneInventorySpec::Define()
 		Item.Targets.Add(User);
 		Item.ItemData = ONE_INVENTORY_HEALING_STONE;
 		TestTrue(TEXT("the Healing Stone is a valid action"), Actions->ValidateAction(User, Item).bIsValid);
-		TestTrue(TEXT("the Healing Stone heals"), Actions->ExecuteItem(User, ONE_INVENTORY_HEALING_STONE, {User}).bSuccess);
+		TestTrue(TEXT("the Healing Stone is used (a Healing Boost since D-252)"), Actions->ExecuteItem(User, ONE_INVENTORY_HEALING_STONE, {User}).bSuccess);
 		TestEqual(TEXT("one Healing Stone spent"), Pool->GetCarriedCount(A, ONE_INVENTORY_HEALING_STONE), 1);
 		TestTrue(TEXT("the stat stone lands on the enemy"), Actions->ExecuteItem(User, ONE_INVENTORY_STAT_STONE, {Enemy}).bSuccess);
 		TestEqual(TEXT("one stat stone spent"), Pool->GetCarriedCount(A, ONE_INVENTORY_STAT_STONE), 1);

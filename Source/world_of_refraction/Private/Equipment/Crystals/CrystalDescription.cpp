@@ -151,8 +151,9 @@ FText CrystalDescription::GetItemEffectText(const FCrystalId &InId)
         return FText::Format(LOCTEXT("DurabilityStone", "Reinforces an elemental fusion — adds {0} flat wear when fused with a crystal. Inert on its own or in a stone-only fusion."),
                              ItemIdentity::GetDurabilityStoneBonus(Id.Tier));
     case ECrystalType::HealingStone:
-        return FText::Format(LOCTEXT("HealingStone", "Consume to instantly heal any target (ally or enemy) for {0}% of their max HP. Consume-only — attaching it to a weapon does nothing."),
-                             Whole(CrystalEffectTable::GetHealPercent(Id)));
+        // D-252: a Healing Boost, no HP on use. The key is new, so an old translation of the heal text is not reused.
+        return FText::Format(LOCTEXT("HealingStoneBoost", "Consume on a living target (ally or enemy): the healing they receive is raised by {0}% for {1} {1}|plural(one=turn,other=turns). It gives no HP itself. Consume-only: attaching it to a weapon does nothing."),
+                             Whole(CrystalEffectTable::GetHealingBoostPercent(Id)), CrystalEffectTable::GetHealingBoostDuration(Id));
     default:
         return LOCTEXT("Unknown", "Unknown effect.");
     }

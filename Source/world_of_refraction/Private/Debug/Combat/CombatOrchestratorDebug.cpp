@@ -675,7 +675,8 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		// AI-1: the heal is the Healing Stone (RestoreHealth); Sapphire moved to DefyDeath.
+		// An item that gives HP (RestoreHealth). None exists until the Health Potion (B-579): the Healing Stone is
+		// a boost (D-252) and Sapphire is DefyDeath.
 		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::RestoreHealth)
 		{
 			HealId = Slot.CrystalId;
@@ -684,12 +685,12 @@ void ACombatOrchestrator::DebugTestItemOnSelf()
 		}
 	}
 
-	// Fallback: a literal Healing Stone F when the loadout has no healing item (AI-1: the heal is
-	// the Healing Stone now; Sapphire is defy-death).
+	// Fallback: a literal Healing Stone F when the loadout has no HP item. It tests an item use on the target;
+	// since D-252 it gives a Healing Boost, not HP.
 	if (!bFoundHeal)
 	{
 		HealId = FCrystalId{ECrystalType::HealingStone, EItemTier::F_Tier};
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No healing item in loadout, using fallback Healing Stone F"));
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnSelf] No HP item in loadout, using fallback Healing Stone F (a Healing Boost, D-252)"));
 	}
 
 	// Build item action - target is self
@@ -753,7 +754,8 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 
 	for (const FItemLoadoutSlot &Slot : UsableItems)
 	{
-		// AI-1: the heal is the Healing Stone (RestoreHealth); Sapphire moved to DefyDeath.
+		// An item that gives HP (RestoreHealth). None exists until the Health Potion (B-579): the Healing Stone is
+		// a boost (D-252) and Sapphire is DefyDeath.
 		if (!Slot.IsEmpty() && ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::RestoreHealth)
 		{
 			HealId = Slot.CrystalId;
@@ -762,12 +764,12 @@ void ACombatOrchestrator::DebugTestItemOnAlly()
 		}
 	}
 
-	// Fallback: a literal Healing Stone F when the loadout has no healing item (AI-1: the heal is
-	// the Healing Stone now; Sapphire is defy-death).
+	// Fallback: a literal Healing Stone F when the loadout has no HP item. It tests an item use on the target;
+	// since D-252 it gives a Healing Boost, not HP.
 	if (!bFoundHeal)
 	{
 		HealId = FCrystalId{ECrystalType::HealingStone, EItemTier::F_Tier};
-		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No healing item in loadout, using fallback Healing Stone F"));
+		UE_LOG(LogTemp, Warning, TEXT("[DebugTestItemOnAlly] No HP item in loadout, using fallback Healing Stone F (a Healing Boost, D-252)"));
 	}
 
 	// Build item action - target is ally

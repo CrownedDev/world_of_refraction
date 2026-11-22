@@ -94,11 +94,10 @@ namespace CrystalEffectTable
 
     // ==================== SAPPHIRE HEAL ====================
 
-    /** Healing Stone: percent of target MaxHP healed (the curve Sapphire vacated in C2b). 0 for
-     *  every other type — Sapphire is now defy-death (Last Stand / revive) and reads
-     *  GetLastStandWindow, not this. (C2e dropped Sapphire from the gate now that its description +
-     *  debug no longer call GetHealPercent.) */
-    inline float GetHealPercent(const FCrystalId &Id)
+    /** Healing Stone (D-252): percent more healing its target receives while the Healing Boost lasts
+     *  (GetHealingBoostDuration). The same tier numbers as the heal it used to give. 0 for every other
+     *  type. */
+    inline float GetHealingBoostPercent(const FCrystalId &Id)
     {
         if (Id.Type != ECrystalType::HealingStone)
         {
@@ -255,6 +254,12 @@ namespace CrystalEffectTable
         default:
             return 0;
         }
+    }
+
+    /** Healing Stone (D-252): how many turns its Healing Boost lasts, on the shared curve. 0 for every other type. */
+    inline int32 GetHealingBoostDuration(const FCrystalId &Id)
+    {
+        return Id.Type == ECrystalType::HealingStone ? GetStandardConsumableDurationForTier(Id.Tier) : 0;
     }
 
     /** Shared duration table for Emerald/Amber/Opal buffs. 0 otherwise. */

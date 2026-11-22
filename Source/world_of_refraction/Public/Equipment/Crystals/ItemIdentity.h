@@ -57,7 +57,7 @@ namespace ItemIdentity
         case ECrystalType::Sapphire:
             // Defy-death (Last Stand on a living target / revive on a dead one) — routes to
             // ExecuteDefyDeathEffect. Repointed off Healing (AI-1) so detection can tell it apart
-            // from the Healing Stone's real heal (RestoreHealth).
+            // from an item that gives HP (RestoreHealth).
             return EItemEffectType::DefyDeath;
         case ECrystalType::Citrine:
             return EItemEffectType::EnergyRestore;
@@ -82,9 +82,9 @@ namespace ItemIdentity
             // No Execute…Effect handler, no new EItemEffectType.
             return EItemEffectType::None;
         case ECrystalType::HealingStone:
-            // Consume-only instant heal (any target) — routes to ExecuteHealingStoneEffect.
-            // Distinct from Sapphire (EItemEffectType::DefyDeath → defy-death handler).
-            return EItemEffectType::RestoreHealth;
+            // Consume-only Healing Boost on a living target (D-252, D-253): routes to ExecuteHealingStoneEffect.
+            // Not a heal (RestoreHealth) and not Sapphire (DefyDeath).
+            return EItemEffectType::HealingBoost;
         default:
             return EItemEffectType::Damage;
         }
