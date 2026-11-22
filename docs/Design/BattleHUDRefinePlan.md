@@ -2,6 +2,7 @@
 
 **Status:** approved by Crown (2026-11-13, the `refine_final/` set). Building one piece at a time, Crown's PIE review between pieces. Backlog: **B-436** (one sub-job per piece, B-436a to B-436l). Branch: `feature/battle-hud-refine` (from `dev` at 8831e4a1f, after B-424).
 **D-254 (Crown, 2026-11-22):** a fight's cards show no Spirit / Body (click a card to inspect) and the actions line reads "Act: ●●○" (B-581; pips since D-259, first ruled as "Act: 0/2"). Piece 1 is replayed from `feature/battle-hud-refine`, which holds the newer mockups and plan. Agent QA replaces Crown's review between pieces (D-251).
+**D-261 (Crown, 2026-11-22):** the player's cards show no status icons or names: they move to the Intel panel (B-586, `refine_final/13_intel.png`). Wherever this plan puts status icons on a player's card (decision 2, piece 2), D-261 replaces it.
 **Mockups:** `docs/Design/screen_mockups/combat/hud/refine_final/` is the whole set: main menu (`1`), one image per skill kind (`2` to `5`), target picker with the infusion strip (`6` to `10`). `refine_v2/` still shows the overall frame. Everything else (`refine_v1/`, `refine_v3/` to `refine_v3f/`) is history.
 **Checks against:** FeelGuide 5 and 13, `UI_Theme.md`, Expedition 33's battle menu.
 
