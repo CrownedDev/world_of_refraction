@@ -15,7 +15,7 @@ enum class EWoRIconKind : uint8
 {
 	None,
 	WeaponType,
-	/** A crystal or an evolution: its element's badge. */
+	/** A crystal or an evolution in a socket, or an element: the element's badge, in its silver frame. */
 	Element,
 	EmptySocket,
 	/** An augment stone. */
@@ -23,7 +23,9 @@ enum class EWoRIconKind : uint8
 	/** An effect: by its type, in its element's colour where the table has that variant. */
 	Effect,
 	/** B-530 (D-229): an adapter: the socket frame, its crystal's element badge in the centre (Element None: empty). */
-	Adapter
+	Adapter,
+	/** B-584 (D-256): a crystal or an evolution in no socket: the gem alone (the silver frame means slotted). */
+	LooseGem
 };
 
 struct FWoRIcon

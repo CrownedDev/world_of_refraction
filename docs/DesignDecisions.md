@@ -1250,6 +1250,12 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-256 — The silver frame means slotted: a loose crystal is the gem alone; Iolite gets its icon
+**Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-584
+**Answer (Crown):** "illodfite should have the same icon as the rest also as crystals they shouldnt have the silver fram around them since that means they are sloted"
+**Read as:** a crystal in no socket (pouch, shop, socket picker) is drawn without the frame; in a socket it keeps it. Iolite (Reality) gets a diamond like the other crystals.
+**Defaults (Crown vetoes):** (a) an evolution follows the same rule, since it uses the same badge. (b) An adapter keeps its frame (D-229), and so does an innate element on the hub's chips. (c) Iolite's gem is the Void gem tinted Reality's indigo (#5A2ED4, D-024).
+
 ### D-255 — Camera rules: a limit up and down, and less control once an opponent is engaged
 **Status:** ANSWERED (Crown, 2026-11-22: less control at engagement); the numbers and the still character are defaults Crown can veto · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-583
 **Answer (Crown):** "also we need to investigate camera rules as idk it seems like its not production quality also when we engage with a opponent the camera is still controlable so it can fly around everywhere which i dont mind it having some control but not as much as weve given it".

@@ -152,5 +152,5 @@ The answer has one line per part and says what was refused. Several parts can be
 - Not yet proven: an agent playing a fight; `GiveTestKit apparel` (it found no apparel asset on 2026-11-22).
 - While an agent plays, a real click or key in that Unreal window still counts.
 - An agent can't hear, and judges timing and feel poorly from screenshots. Those stay with Crown's checkpoints.
-- The editor connection has no import tool, so asset imports still need Crown until one is built.
+- The editor connection imports textures (`TextureTools.import_file`, used by B-584; check compression afterwards, since a blue picture can arrive as a normal map). Other asset imports still need Crown until a tool is built.
 - The weekly usage limit has already stopped the Writer once; it sets the pace, so no dates are promised.

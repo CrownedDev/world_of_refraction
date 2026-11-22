@@ -782,6 +782,10 @@ void ULoadoutV2ScreenWidget::RefreshDetails()
 		default:
 			break;
 		}
+		if (!Details.IsEmpty() && (Row->Kind == ELoadoutV2InventoryRowKind::Evolution || Row->Kind == ELoadoutV2InventoryRowKind::Crystal))
+		{
+			Details[0].Icon = WoRIcons::AsLoose(Details[0].Icon); // B-584: the box draws it as its row does
+		}
 		return;
 	}
 	ULoadoutComponent *Loadout = nullptr;
@@ -1119,7 +1123,8 @@ ULoadoutV2ScreenWidget::FLineIcons ULoadoutV2ScreenWidget::GetLineIcons(int32 Li
 	const FRuntimeAttachedItem Attachment = Item.Evolution.InstanceID.IsValid() ? WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution) : Item.Socket.Attachment;
 	if (!Attachment.IsEmpty())
 	{
-		Icons.Socket1 = WoRLoadoutV2::MakeSocketIcon(Attachment);
+		const FLoadoutV2Icon Badge = WoRLoadoutV2::MakeSocketIcon(Attachment);
+		Icons.Socket1 = Item.IsSlotted() ? Badge : WoRIcons::AsLoose(Badge); // B-584 (D-256)
 		Icons.bHasTier = WoRLoadoutV2::GetAttachmentTier(Attachment, Icons.Tier);
 	}
 	return Icons;
@@ -1194,11 +1199,14 @@ TArray<FLoadoutV2DetailLine> ULoadoutV2ScreenWidget::BuildItemDetails(const FLoa
 	{
 		return WoRLoadoutV2::BuildAdapterDetails(Item.Adapter, bSimpleView);
 	}
-	if (Item.Evolution.InstanceID.IsValid())
+	// An evolution or a socket line; nothing for a note.
+	TArray<FLoadoutV2DetailLine> Lines = WoRLoadoutV2::BuildAttachmentDetails(
+		Item.Evolution.InstanceID.IsValid() ? WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution) : Item.Socket.Attachment, bSimpleView);
+	if (!Lines.IsEmpty() && !Item.IsSlotted())
 	{
-		return WoRLoadoutV2::BuildAttachmentDetails(WoRLoadoutV2::MakeEvolutionAttachment(Item.Evolution), bSimpleView);
+		Lines[0].Icon = WoRIcons::AsLoose(Lines[0].Icon); // B-584 (D-256)
 	}
-	return WoRLoadoutV2::BuildAttachmentDetails(Item.Socket.Attachment, bSimpleView); // a socket line; nothing for a note
+	return Lines;
 }
 
 bool ULoadoutV2ScreenWidget::IsLineRefused(int32 Line) const
@@ -4054,6 +4062,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 			Item.Name = Choice.Name;
 			Item.Line = Choice.Line;
 			Item.bEquipped = bEditing && Choice.Evolution.InstanceID == Current.EvolutionInstance;
+			Item.bWorn = InUse.Contains(Choice.Evolution.InstanceID); // B-584: in another entry is slotted too
 			if (Item.bEquipped)
 			{
 				continue; // its own place: in use by this entry, not refused

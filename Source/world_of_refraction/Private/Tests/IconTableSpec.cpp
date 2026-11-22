@@ -132,6 +132,22 @@ void FIconTableSpec::Define()
 		Badge.Element = ESpellElement::Fire;
 		TestNull(TEXT("no other icon has a centre"), WoRIcons::FindCentre(Badge));
 	});
+
+	It("draws a crystal out of a socket without the frame (B-584, D-256)", [this]()
+	{
+		WoRIcons::SetActiveForTests(Table);
+		FWoRIcon Slotted;
+		Slotted.Kind = EWoRIconKind::Element;
+		Slotted.Element = ESpellElement::Fire;
+		const FWoRIcon Loose = WoRIcons::AsLoose(Slotted);
+		TestTrue(TEXT("out of a socket it is a loose gem"), Loose.Kind == EWoRIconKind::LooseGem && Loose.Element == ESpellElement::Fire);
+		TestTrue(TEXT("no gem picture yet: the badge stands in"), WoRIcons::Find(Loose) == Texture);
+		UTexture2D *Gem = NewObject<UTexture2D>(GetTransientPackage());
+		Table->LooseGems.Add(ESpellElement::Fire, Gem);
+		TestTrue(TEXT("the gem alone"), WoRIcons::Find(Loose) == Gem);
+		TestTrue(TEXT("in a socket it keeps the frame"), WoRIcons::Find(Slotted) == Texture);
+		TestTrue(TEXT("another icon stays as it is"), WoRIcons::AsLoose(WoRIcons::MakeAdapterIcon(ESpellElement::Fire, FText())).Kind == EWoRIconKind::Adapter);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -48,6 +48,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sockets")
 	TMap<ESpellElement, TSoftObjectPtr<UTexture2D>> ElementBadges;
 
+	/** B-584 (D-256): a crystal (or evolution) of this element in no socket: no frame. Unset: the element's badge. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sockets")
+	TMap<ESpellElement, TSoftObjectPtr<UTexture2D>> LooseGems;
+
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Sockets")
 	TSoftObjectPtr<UTexture2D> EmptySocket;
 
@@ -70,6 +74,7 @@ public:
 
 	// Each getter loads its texture on demand; null when the icon isn't set (the caller keeps its text).
 	UTexture2D *GetElementBadge(ESpellElement Element) const;
+	UTexture2D *GetLooseGem(ESpellElement Element) const;
 	UTexture2D *GetEmptySocket() const;
 	UTexture2D *GetStoneSocket() const;
 	UTexture2D *GetTierBadge(EItemTier Tier) const;
@@ -87,6 +92,7 @@ public:
 namespace WoRIcons
 {
 	WORLD_OF_REFRACTION_API UTexture2D *GetElementBadge(ESpellElement Element);
+	WORLD_OF_REFRACTION_API UTexture2D *GetLooseGem(ESpellElement Element);
 	WORLD_OF_REFRACTION_API UTexture2D *GetEmptySocket();
 	WORLD_OF_REFRACTION_API UTexture2D *GetStoneSocket();
 	WORLD_OF_REFRACTION_API UTexture2D *GetTierBadge(EItemTier Tier);
@@ -101,6 +107,9 @@ namespace WoRIcons
 
 	/** B-530 (D-229): an adapter's icon: the frame, with SocketElement's badge inside (None: the centre stays empty). */
 	WORLD_OF_REFRACTION_API FWoRIcon MakeAdapterIcon(ESpellElement SocketElement, const FText &Name);
+
+	/** B-584 (D-256): Icon as drawn out of a socket: a crystal's badge becomes the gem alone; any other icon unchanged. */
+	WORLD_OF_REFRACTION_API FWoRIcon AsLoose(FWoRIcon Icon);
 
 	/** B-487: the effect kind an item's use counts as, for the icon beside its effect sentence (a Garnet's burn is
 	 *  damage over time, a Sapphire's is the last stand); None for a use with no icon kind. */

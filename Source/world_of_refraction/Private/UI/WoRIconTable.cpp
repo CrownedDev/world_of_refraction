@@ -118,6 +118,12 @@ UTexture2D *UWoRIconTable::GetElementBadge(ESpellElement Element) const
 	return WoRIconTableBuild::Find(ElementBadges, Element);
 }
 
+UTexture2D *UWoRIconTable::GetLooseGem(ESpellElement Element) const
+{
+	UTexture2D *Gem = WoRIconTableBuild::Find(LooseGems, Element);
+	return Gem ? Gem : GetElementBadge(Element);
+}
+
 UTexture2D *UWoRIconTable::GetEmptySocket() const
 {
 	return EmptySocket.IsNull() ? nullptr : EmptySocket.LoadSynchronous();
@@ -155,6 +161,7 @@ FString UWoRIconTable::GetIconTableString() const
 	using namespace WoRIconTableBuild;
 	FString Out = FString::Printf(TEXT("Icon table %s:"), *GetPathName());
 	Out += DescribeGroup(TEXT("Element badges"), ElementBadges);
+	Out += DescribeGroup(TEXT("Loose gems"), LooseGems);
 	Out += DescribeOne(TEXT("Empty socket"), EmptySocket);
 	Out += DescribeOne(TEXT("Stone socket"), StoneSocket);
 	Out += DescribeGroup(TEXT("Tier badges"), TierBadges);
@@ -172,6 +179,12 @@ UTexture2D *WoRIcons::GetElementBadge(ESpellElement Element)
 {
 	const UWoRIconTable *Table = UWoRIconTable::GetActive();
 	return Table ? Table->GetElementBadge(Element) : nullptr;
+}
+
+UTexture2D *WoRIcons::GetLooseGem(ESpellElement Element)
+{
+	const UWoRIconTable *Table = UWoRIconTable::GetActive();
+	return Table ? Table->GetLooseGem(Element) : nullptr;
 }
 
 UTexture2D *WoRIcons::GetEmptySocket()
@@ -212,6 +225,8 @@ UTexture2D *WoRIcons::Find(const FWoRIcon &Icon)
 		return GetWeaponType(Icon.WeaponType);
 	case EWoRIconKind::Element:
 		return GetElementBadge(Icon.Element);
+	case EWoRIconKind::LooseGem:
+		return GetLooseGem(Icon.Element);
 	case EWoRIconKind::EmptySocket:
 	case EWoRIconKind::Adapter: // its frame; the crystal sits on it (FindCentre)
 		return GetEmptySocket();
@@ -306,6 +321,15 @@ FWoRIcon WoRIcons::MakeAdapterIcon(ESpellElement SocketElement, const FText &Nam
 	Icon.Kind = EWoRIconKind::Adapter;
 	Icon.Element = SocketElement;
 	Icon.Name = Name;
+	return Icon;
+}
+
+FWoRIcon WoRIcons::AsLoose(FWoRIcon Icon)
+{
+	if (Icon.Kind == EWoRIconKind::Element)
+	{
+		Icon.Kind = EWoRIconKind::LooseGem;
+	}
 	return Icon;
 }
 
