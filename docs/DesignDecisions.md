@@ -1250,6 +1250,20 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-258 — The command menu is built next: the main menu only, ahead of the skill screens
+**Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown: "also should we not create the proper command menu?") · **Blocks:** B-436g
+**Answer (Crown):** "Yes, menu next", to the brain's proposal:
+1. B-436g (the main menu of `refine_final/1_main_menu.png`: Attack, Skills, Items as big buttons) moves ahead of B-436b to f and follows B-581; the camera rules (B-583) come after it.
+2. The skill screens stay parked (B-436e, f, h; B-582).
+3. Flee, End Turn and Step Forward / Back are small corner hints like Defend (this answers the plan's open point 2).
+
+**Defaults, from building it without the skill screens (Crown vetoes):**
+- (a) Skills opens today's lists: straight in with one kind, else a short list of the kinds the character has.
+- (b) Switch weapon and Change ring are corner hints too, with today's keys, until B-436i and the skill screens replace them.
+- (c) On a gamepad RB is Defend on the main menu only; past it RB stays infusion level until B-436j moves that to LB. So the level can't be preset from the main menu on a gamepad.
+- (d) No new keys for End Turn or the steps (End Turn's key "comes later", Crown 2026-11-12): their hints are clicked, and Flee keeps 5 / D-pad Down.
+- (e) A button shows only the key of the device in use, as every other menu does (B-481).
+
 ### D-257 — The status bar looks like HP and EP; a filled slot is its icon, then its name
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-585
 **Answer (Crown):** "status shouldnt say status" · "the status bar should be similar to the ep and hp bar" · "just put 0/max (whatever the value is)" · "also shouldnt the icon be before the text and also we dont need it to say off hand augment etc when its been attached"
