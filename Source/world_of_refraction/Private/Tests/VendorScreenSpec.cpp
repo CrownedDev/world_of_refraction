@@ -404,7 +404,10 @@ void FVendorScreenSpec::Define()
 		TestEqual(TEXT("the slot after this one is priced too"), Page.Rows[0].Details.Num(), 1);
 		TestFalse(TEXT("what the pouch will hold"), Page.Rows[0].Note.IsEmpty());
 
-		while (Pool->AddItemSlot(Key())) {}
+		for (int32 Slot = InventoryConstants::ITEM_SLOTS_START; Slot < InventoryConstants::ITEM_SLOTS_MAX; ++Slot)
+		{
+			Pool->AddItemSlot(Key());
+		}
 		Page = WoRVendorScreen::BuildItemSlotsPage(World(), Payer());
 		TestEqual(TEXT("a full pouch"), Page.Rows[0].Slots, InventoryConstants::ITEM_SLOTS_MAX);
 		TestFalse(TEXT("is refused with the reason"), Page.Rows[0].Refusal.IsEmpty());
