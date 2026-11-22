@@ -13,6 +13,8 @@ Only the icons the loadout v2 screen uses (`/Game/UI/Icons/DA_UIIcon_Table`).
   The EULA forbids redistributing the source files.
 - **Folders here:**
   - `badges/`: the deckbuilder's UI library badges (`element_*`, `element_socket`, `tier_*`), built from the kit.
+    B-584 derived two kinds from those: `gem_loose_*` (the gem cut out of its badge) and `element_reality`
+    (the Void badge with its gem tinted). The same licence applies.
   - `icons/`: the deckbuilder's UI library effect icons (`effect_*`), built from the kit.
   - `weapons/`: kit originals from `ARTWORKS/UIicons/Colored/` (`13_Sword`, `00_Spear`, `14_Axe`, `15_Wand`,
     `16_hammer`, `19_Dagger`, `20_Bow`, `18_Carpal`).
