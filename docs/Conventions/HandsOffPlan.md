@@ -91,8 +91,42 @@ After the lock: milestone 2 (spells). Further weapon types come later, one at a 
 
 ## How an agent plays
 - Open the editor with `-saveddirsuffix=QA -ModelContextProtocolStartServer`: saves go to `Saved_QA/`, never Crown's. Stopping Play always writes the last-used slot, so never play-test without it.
-- Drive it with the Slate inspector tools (keys, screenshots). Esc ends PIE.
+- Start PIE in its own window (Play > New Editor Window): only that window can be resized.
+- Drive the game with the `WoRAgentPlayToolset` tools below (B-573), not the Slate inspector's `PressKey`: that one presses and releases in the same frame, which the game's keys never see. Esc ends PIE.
 - The brain checks each verdict against its screenshot. A check only partly seen is not a pass.
+
+### The play tools (`WoRAgentPlayToolset`, editor only)
+Ask unreal-mcp to describe the toolset for the exact argument spelling. Mouse points are pixels of `Screenshot`'s picture (the game alone, top left is 0,0). Key names are Unreal's: `Tab`, `SpaceBar`, `Enter`, `Escape`, `W`, `Left`, `Gamepad_FaceButton_Bottom`. Pad buttons work, sticks don't. Every input tool answers with what it sent, the real time in ms and the frame.
+
+| Tool | Worked example | What it does |
+|---|---|---|
+| `Screenshot` | `Screenshot()` | The game picture, to read and to take mouse points from |
+| `TapKey` | `TapKey(Key="Tab")` opens the game menu. `TapKey(Key="SpaceBar", HoldMs=600)` is a hold | Press, then release `HoldMs` later (50 by default), never in the same frame |
+| `KeyDown` / `KeyUp` | `KeyDown(Key="W")`, look, `KeyUp(Key="W")` | A key left down across calls |
+| `MoveMouse` | `MoveMouse(X=640, Y=360)` | Moves the real pointer onto that point of the game (hover) |
+| `Click` | `Click(X=1180, Y=64)` clicks the Loadout button. `Button="RightMouseButton"` for the right one | Move there, press, release |
+| `Wheel` | `Wheel(X=900, Y=500, Notches=-3)` scrolls the grid down three notches | Move there, turn the wheel |
+| `PlaySequence` | Perfect Guard: `Steps=[{AtMs:0, Action:"Screenshot"}, {AtMs:850, Action:"KeyTap", Key:"SpaceBar"}, {AtMs:900, Action:"Screenshot"}, {AtMs:1400, Action:"Screenshot"}]`, `ScreenshotDir="docs/PIE/qa/2026-11-23/guard"` | Inputs and screenshots at set times in one call, each sent on the first frame at or after its time. The game keeps running. PNGs are named `shot_step<step>_<ms>ms.png`; with no folder they go to `Intermediate/AgentPlay`. Actions: `KeyDown`, `KeyUp`, `KeyTap`, `MouseMove`, `MouseDown`, `MouseUp`, `MouseClick`, `MouseWheel`, `Screenshot`. Two minutes at most, one sequence at a time |
+| `SetWindowSize` | `SetWindowSize(Width=1280, Height=720)` | The game picture becomes that size (take a new screenshot after it) |
+| `RunConsoleCommand` | `RunConsoleCommand(Command="wor.Party.Print")` | Runs it in the game's world and returns what it printed and logged. The console is not opened and the keys stay where they were |
+| `GetState` | `GetState()` | PIE running or not, picture and window size, where keyboard focus and the mouse are, how much of a sequence is left |
+
+- **Timing a defence:** run a `PlaySequence` of screenshots only across the enemy's attack first, read the hit's time off them, then run it again with the key at that time. The answer's `AtMs` says when each input really went in.
+- **Keys go nowhere?** `GetState` shows where keyboard focus is. A key step gives focus to the game when it is outside it; a `Click` on the game does the same as a player's click.
+- **Debug text over the picture:** `RunConsoleCommand(Command="DisableAllScreenMessages")` hides the cyan debug lines before a screenshot that will be judged.
+
+### Test setup (console commands, hub only)
+| Command | Gives |
+|---|---|
+| `wor.Debug.GiveTestKit` | Everything below, found by kind, so no asset path is needed |
+| `wor.Debug.GiveTestKit apparel` | Apparel up to 60 pieces: with the weapons and adapters, a Gear grid past one screen |
+| `wor.Debug.GiveTestKit adapters` | Adapters until their room is full |
+| `wor.Debug.GiveTestKit evolution` | Two evolution items |
+| `wor.Debug.GiveTestKit skill` | Three learned abilities, the longest names first |
+| `wor.Debug.GiveTestKit member` | A second party member: the recruitable character in the level, else another character in the played one's body |
+| `wor.Debug.GiveTestKit weapons` | `wor.Debug.GiveTestWeapons` (12; the 20 weapon room is unchanged) |
+
+The answer has one line per part and says what was refused. Several parts can be named at once.
 
 ## Limits
 - An agent can't hear, and judges timing and feel poorly from screenshots. Those stay with Crown's checkpoints.

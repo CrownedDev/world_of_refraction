@@ -68,6 +68,7 @@ void FAgentPlayScheduleSpec::Define()
 		TestFalse(TEXT("a key step with no key"), WoRAgentPlaySchedule::Validate({Step(EWoRAgentPlayAction::KeyDown, 0)}, Picture).IsEmpty());
 		TestFalse(TEXT("a key as a mouse button"), WoRAgentPlaySchedule::Validate({Step(EWoRAgentPlayAction::MouseClick, 0, TEXT("Tab"), 5, 5)}, Picture).IsEmpty());
 		TestFalse(TEXT("a point off the picture"), WoRAgentPlaySchedule::Validate({Step(EWoRAgentPlayAction::MouseMove, 0, TEXT(""), 1280, 10)}, Picture).IsEmpty());
+		TestFalse(TEXT("a wheel turn off the picture"), WoRAgentPlaySchedule::Validate({Step(EWoRAgentPlayAction::MouseWheel, 0, TEXT(""), 10, 720)}, Picture).IsEmpty());
 		TestFalse(TEXT("a negative time"), WoRAgentPlaySchedule::Validate({Step(EWoRAgentPlayAction::Screenshot, -1)}, Picture).IsEmpty());
 		TestFalse(TEXT("past the longest run"), WoRAgentPlaySchedule::Validate({Step(EWoRAgentPlayAction::Screenshot, WoRAgentPlaySchedule::MAX_SEQUENCE_MS + 1)}, Picture).IsEmpty());
 		const TArray<FWoRAgentPlayStep> Good = {Step(EWoRAgentPlayAction::KeyTap, 0, TEXT("Tab")), Step(EWoRAgentPlayAction::MouseClick, 50, TEXT("RightMouseButton"), 1279, 719),
