@@ -87,7 +87,9 @@ struct FWoRAgentPlayGame
 /**
  * Plays World of Refraction in the running PIE game window as a player would: keys, mouse and wheel sent to the game
  * (through Enhanced Input and the menus), timed input sequences with screenshots, the window's size, and console
- * commands run in the game's world. Mouse points are pixels of the game's own screenshot.
+ * commands run in the game's world. Mouse points are pixels of the game's own screenshot. The agent has its own
+ * mouse pointer: the real one is never moved or read, and the editor keeps full speed in the background, until
+ * Release or the end of PIE.
  */
 UCLASS(BlueprintType, MinimalAPI)
 class UWoRAgentPlayToolset : public UToolsetDefinition
@@ -129,7 +131,8 @@ public:
 	static WORLD_OF_REFRACTIONEDITOR_API UWoRAgentPlayResult *KeyUp(const FString &Key);
 
 	/**
-	 * Moves the mouse pointer (the real one) to a point of the game picture.
+	 * Moves the agent's mouse pointer to a point of the game picture and leaves it there (hover). The real pointer
+	 * is not moved and can be anywhere.
 	 * @param X Pixels from the left of the game's screenshot.
 	 * @param Y Pixels from its top.
 	 */
@@ -178,8 +181,15 @@ public:
 	static WORLD_OF_REFRACTIONEDITOR_API FString RunConsoleCommand(const FString &Command);
 
 	/**
-	 * The tool's view of the game: whether PIE runs, the picture and window sizes, where keyboard focus and the
-	 * mouse are, and whether a sequence is still playing.
+	 * Gives the editor back to a person: stops a playing sequence, returns the mouse to the real pointer and puts the
+	 * editor's background throttle back as it was. Also happens when PIE stops. The next play tool takes it again.
+	 */
+	UFUNCTION(meta = (AICallable), Category = "WoRAgentPlay")
+	static WORLD_OF_REFRACTIONEDITOR_API void Release();
+
+	/**
+	 * The tool's view of the game: whether PIE runs, whether the agent holds the editor, the picture and window
+	 * sizes, where keyboard focus and the agent's mouse are, and whether a sequence is still playing.
 	 */
 	UFUNCTION(meta = (AICallable), Category = "WoRAgentPlay")
 	static WORLD_OF_REFRACTIONEDITOR_API FString GetState();
@@ -190,7 +200,7 @@ public:
 	/** Inputs and screenshots of the running sequence not yet sent; 0 when idle. */
 	static WORLD_OF_REFRACTIONEDITOR_API int32 GetPendingEventCount();
 
-	/** Stops the running sequence, failing its result with Why; nothing when idle. The module calls it when it unloads. */
+	/** Stops the running sequence, failing its result with Why; nothing when idle. */
 	static WORLD_OF_REFRACTIONEDITOR_API void CancelSequence(const FString &Why);
 
 private:

@@ -2,6 +2,7 @@
 
 #include "AgentPlay/AgentPlayToolset.h"
 #include "AgentPlay/AgentPlayDebug.h"
+#include "AgentPlay/AgentPlayHold.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
@@ -32,7 +33,8 @@ namespace
 	/** A console command's output is cut here so one print can't flood the caller. */
 	constexpr int32 MAX_CONSOLE_OUTPUT_CHARS = 20000;
 	constexpr int32 KEYBOARD_USER = 0;
-	constexpr int32 MOUSE_POINTER = 0;
+	/** The agent's first move comes from one pixel away, so the game sees a mouse that moved, as a player's does. */
+	const FVector2D FIRST_MOVE_DELTA(1.0, 0.0);
 
 	struct FAgentPlayRun
 	{
@@ -101,6 +103,8 @@ namespace
 		const FModifierKeysState NoModifiers;
 		const FVector2D Screen = FVector2D(Game.Viewport->GetTickSpaceGeometry().GetAbsolutePosition()) + FVector2D(Step.X, Step.Y);
 		const FString Name = GetActionName(Event.Action);
+		const int32 MouseUser = Slate.GetUserIndexForMouse();
+		const uint32 MousePointer = FSlateApplication::CursorPointerIndex;
 		switch (Event.Action)
 		{
 		case EWoRAgentPlayAction::KeyDown:
@@ -111,20 +115,28 @@ namespace
 			Slate.ProcessKeyUpEvent(FKeyEvent(Event.Key, NoModifiers, KEYBOARD_USER, false, 0, 0));
 			return FString::Printf(TEXT("%s %s"), *Name, *Event.Key.ToString());
 		case EWoRAgentPlayAction::MouseMove:
-			// Slate reads the real pointer every frame, so the real pointer is what moves.
+		{
+			if (!WoRAgentPlayHold::IsTaken())
+			{
+				return Name + TEXT(" skipped: the hold is released"); // without it the pointer moved would be the real one
+			}
+			// The agent's pointer (the hold's), as the mouse's own user and pointer: Slate's every-frame re-check of
+			// what is under the mouse then reads this point, not the real pointer.
+			const FVector2D From = WoRAgentPlayHold::IsPointerParked() ? Screen - FIRST_MOVE_DELTA : FVector2D(Slate.GetCursorPos());
 			Slate.SetCursorPos(Screen);
-			Slate.ProcessMouseMoveEvent(FPointerEvent(MOUSE_POINTER, Screen, Screen, GHeldMouseButtons, EKeys::Invalid, 0.0f, NoModifiers));
+			Slate.ProcessMouseMoveEvent(FPointerEvent(MouseUser, MousePointer, Screen, From, GHeldMouseButtons, EKeys::Invalid, 0.0f, NoModifiers));
 			return FString::Printf(TEXT("%s %d,%d"), *Name, Step.X, Step.Y);
+		}
 		case EWoRAgentPlayAction::MouseDown:
 			GHeldMouseButtons.Add(Event.Key);
-			Slate.ProcessMouseButtonDownEvent(Game.Window->GetNativeWindow(), FPointerEvent(MOUSE_POINTER, Screen, Screen, GHeldMouseButtons, Event.Key, 0.0f, NoModifiers));
+			Slate.ProcessMouseButtonDownEvent(Game.Window->GetNativeWindow(), FPointerEvent(MouseUser, MousePointer, Screen, Screen, GHeldMouseButtons, Event.Key, 0.0f, NoModifiers));
 			return FString::Printf(TEXT("%s %s %d,%d"), *Name, *Event.Key.ToString(), Step.X, Step.Y);
 		case EWoRAgentPlayAction::MouseUp:
 			GHeldMouseButtons.Remove(Event.Key);
-			Slate.ProcessMouseButtonUpEvent(FPointerEvent(MOUSE_POINTER, Screen, Screen, GHeldMouseButtons, Event.Key, 0.0f, NoModifiers));
+			Slate.ProcessMouseButtonUpEvent(FPointerEvent(MouseUser, MousePointer, Screen, Screen, GHeldMouseButtons, Event.Key, 0.0f, NoModifiers));
 			return FString::Printf(TEXT("%s %s %d,%d"), *Name, *Event.Key.ToString(), Step.X, Step.Y);
 		case EWoRAgentPlayAction::MouseWheel:
-			Slate.ProcessMouseWheelOrGestureEvent(FPointerEvent(MOUSE_POINTER, Screen, Screen, GHeldMouseButtons, EKeys::MouseWheelAxis, Step.Wheel, NoModifiers), nullptr);
+			Slate.ProcessMouseWheelOrGestureEvent(FPointerEvent(MouseUser, MousePointer, Screen, Screen, GHeldMouseButtons, EKeys::MouseWheelAxis, Step.Wheel, NoModifiers), nullptr);
 			return FString::Printf(TEXT("%s %.1f at %d,%d"), *Name, Step.Wheel, Step.X, Step.Y);
 		default:
 			return Name;
@@ -287,6 +299,7 @@ UWoRAgentPlayResult *UWoRAgentPlayToolset::Play(const TArray<FWoRAgentPlayStep> 
 		return Result;
 	}
 
+	WoRAgentPlayHold::Take();
 	GRun = MakeUnique<FAgentPlayRun>();
 	GRun->Steps = Steps;
 	GRun->Events = WoRAgentPlaySchedule::BuildEvents(Steps);
@@ -352,12 +365,20 @@ FToolsetImage UWoRAgentPlayToolset::Screenshot()
 	if (!FindGame(Game, Why))
 	{
 		UKismetSystemLibrary::RaiseScriptError(Why);
+		return Image;
 	}
-	else if (!CapturePicture(Game, Colors, Size) || !Image.SetFromBitmap(Colors, Size))
+	WoRAgentPlayHold::Take(); // from the first look on, the game runs at full speed in the background
+	if (!CapturePicture(Game, Colors, Size) || !Image.SetFromBitmap(Colors, Size))
 	{
 		UKismetSystemLibrary::RaiseScriptError(TEXT("the screenshot could not be taken"));
 	}
 	return Image;
+}
+
+void UWoRAgentPlayToolset::Release()
+{
+	CancelSequence(TEXT("the hold was released"));
+	WoRAgentPlayHold::Release();
 }
 
 void UWoRAgentPlayToolset::SetWindowSize(int32 Width, int32 Height)
@@ -379,6 +400,7 @@ void UWoRAgentPlayToolset::SetWindowSize(int32 Width, int32 Height)
 		UKismetSystemLibrary::RaiseScriptError(TEXT("PIE runs inside the level editor: start it in its own window (Play > New Editor Window) to resize it"));
 		return;
 	}
+	WoRAgentPlayHold::Take();
 	// The window keeps whatever it draws around the game picture (its title bar).
 	const FVector2D Around = FVector2D(Game.Window->GetClientSizeInScreen()) - FVector2D(Game.Viewport->GetTickSpaceGeometry().GetAbsoluteSize());
 	Game.Window->Resize(FVector2D(Width, Height) + Around);
@@ -394,6 +416,7 @@ FString UWoRAgentPlayToolset::RunConsoleCommand(const FString &Command)
 		UKismetSystemLibrary::RaiseScriptError(Why);
 		return FString();
 	}
+	WoRAgentPlayHold::Take();
 	FStringOutputDevice Output;
 	Output.SetAutoEmitLineTerminator(true);
 	GLog->AddOutputDevice(&Output); // most wor. commands answer in the log, not in the command's own output

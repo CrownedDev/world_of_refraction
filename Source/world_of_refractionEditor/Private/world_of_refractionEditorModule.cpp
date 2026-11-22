@@ -16,7 +16,7 @@ class FWorldOfRefractionEditorModule : public IModuleInterface
 	{
 		if (UObjectInitialized())
 		{
-			UWoRAgentPlayToolset::CancelSequence(TEXT("the editor module unloaded"));
+			UWoRAgentPlayToolset::Release(); // a playing sequence stops, the real pointer and the throttle come back
 			UToolsetRegistry::UnregisterToolsetClass(UWoRAgentPlayToolset::StaticClass());
 		}
 	}
