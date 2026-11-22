@@ -237,6 +237,13 @@ namespace EconomyYield
         return GetPrismsBaseForTier(ProducedTier) / 2;
     }
 
+    /** B-579 (D-253, Q-579): what one potion costs, in Prisms and nothing else: a share of a tier F crystal's Prisms
+     *  price, so it is always under a tier F Sapphire or Citrine (which also cost essence). */
+    inline int32 GetPotionPrisms()
+    {
+        return FMath::Max(1, GetPrismsBaseForTier(EItemTier::F_Tier) / ItemConstants::POTION_PRICE_DIVISOR);
+    }
+
     /** Crystal MERGE value in F-units (§4.5). Same-Type crystals sum (lowest-first) to a target
      *  tier's value to produce 1 of it. Doubling F..A, then S = 3xA (the 3:1 final step). */
     inline int32 GetCrystalValue(EItemTier Tier)

@@ -122,6 +122,7 @@ private:
     friend class FAIActionPipsSpec;
     friend class FInfusionSameElementStackSpec; // B-435b: the AI prices the stack
     friend class FHealingStoneSpec;             // B-577: the low-HP heal search does not find the stone
+    friend class FPotionsSpec;                  // B-579: it finds the Health Potion
     friend class USpellDataDebug; // B-356b: the school-vs-effects audit reads IsOffensiveSpell / IsHealingSpell
 
     // ==================== ACTION PIPS (B-170f, ActionPips.md §3.6) ====================
