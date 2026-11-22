@@ -143,6 +143,7 @@ Ask unreal-mcp to describe the toolset for the exact argument spelling. Mouse po
 | `wor.Debug.GiveTestKit evolution` | Two evolution items |
 | `wor.Debug.GiveTestKit skill` | Three learned abilities, the longest names first |
 | `wor.Debug.GiveTestKit member` | A second party member: the recruitable character in the level, else another character in the played one's body |
+| `wor.Debug.GiveTestKit potions` | 5 Health Potions and 5 Energy Potions carried (B-579; no merchant stocks them until its asset gets the rows) |
 | `wor.Debug.GiveTestKit weapons` | `wor.Debug.GiveTestWeapons` (12 more each call; there is no weapon room since D-250) |
 
 The answer has one line per part and says what was refused. Several parts can be named at once.
