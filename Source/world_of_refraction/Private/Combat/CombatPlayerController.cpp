@@ -588,8 +588,8 @@ void ACombatPlayerController::BuildMenuKeys()
 			InfusionLevelAction = Action;
 			break;
 		default:
-			// B-391: the main-menu category keys share one handler.
-			check(CommandMenuRules::IsMainMenuKey(Binding.Category));
+			// B-391: the main-menu category keys share one handler; B-436g: Back too, so like them the new HUD only.
+			check(Binding.Category == EPieMenuCategory::Back || CommandMenuRules::IsMainMenuKey(Binding.Category));
 			CategoryKeyActions.Add(Action);
 			CategoryKeyCategories.Add(Binding.Category);
 			break;
@@ -688,16 +688,19 @@ FString ACombatPlayerController::GetMenuKeysString()
 const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 {
 	// Q-093 / Q-391: fixed keys for now (D-063); each action name unique so rebinding can come later. Every row is in
-	// docs/Design/InputMap.md. The category keys (B-391) work on the main menu only: face buttons for the four act
-	// categories (Y stays Defend), the d-pad for the rest; B is Back everywhere else.
+	// docs/Design/InputMap.md. B-436g (D-258): A Attack, X Skills, Y Items; B is Back everywhere. RB is Defend on the
+	// main menu and the infusion level in a target picker: two actions on one button, and the menu's depth lets only
+	// one of them act.
 	static const TArray<FCombatMenuKey> Keys = {
-		{TEXT("IA_Combat_MenuDefend"), EPieMenuCategory::Defend, EKeys::G, EKeys::Gamepad_FaceButton_Top},
+		{TEXT("IA_Combat_MenuDefend"), EPieMenuCategory::Defend, EKeys::G, EKeys::Gamepad_RightShoulder},
 		{TEXT("IA_Combat_MenuInfusionSource"), EPieMenuCategory::CycleSource, EKeys::R, EKeys::Gamepad_LeftShoulder},
 		{TEXT("IA_Combat_MenuInfusionLevel"), EPieMenuCategory::CycleLevel, EKeys::T, EKeys::Gamepad_RightShoulder},
 		{TEXT("IA_Combat_MenuAttack"), EPieMenuCategory::Attack, EKeys::One, EKeys::Gamepad_FaceButton_Bottom},
-		{TEXT("IA_Combat_MenuSkills"), EPieMenuCategory::Abilities, EKeys::Two, EKeys::Gamepad_FaceButton_Left},
-		{TEXT("IA_Combat_MenuSpells"), EPieMenuCategory::Refractions, EKeys::Three, EKeys::Gamepad_FaceButton_Right},
-		{TEXT("IA_Combat_MenuItems"), EPieMenuCategory::Items, EKeys::Four, EKeys::Gamepad_DPad_Up},
+		{TEXT("IA_Combat_MenuSkills"), EPieMenuCategory::Skills, EKeys::Two, EKeys::Gamepad_FaceButton_Left},
+		{TEXT("IA_Combat_MenuItems"), EPieMenuCategory::Items, EKeys::Three, EKeys::Gamepad_FaceButton_Top},
+		// Backspace is the key the hints name (B-481); Esc is the second, its own action as a row takes one key.
+		{TEXT("IA_Combat_MenuBack"), EPieMenuCategory::Back, EKeys::BackSpace, EKeys::Gamepad_FaceButton_Right},
+		{TEXT("IA_Combat_MenuBackEscape"), EPieMenuCategory::Back, EKeys::Escape, EKeys::Invalid},
 		{TEXT("IA_Combat_MenuFlee"), EPieMenuCategory::Flee, EKeys::Five, EKeys::Gamepad_DPad_Down},
 		// B-474 (D-207): Switch Weapon moved from D-pad Left to L3 (D-pad Left is free).
 		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_LeftThumbstick},

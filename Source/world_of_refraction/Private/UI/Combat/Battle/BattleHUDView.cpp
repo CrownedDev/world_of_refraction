@@ -247,7 +247,10 @@ TArray<int32> BattleHUDView::AssignMenuKeys(const TArray<EPieMenuCategory> &Cate
 			const bool bRowEnabled = Enabled.IsValidIndex(Row) && Enabled[Row];
 			if (bRowEnabled && CommandMenuRules::KeyPressesButton(KeyCategory, Categories[Row]))
 			{
-				KeyForRow[Row] = KeyIndex;
+				if (KeyForRow[Row] == INDEX_NONE) // B-436g: two keys for one row (Back: Backspace, Esc): the first one shows
+				{
+					KeyForRow[Row] = KeyIndex;
+				}
 				break;
 			}
 		}

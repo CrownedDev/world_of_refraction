@@ -1383,6 +1383,22 @@ The queue of questions only Crown can answer.
 **Reference:** a party panel that holds still on the enemy's turn is the usual way in turn-based fights (Persona 5's party column and Final Fantasy X's party list do not move when an enemy acts). From memory, not looked up. The deckbuilder has no party row.
 **Built:** B-436a.
 
+### Q-436g — The command menu's small points: greyed rows, Back, what a row shows, the frame's width (D-258, D-260, built in B-436g)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-436g, from building it) · **Blocks:** nothing
+**Question:** D-258 and D-260 (and the two pictures) set the menu. Building it left small points they don't settle.
+**Answer (defaults):**
+1. **A row that can't be used stays in its place, greyed, with its reason under the name** ("No items to use.", "Needs 3 actions."), so Attack, Skills and Items never move.
+2. **Back goes one step** (a skill list to its kinds, the kinds to the main menu, a target screen to where it came from) **and is a corner hint, not a row.** It does nothing on the main menu. On the keyboard Backspace and Esc both work; the hint shows Backspace.
+3. **Only a greyed row shows a description.** The kinds show no counts (D-260), the schools no "N spells", and the ring's break-chance line and Defend's "ends your turn" are no longer on screen (Defend and End Turn are hints).
+4. **The frame is the full card's width as it is today** (`BattleCardStyle`, also the hub's and trial's card). The pictures draw the card bigger; that is the card's own piece (B-436b), and the frame follows it. Names wrap rather than overflow.
+5. **The keys use the gamepad's letters** (A, B, X, Y, LB, RB, D-pad): the pictures' "R1" is RB. Only the device in use shows, switching live.
+6. **The infusion controls stay small clickable rows at the foot of the target list,** with their keys ("Infusion: Weapon crystal Lv 1"), as picture 12. They become the tab rows in B-436j / B-436k.
+7. **A row turns violet under the mouse and for the highlighted target.** There is no keyboard cursor on the rows yet (the rows take no focus, Q-391).
+8. **Names are white;** the schools' colours on their names are dropped, as the pictures.
+9. **Items 4 and D-pad up are free** now that Items is 3 / Y (InputMap).
+**Reference:** Persona 5 and Final Fantasy X keep an unusable command in its place, greyed, and Expedition 33 shows each skill's cost beside it; a back button that steps one list at a time is the norm in both. From memory, not looked up. The deckbuilder has no command menu.
+**Built:** B-436g.
+
 ### D-253 — Potions; death takes buffs and debuffs; the Healing Stone counts in a Sapphire revival
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown, answering Q-577 and the Sapphire question) · **Blocks:** B-577, B-579, B-580
 **Answer (Crown):** "okay lets add potions and enegy potions which will be less powerfull then sapphire and citrine crystals also healing stone can only be used on alive as when you die you loose buffs and debuffs while healingstone ffect is included with sappire revival you still loose all buffs and debuffs including the healing stone one"

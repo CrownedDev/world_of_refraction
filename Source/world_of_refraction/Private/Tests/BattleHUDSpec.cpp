@@ -160,7 +160,8 @@ void FBattleHUDSpec::Define()
 		{
 			const FBattleCardParts Party = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/true);
 			TestTrue(TEXT("a party card has every part"), Party.bHPBar && Party.bHPLine && Party.bEPLine && Party.bBuildupBar &&
-															  Party.bBuildupLine && Party.bGear && Party.bActions && Party.bStatus);
+															  Party.bBuildupLine && Party.bGear && Party.bStatus);
+			TestFalse(TEXT("but no action pips: they are on the command menu's tab (D-260)"), Party.bActions);
 			const FBattleCardParts Enemy = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/false);
 			TestTrue(TEXT("an enemy: the bars and statuses"), Enemy.bHPBar && Enemy.bBuildupBar && Enemy.bStatus);
 			TestFalse(TEXT("an enemy: no numbers, gear or actions"), Enemy.bHPLine || Enemy.bEPLine || Enemy.bBuildupLine || Enemy.bGear || Enemy.bActions);
@@ -209,12 +210,13 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("compact: the build-up number stays on its bar (D-257)"),
 					 Card.BuildupText && Card.BuildupText->GetVisibility() != ESlateVisibility::Collapsed &&
 						 Card.BuildupText->GetParent() && Card.BuildupText->GetParent() == Card.BuildupBar->GetParent());
-			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get(), Card.ActionsText.Get(), Card.StatusText.Get()};
+			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get(), Card.StatusText.Get()};
 			for (const UWidget *Hidden : HiddenWhenCompact)
 			{
-				TestTrue(TEXT("compact: the kind, EP, actions and statuses are collapsed"),
+				TestTrue(TEXT("compact: the kind, EP and statuses are collapsed"),
 						 Hidden && Hidden->GetVisibility() == ESlateVisibility::Collapsed);
 			}
+			TestNull(TEXT("no actions line on a fight card at all: the pips are on the menu's tab (D-260)"), Card.ActionsText.Get());
 
 			BattleHUDCard::SetCompact(Card, false);
 			TestEqual(TEXT("full: the card's width"), Card.WidthBox->GetWidthOverride(), BattleCardStyle::CardWidth);
@@ -397,22 +399,27 @@ void FBattleHUDSpec::Define()
 
 		It("gives each menu key to the row it presses, as PressMenuKey does", [this]()
 		{
-			const TArray<EPieMenuCategory> Rows = {EPieMenuCategory::Attack, EPieMenuCategory::Abilities, EPieMenuCategory::ResonateWeapon,
-												   EPieMenuCategory::Items, EPieMenuCategory::Defend};
+			// B-436g (D-258): the main menu is Attack, Skills, Items, then the corner hints; Back is a key past it.
+			const TArray<EPieMenuCategory> Rows = {EPieMenuCategory::Attack, EPieMenuCategory::Skills, EPieMenuCategory::Items,
+												   EPieMenuCategory::Defend, EPieMenuCategory::Back};
 			const TArray<FCombatMenuKey> &Keys = ACombatPlayerController::GetMenuKeys();
 			const auto KeyCategory = [&Keys](int32 KeyIndex)
 			{ return Keys.IsValidIndex(KeyIndex) ? Keys[KeyIndex].Category : EPieMenuCategory::None; };
 
-			const TArray<int32> Main = BattleHUDView::AssignMenuKeys(Rows, {true, true, true, false, true}, /*bAtMainMenu=*/true);
+			const TArray<int32> Main = BattleHUDView::AssignMenuKeys(Rows, {true, true, false, true, true}, /*bAtMainMenu=*/true);
 			TestTrue(TEXT("Attack row: Attack key"), KeyCategory(Main[0]) == EPieMenuCategory::Attack);
-			TestTrue(TEXT("Abilities row: Skills key"), KeyCategory(Main[1]) == EPieMenuCategory::Abilities);
-			TestEqual(TEXT("the weapon resonance after it: no key (Skills presses Abilities)"), Main[2], INDEX_NONE);
-			TestEqual(TEXT("greyed Items row: no key"), Main[3], INDEX_NONE);
-			TestTrue(TEXT("Defend row: Defend key"), KeyCategory(Main[4]) == EPieMenuCategory::Defend);
+			TestTrue(TEXT("Skills row: Skills key"), KeyCategory(Main[1]) == EPieMenuCategory::Skills);
+			TestEqual(TEXT("greyed Items row: no key"), Main[2], INDEX_NONE);
+			TestTrue(TEXT("Defend row: Defend key"), KeyCategory(Main[3]) == EPieMenuCategory::Defend);
 
 			const TArray<int32> Sub = BattleHUDView::AssignMenuKeys(Rows, {true, true, true, true, true}, /*bAtMainMenu=*/false);
 			TestEqual(TEXT("off the main menu: no Attack key"), Sub[0], INDEX_NONE);
-			TestEqual(TEXT("off the main menu: no Items key"), Sub[3], INDEX_NONE);
+			TestEqual(TEXT("off the main menu: no Items key"), Sub[2], INDEX_NONE);
+			TestEqual(TEXT("off the main menu: no Defend key (D-258c: RB is the infusion level there)"), Sub[3], INDEX_NONE);
+			if (TestTrue(TEXT("Back row: a Back key"), Keys.IsValidIndex(Sub[4]) && KeyCategory(Sub[4]) == EPieMenuCategory::Back))
+			{
+				TestTrue(TEXT("the first Back key shows: Backspace, not Esc"), Keys[Sub[4]].Keyboard == EKeys::BackSpace);
+			}
 		});
 	});
 
@@ -504,7 +511,7 @@ void FBattleHUDSpec::Define()
 							 ActionPipsText::MakeActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(), PlayerComp->GetActionPointProgress(),
 															 PlayerComp->SkillsUsedThisTurn).ToString()));
 				TestTrue(TEXT("and warns that bonus actions are lost at turn end"), HUD->GetStatusPanelText().ToString().Contains(TEXT("lost at turn end")));
-				TestEqual(TEXT("the card draws the bonus as ◆ pips, with no warning text (D-259)"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString(),
+				TestEqual(TEXT("the short line has the bonus as ◆ pips, with no warning text (D-259; drawn on the menu's tab since D-260)"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString(),
 						  ActionPipsText::MakeCardActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(), PlayerComp->SkillsUsedThisTurn).ToString());
 				TestTrue(TEXT("a ◆ on the card"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString().Contains(TEXT("◆")));
 			}
@@ -751,8 +758,8 @@ void FBattleHUDSpec::Define()
 				return;
 			}
 			MenuWidget->Initialise(); // replays the open menu
-			TestTrue(TEXT("showing Hero's menu"), MenuWidget->IsShowing() &&
-													  MenuWidget->GetTitle().ToString().Contains(BattleHUDView::GetCombatantName(Hero).ToString()));
+			// D-260: no "Your turn" title; the header is empty on the main menu.
+			TestTrue(TEXT("showing Hero's menu, with no title on the main menu"), MenuWidget->IsShowing() && MenuWidget->GetTitle().IsEmpty());
 			const int32 DefendRow = FindLabel(MenuWidget->GetRowLabels(), TEXT("Defend"));
 			if (!TestTrue(TEXT("a Defend row"), DefendRow != INDEX_NONE))
 			{
@@ -766,9 +773,61 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("the widget shows the menu exactly while it is open"), MenuWidget->IsShowing() == Menu->IsOpen());
 			if (Menu->IsOpen() && Menu->GetCurrentActor())
 			{
-				TestTrue(TEXT("titled for whoever the menu is open for"),
-						 MenuWidget->GetTitle().ToString().Contains(BattleHUDView::GetCombatantName(Menu->GetCurrentActor()).ToString()));
+				TestTrue(TEXT("the header follows the menu (D-260)"), MenuWidget->GetTitle().EqualTo(Menu->GetViewTitle()));
 			}
+			MenuWidget->Teardown();
+		});
+
+		It("draws the menu as one frame: the Act tab, Attack / Skills / Items, the rest as corner hints (B-436g, D-258, D-260)", [this]()
+		{
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+			if (!TestNotNull(TEXT("command menu widget"), MenuWidget) || !TestNotNull(TEXT("Hero data"), HeroData))
+			{
+				return;
+			}
+			MenuWidget->Initialise();
+			TestEqual(TEXT("the tab is Hero's short actions line (D-259 rules)"), MenuWidget->GetActionsLine().ToString(),
+					  ActionPipsText::MakeCardActionsLine(HeroData->CurrentActions, HeroData->GetMaxActions(), HeroData->SkillsUsedThisTurn).ToString());
+
+			const TArray<FText> &Labels = MenuWidget->GetRowLabels();
+			TArray<FString> HintLabels;
+			for (const FBattleMenuHint &Hint : MenuWidget->GetHints())
+			{
+				HintLabels.Add(Hint.Label.ToString());
+				TestTrue(TEXT("a hint presses a real row"), Labels.IsValidIndex(Hint.RowIndex));
+				TestEqual(TEXT("a hint with a key carries the key, drawn as the rows' cap (B-436g QA)"), Hint.KeyId.IsValid(), !Hint.Key.IsEmpty());
+			}
+			TestTrue(TEXT("Defend is a corner hint"), HintLabels.ContainsByPredicate([](const FString &Label) { return Label.Contains(TEXT("Defend")); }));
+			TestFalse(TEXT("Attack is a frame row, not a hint"), HintLabels.ContainsByPredicate([](const FString &Label) { return Label.Contains(TEXT("Attack")); }));
+			TestTrue(TEXT("main menu: the three frame rows"), !UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::Attack, true) &&
+																 !UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::Skills, true) &&
+																 !UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::Items, true));
+			TestTrue(TEXT("main menu: Flee, End Turn and the steps are hints"), UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::Flee, true) &&
+																				UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::EndTurn, true) &&
+																				UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::MoveRow, true));
+			TestTrue(TEXT("past it only Back is a hint"), UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::Back, false) &&
+															  !UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::Target, false) &&
+															  !UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory::Item, false));
+
+			FPieMenuButtonData Attack;
+			Attack.Category = EPieMenuCategory::Attack;
+			Menu->HandleSelection(Attack); // the target picker
+			TestFalse(TEXT("the target screen has a header"), MenuWidget->GetTitle().IsEmpty());
+			const int32 BackRow = FindLabel(MenuWidget->GetRowLabels(), TEXT("Back"));
+			if (TestTrue(TEXT("Back is there"), BackRow != INDEX_NONE))
+			{
+				TestTrue(TEXT("with its key (Backspace headless, D-258)"), MenuWidget->GetRowLabels()[BackRow].ToString().StartsWith(TEXT("[")));
+				TestTrue(TEXT("as the one corner hint"), MenuWidget->GetHints().Num() == 1 && MenuWidget->GetHints()[0].RowIndex == BackRow);
+				MenuWidget->PressRow(BackRow);
+				TestTrue(TEXT("Back goes to the main menu"), Menu->IsAtMainMenu() && MenuWidget->GetTitle().IsEmpty());
+			}
+			TestTrue(TEXT("wor.UI.Print shows the tab and the hints"), MenuWidget->GetCommandMenuString().Contains(TEXT("tab=")) &&
+																		   MenuWidget->GetCommandMenuString().Contains(TEXT(" hint ")));
 			MenuWidget->Teardown();
 		});
 

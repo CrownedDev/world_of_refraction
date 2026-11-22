@@ -3,8 +3,9 @@
 // today's systems. One full-screen widget added straight to the viewport by UCombatHUD (wor.UI.NewHUD 1):
 // - party cards along the bottom from the left (B-436a, D-254): the featured card (the party member acting, else the
 //   last one that acted, else the first) is full: name, HP bar and "HP x / y", "EP x / y" (hidden for a Resonator with
-//   no EP use), "Act: ●●○", status chips; the others sit in a row to its right as compact cards (name, HP bar,
-//   build-up bar). The command menu stacks above the featured card (GetCommandMenuOffset). D-254 (B-581): no Spirit /
+//   no EP use), status chips; the others sit in a row to its right as compact cards (name, HP bar, build-up bar).
+//   B-436g (D-260): the command menu stacks just above the featured card in one bottom-left column (SetCommandMenu), its
+//   corner hints bottom right; the "Act ●●○" pips moved from the card to the menu's tab. D-254 (B-581): no Spirit /
 //   Body lines on a card; a click on a party card inspects it in the status panel (InspectCard);
 // - turn order top-right: the current actor, then the next turns (bonus turns marked);
 // - enemy cards under the turn order: name, HP bar (no numbers, Q-391), status chips;
@@ -38,6 +39,7 @@
 #include "UI/Combat/Battle/DamageNumberView.h" // FCombatHitShown: UFUNCTION handler parameter type
 #include "BattleHUDWidget.generated.h"
 
+class UBattleCommandMenuWidget;
 class UBorder;
 class UCombatPresentationComponent;
 class UButton;
@@ -120,8 +122,14 @@ public:
 	 *  INDEX_NONE with no party card. */
 	int32 GetFeaturedCardIndex() const;
 
-	/** B-436a: where UCombatHUD puts the command menu, from the bottom-left corner: just above the featured card. */
+	/** B-436a: where UCombatHUD puts the command menu, from the bottom-left corner: just above the featured card.
+	 *  OBSOLETE (B-436g): the menu sits in the HUD's party column now (SetCommandMenu); used only when no HUD is built.
+	 *  Kept until PIE (docs/PIE/Sweep.md). */
 	static FVector2D GetCommandMenuOffset();
+
+	/** B-436g (D-260): stack Menu just above the featured card, its frame as wide as the card, with its corner hints at
+	 *  the bottom right. Call before AddToViewport (the column is built once in RebuildWidget). */
+	void SetCommandMenu(UBattleCommandMenuWidget *Menu);
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -130,8 +138,9 @@ protected:
 
 private:
 	void AddCard(AActor *Actor, bool bParty);
-	/** B-436a: the featured card full at the bottom-left corner, the others compact in a row to its right. Moves canvas
-	 *  slots and shows or hides lines only: nothing is re-parented or recreated (TransBuffer rule). */
+	/** B-436a: the featured card full at the bottom-left corner, the others compact in a row to its right. B-436g: the
+	 *  cards share one overlay under the menu; this sets each one's left padding and shows or hides lines only: nothing is
+	 *  re-parented or recreated (TransBuffer rule). */
 	void LayoutPartyCards();
 
 	void RefreshPools();
@@ -231,4 +240,8 @@ private:
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> StatusPanelBody;
+
+	/** B-436g: the command menu in the party column (UCombatHUD made it). */
+	UPROPERTY()
+	TObjectPtr<UBattleCommandMenuWidget> CommandMenu;
 };

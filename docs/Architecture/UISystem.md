@@ -51,6 +51,20 @@ This doc covers three current widgets:
   B-391c: under the title, the old `UDurabilityHeaderWidget`'s line ("AD x / y", "WD x / y";
   `BattleHUDView::ReadDurability` / `MakeDurabilityLines`), refreshed per menu open and on `UCrystalManager`'s
   `OnCrystalDurabilityChanged` / `OnCrystalBroken` for the acting character.
+  **B-436g (D-258, D-260, Q-436g; `refine_final/11_menu_frame.png`, `12_menu_frame_submenus.png`):** one frame
+  exactly the full party card's width (`BattleCardStyle`), stacked just above the featured card: `UCombatHUD` makes the
+  menu first and hands it to `UBattleHUDWidget::SetCommandMenu`, whose bottom-left column holds the menu and one overlay
+  of party cards (each card's left padding set by `LayoutPartyCards`), so the gap follows the card's real height. On
+  the frame's top edge an "Act: ●●○" tab at every depth (`ActionPipsText::MakeCardActionsLine` for the menu's actor;
+  `RefreshActionsLine`, which the HUD calls on its pool events); past the main menu a header
+  (`UCombatCommandMenuSubsystem::GetViewTitle`); no "Your turn" title. Rows: the key of the device in use (a face
+  button as a coloured ring; `UCommonInputSubsystem::OnInputMethodChangedNative` switches it live), an icon, the name
+  (wraps), an item's "x2" (`FPieMenuButtonData::Quantity`), the cost as pips at the right past the main menu
+  (`ActionCost`), and a greyed row's reason under its name; only a greyed row shows a description. The highlighted
+  target's row is violet (`OnTargetHighlighted`). Infusion rows are small rows at the foot of a target list. The
+  main menu's buttons other than Attack, Skills and Items, and Back past it, are corner hints
+  (`UBattleCommandMenuWidget::IsCornerHint`) in `UBattleMenuHintsWidget`, bottom right on the HUD's canvas; a click
+  presses the row. `wor.UI.Print` prints the tab, header, rows (hints marked) and costs.
 - the native `UDefensePromptWidget`.
 At 0 it builds the old WBP panels, strip and menu described below (the fallback until Crown's PIE pass).
 The main-menu category keys (Attack, Skills, Spells, Items, Flee, switches; Q-391) press their button through
@@ -61,7 +75,9 @@ character's `OnActionsChanged` and refreshed at turn start; the subsystem adds a
 (`EPieMenuCategory::EndTurn` → `EActionType::EndTurn` through `SubmitConfirmedAction`, main menu only; no key yet,
 Crown 2026-11-12; hidden when the player sets `wor.UI.HideEndTurn 1`, `ActionPipsText::ShouldShowEndTurnButton`) and `ShowActionCost` labels every Attack / ability / spell / item button with its cost
 and greys it with `ActionPipsText::GetCostRefusedReason`. Both HUDs draw the subsystem's buttons; only the new one has
-the pips line.
+the pips line. B-436g (D-260): the pips line is the command menu's tab, not the card's (`FBattleCardParts::bActions`
+is off; the card's `ActionsLine` stays as data for `wor.UI.Print`); the cost is data (`ActionCost`), drawn as pips by
+the new menu and as "(2 actions)" by the old one.
 
 **Not covered here:** the hub shop UI (`UShopWindowWidget` /
 `UShopRowWidget` and their `WBP_ShopWindow` / `WBP_StockRow` / `WBP_CartRow`
@@ -428,9 +444,13 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
 - **Inspect (B-581):** mouse only (a pad route comes with B-436h); the panel takes no clicks, so it closes on the
   same card or the Status button, not on a click elsewhere; enemy cards are not inspected.
 - **Party row (B-436a):** a compact card shows no status chips, EP or actions; an idle party member's statuses are
-  in the Statuses panel or its inspect (B-581). The gap between the command menu and the featured card is a fixed height
-  (`FeaturedCardReserve` in `BattleHUDWidget.cpp`), not the card's measured height: a card with many wrapped status
-  lines can reach the menu. The cards keep the placeholder sizes, about half the mockup's (the look is B-436b on).
+  in the Statuses panel or its inspect (B-581). The cards keep the placeholder sizes, about half the mockup's (the look
+  is B-436b on). B-436g fixed the menu's fixed gap: the menu now stacks on the card's real height.
+- **Command menu (B-436g):** no keyboard or pad cursor on the rows (they take no focus; a list is picked by click,
+  Q-391); the frame follows today's card width, so it is narrower than the pictures until B-436b sizes the card; the
+  key caps' face colours repeat `WoRKeyHintText.cpp`'s; a row's cut corner is drawn rounded; the rows scroll past
+  `MaxListHeight` with no scroll bar. `GetCommandMenuOffset`, `FeaturedCardReserve`, the old viewport placement and
+  the card's `ActionsText` are OBSOLETE (Sweep).
 - **Buildup bar (B-391c):** it cracks (Q-111 A) but doesn't shatter or show shards during a break yet (art pass).
   Its seed at Initialise has no attacker, so a bar part-filled by Broken Darkness before the HUD exists shows the
   plain element colour until the next hit. Gear and the durability header follow server-side loadout and crystal
@@ -610,3 +630,5 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
 | 2026-11-22 | B-584 (D-256): the silver frame means slotted. `EWoRIconKind::LooseGem` and `UWoRIconTable::LooseGems` for a crystal or evolution in no socket (inventory, vendor, loadout pickers and spare lists); Reality gets a badge | feature/B-584-loose-gem-icons |
 | 2026-11-22 | B-585 (D-257): the fight card's build-up bar is as tall as its HP bar, with `current/max` on it for party cards (small ones too) and no label or line under it (replaces B-503m's label); in the loadout a piece's own icon leads its name and a filled slot row has no slot word | fix/B-585-status-bar-and-slot-rows |
 | 2026-11-22 | B-581 (D-254): card text and inspect. The battle, hub and trial cards no longer get the Spirit of ... / Body of ... lines (`UBattleHUDWidget::AddCard`, `WoRHubHUD::BuildPartyStrip`; `FBattleHUDCard::DetailLine` stays empty), and the game menu's party list reads the element and class for everyone (`WoRPauseMenu::GetClassLine`). The Character sheet keeps both lines through the row's new `SheetLine` (`GetSheetLine`); the title slot and `GetMemberListName` are unchanged. The fight card's actions line is `ActionPipsText::MakeCardActionsLine` (D-259: pips and no numbers, "Act: ●●○", one ◆ per action above Max, "Act: 9/3" past `MAX_PIPS_SHOWN`, "· Skills 2/3"). A left click on a party card (`UBorder::OnMouseButtonDownEvent`, one handler, the card under the pointer) calls `UBattleHUDWidget::InspectCard`: the status panel for that character alone, with what left the card (`BuildInspectText`); `ToggleAllStatuses` is the Status button. `wor.UI.Print` says who is inspected. Specs `WoR.UI.BattleHUD`, `WoR.Combat.ActionPipsText`, `WoR.UI.HubHUD`, `WoR.UI.PauseMenu`. | `feature/B-581-card-text-inspect` |
+| 2026-11-22 | B-436g (D-258, D-260, Q-436g; piece 5 of `Design/BattleHUDRefinePlan.md`): the command menu as one frame the full card's width, stacked just above the featured card (`UBattleHUDWidget::SetCommandMenu`: a bottom-left column of the menu and one overlay of party cards; `UCombatHUD` makes the menu first), with an "Act" tab (`RefreshActionsLine`), a header from `GetViewTitle`, big rows (device key as a ring or cap, icon, name, "x2", cost pips past the main menu, a greyed row's reason) and the highlighted target's row in violet. Main-menu buttons other than Attack, Skills and Items, and Back past it, are clickable corner hints (`UBattleMenuHintsWidget`, `IsCornerHint`). The subsystem: one Skills button (straight in with one kind, else the kinds by name), Back one step everywhere past the main menu (`PressMenuKey(Back)`), Defend a main-menu key, `ActionCost` / `Quantity` / item icons as button data. Keys: Items 3 / Y, Defend RB, Back Backspace or Esc / B (`docs/Design/InputMap.md`). The card no longer draws the pips (`bActions` off). Specs `WoR.UI.BattleHUD`, `WoR.UI.CommandMenu.Keys`. | `feature/B-436g-command-menu` |
+| 2026-11-22 | B-436g agent QA fixes: the corner hints sit on a dark plate (`HintsPlate`) with each key drawn as the rows draw it (`FBattleMenuHint::KeyId`); the rows' list holds 600 units before it scrolls and shows its scroll bar; the Act tab font 20. | `feature/B-436g-command-menu` |

@@ -35,6 +35,7 @@
 #include "Misc/ScopeExit.h"
 #include "WoRGameNames.h"
 #include "Combat/Actions/ActionPipsText.h"
+#include "UI/WoRIconTable.h"
 
 namespace
 {
@@ -327,6 +328,10 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         break;
     }
 
+    case EPieMenuCategory::Skills:
+        OpenSkills();
+        break;
+
     case EPieMenuCategory::Abilities:
         OpenAbilitySubmenu();
         break;
@@ -352,6 +357,7 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
             CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource);
         TArray<FPieMenuButtonData> SpellButtons =
             BuildSpellButtons(Spells, ButtonData.School);
+        ActiveSubmenuType = EPieMenuCategory::School; // B-436g: Back steps to the schools
         OnCommandMenuReady.Broadcast(SpellButtons);
         break;
     }
@@ -485,11 +491,27 @@ void UCombatCommandMenuSubsystem::HandleBack()
         break;
 
     case ECombatMenuDepth::Submenu:
+    {
+        // B-436g: one step at a time: a school's spells to the schools, a kind to the kinds when there are several.
+        if (ActiveSubmenuType == EPieMenuCategory::School)
+        {
+            OpenSpellSubmenu(ActiveSubmenuSource);
+            break;
+        }
+        const TArray<FPieMenuButtonData> Kinds = BuildSkillKindButtons();
+        const EPieMenuCategory Open = ActiveSubmenuType;
+        if (Kinds.Num() > 1 &&
+            Kinds.ContainsByPredicate([Open](const FPieMenuButtonData &Kind) { return Kind.Category == Open; }))
+        {
+            OpenSkillKinds();
+            break;
+        }
         CurrentDepth = ECombatMenuDepth::Main;
         ActiveSubmenuSource = EPieMenuCategory::None;
         ActiveSubmenuType = EPieMenuCategory::None; // NEW
         OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
         break;
+    }
 
     case ECombatMenuDepth::Main:
         Close();
@@ -642,28 +664,7 @@ void UCombatCommandMenuSubsystem::RebroadcastCurrentView()
         break;
 
     case ECombatMenuDepth::Submenu:
-        switch (ActiveSubmenuType)
-        {
-        case EPieMenuCategory::Abilities:
-            OnCommandMenuReady.Broadcast(BuildAbilitySubmenu());
-            break;
-        case EPieMenuCategory::Items:
-            OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
-            break;
-        case EPieMenuCategory::ResonateWeapon:
-            OnCommandMenuReady.Broadcast(
-                BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(EPieMenuCategory::ResonateWeapon)));
-            break;
-
-        case EPieMenuCategory::Refractions:
-        case EPieMenuCategory::Breakthrough:
-        case EPieMenuCategory::ResonateRing:
-            OnCommandMenuReady.Broadcast(
-                BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource)));
-            break;
-        default:
-            break;
-        }
+        BroadcastCurrentSubmenu();
         break;
 
     default:
@@ -730,35 +731,157 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         return Buttons;
     }
 
-    if (CurrentCapabilities.bCanAttack)
-        Buttons.Add(CreateAttackButton());
-    if (CurrentCapabilities.bCanUseAbilities)
-        Buttons.Add(CreateAbilitiesButton());
-    if (CurrentCapabilities.bHasWeaponCrystal)
-        Buttons.Add(CreateResonateWeaponButton());
-    if (CurrentCapabilities.bHasRefractions)
-        Buttons.Add(CreateRefractionsButton());
-    if (CurrentCapabilities.bHasBreakthrough)
-        Buttons.Add(CreateBreakthroughButton());
-    if (CurrentCapabilities.ShouldShowResonateRing())
-        Buttons.Add(CreateResonateRingButton());
-    if (CurrentCapabilities.bHasItems)
-        Buttons.Add(CreateItemsButton());
+    // B-436g (D-258, D-260): three rows that keep their places, greyed with why when there is nothing to pick, then
+    // the actions the HUD draws as corner hints.
+    FPieMenuButtonData Attack = CreateAttackButton();
+    if (!CurrentCapabilities.bCanAttack)
+    {
+        Attack = FPieMenuButtonData::MakeDisabledButton(Attack.ButtonID, Attack.DisplayName,
+                                                        NSLOCTEXT("CombatCommandMenu", "NoAttack", "No weapon to attack with."),
+                                                        EPieMenuCategory::Attack);
+    }
+    Buttons.Add(Attack);
+
+    const FText SkillsName = NSLOCTEXT("CombatCommandMenu", "Skills", "Skills");
+    if (BuildSkillKindButtons().IsEmpty())
+    {
+        Buttons.Add(FPieMenuButtonData::MakeDisabledButton(TEXT("Skills"), SkillsName,
+                                                           NSLOCTEXT("CombatCommandMenu", "NoSkills", "No skills to use."),
+                                                           EPieMenuCategory::Skills));
+    }
+    else
+    {
+        Buttons.Add(FPieMenuButtonData(TEXT("Skills"), SkillsName, EPieMenuCategory::Skills));
+    }
+
+    FPieMenuButtonData Items = CreateItemsButton();
+    if (!CurrentCapabilities.bHasItems)
+    {
+        Items = FPieMenuButtonData::MakeDisabledButton(Items.ButtonID, Items.DisplayName,
+                                                       NSLOCTEXT("CombatCommandMenu", "NoItems", "No items to use."),
+                                                       EPieMenuCategory::Items);
+    }
+    Buttons.Add(Items);
+
     if (CurrentCapabilities.bCanSwitchWeapon)
         Buttons.Add(CreateSwitchWeaponButton());
     if (CurrentCapabilities.bCanSwitchRing)
         Buttons.Add(CreateSwitchRingButton());
     Buttons.Add(CreateMoveRowButton(/*bForward*/ true));
     Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
-    Buttons.Add(CreateDefendButton());
     // B-170e; a stunned actor's menu stays Attack + Defend (D-001). The player's setting can hide it (Crown, 2026-11-12).
     if (ActionPipsText::ShouldShowEndTurnButton(this))
         Buttons.Add(CreateEndTurnButton());
     Buttons.Add(CreateFleeButton());
+    Buttons.Add(CreateDefendButton()); // last: the hint nearest the corner (D-260)
     // OBSOLETE (B-346): no "Let AI Play" button; seats are fixed for the fight (Q-21-audit, PA-13).
     // The switch stays for debug (wor.Combat.SwitchControl).
 
     return Buttons;
+}
+
+// ==================== SKILLS (B-436g) ====================
+
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildSkillKindButtons() const
+{
+    TArray<FPieMenuButtonData> Kinds;
+    if (CurrentCapabilities.bCanUseAbilities)
+        Kinds.Add(CreateAbilitiesButton());
+    if (CurrentCapabilities.bHasWeaponCrystal)
+        Kinds.Add(CreateResonateWeaponButton());
+    if (CurrentCapabilities.bHasRefractions)
+        Kinds.Add(CreateRefractionsButton());
+    if (CurrentCapabilities.bHasBreakthrough)
+        Kinds.Add(CreateBreakthroughButton());
+    if (CurrentCapabilities.ShouldShowResonateRing())
+        Kinds.Add(CreateResonateRingButton());
+    for (FPieMenuButtonData &Kind : Kinds)
+    {
+        Kind.Description = FText::GetEmpty(); // D-260 (Crown): names only, no counts
+    }
+    return Kinds;
+}
+
+void UCombatCommandMenuSubsystem::OpenSkills()
+{
+    const TArray<FPieMenuButtonData> Kinds = BuildSkillKindButtons();
+    if (Kinds.Num() > 1)
+    {
+        OpenSkillKinds();
+    }
+    else if (Kinds.Num() == 1)
+    {
+        if (Kinds[0].Category == EPieMenuCategory::Abilities)
+            OpenAbilitySubmenu();
+        else
+            OpenSpellSubmenu(Kinds[0].Category);
+    }
+}
+
+void UCombatCommandMenuSubsystem::OpenSkillKinds()
+{
+    CurrentDepth = ECombatMenuDepth::Submenu;
+    ActiveSubmenuType = EPieMenuCategory::Skills;
+    ActiveSubmenuSource = EPieMenuCategory::None;
+    BroadcastCurrentSubmenu();
+}
+
+bool UCombatCommandMenuSubsystem::BroadcastCurrentSubmenu()
+{
+    if (ActiveSubmenuType == EPieMenuCategory::School)
+    {
+        ActiveSubmenuType = ActiveSubmenuSource; // the picked school isn't kept: its schools
+    }
+    switch (ActiveSubmenuType)
+    {
+    case EPieMenuCategory::Skills:
+    {
+        TArray<FPieMenuButtonData> Kinds = BuildSkillKindButtons();
+        Kinds.Add(FPieMenuButtonData::MakeBackButton());
+        OnCommandMenuReady.Broadcast(Kinds);
+        return true;
+    }
+    case EPieMenuCategory::Abilities:
+        OnCommandMenuReady.Broadcast(BuildAbilitySubmenu());
+        return true;
+    case EPieMenuCategory::Items:
+        OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
+        return true;
+    case EPieMenuCategory::Refractions:
+    case EPieMenuCategory::Breakthrough:
+    case EPieMenuCategory::ResonateWeapon:
+    case EPieMenuCategory::ResonateRing:
+        OnCommandMenuReady.Broadcast(BuildSchoolButtons(CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource)));
+        return true;
+    default:
+        return false;
+    }
+}
+
+FText UCombatCommandMenuSubsystem::GetViewTitle() const
+{
+    if (CurrentDepth == ECombatMenuDepth::TargetSelection || CurrentDepth == ECombatMenuDepth::TargetCategory)
+    {
+        return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleTargets", "{0} > choose a target"), PendingActionLabel);
+    }
+    if (CurrentDepth != ECombatMenuDepth::Submenu)
+    {
+        return FText::GetEmpty();
+    }
+    if (ActiveSubmenuType == EPieMenuCategory::Items)
+    {
+        return NSLOCTEXT("CombatCommandMenu", "TitleItems", "Items");
+    }
+    const FText Skills = NSLOCTEXT("CombatCommandMenu", "Skills", "Skills");
+    const EPieMenuCategory KindShown = ActiveSubmenuType == EPieMenuCategory::School ? ActiveSubmenuSource : ActiveSubmenuType;
+    for (const FPieMenuButtonData &Kind : BuildSkillKindButtons())
+    {
+        if (Kind.Category == KindShown)
+        {
+            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleSkillKind", "{0} > {1}"), Skills, Kind.DisplayName);
+        }
+    }
+    return Skills;
 }
 
 // ==================== BUTTON CREATORS ====================
@@ -910,9 +1033,9 @@ void UCombatCommandMenuSubsystem::ShowActionCost(FPieMenuButtonData &Button) con
     {
         return;
     }
-    // The cost of the action this button submits (FAction::GetActionCost, B-170c), so the label and the pay agree.
+    // The cost of the action this button submits (FAction::GetActionCost, B-170c), so the pips and the pay agree.
     const int32 Cost = BuildActionFromButton(Button).GetActionCost();
-    Button.DisplayName = ActionPipsText::WithCost(Button.DisplayName, Cost);
+    Button.ActionCost = Cost;
     const FText Reason = ActionPipsText::GetCostRefusedReason(Cost, CDC->CurrentActions, CDC->GetMaxActions());
     if (Reason.IsEmpty() || !Button.bEnabled)
     {
@@ -1102,9 +1225,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
         for (int32 ItemIndex = 0; ItemIndex < Items.Num(); ++ItemIndex)
         {
             const FItemLoadoutSlot &Item = Items[ItemIndex];
-            const FText DisplayName = FText::Format(NSLOCTEXT("CombatCommandMenu", "ItemButton", "{0}x {1}"),
-                                                    FText::AsNumber(Item.Quantity),
-                                                    FText::FromString(ItemIdentity::GetDisplayName(Item.CrystalId)));
+            const FText DisplayName = FText::FromString(ItemIdentity::GetDisplayName(Item.CrystalId));
 
             // Carry the index into GetUsableItems (DataIndex), not a UObject* — consumables have
             // no asset identity; the click handler reads the live CrystalId from that list.
@@ -1115,6 +1236,13 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildItemsSubmenu() cons
                 nullptr,
                 ItemIndex);
 
+            Button.Quantity = Item.Quantity; // D-260: drawn beside the name
+            const bool bPlainStone = CrystalTypeHelpers::IsAugmentStoneType(Item.CrystalId.Type) ||
+                                     CrystalTypeHelpers::IsPotionType(Item.CrystalId.Type);
+            FWoRIcon Gem; // the backpack's icon for the same stack (B-584)
+            Gem.Kind = bPlainStone ? EWoRIconKind::Stone : EWoRIconKind::LooseGem;
+            Gem.Element = ItemIdentity::GetElement(Item.CrystalId);
+            Button.Icon = WoRIcons::Find(Gem);
             Button.bEnabled = true;
             ShowActionCost(Button); // B-170e
             Buttons.Add(Button);
@@ -1371,6 +1499,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
 
     // Stash the pending action
     PendingActionCategory = ActionCategory;
+    PendingActionLabel = ActionButton.DisplayName;
     PendingActionID = ActionButton.ButtonID;
     PendingActionData = ActionButton.DataReference;
     PendingActionDataIndex = ActionButton.DataIndex; // carry slot index (consumables)
@@ -1598,31 +1727,13 @@ void UCombatCommandMenuSubsystem::ExitTargetSelectionToActionMenu()
     {
         // Restore whichever submenu we came from
         CurrentDepth = ECombatMenuDepth::Submenu;
-        switch (ActiveSubmenuType)
+        if (!BroadcastCurrentSubmenu())
         {
-        case EPieMenuCategory::Abilities:
-            OnCommandMenuReady.Broadcast(BuildAbilitySubmenu());
-            break;
-        case EPieMenuCategory::Items:
-            OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
-            break;
-        case EPieMenuCategory::Refractions:
-        case EPieMenuCategory::Breakthrough:
-        case EPieMenuCategory::ResonateWeapon:
-        case EPieMenuCategory::ResonateRing:
-        {
-            const TArray<USpellData *> &Spells =
-                CurrentCapabilities.GetSpellsForCategory(ActiveSubmenuSource);
-            OnCommandMenuReady.Broadcast(BuildSchoolButtons(Spells));
-            break;
-        }
-        default:
             // Unknown submenu type, fall back to main
             CurrentDepth = ECombatMenuDepth::Main;
             ActiveSubmenuSource = EPieMenuCategory::None;
             ActiveSubmenuType = EPieMenuCategory::None;
             OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
-            break;
         }
     }
     else
@@ -2315,14 +2426,19 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
     {
         return false;
     }
-    TArray<FPieMenuButtonData> View;
-    const bool bInActionMenu = CurrentDepth == ECombatMenuDepth::Main || CurrentDepth == ECombatMenuDepth::Submenu;
-    const bool bInfusionKey = Category == EPieMenuCategory::CycleSource || Category == EPieMenuCategory::CycleLevel;
-    if (Category == EPieMenuCategory::Defend && bInActionMenu)
+    if (Category == EPieMenuCategory::Back)
     {
-        View = BuildMainMenuButtons();
+        // B-436g (D-258): Back everywhere past the main menu. On it there is nowhere to go, and closing would strand the turn.
+        if (CurrentDepth == ECombatMenuDepth::Main)
+        {
+            return false;
+        }
+        HandleBack();
+        return true;
     }
-    else if (bInfusionKey && CurrentDepth == ECombatMenuDepth::TargetSelection)
+    TArray<FPieMenuButtonData> View;
+    const bool bInfusionKey = Category == EPieMenuCategory::CycleSource || Category == EPieMenuCategory::CycleLevel;
+    if (bInfusionKey && CurrentDepth == ECombatMenuDepth::TargetSelection)
     {
         View = RebuildCurrentPicker();
     }

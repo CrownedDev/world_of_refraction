@@ -158,7 +158,8 @@ FBattleCardParts BattleHUDCard::GetParts(EBattleCardLevel Level, bool bParty)
 	Parts.bHPBar = Level != EBattleCardLevel::Hub;
 	Parts.bBuildupBar = Level == EBattleCardLevel::Battle; // D-216: the trial's bar is always empty after a fight (SB-18)
 	Parts.bHPLine = Parts.bEPLine = Level != EBattleCardLevel::Hub && bParty;
-	Parts.bBuildupLine = Parts.bGear = Parts.bActions = Level == EBattleCardLevel::Battle && bParty;
+	Parts.bBuildupLine = Parts.bGear = Level == EBattleCardLevel::Battle && bParty;
+	Parts.bActions = false; // B-436g (D-260): the pips moved to the command menu's tab; OBSOLETE with ActionsText, kept until PIE (docs/PIE/Sweep.md)
 	Parts.bStatus = Level == EBattleCardLevel::Battle;
 	Parts.bFixedWidth = Level != EBattleCardLevel::Hub; // the hub's name-only card shrinks to the name
 	return Parts;
