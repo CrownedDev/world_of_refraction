@@ -764,12 +764,16 @@ struct WORLD_OF_REFRACTION_API FSavedPouch
 	UPROPERTY()
 	FName Character;
 
-	/** One stack per slot. */
+	/** Everything carried, one entry per kind (no limit since D-250). */
 	UPROPERTY()
 	TArray<FSavedCrystalStack> Stacks;
 
 	UPROPERTY()
 	int32 SlotCount = 0;
+
+	/** B-575 (D-250, save v45): the fight-item pick, in pick order, as indexes into Stacks. */
+	UPROPERTY()
+	TArray<int32> FightItemStacks;
 };
 
 /** B-511 (D-221): a character's minted class default kit, place for place (UPoolSubsystem::MintClassDefaultKit). */

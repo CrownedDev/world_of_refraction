@@ -1617,6 +1617,7 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 		FSavedPouch &Out = Saved.Pouches.AddDefaulted_GetRef();
 		Out.Character = Pouch.Key;
 		Out.SlotCount = Pouch.Value.SlotCount;
+		TArray<FCrystalId> StackIds; // in the order written, so the pick can name its stacks by index
 		for (const TPair<FCrystalId, int32> &Stack : Pouch.Value.Stacks)
 		{
 			FSavedCrystalStack &OutStack = Out.Stacks.AddDefaulted_GetRef();
@@ -1624,6 +1625,16 @@ FSavedPool USaveSubsystem::CapturePool(const UPoolSubsystem &Pool)
 			OutStack.Tier = Stack.Key.Tier;
 			OutStack.StoneStat = static_cast<uint8>(Stack.Key.StoneStat); // B-353
 			OutStack.Count = Stack.Value;
+			StackIds.Add(Stack.Key);
+		}
+		// B-575 (D-250, v45): the fight-item pick, in pick order.
+		for (const FCrystalId &Picked : Pouch.Value.FightItems)
+		{
+			const int32 StackIndex = StackIds.IndexOfByKey(Picked);
+			if (StackIndex != INDEX_NONE)
+			{
+				Out.FightItemStacks.Add(StackIndex);
+			}
 		}
 	}
 	Saved.BankedItemCharacters = Pool.GetBankedItemCharacters().Array();
@@ -2036,14 +2047,23 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 	}
 	Pool.RestoreGearOwners(Owners);
 	// B-322: a pouch per character.
-	auto ReadStacks = [&Restored](const TArray<FSavedCrystalStack> &In, TMap<FCrystalId, int32> &Out)
+	auto ReadStackId = [](const FSavedCrystalStack &Stack, FCrystalId &OutId)
+	{
+		if (Stack.Count <= 0 || !StaticEnum<ECrystalType>()->IsValidEnumValue(Stack.Type))
+		{
+			return false;
+		}
+		OutId = StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier, static_cast<ESubStat>(Stack.StoneStat))); // B-353
+		return true;
+	};
+	auto ReadStacks = [&Restored, &ReadStackId](const TArray<FSavedCrystalStack> &In, TMap<FCrystalId, int32> &Out)
 	{
 		for (const FSavedCrystalStack &Stack : In)
 		{
-			if (Stack.Count > 0 && StaticEnum<ECrystalType>()->IsValidEnumValue(Stack.Type))
+			FCrystalId Id;
+			if (ReadStackId(Stack, Id))
 			{
-				Out.FindOrAdd(StatStone::Normalize(FCrystalId(static_cast<ECrystalType>(Stack.Type), Stack.Tier,
-															  static_cast<ESubStat>(Stack.StoneStat)))) += Stack.Count; // B-353
+				Out.FindOrAdd(Id) += Stack.Count;
 				++Restored;
 			}
 		}
@@ -2058,6 +2078,15 @@ int32 USaveSubsystem::RestorePool(const FSavedPool &Saved, UPoolSubsystem &Pool)
 		FPoolPouch &Pouch = Pouches.FindOrAdd(In.Character);
 		Pouch.SlotCount = In.SlotCount;
 		ReadStacks(In.Stacks, Pouch.Stacks);
+		// B-575 (D-250, v45): the pick, as saved. RestorePouches drops what a damaged save can't back.
+		for (const int32 StackIndex : In.FightItemStacks)
+		{
+			FCrystalId Picked;
+			if (In.Stacks.IsValidIndex(StackIndex) && ReadStackId(In.Stacks[StackIndex], Picked))
+			{
+				Pouch.FightItems.AddUnique(Picked);
+			}
+		}
 	}
 	Pool.RestorePouches(Pouches, Saved.BankedItemCharacters);
 	Pool.RestoreHubGear(TSet<FGuid>(Saved.HubGear)); // B-509
