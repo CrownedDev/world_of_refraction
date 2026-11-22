@@ -30,6 +30,8 @@ namespace
 	constexpr int32 INTEL_STUN_ID = 5865;
 	constexpr int32 INTEL_RESTORE_ID = 5866;
 	constexpr int32 INTEL_PERSIST_ID = 5867;
+	constexpr int32 INTEL_DEFEND_ID = 5868;
+	constexpr int32 INTEL_NEGATIVE_TURNS = -1;
 	constexpr float INTEL_BUFF_PERCENT = 50.0f;
 	constexpr float INTEL_DEBUFF_PERCENT = 30.0f;
 	constexpr float INTEL_DOT_DAMAGE = 7.0f;
@@ -184,6 +186,28 @@ void FBattleIntelSpec::Define()
 		const FBattleIntelRow Kept = BattleIntelView::DescribeEffect(
 			Hero, FActiveSkillEffect::CreatePersistent(TEXT("Intel kept"), INTEL_PERSIST_ID, ESkillEffectType::SpellDamageBuff, INTEL_BUFF_PERCENT));
 		TestEqual(TEXT("a lasting effect"), Kept.Turns.ToString(), FString(TEXT("until removed")));
+	});
+
+	It("reads a held effect with no turns left as until next turn, as Defend's after its turn (B-586 QA)", [this]()
+	{
+		AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestNotNull(TEXT("hero"), Hero))
+		{
+			return;
+		}
+		// Defend's buff: one holder turn (ActionExecutor::ExecuteDefend), counted down as the Defend turn ends.
+		FActiveSkillEffect Defend = FActiveSkillEffect::CreateBuff(TEXT("Defending"), INTEL_DEFEND_ID, ESkillEffectType::DefenseBuff,
+																	 INTEL_BUFF_PERCENT, INTEL_ONE_TURN);
+		Defend.StartHolderTurnSpan(INTEL_ONE_TURN);
+		TestEqual(TEXT("before its turn ends: 1 turn"), BattleIntelView::DescribeEffect(Hero, Defend).Turns.ToString(), FString(TEXT("1 turn")));
+		Defend.HolderTurns.CountHolderTurn();
+		Defend.RemainingTurns = Defend.HolderTurns.TurnsLeft;
+		TestEqual(TEXT("after the Defend turn: 0 left, removed only as the next turn starts (QA's case)"), Defend.RemainingTurns, 0);
+		TestEqual(TEXT("none left: until next turn, never 0 turns"), BattleIntelView::DescribeEffect(Hero, Defend).Turns.ToString(),
+				  FString(TEXT("until next turn")));
+		Defend.RemainingTurns = INTEL_NEGATIVE_TURNS;
+		TestEqual(TEXT("a negative count reads the same, never a minus number"), BattleIntelView::DescribeEffect(Hero, Defend).Turns.ToString(),
+				  FString(TEXT("until next turn")));
 	});
 
 	It("learns one line per hit type for that enemy type and keeps it for the run (Q-586)", [this]()

@@ -63,8 +63,17 @@ namespace
 
 	FText FormatTurns(const FActiveSkillEffect &Effect)
 	{
-		return Effect.bPermanent ? LOCTEXT("UntilRemoved", "until removed")
-								 : FText::Format(LOCTEXT("TurnsLeft", "{0} {0}|plural(one=turn,other=turns)"), FText::AsNumber(Effect.RemainingTurns));
+		if (Effect.bPermanent)
+		{
+			return LOCTEXT("UntilRemoved", "until removed");
+		}
+		// FTurnSpan: a span counts down at the holder's turn end and ends as its next turn starts, so a held effect with
+		// none left (Defend's, after the turn it was used) lasts until that turn. Below 0 is never held; read it the same.
+		if (Effect.RemainingTurns <= 0)
+		{
+			return LOCTEXT("UntilNextTurn", "until next turn");
+		}
+		return FText::Format(LOCTEXT("TurnsLeft", "{0} {0}|plural(one=turn,other=turns)"), FText::AsNumber(Effect.RemainingTurns));
 	}
 
 	/** Q-586 (D-261): an effect with no number says what it does, in short. Empty: it has a number. */
