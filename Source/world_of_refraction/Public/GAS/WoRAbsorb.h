@@ -91,6 +91,11 @@ struct WORLD_OF_REFRACTION_API FWoRAbsorbCharge
 	int32 EffectID = 0;
 	int32 SourceKey = 0;
 
+	/** Runtime (B-580, D-253): given by a permanent effect of the holder's own gear (USkillEffectManager::
+	 *  SurvivesDeath), so it is part of the character and a death leaves it. Every other absorber is a buff: death
+	 *  and Sapphire's death-save take it (UWoRTurnEffectTracker::RemoveAbsorbsOnDeath). */
+	bool bPartOfCharacter = false;
+
 	/** Fills the runtime counts from the authored ones. */
 	void Fill();
 

@@ -499,6 +499,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	bool IsTargetAlive(AActor *Target) const;
 
+	/** D-253: the one use that may target the dead: a Sapphire (a DefyDeath item) on a dead ally of User. */
+	bool IsReviveOfDeadAlly(AActor *User, EActionType ActionType, const FCrystalId &Item, AActor *Target) const;
+
 	/** Get all valid targets for an action */
 	UFUNCTION(BlueprintCallable, Category = "Action Executor|Utility")
 	TArray<AActor *> FilterValidTargets(const TArray<AActor *> &Targets) const;

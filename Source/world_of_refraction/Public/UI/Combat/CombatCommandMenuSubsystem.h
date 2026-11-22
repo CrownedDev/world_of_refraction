@@ -410,6 +410,9 @@ private:
      *  re-broadcast with the same shape it was opened with. */
     TArray<FPieMenuButtonData> RebuildCurrentPicker() const;
     TArray<AActor *> ResolveTargets(ETargetType TargetType) const;
+
+    /** D-253: the item being aimed is a Sapphire (a DefyDeath item), so the target list also offers dead allies. */
+    bool IsPendingItemRevive() const;
     void ConfirmActionWithTarget(AActor *SelectedTarget);
     void ConfirmActionWithTargets(const TArray<AActor *> &SelectedTargets);
 

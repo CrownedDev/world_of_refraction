@@ -87,6 +87,10 @@ public:
 	/** B-042j2: remove the absorbers EffectID / SourceKey gave (a same-source re-cast replaces, Q-044 A). How many went. */
 	int32 RemoveAbsorbsFrom(int32 EffectID, int32 SourceKey);
 
+	/** B-580 (D-253): death takes buffs. Removes every absorber that is not part of the character
+	 *  (FWoRAbsorbCharge::bPartOfCharacter). How many went. */
+	int32 RemoveAbsorbsOnDeath();
+
 	int32 NumTracked() const { return Tracked.Num(); }
 
 	/** B-042z: a fires-once use (EffectID + source key, D-011) spent this fight on this holder. */
@@ -139,6 +143,9 @@ private:
 	/** The ASC whose removed event this component listens to. */
 	TWeakObjectPtr<UAbilitySystemComponent> BoundASC;
 	FDelegateHandle RemovedHandle;
+
+	/** Removes the absorbers ShouldGo picks (their charges, their tracking and their GE). How many went. */
+	int32 RemoveAbsorbsWhere(TFunctionRef<bool(const FWoRAbsorbCharge &)> ShouldGo);
 
 	/** B-042j: each absorber's charges, by its UWoRGE_Absorb handle (timed ones are also in Tracked). */
 	TMap<FActiveGameplayEffectHandle, FWoRAbsorbCharge> Absorbs;

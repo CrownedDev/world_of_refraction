@@ -418,10 +418,20 @@ int32 UWoRTurnEffectTracker::AbsorbHit(int32 Damage, ESpellElement HitElement, E
 
 int32 UWoRTurnEffectTracker::RemoveAbsorbsFrom(int32 EffectID, int32 SourceKey)
 {
+	return RemoveAbsorbsWhere([EffectID, SourceKey](const FWoRAbsorbCharge &Charge) { return Charge.EffectID == EffectID && Charge.SourceKey == SourceKey; });
+}
+
+int32 UWoRTurnEffectTracker::RemoveAbsorbsOnDeath()
+{
+	return RemoveAbsorbsWhere([](const FWoRAbsorbCharge &Charge) { return !Charge.bPartOfCharacter; });
+}
+
+int32 UWoRTurnEffectTracker::RemoveAbsorbsWhere(TFunctionRef<bool(const FWoRAbsorbCharge &)> ShouldGo)
+{
 	TArray<FActiveGameplayEffectHandle> Gone;
 	for (const TPair<FActiveGameplayEffectHandle, FWoRAbsorbCharge> &Absorb : Absorbs)
 	{
-		if (Absorb.Value.EffectID == EffectID && Absorb.Value.SourceKey == SourceKey)
+		if (ShouldGo(Absorb.Value))
 		{
 			Gone.Add(Absorb.Key);
 		}

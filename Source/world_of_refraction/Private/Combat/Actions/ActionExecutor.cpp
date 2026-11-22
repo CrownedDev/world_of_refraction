@@ -223,7 +223,8 @@ FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAc
 	{
 		for (AActor *Target : Action.Targets)
 		{
-			if (!IsTargetAlive(Target))
+			// D-253: the dead can be targeted by one thing, a Sapphire on a dead ally (the revive).
+			if (!IsTargetAlive(Target) && !IsReviveOfDeadAlly(Actor, Action.ActionType, Action.ItemData, Target))
 			{
 				return FActionValidationResult(false, TEXT("Target is dead"));
 			}
@@ -2960,18 +2961,18 @@ FActionResult UActionExecutor::ExecuteItem(
 		return Result;
 	}
 
-	// D-253: the Healing Stone is for the living. A dead target is refused here, before anything is spent
-	// (a use that reaches the item executor spends its charge even when it fails, Q-060).
-	if (ItemIdentity::GetItemEffectType(Id) == EItemEffectType::HealingBoost)
+	// D-253: items are for the living, but for a Sapphire on a dead ally (the revive). Any other dead target is
+	// refused here, before anything is spent (a use that reaches the item executor spends its charge even when
+	// it fails, Q-060).
+	for (AActor *ItemTarget : Targets)
 	{
-		for (AActor *ItemTarget : Targets)
+		// A character that is dead. A target that is not a character at all is a use that fails and spends (ET-54).
+		const UCharacterDataComponent *ItemTargetComp = ItemTarget ? GetCharacterDataComponent(ItemTarget) : nullptr;
+		if (ItemTargetComp && !ItemTargetComp->bIsAlive && !IsReviveOfDeadAlly(User, EActionType::Item, Id, ItemTarget))
 		{
-			if (!IsTargetAlive(ItemTarget))
-			{
-				Result.bSuccess = false;
-				Result.ErrorMessage = TEXT("Target is dead");
-				return Result;
-			}
+			Result.bSuccess = false;
+			Result.ErrorMessage = TEXT("Target is dead");
+			return Result;
 		}
 	}
 
@@ -3159,16 +3160,13 @@ void UActionExecutor::ProcessPostCastBySource(AActor *Caster, USpellData *Spell,
 
 namespace
 {
-	/** Deals the Target's ReflectType share (percent, summed over its effects) of a hit's Damage back to the Attacker.
+	/** The Target's ReflectType share of a hit, in percent, summed over its effects.
 	 *  B-042j3 (D-092): a reflect with an element reflects hits of that element only; one without reflects every hit
-	 *  of its kind (the three kinds are one GE, UWoRGE_Reflect, told apart by type tag and element like a Ward). */
-	void ReflectShareOfHit(USkillEffectManager *SEM, AActor *Attacker, AActor *Target, ESkillEffectType ReflectType,
-						   int32 Damage, ESpellElement HitElement, const TCHAR *KindLabel)
+	 *  of its kind (the three kinds are one GE, UWoRGE_Reflect, told apart by type tag and element like a Ward).
+	 *  Read BEFORE the hit's damage is dealt: a hit that kills, or that Sapphire saves from, takes the target's
+	 *  buffs (D-253), and that hit is still reflected (Q-032). */
+	float GetReflectPercent(const USkillEffectManager *SEM, AActor *Target, ESkillEffectType ReflectType, ESpellElement HitElement)
 	{
-		if (!Attacker || !SEM->HasEffectOfType(Target, ReflectType))
-		{
-			return;
-		}
 		float ReflectPercentSum = 0.0f;
 		for (const FActiveSkillEffect &Reflect : SEM->GetEffectsByType(Target, ReflectType))
 		{
@@ -3178,7 +3176,17 @@ namespace
 				ReflectPercentSum += Reflect.GetStackedValue();
 			}
 		}
-		const float ReflectPct = ReflectPercentSum / CombatConstants::STAT_PERCENT_DIVISOR;
+		return ReflectPercentSum;
+	}
+
+	/** Deals ReflectPercent of a hit's Damage back to the Attacker (GetReflectPercent, read before the hit). */
+	void ReflectShareOfHit(AActor *Attacker, AActor *Target, float ReflectPercent, int32 Damage, const TCHAR *KindLabel)
+	{
+		if (!Attacker || ReflectPercent <= 0.0f)
+		{
+			return;
+		}
+		const float ReflectPct = ReflectPercent / CombatConstants::STAT_PERCENT_DIVISOR;
 		const int32 Reflected = FMath::RoundToInt(Damage * ReflectPct);
 		UCharacterDataComponent *AttackerComp = Attacker->FindComponentByClass<UCharacterDataComponent>();
 		if (Reflected > 0 && AttackerComp)
@@ -3289,6 +3297,13 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 			}
 
 			const int32 HPBefore = TargetComp->CurrentHP;
+			// The target's reflects, read before the damage (GetReflectPercent): the generic one for any ActionType, the
+			// physical one for abilities (attacks folded in, Cluster 3), the spell one for spells.
+			const USkillEffectManager *ReflectSource = GetSkillEffectManager();
+			const float GenericReflectPercent = ReflectSource ? GetReflectPercent(ReflectSource, Input.Target, ESkillEffectType::DamageReflect, Input.Element) : 0.0f;
+			const ESkillEffectType KindReflectType = Input.ActionType == EActionType::Spell ? ESkillEffectType::ReflectSpellDamage : ESkillEffectType::ReflectPhysicalDamage;
+			const bool bHasKindReflect = Input.ActionType == EActionType::Ability || Input.ActionType == EActionType::Spell;
+			const float KindReflectPercent = (ReflectSource && bHasKindReflect) ? GetReflectPercent(ReflectSource, Input.Target, KindReflectType, Input.Element) : 0.0f;
 			TargetComp->ServerTakeDamage(FinalDamage);
 			// TODO: B-032c review — a Last Stand save inside ServerTakeDamage (CheckDeath raises HP)
 			// makes this negative; OnDamageDealt / PartialResult then see it. Clamp once decided.
@@ -3314,21 +3329,11 @@ FCombatHitResult UActionExecutor::ApplyHit(const FActionHitInput &Input)
 
 			// Reflect — bounce a percent of the HP the hit took back to the attacker, after the hit
 			// lands (Q-032: an overkill reflects only the HP the target had; read before the hit so
-			// a Last Stand save doesn't cancel it): the generic reflect for any ActionType, the
-			// physical one for abilities (attacks folded in, Cluster 3), the spell one for spells.
+			// a Last Stand save doesn't cancel it). The percents were read before the damage too.
 			const int32 ReflectBase = FMath::Min(FinalDamage, HPBefore);
-			if (USkillEffectManager *SEM = GetSkillEffectManager())
-			{
-				ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::DamageReflect, ReflectBase, Input.Element, TEXT(""));
-				if (Input.ActionType == EActionType::Ability)
-				{
-					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectPhysicalDamage, ReflectBase, Input.Element, TEXT(" physical"));
-				}
-				else if (Input.ActionType == EActionType::Spell)
-				{
-					ReflectShareOfHit(SEM, Input.Attacker, Input.Target, ESkillEffectType::ReflectSpellDamage, ReflectBase, Input.Element, TEXT(" spell"));
-				}
-			}
+			ReflectShareOfHit(Input.Attacker, Input.Target, GenericReflectPercent, ReflectBase, TEXT(""));
+			ReflectShareOfHit(Input.Attacker, Input.Target, KindReflectPercent, ReflectBase,
+							  Input.ActionType == EActionType::Spell ? TEXT(" spell") : TEXT(" physical"));
 		}
 		else
 		{
@@ -3454,6 +3459,22 @@ bool UActionExecutor::IsTargetAlive(AActor *Target) const
 
 	UCharacterDataComponent *Comp = GetCharacterDataComponent(Target);
 	return Comp && Comp->bIsAlive;
+}
+
+bool UActionExecutor::IsReviveOfDeadAlly(AActor *User, EActionType ActionType, const FCrystalId &Item, AActor *Target) const
+{
+	if (!User || !Target || ActionType != EActionType::Item || ItemIdentity::GetItemEffectType(Item) != EItemEffectType::DefyDeath)
+	{
+		return false;
+	}
+	const UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+	const UTurnManager *TurnMgr = WoRFight::Get<UTurnManager>(GetGameInstance());
+	if (!TargetComp || TargetComp->bIsAlive || !TurnMgr)
+	{
+		return false;
+	}
+	const int32 UserTeam = TurnMgr->GetActorTeam(User);
+	return UserTeam != INDEX_NONE && UserTeam == TurnMgr->GetActorTeam(Target);
 }
 
 TArray<AActor *> UActionExecutor::FilterValidTargets(const TArray<AActor *> &Targets) const

@@ -268,6 +268,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Skill Effects")
 	void ClearAllEffects();
 
+	/** D-253: death takes buffs and debuffs. Removes every effect on Target that is not part of the character
+	 *  (SurvivesDeath) and empties its status bar. Returns how many effects were removed. */
+	int32 RemoveEffectsOnDeath(AActor *Target);
+
+	/** Part of the character, so death leaves it: a permanent effect its own gear gave (weapon, adapter, apparel,
+	 *  the innate evolution, a boss's or a gate's own passives). Everything timed, charged-and-timed, or given by
+	 *  a skill or an item is a buff or a debuff and goes. There are no stored aura effects to keep (ET-48). */
+	static bool SurvivesDeath(const FActiveSkillEffect &Effect);
+
+	/** The Last Stand ConsumeLastStandCharge would use on Owner takes the holder's effects when it saves
+	 *  (FActiveSkillEffect::bDeathSaveTakesEffects: Sapphire's ward). False with no Last Stand. Ask before consuming. */
+	bool DoesNextLastStandTakeEffects(AActor *Owner) const;
+
 	/** Reset per-match state at the start of a new combat (clears the fires-once set +
 	 *  armed conditionals). */
 	UFUNCTION()

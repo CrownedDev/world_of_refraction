@@ -151,6 +151,12 @@ struct WORLD_OF_REFRACTION_API FActiveSkillEffect
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Charges")
 	int32 Charges = 0;
 
+	/** D-253: when this Last Stand saves its holder, the HP it leaves is raised by the Healing Boost the holder has,
+	 *  and then the holder's buffs and debuffs go, as at a death (USkillEffectManager::RemoveEffectsOnDeath).
+	 *  Sapphire's ward sets it. Every other Last Stand leaves it off and is unchanged. */
+	UPROPERTY(BlueprintReadOnly, Category = "Charges")
+	bool bDeathSaveTakesEffects = false;
+
 	// ========================================
 	// EFFECT DATA
 	// ========================================
