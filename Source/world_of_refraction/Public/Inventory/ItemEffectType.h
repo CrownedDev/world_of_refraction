@@ -81,13 +81,17 @@ enum class EItemEffectType : uint8
     // widens their defense window, enemy's narrows. Runtime-derived only (never serialized), so the
     // append needs no CoreRedirect.
     BuffReflex UMETA(DisplayName = "Buff Reflex (stone reflex buff/debuff)"),
-    // Appended (C2c). Consume-only HealingStone — plain instant heal on any target. The real heal
-    // (Sapphire is now defy-death, see DefyDeath below). Runtime-derived only (never serialized),
-    // so the append needs no CoreRedirect.
-    RestoreHealth UMETA(DisplayName = "Restore Health (Healing Stone instant heal)"),
+    // Appended (C2c). An item that gives HP on use. It was the Healing Stone until D-252 made the stone a
+    // boost (HealingBoost below); no item maps to it until the Health Potion (B-579). The AI's low-HP heal
+    // looks for this. Runtime-derived only (never serialized), so the append needs no CoreRedirect.
+    RestoreHealth UMETA(DisplayName = "Restore Health (gives HP on use)"),
     // Appended (AI-1). Sapphire's defy-death form — Last Stand on a living target / revive on a dead
     // one (routes to ExecuteDefyDeathEffect). Repointed off EItemEffectType::Healing so the AI can
     // tell defy-death apart from a real heal (RestoreHealth). Runtime-derived only (never
     // serialized), so the append needs no CoreRedirect.
-    DefyDeath UMETA(DisplayName = "Defy Death (Sapphire Last Stand / revive)")
+    DefyDeath UMETA(DisplayName = "Defy Death (Sapphire Last Stand / revive)"),
+    // Appended (B-577, D-252). The Healing Stone: a Healing Boost on a living target (the healing it receives is
+    // raised for some turns), no HP on use. Not a heal, so the AI's low-HP heal does not pick it. Runtime-derived
+    // only (never serialized), so the append needs no CoreRedirect.
+    HealingBoost UMETA(DisplayName = "Healing Boost (Healing Stone)")
 };
