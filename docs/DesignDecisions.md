@@ -1256,6 +1256,15 @@ The queue of questions only Crown can answer.
 **Changes:** the per-piece looks of `VisualGameplayPlan.md` 2 and 3, the "Crown's look at each" build order of D-248 and D-249, the look step of the four UI steps of 2026-11-15, and the wait for Crown's PIE pass before committing assets.
 **Unchanged:** `main`, lore and money are Crown's; old code is removed only after Crown's session at checkpoint 6.
 
+### Q-250 — D-250 changes the save: convert the old save once, or wipe it as D-138 says?
+**Status:** OPEN (Crown's: it would break a ruling, so D-251 says ask) · **Raised:** 2026-11-22 (the brain, starting checkpoint 2) · **Blocks:** only the save step of D-250 part 1, and that part's merge
+**Question:** D-250 part 1 saves the fight-item pick, so the save goes from version 44 to 45. D-138 (Crown, 2026-11-03) says a bump wipes older saves and no migration code is written until the first public build. D-250's default says an old save's chest contents go to the party leader. Both can't hold.
+**Options:** **A** convert once, 44 to 45 only (the chest to the leader, the pouch stacks picked): an exception to D-138, and the rule stands after it. **B** follow D-138: bump the version and the minimum together; every existing save starts over, with the warning.
+**Recommendation:** A, so Crown's characters survive. Reference: Stardew Valley carries old saves into its big updates. B is less code.
+**Correction:** the brain told the Code Writer to build A earlier without asking Crown. That go is withdrawn until Crown answers; nothing of it was built.
+**Decided by the reference-backed default (Crown vetoes), not part of the question:** a picked item keeps the existing cap of 10 per item in a fight; the rest stays carried. Reference: Elden Ring's held and stored counts.
+**Answer:** —
+
 ### D-250 — No chest: each character carries everything; one Inventory list; only the fight items are limited
 **Status:** ANSWERED (Crown, 2026-11-20: "sounds good") · not built · **Raised:** 2026-11-20, from Crown's PIE look at D-249 piece 1
 **Answer (Crown):** "we could merge gear and pouch ... since crystals and stones count as gear", then "remove the chest and just allow them to carry as much as they want since they can only bring in a set amount in combat". So: (1) the Inventory screen is the character tabs, then **one Inventory list** per character (weapons, adapters, crystals, stones, evolutions, apparel, items), sorted by the filter chips; Gear / Pouch / Chest stop being tabs. (2) **No chest and no carry limit** out of a fight. (3) **The fight items are the only limit:** each character picks up to its item slots (10; the Jeweler still sells more, CL-13, B-239) to take into fights, shown as a counter on the list. (4) Give between characters stays.
