@@ -3,6 +3,7 @@
 
 #include "UI/Combat/CommandMenu/CombatCommandButtonWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Components/Button.h"
 #include "Components/TextBlock.h"
 #include "Styling/SlateColor.h"
@@ -45,7 +46,11 @@ void UCombatCommandButtonWidget::SetData(const FPieMenuButtonData &InData)
 
     if (LabelText)
     {
-        LabelText->SetText(InData.DisplayName);
+        // B-436g: the count and the cost are data now (the new menu draws them apart); this menu keeps its one line.
+        const FText Named = InData.Quantity > 0
+                                ? FText::Format(NSLOCTEXT("CombatCommandMenu", "ItemButton", "{0}x {1}"), FText::AsNumber(InData.Quantity), InData.DisplayName)
+                                : InData.DisplayName;
+        LabelText->SetText(ActionPipsText::WithCost(Named, InData.ActionCost));
         LabelText->SetColorAndOpacity(FSlateColor(InData.ButtonTint));
     }
 
