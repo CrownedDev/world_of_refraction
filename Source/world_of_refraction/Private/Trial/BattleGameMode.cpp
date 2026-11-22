@@ -910,7 +910,8 @@ bool ABattleGameMode::ShowResults(const FCombatResult &Result)
     ResultsWidget->SetDroppedLines(DroppedLines); // B-569
 
     // GameOnly input keeps keys/clicks in the viewport; route them to the results widget.
-    // The next level's controller resets input mode on the swap.
+    // Continue is a level change, so nothing here sets game input again: UWoRGameInputSubsystem gives it back when
+    // the level change starts (B-578; the next level's controller does not, and the viewport keeps the mode).
     FInputModeUIOnly InputMode;
     InputMode.SetWidgetToFocus(ResultsWidget->TakeWidget());
     PC->SetInputMode(InputMode);
