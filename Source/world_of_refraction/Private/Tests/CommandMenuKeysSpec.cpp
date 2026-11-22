@@ -1,6 +1,6 @@
 // CommandMenuKeysSpec.cpp
 // B-093: the Defend and infusion keys press the menu's own buttons, so they work exactly where
-// the buttons are: Defend from the action menu on your turn, the infusion keys only in a target
+// the buttons are: Defend from the main menu (D-258c, B-436g), the infusion keys only in a target
 // picker that offers them. Driven through a real orchestrator on two player actors.
 // B-170e: a main-menu End Turn press reaches the End Turn button, which shows unless the player hid it (Crown,
 // 2026-11-12); End Turn has no bound key yet.
@@ -14,7 +14,14 @@
 #include "Infusion/InfusionVFXComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Blueprint/UserWidget.h"
+#include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Equipment/Weapons/WeaponData.h"
+#include "InputCoreTypes.h"
+#include "Inventory/InventoryComponent.h"
+#include "Skills/Definitions/SpellData.h"
+#include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "Save/SaveSubsystem.h"
@@ -62,6 +69,42 @@ BEGIN_DEFINE_SPEC(FCommandMenuKeysSpec, "WoR.UI.CommandMenu.Keys",
 		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
 		return TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero);
 	}
+
+	/** B-436g: the duel with a Caster who has a weapon with an ability, and (bTwoKinds) an innate spell too. */
+	bool StartSkilledDuel(bool bTwoKinds)
+	{
+		if (!Orchestrator || !Menu)
+		{
+			return false;
+		}
+		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+		Data->CharacterClass = ECharacterClass::Caster;
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, NewObject<UWeaponData>(GetTransientPackage()));
+		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("Combatants spawned"), Loadout && Foe))
+		{
+			return false;
+		}
+		Hero = Loadout->GetOwner();
+		MenuKeysAddLoadout(Foe);
+		UInventoryComponent *Inventory = Hero->FindComponentByClass<UInventoryComponent>();
+		if (!TestTrue(TEXT("a saved loadout"), Inventory && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
+		{
+			return false;
+		}
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		Active.PrimarySlotType = EPrimarySlotType::Weapon;
+		Active.bShowPrimary = true;
+		Active.PrimaryWeapon.ReplaceSkill(0, NewObject<UAbilityData>(GetTransientPackage()));
+		if (bTwoKinds)
+		{
+			Active.InnateSpells.Add(NewObject<USpellData>(GetTransientPackage()));
+		}
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero}, {Foe});
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		return TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero);
+	}
 END_DEFINE_SPEC(FCommandMenuKeysSpec)
 
 void FCommandMenuKeysSpec::Define()
@@ -103,7 +146,8 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("The turn moved on"), Orchestrator->GetCurrentActor() == Foe);
 	});
 
-	It("defends from a submenu too", [this]()
+	// D-258c (Crown) reverses B-093's "from a submenu too": RB is Defend on the main menu only.
+	It("does not defend from a submenu (D-258c)", [this]()
 	{
 		if (!StartDuel())
 		{
@@ -113,8 +157,132 @@ void FCommandMenuKeysSpec::Define()
 		Abilities.Category = EPieMenuCategory::Abilities;
 		Menu->HandleSelection(Abilities);
 		TestFalse(TEXT("In a submenu"), Menu->IsAtMainMenu());
-		TestTrue(TEXT("Defend key pressed"), Menu->PressMenuKey(EPieMenuCategory::Defend));
-		TestTrue(TEXT("The turn moved on"), Orchestrator->GetCurrentActor() == Foe);
+		TestFalse(TEXT("Defend key does nothing"), Menu->PressMenuKey(EPieMenuCategory::Defend));
+		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
+	});
+
+	It("never defends when RB is pressed on a target screen (D-258c)", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		if (!Hero->FindComponentByClass<UInfusionVFXComponent>())
+		{
+			FWoRTestWorld::AddComponent<UInfusionVFXComponent>(Hero);
+		}
+		FPieMenuButtonData Ability;
+		Ability.Category = EPieMenuCategory::Ability;
+		Ability.DataReference = NewObject<UAbilityData>(GetTransientPackage());
+		Menu->HandleSelection(Ability);
+
+		// One press of RB runs every action on it, in an order Enhanced Input picks: try both.
+		TArray<EPieMenuCategory> OnRB;
+		for (const FCombatMenuKey &Key : ACombatPlayerController::GetMenuKeys())
+		{
+			if (Key.Gamepad == EKeys::Gamepad_RightShoulder)
+			{
+				OnRB.Add(Key.Category);
+			}
+		}
+		if (!TestEqual(TEXT("RB is two actions"), OnRB.Num(), 2))
+		{
+			return;
+		}
+		Menu->PressMenuKey(OnRB[0]);
+		Menu->PressMenuKey(OnRB[1]);
+		TestEqual(TEXT("one press: one level up"), Menu->GetPendingInfusionLevel(), 1);
+		Menu->PressMenuKey(OnRB[1]);
+		Menu->PressMenuKey(OnRB[0]);
+		TestEqual(TEXT("the other order: one more"), Menu->GetPendingInfusionLevel(), 2);
+		TestTrue(TEXT("no Defend: still Hero's turn, still picking"),
+				 Orchestrator->GetCurrentActor() == Hero && Menu->IsOpen() && !Menu->IsAtMainMenu());
+	});
+
+	It("opens the only kind of skill at once, and Back returns to the main menu (D-258a)", [this]()
+	{
+		if (!StartSkilledDuel(/*bTwoKinds=*/false))
+		{
+			return;
+		}
+		TestTrue(TEXT("Skills key"), Menu->PressMenuKey(EPieMenuCategory::Skills));
+		TestEqual(TEXT("straight into Abilities"), Menu->GetViewTitle().ToString(), FString(TEXT("Skills > Abilities")));
+		TestTrue(TEXT("Back key"), Menu->PressMenuKey(EPieMenuCategory::Back));
+		TestTrue(TEXT("the main menu"), Menu->IsAtMainMenu() && Menu->GetViewTitle().IsEmpty());
+	});
+
+	It("lists the kinds of skill by name only, and Back steps out one list at a time (D-258a, D-260)", [this]()
+	{
+		if (!StartSkilledDuel(/*bTwoKinds=*/true))
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		TestTrue(TEXT("Skills key"), Menu->PressMenuKey(EPieMenuCategory::Skills));
+		TestEqual(TEXT("the kinds"), Menu->GetViewTitle().ToString(), FString(TEXT("Skills")));
+		for (const FText &Label : View->GetRowLabels())
+		{
+			TestFalse(FString::Printf(TEXT("no count in %s"), *Label.ToString()),
+					  Label.ToString().Contains(TEXT("spells")) || Label.ToString().Contains(TEXT(" abilities")));
+		}
+		View->Teardown();
+
+		FPieMenuButtonData Kind;
+		Kind.Category = EPieMenuCategory::Refractions;
+		Menu->HandleSelection(Kind);
+		TestEqual(TEXT("its schools"), Menu->GetViewTitle().ToString(), FString(TEXT("Skills > Refractions")));
+		FPieMenuButtonData School;
+		School.Category = EPieMenuCategory::School;
+		Menu->HandleSelection(School); // a school's spells
+		Menu->PressMenuKey(EPieMenuCategory::Back);
+		TestEqual(TEXT("back to the schools"), Menu->GetViewTitle().ToString(), FString(TEXT("Skills > Refractions")));
+		Menu->PressMenuKey(EPieMenuCategory::Back);
+		TestEqual(TEXT("back to the kinds"), Menu->GetViewTitle().ToString(), FString(TEXT("Skills")));
+		Menu->PressMenuKey(EPieMenuCategory::Back);
+		TestTrue(TEXT("back to the main menu"), Menu->IsAtMainMenu());
+	});
+
+	It("ignores Back on the main menu, so the turn keeps its menu (D-258)", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		TestFalse(TEXT("Back key"), Menu->PressMenuKey(EPieMenuCategory::Back));
+		TestTrue(TEXT("still open, on the main menu"), Menu->IsOpen() && Menu->IsAtMainMenu());
+	});
+
+	It("steps back out of a target screen, named for its action (D-260)", [this]()
+	{
+		if (!StartSkilledDuel(/*bTwoKinds=*/false))
+		{
+			return;
+		}
+		TestTrue(TEXT("Attack key"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestEqual(TEXT("the header"), Menu->GetViewTitle().ToString(), FString(TEXT("Attack > choose a target")));
+		TestTrue(TEXT("Back key"), Menu->PressMenuKey(EPieMenuCategory::Back));
+		TestTrue(TEXT("the main menu"), Menu->IsAtMainMenu());
+	});
+
+	It("maps the pad as D-258 says: A, X, Y, B Back, RB Defend", [this]()
+	{
+		const auto PadOf = [](EPieMenuCategory Category)
+		{
+			const FCombatMenuKey *Key = ACombatPlayerController::GetMenuKeys().FindByPredicate(
+				[Category](const FCombatMenuKey &Entry) { return Entry.Category == Category; });
+			return Key ? Key->Gamepad : EKeys::Invalid;
+		};
+		TestTrue(TEXT("A Attack"), PadOf(EPieMenuCategory::Attack) == EKeys::Gamepad_FaceButton_Bottom);
+		TestTrue(TEXT("X Skills"), PadOf(EPieMenuCategory::Skills) == EKeys::Gamepad_FaceButton_Left);
+		TestTrue(TEXT("Y Items"), PadOf(EPieMenuCategory::Items) == EKeys::Gamepad_FaceButton_Top);
+		TestTrue(TEXT("B Back"), PadOf(EPieMenuCategory::Back) == EKeys::Gamepad_FaceButton_Right);
+		TestTrue(TEXT("RB Defend"), PadOf(EPieMenuCategory::Defend) == EKeys::Gamepad_RightShoulder);
+		TestFalse(TEXT("no Spells key"), ACombatPlayerController::GetMenuKeysString().Contains(TEXT("IA_Combat_MenuSpells")));
 	});
 
 	It("cycles the infusion level in a target picker that offers it", [this]()
@@ -227,7 +395,8 @@ void FCommandMenuKeysSpec::Define()
 				  CommandMenuRules::KeyPressesButton(EPieMenuCategory::Attack, EPieMenuCategory::Items));
 		TestTrue(TEXT("Attack is a main-menu key"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::Attack));
 		TestTrue(TEXT("End Turn is a main-menu key (B-170e)"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::EndTurn));
-		TestFalse(TEXT("Defend keeps its own rule"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::Defend));
+		TestTrue(TEXT("Defend is a main-menu key (D-258c)"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::Defend));
+		TestTrue(TEXT("Skills is a main-menu key (D-258a)"), CommandMenuRules::IsMainMenuKey(EPieMenuCategory::Skills));
 	});
 
 	It("ignores a category key whose button the menu doesn't offer (B-391)", [this]()
@@ -236,9 +405,9 @@ void FCommandMenuKeysSpec::Define()
 		{
 			return;
 		}
-		// The duel's bare loadout has no weapon, so no Attack button and no abilities.
+		// The duel's bare loadout has no weapon and no skills, so both rows are greyed (D-260).
 		TestFalse(TEXT("Attack key"), Menu->PressMenuKey(EPieMenuCategory::Attack));
-		TestFalse(TEXT("Skills key"), Menu->PressMenuKey(EPieMenuCategory::Abilities));
+		TestFalse(TEXT("Skills key"), Menu->PressMenuKey(EPieMenuCategory::Skills));
 		TestTrue(TEXT("Still on the main menu"), Menu->IsAtMainMenu());
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 	});
@@ -333,7 +502,8 @@ void FCommandMenuKeysSpec::Define()
 			Names.Add(Key.ActionName);
 			TestTrue(FString::Printf(TEXT("%s has a keyboard key"), *Key.ActionName.ToString()), Key.Keyboard.IsValid());
 			const bool bKnownRule = Key.Category == EPieMenuCategory::Defend || Key.Category == EPieMenuCategory::CycleSource ||
-									Key.Category == EPieMenuCategory::CycleLevel || CommandMenuRules::IsMainMenuKey(Key.Category);
+									Key.Category == EPieMenuCategory::CycleLevel || Key.Category == EPieMenuCategory::Back ||
+									CommandMenuRules::IsMainMenuKey(Key.Category);
 			TestTrue(FString::Printf(TEXT("%s presses a category PressMenuKey knows"), *Key.ActionName.ToString()), bKnownRule);
 		}
 	});

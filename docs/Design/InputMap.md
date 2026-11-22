@@ -26,19 +26,21 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
-| Defend (from the menu) | G | Y (Triangle) | `IA_Combat_MenuDefend` | Built (B-093) |
-| Infusion source | R | LB (L1) | `IA_Combat_MenuInfusionSource` | Built (B-093) |
-| Infusion level | T | RB (R1) | `IA_Combat_MenuInfusionLevel` | Built (B-093) |
+| Defend (main menu only) | G; click its hint | RB (R1) (was Y) | `IA_Combat_MenuDefend` | Built (B-093; moved by B-436g, D-258c). RB is also the infusion level: two actions on one button, and only one can act, as Defend works on the main menu and the level in a target picker |
+| Infusion source (target picker only) | R; click its row | LB (L1) | `IA_Combat_MenuInfusionSource` | Built (B-093) |
+| Infusion level (target picker only) | T; click its row | RB (R1) | `IA_Combat_MenuInfusionLevel` | Built (B-093); shares RB with Defend (B-436g, D-258c) |
 | Attack (main menu only) | 1 | A (Cross) | `IA_Combat_MenuAttack` | Built (B-391, Q-391) |
-| Skills: Abilities, else Resonate (W) (main menu only) | 2 | X (Square) | `IA_Combat_MenuSkills` | Built (B-391, Q-391) |
-| Spells: Refractions, else Breakthrough, else Resonate (R) (main menu only) | 3 | B (Circle) | `IA_Combat_MenuSpells` | Built (B-391, Q-391). B is Back everywhere but the main menu, where there is nothing to go back to |
-| Items (main menu only) | 4 | D-pad Up | `IA_Combat_MenuItems` | Built (B-391, Q-391) |
+| Skills: the one kind's list, else the kinds (main menu only) | 2 | X (Square) | `IA_Combat_MenuSkills` | Built (B-391; B-436g, D-258a: one Skills key) |
+| Spells | (was 3) | (was B) | (was `IA_Combat_MenuSpells`) | Retired (B-436g, D-258a): spells are under Skills |
+| Items (main menu only) | 3 (was 4) | Y (Triangle) (was D-pad Up) | `IA_Combat_MenuItems` | Built (B-391; moved by B-436g, D-258): 4 and D-pad Up are free |
+| Back (the battle menu, anywhere past the main menu) | Backspace (the hint's), Esc; click its hint | B (Circle) | `IA_Combat_MenuBack`, `IA_Combat_MenuBackEscape` | Built (B-436g, D-258; new battle HUD only). One step at a time. On the main menu it does nothing. Esc ends PIE in the editor |
+| End Turn, Step Forward, Step Back (main menu only) | click their hints | none | none | Built as clickable hints (B-436g, D-258d: no new keys) |
 | Flee (main menu only) | 5 | D-pad Down | `IA_Combat_MenuFlee` | Built (B-391, Q-391) |
 | Switch weapon (main menu only) | 6 | **L3 click** (was D-pad Left) | `IA_Combat_MenuSwitchWeapon` | Built (B-391, Q-391); moved to L3 by B-474 (D-207, cloud UNBUILT): D-pad Left is free. With "Switch to the weapon of the skill you use" on (the default) the switch is rarely needed: using the other weapon's skill makes it active |
 | Change ring (main menu only) | 7 | D-pad Right | `IA_Combat_MenuChangeRing` | Built (B-391, Q-391) |
 | Guard (timed; Perfect Guard) | (editor context) | (editor context) | (editor) | Built: CC to fill from the editor. Co-op: a client's press goes to the server (`Server_SubmitDefenseInput`, B-229) |
 | Dodge (timed) | (editor context) | (editor context) | (editor) | Built: one Dodge (D-135, B-343: the `DodgeLeftAction` binding; no left / right split, no Parry). CC to fill from the editor; removing `IA_Parry` and `IA_DodgeRight` is an editor step. Co-op: as Guard (B-229) |
-| Menu confirm / back | Enter / Esc | A (Cross) / B (Circle) | CommonUI Click / Back | Built (B-103) for the old HUD. **New battle HUD (B-391, `wor.UI.NewHUD 1`):** picking is a mouse click and Back is a menu row; a gamepad can't pick inside a submenu yet (Q-391). Co-op: a client's confirmed pick, with its infusion source and level, goes to the server (`Server_SubmitMenuPick`, B-229); back stays local |
+| Menu confirm / back | Enter / Esc | A (Cross) / B (Circle) | CommonUI Click / Back | Built (B-103) for the old HUD. **New battle HUD (B-391, `wor.UI.NewHUD 1`):** picking is a mouse click and Back has its own keys and hint (B-436g, the row above); a gamepad can't pick inside a submenu yet (Q-391). Co-op: a client's confirmed pick, with its infusion source and level, goes to the server (`Server_SubmitMenuPick`, B-229); back stays local |
 | Inspect a party member (new battle HUD) | Left click its card | none yet (pad route with B-436h) | none (a UMG click on the card; `UBattleHUDWidget::InspectCard`) | Built (B-581, D-254): the Status panel shows that character alone (Spirit / Body, the full actions line, statuses). The same card again closes it; the Status button shows everyone |
 | Move the target highlight (camera follows, B-400) | Arrow keys (menu focus) / mouse hover over a target button | D-pad / left stick (menu focus) | CommonUI navigation (no new input action) | Built (B-400): focus or hover on a target button calls `HighlightTarget`; debug `wor.Camera.TargetCycle` |
 | Skip boss cinematic (opening, phase change) | Tab | Menu (Options) | `IA_Combat_SkipCinematic` | Built (B-406b, Q-406b): press, in the code-built menu-keys context; does nothing unless a boss cinematic plays. Tab: no row here uses it (not Space, the usual dodge key and Slate's Accept; not Enter / Esc / Backspace / 1–7). The key doesn't consume input, so **PIE must confirm** the editor combat context puts no Guard / Dodge / pause on Tab or Menu (`docs/PIE/B-406b.md`). Co-op: ends this machine's view only; the server's hold ends on its own end or its cap |
@@ -121,7 +123,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Journal: play a ready conversation's next line | Enter, Space, left click | A (Cross) | none | Built (B-463, Q-463): until NPC talk (B-471) |
 | Journal: track / stop tracking the focused quest | Enter, Space, left click | A (Cross) | none | Built (B-463b, Q-463b): an unfinished main or side quest; the hint reads Track or Stop tracking |
 | Journal: scroll the reader's text | Page Up / Page Down, mouse wheel | Right stick up / down | none (the screen's keys) | Built (B-463) |
-| Back / close | **Backspace** (the key every footer names, B-481), Esc | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu; B-481: every code-built menu takes both through `WoRMenuStyle::IsBackKey`; Esc ends PIE in the editor, so the footer says "Backspace  Back"). A focused text box (the v2 loadout's name box) keeps Backspace for typing; Enter keeps the name, Esc drops it. In a fight Backspace is End Turn (B-170e): no menu screen is open there |
+| Back / close | **Backspace** (the key every footer names, B-481), Esc | B (Circle), Menu (Options) | CommonUI Back when `BP_CommonInputData` has it, else the screen's keys | Built (B-439, game menu; B-481: every code-built menu takes both through `WoRMenuStyle::IsBackKey`; Esc ends PIE in the editor, so the footer says "Backspace  Back"). A focused text box (the v2 loadout's name box) keeps Backspace for typing; Enter keeps the name, Esc drops it. In a fight Backspace is the battle menu's Back (B-436g); End Turn has no key (Crown, 2026-11-12): no menu screen is open there |
 | Key hints (every code-built menu's footer, tab key labels, hold hints, the hub prompt): the keys named are the device's in use | any keyboard key or mouse input: keyboard names (Enter, Backspace, X, R, Q / E, Z / C, 6) | any gamepad input: button names (A, B, X, Y, LB / RB, LT / RT, L3) | none (CommonUI's input type, `UCommonInputSubsystem`) | Built (B-481): `WoRKeyHints` (`UI/WoRKeyHintText.h`): a hint is a pattern (`{Confirm}  Select        {Back}  Back`), `WoRMenuStyle::MakeHintText` + `WoRKeyHints::SetHint`; switches live. `wor.UI.KeyHints.Print` |
 
 ## Screens and how they are reached (B-536)
@@ -169,7 +171,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 ## Notes
 
 - Same verb, same key across modes where possible (switch source = R in the field and in combat; on a gamepad the field moved it to a hold of RB, B-503m4, D-217).
-- Exploration and combat use separate mapping contexts, so a key may mean different things in each (RB = field attack on the map, infusion level in combat).
+- Exploration and combat use separate mapping contexts, so a key may mean different things in each (RB = field attack on the map; in combat Defend on the main menu, infusion level in a target picker).
 - Exploration and combat share priority 0 because their two controllers never run at the same time; give one a different priority before a map ever runs both.
 - Keyboard double-tap and gamepad double-click windows: one named constant (`// TODO: tune`).
 
@@ -239,3 +241,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-17 | B-565 (trial pool stage 1): the enemy kit card (B closes) and the duplicate drop prompt (Up / Down, A picks, B keeps both, mouse hover and click); previews only | feature/B-565-trial-pool-look |
 | 2026-11-17 | D-241: the Spirit screen and its Z / C rows are now Body (words only; no key changes) | feature/D-241-spirit-body |
 | 2026-11-22 | B-581 (D-254): a left click on a party card in a fight inspects that character (Combat table row, and the Battle HUD mouse row); no key or pad route yet (B-436h) | feature/B-581-card-text-inspect |
+| 2026-11-22 | B-436g (D-258): the battle menu: Items to 3 / Y, Defend to RB (main menu only), Back on Backspace, Esc and B, the Spells key retired; End Turn and the steps are clickable hints with no keys | feature/B-436g-command-menu |
