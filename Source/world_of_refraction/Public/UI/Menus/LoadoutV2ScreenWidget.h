@@ -144,6 +144,8 @@ struct FLoadoutV2WindowItem
 	bool bEquipped = false;
 	/** D-248: worn (in this slot, or in another entry of the loadout): the tick on its tile. */
 	bool bWorn = false;
+	/** B-584 (D-256): in a socket now, so its badge keeps the silver frame. */
+	bool IsSlotted() const { return bEquipped || bWorn; }
 	/** B-534 (D-231): the crystal socket's Restore line: A tops the gem up (Line says what it spends). */
 	bool bRestore = false;
 	FWeaponInventoryEntry Weapon;
