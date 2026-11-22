@@ -7,6 +7,7 @@
 #include "Currency/EconomyYield.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "HAL/IConsoleManager.h"
@@ -143,6 +144,10 @@ FText WoRVendorServices::GetRefusal(UWorld *World, EMerchantType Vendor, EVendor
 	if (Pool->IsClassDefault(Row.GearID) || Pool->IsClassDefault(Row.EvolutionID)) // B-511 (D-221)
 	{
 		return LOCTEXT("ClassDefault", "Starting gear can't be sold or dismantled");
+	}
+	if (CrystalTypeHelpers::IsPotionType(Row.Item.Type)) // B-579 (Q-579): bought with Prisms only, so it gives nothing back
+	{
+		return LOCTEXT("PotionStays", "A potion can't be sold or dismantled");
 	}
 	const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
 	if (!Inventory)

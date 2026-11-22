@@ -164,6 +164,10 @@ namespace CrystalEffectTable
     /** Citrine: percent of target MaxEP restored. 0 for non-Citrine. */
     inline float GetEPRestorePercent(const FCrystalId &Id)
     {
+        if (Id.Type == ECrystalType::EnergyPotion)
+        {
+            return ItemConstants::ENERGY_POTION_EP_PERCENT; // B-579: one strength, whatever its tier
+        }
         if (Id.Type != ECrystalType::Citrine)
         {
             return 0.0f;
@@ -590,9 +594,9 @@ namespace CrystalEffectTable
      *  Luck, Reflex and Healing; one predicate now). */
     inline float GetBrokenDarknessEnergyPercent(const FCrystalId &Id)
     {
-        if (Id.Type == ECrystalType::None || CrystalTypeHelpers::IsAugmentStoneType(Id.Type))
+        if (Id.Type == ECrystalType::None || CrystalTypeHelpers::IsAugmentStoneType(Id.Type) || CrystalTypeHelpers::IsPotionType(Id.Type))
         {
-            return 0.0f;
+            return 0.0f; // B-579: a potion is not a gem either
         }
         switch (Id.Tier)
         {

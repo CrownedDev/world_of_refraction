@@ -171,7 +171,7 @@ FLoadoutV2InventoryPage WoRLoadoutV2::BuildInventoryPage(const FCombatLoadout &W
 	TArray<TPair<FCrystalId, int32>> Stacks;
 	for (const TPair<FCrystalId, int32> &Stack : Pouch)
 	{
-		if (Stack.Value > 0 && Stack.Key.Type != ECrystalType::None)
+		if (Stack.Value > 0 && Stack.Key.Type != ECrystalType::None && !CrystalTypeHelpers::IsPotionType(Stack.Key.Type)) // a potion fits no socket
 		{
 			Stacks.Add(Stack);
 		}

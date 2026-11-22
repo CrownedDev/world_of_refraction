@@ -303,6 +303,11 @@ bool UInventoryComponent::AttachCrystalToGear(TArray<TEntry> &Gear, FGuid GearID
     // (the weapon-only stone guard of D-009 retires). B-480 (D-210): the two sockets take a crystal (or an evolution)
     // and a stone, or two stones (the same stat stacks): a stone goes in the stone socket, else in an empty element
     // socket. A second gem, or a third stone, is refused.
+    if (CrystalTypeHelpers::IsPotionType(Id.Type))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[InventoryComponent] %s: %s fits no socket (a potion, D-253)"), Op, *ItemIdentity::GetDisplayName(Id));
+        return false;
+    }
     const bool bIsStone = !CrystalTypeHelpers::IsGemType(Id.Type);
     const int32 Index = bIsStone ? FindGearIndex(Gear, GearID, Op) : FindEmptyGearSlot(Gear, GearID, Op);
     if (Index == INDEX_NONE)

@@ -775,7 +775,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 	{
 		const bool bGem = CrystalTypeHelpers::IsGemType(Stack.Key.Type);
 		const bool bFits = bWantStone ? !bGem : (bGem || bStoneSocketFull);
-		if (Stack.Value > 0 && Stack.Key.Type != ECrystalType::None && bFits)
+		if (Stack.Value > 0 && Stack.Key.Type != ECrystalType::None && bFits && !CrystalTypeHelpers::IsPotionType(Stack.Key.Type)) // a potion fits no socket
 		{
 			Stacks.Add(Stack);
 		}

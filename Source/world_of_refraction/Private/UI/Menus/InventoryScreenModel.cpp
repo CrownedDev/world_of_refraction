@@ -202,10 +202,12 @@ namespace InventoryScreenBuild
 		Tile.Kind = EInventoryScreenKind::Stack;
 		Tile.TierValue = Id.Tier;
 		Tile.Name = WoRGameNames::GetCrystalTypeName(Id.Type);
-		Tile.Tier = WoRGameNames::GetTierLetter(Id.Tier);
+		const bool bPotion = CrystalTypeHelpers::IsPotionType(Row.Item.Type); // B-579: no tier, no element, the stone's plain icon
+		Tile.Tier = bPotion ? FText::GetEmpty() : WoRGameNames::GetTierLetter(Id.Tier);
 		Tile.Element = ItemIdentity::GetElement(Row.Item);
-		Tile.Mark = bStone ? LOCTEXT("MarkStone", "S") : LOCTEXT("MarkCrystal", "C");
-		Tile.KindLine = KindWithElement(bStone ? LOCTEXT("KindStone", "Stone") : LOCTEXT("KindCrystal", "Crystal"), Tile.Element);
+		Tile.Mark = bPotion ? LOCTEXT("MarkPotion", "P") : bStone ? LOCTEXT("MarkStone", "S") : LOCTEXT("MarkCrystal", "C");
+		Tile.KindLine = bPotion ? LOCTEXT("KindPotion", "Potion")
+								: KindWithElement(bStone ? LOCTEXT("KindStone", "Stone") : LOCTEXT("KindCrystal", "Crystal"), Tile.Element);
 		if (Row.bInChest)
 		{
 			Tile.Details.Add({LOCTEXT("DetailStored", "Stored"), FText::AsNumber(Row.Count)});
@@ -217,10 +219,10 @@ namespace InventoryScreenBuild
 		Tile.Note = CrystalDescription::GetItemEffectText(Row.Item); // B-460
 		// B-487: a crystal is its element's diamond (Ice has none of its own: it is keyed Water), a stone the stone;
 		// its tier is a badge; its effect sentence gets the effect's icon.
-		Tile.Icon.Kind = bStone ? EWoRIconKind::Stone : EWoRIconKind::Element;
+		Tile.Icon.Kind = (bStone || bPotion) ? EWoRIconKind::Stone : EWoRIconKind::Element;
 		Tile.Icon.Element = Tile.Element;
 		Tile.Icon.Name = Tile.Name;
-		Tile.bTierBadge = true;
+		Tile.bTierBadge = !bPotion;
 		Tile.EffectIcon = WoRIcons::MakeItemEffectIcon(Row.Item);
 		return Tile;
 	}

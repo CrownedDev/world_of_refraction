@@ -215,6 +215,12 @@ bool UEconomyService::DismantleCrystal(AActor *Owner, const FCrystalId &Id, int3
     {
         return false;
     }
+    if (CrystalTypeHelpers::IsPotionType(Id.Type))
+    {
+        // B-579 (Q-579): a potion is bought with Prisms and no essence, so it has none to give back.
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] DismantleCrystal: a potion can't be dismantled"));
+        return false;
+    }
 
     UCrystalInventoryComponent *CrystalInv = nullptr;
     UCurrencyComponent *Currency = nullptr;
@@ -364,7 +370,8 @@ FText UEconomyService::GetMergeRefusal(AActor *Owner, ECrystalType Type, EItemTi
         *OutPlan = Plan;
     }
     // Item crystals and stones only (an evolution is no FCrystalId); F is the floor, nothing below it to merge from.
-    if (!Owner || Type == ECrystalType::None || TargetTier == EItemTier::F_Tier)
+    // B-579: a potion has no tier to merge up to.
+    if (!Owner || Type == ECrystalType::None || TargetTier == EItemTier::F_Tier || CrystalTypeHelpers::IsPotionType(Type))
     {
         return NSLOCTEXT("EconomyService", "MergeNotPossible", "That can't be merged.");
     }
@@ -678,6 +685,11 @@ bool UEconomyService::SellCrystal(AActor *Owner, const FCrystalId &Id, int32 Cou
     {
         return false;
     }
+    if (CrystalTypeHelpers::IsPotionType(Id.Type))
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] SellCrystal: a potion can't be sold (Q-579)"));
+        return false;
+    }
     UCrystalInventoryComponent *CrystalInv = nullptr;
     UCurrencyComponent *Currency = nullptr;
     UInventoryComponent *Inv = nullptr;
@@ -952,6 +964,13 @@ FPurchaseCost UEconomyService::BuildCartCost(const TArray<FMerchantStockEntry> &
             // B-333 (D-125, Q-333): Prisms + its own essence at tier, per unit — a gem (Quartz too)
             // Elemental, a stone Pillar.
             const int32 Units = FMath::Max(1, E.Count);
+            if (CrystalTypeHelpers::IsPotionType(E.Crystal.Type))
+            {
+                // B-579 (D-253, Q-579): a potion costs less than a tier F Sapphire or Citrine: a share of the F
+                // Prisms price and no essence.
+                Cost.Prisms += EconomyYield::GetPotionPrisms() * Units;
+                continue;
+            }
             Cost.Prisms += EconomyYield::GetPrismsBaseForTier(E.Crystal.Tier) * Units;
             Cost.AddEssence(EconomyYield::GetCrystalEssence(E.Crystal.Type),
                             EconomyYield::GetTypedEssencePurchaseCostForTier(E.Crystal.Tier) * Units);

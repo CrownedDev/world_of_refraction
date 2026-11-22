@@ -698,7 +698,9 @@ FVendorScreenPage WoRVendorScreen::BuildMergePage(UWorld *World, FName Member, c
 	for (const WoRInventoryVerbs::FInventoryRow &Owned : Crystals ? WoRInventoryVerbs::GatherRows(World, Member) : TArray<WoRInventoryVerbs::FInventoryRow>())
 	{
 		// A stat stone keeps its sub-stat apart from its type, so it isn't merged here; chest stacks aren't the member's.
-		if (!Owned.IsGear() && !Owned.bInChest && Owned.Item.Type != ECrystalType::None && !CrystalTypeHelpers::IsStatStone(Owned.Item.Type))
+		// B-579: a potion has no tier to merge up to.
+		if (!Owned.IsGear() && !Owned.bInChest && Owned.Item.Type != ECrystalType::None && !CrystalTypeHelpers::IsStatStone(Owned.Item.Type) &&
+			!CrystalTypeHelpers::IsPotionType(Owned.Item.Type))
 		{
 			Kinds.AddUnique(Owned.Item.Type);
 		}

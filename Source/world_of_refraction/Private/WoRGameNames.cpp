@@ -686,6 +686,10 @@ FText WoRGameNames::GetCrystalTypeName(ECrystalType Type)
         return LOCTEXT("ECrystalType_DurabilityStone", "Wear Stone");
     case ECrystalType::StatStone:
         return LOCTEXT("ECrystalType_StatStone", "Stat Stone");
+    case ECrystalType::HealthPotion: // B-579 (D-253)
+        return LOCTEXT("ECrystalType_HealthPotion", "Health Potion");
+    case ECrystalType::EnergyPotion:
+        return LOCTEXT("ECrystalType_EnergyPotion", "Energy Potion");
     // Retired single-stat kinds (B-353): still named, since an old asset can hold one until it is normalized.
     case ECrystalType::DefenseStone:
         return LOCTEXT("ECrystalType_DefenseStone", "Defence Stone");

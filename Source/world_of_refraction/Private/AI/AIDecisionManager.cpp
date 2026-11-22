@@ -1430,8 +1430,8 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
                 }
             }
 
-            // Use an item that gives HP (RestoreHealth). Not the Healing Stone: it is a boost now (D-252), so
-            // until the Health Potion (B-579) no item is found here.
+            // Use an item that gives HP (RestoreHealth): the Health Potion (B-579, D-253). Not the Healing Stone,
+            // which is a boost (D-252).
             bool bFoundHeal = false;
             const FCrystalId HealId = FindHealingItem(Loadout, bFoundHeal);
             if (bFoundHeal)
@@ -1439,7 +1439,7 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
                 OutAction.ActionType = EActionType::Item;
                 OutAction.ItemData = HealId;
                 OutAction.Targets.Add(AIActor); // Self-target
-                UE_LOG(LogTemp, Verbose, TEXT("[AI Survival] Using healing item (Healing Stone)"));
+                UE_LOG(LogTemp, Verbose, TEXT("[AI Survival] Using healing item (%s)"), *ItemIdentity::GetDisplayName(HealId));
                 return true;
             }
         }

@@ -80,6 +80,10 @@ FItemUseResult UItemExecutor::UseItem(AActor *User, FCrystalId Id, AActor *Targe
 		ExecuteHealingStoneEffect(User, Target, Id, Result);
 		break;
 
+	case EItemEffectType::RestoreHealth:
+		ExecuteHealthPotionEffect(User, Target, Id, Result); // B-579: the Health Potion
+		break;
+
 	case EItemEffectType::EnergyRestore:
 		ExecuteEnergyRestoreEffect(User, Target, Id, Result);
 		break;
@@ -371,10 +375,44 @@ void UItemExecutor::ExecuteHealingStoneEffect(AActor *User, AActor *Target, FCry
 		   *Target->GetName(), BoostPercent, Duration);
 }
 
+void UItemExecutor::ExecuteHealthPotionEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
+{
+	// Health Potion (B-579, D-253): gives a living target a share of its max HP, at one strength (no tier). It is a
+	// heal like any other: USkillEffectManager::HealActor raises it by the target's Healing Boost (the Healing
+	// Stone, D-252) and refuses it while the target is HealBlocked. No element, no status build-up. A dead target is
+	// refused before the potion is spent (UActionExecutor::ExecuteItem).
+	const UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
+	if (!TargetComp)
+	{
+		OutResult.ErrorMessage = TEXT("Target has no character data");
+		return;
+	}
+	if (!TargetComp->bIsAlive)
+	{
+		OutResult.ErrorMessage = TEXT("Target is dead");
+		return;
+	}
+	USkillEffectManager *SEM = GetSkillEffectManager();
+	if (!SEM)
+	{
+		OutResult.ErrorMessage = TEXT("SkillEffectManager not available");
+		return;
+	}
+
+	const int32 HealAmount = FMath::Max(1, FMath::RoundToInt(TargetComp->MaxHP * ItemConstants::HEALTH_POTION_HP_PERCENT / CombatConstants::STAT_PERCENT_DIVISOR));
+	OutResult.HealingDone = SEM->HealActor(Target, HealAmount, User);
+	OutResult.bSuccess = true; // drunk, whatever it healed (a full or HealBlocked target gains nothing)
+
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] %s: healed %s for %d HP (%.0f%% of max HP before any Healing Boost)"),
+		   *ItemIdentity::GetDisplayName(Id), *Target->GetName(), OutResult.HealingDone, ItemConstants::HEALTH_POTION_HP_PERCENT);
+}
+
 void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult)
 {
 	// Citrine (Phase 2) - restores a percent of the target's MaxEP and builds
 	// Lightning status on the target (no HP cost anymore).
+	// B-579 (D-253): the Energy Potion comes here too, at its own percent (GetEPRestorePercent) and with no build-up
+	// (GetElementalBuildupPercent is 0 for it).
 	UCharacterDataComponent *TargetComp = GetCharacterDataComponent(Target);
 	if (!TargetComp)
 	{
@@ -385,7 +423,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 	const float EPPercent = CrystalEffectTable::GetEPRestorePercent(Id);
 	if (EPPercent <= 0.0f)
 	{
-		OutResult.ErrorMessage = TEXT("Invalid Citrine EP value");
+		OutResult.ErrorMessage = TEXT("Invalid energy restore value");
 		return;
 	}
 
@@ -423,8 +461,8 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 	}
 
 	OutResult.bSuccess = true;
-	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Citrine: Restored %d EP to %s (Lightning buildup applied)"),
-		   OutResult.EnergyRestored, *Target->GetName());
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] %s: Restored %d EP to %s (%.0f%% Lightning buildup)"), *DisplayName,
+		   OutResult.EnergyRestored, *Target->GetName(), CrystalEffectTable::GetElementalBuildupPercent(Id));
 }
 
 void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalId Id,

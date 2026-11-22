@@ -52,12 +52,19 @@ namespace CrystalTypeHelpers
                Type == ECrystalType::HealingStone || Type == ECrystalType::StatStone; // StatStone: B-353 (D-142)
     }
 
+    /** B-579 (D-253): the Health Potion and the Energy Potion. Neither a gem nor a stone: a potion has no tier,
+     *  element or build-up, fits no socket, and is not merged, sold or dismantled. */
+    inline bool IsPotionType(ECrystalType Type)
+    {
+        return Type == ECrystalType::HealthPotion || Type == ECrystalType::EnergyPotion;
+    }
+
     /** True for gem sub-types (Garnet..Quartz). None is neither gem nor stone,
-     *  so it is excluded. Complement of IsAugmentStoneType over the non-None
-     *  range. */
+     *  so it is excluded, and so is a potion. Where a store has two lists (gems, the rest), a potion is
+     *  kept with the stones. */
     inline bool IsGemType(ECrystalType Type)
     {
-        return Type != ECrystalType::None && !IsAugmentStoneType(Type);
+        return Type != ECrystalType::None && !IsAugmentStoneType(Type) && !IsPotionType(Type);
     }
 
     /** Every augment stone, since the Ability Stone retired (B-437, D-175). */
