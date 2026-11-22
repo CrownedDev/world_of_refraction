@@ -423,7 +423,7 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 	const float EPPercent = CrystalEffectTable::GetEPRestorePercent(Id);
 	if (EPPercent <= 0.0f)
 	{
-		OutResult.ErrorMessage = TEXT("Invalid Citrine EP value");
+		OutResult.ErrorMessage = TEXT("Invalid energy restore value");
 		return;
 	}
 
@@ -461,8 +461,8 @@ void UItemExecutor::ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCr
 	}
 
 	OutResult.bSuccess = true;
-	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] Citrine: Restored %d EP to %s (Lightning buildup applied)"),
-		   OutResult.EnergyRestored, *Target->GetName());
+	UE_LOG(LogWoRLoadout, Verbose, TEXT("[ItemExecutor] %s: Restored %d EP to %s (%.0f%% Lightning buildup)"), *DisplayName,
+		   OutResult.EnergyRestored, *Target->GetName(), CrystalEffectTable::GetElementalBuildupPercent(Id));
 }
 
 void UItemExecutor::ApplyStoneBuffEffect(AActor *User, AActor *Target, FCrystalId Id,

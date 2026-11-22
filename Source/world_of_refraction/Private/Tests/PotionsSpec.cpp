@@ -25,6 +25,7 @@
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/FRuntimeAttachedItem.h"
+#include "Equipment/Weapons/WeaponData.h"
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/ItemConstants.h"
 #include "Loadout/Entries/FApparelEntry.h"
@@ -213,6 +214,35 @@ void FPotionsSpec::Define()
 				TestTrue(TEXT("and the gem costs essence too"), GemCost.ElementalEssence > 0);
 			}
 		}
+	});
+
+	It("can't be dismantled, sold or socketed, where a gem beside it can be dismantled and socketed (Q-579)", [this]()
+	{
+		UEconomyService *Economy = TestWorld->GetSubsystem<UEconomyService>();
+		// A well-formed owner, as EconomyPreambleSpec and GearAttachSpec build one.
+		AActor *Owner = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UCrystalInventoryComponent *Crystals = FWoRTestWorld::AddComponent<UCrystalInventoryComponent>(Owner);
+		FWoRTestWorld::AddComponent<UEvolutionInventoryComponent>(Owner);
+		FWoRTestWorld::AddComponent<UCurrencyComponent>(Owner);
+		UInventoryComponent *Inventory = FWoRTestWorld::AddComponent<UInventoryComponent>(Owner);
+		FWoRTestWorld::AddComponent<ULoadoutComponent>(Owner);
+		if (!TestNotNull(TEXT("Economy"), Economy)) return;
+		const FCrystalId Gem(ECrystalType::Garnet, EItemTier::F_Tier);
+		TestTrue(TEXT("gems added"), Inventory->AddCrystal(Gem, POTION_TEST_CARRIED));
+		TestTrue(TEXT("potions added"), Inventory->AddCrystal(POTION_TEST_HEALTH, POTION_TEST_CARRIED));
+		TestTrue(TEXT("weapon added"), Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
+		if (!TestTrue(TEXT("a weapon to socket"), Inventory->Weapons.Num() > 0)) return;
+		const FGuid WeaponId = Inventory->Weapons[0].PersistentID;
+
+		TestFalse(TEXT("a potion is not dismantled"), Economy->DismantleCrystal(Owner, POTION_TEST_HEALTH, 1));
+		TestFalse(TEXT("a potion is not sold"), Economy->SellCrystal(Owner, POTION_TEST_HEALTH, 1));
+		TestFalse(TEXT("a potion is not socketed"), Inventory->AttachCrystalToWeapon(WeaponId, POTION_TEST_HEALTH));
+		TestEqual(TEXT("every potion is still carried"), Crystals->GetCount(POTION_TEST_HEALTH), POTION_TEST_CARRIED);
+		TestTrue(TEXT("the weapon's socket is still empty"), Inventory->Weapons[0].AttachedItem.IsEmpty());
+
+		// The same owner can do both with a gem, so the refusals above are the potion's.
+		TestTrue(TEXT("a gem is dismantled"), Economy->DismantleCrystal(Owner, Gem, 1));
+		TestTrue(TEXT("a gem is socketed"), Inventory->AttachCrystalToWeapon(WeaponId, Gem));
 	});
 
 	It("is one stack and a fight item; a dead target is refused and nothing is spent", [this]()
