@@ -104,6 +104,15 @@ FText ActionPipsText::MakeActionsLine(int32 CurrentActions, int32 MaxActions, in
 	return FText::Format(LOCTEXT("ActionsLineBonus", "{0} · {1} bonus, lost at turn end"), Line, FText::AsNumber(Bonus));
 }
 
+FText ActionPipsText::MakeCardActionsLine(int32 CurrentActions, int32 MaxActions, int32 SkillsUsed)
+{
+	const FText Count = FText::AsNumber(FMath::Max(0, CurrentActions));
+	const FText Max = FText::AsNumber(FMath::Max(0, MaxActions));
+	const FText BaseLine = GetBonusActions(CurrentActions, MaxActions) > 0 ? FText::Format(LOCTEXT("CardActionsBonus", "Act: {0}/{1} ◆"), Count, Max)
+																		   : FText::Format(LOCTEXT("CardActions", "Act: {0}/{1}"), Count, Max);
+	return SkillsUsed > 0 ? FText::Format(LOCTEXT("ActionsLineSkills", "{0} · {1}"), BaseLine, MakeSkillsUsedText(SkillsUsed)) : BaseLine;
+}
+
 FText ActionPipsText::GetDefendEndsTurnText()
 {
 	return LOCTEXT("DefendEndsTurn", "Ends your turn.");

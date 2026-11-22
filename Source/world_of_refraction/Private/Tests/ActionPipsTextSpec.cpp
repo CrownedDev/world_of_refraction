@@ -3,6 +3,7 @@
 // (filled = the bank, empty up to Max, all filled past Max), the Max Actions line with its action-point progress
 // ("Max 3 (+75/100)", no progress at the cap), a button's cost label, and the two greyed reasons (above Max: never;
 // above the bank: not yet). Headless, no world.
+// B-581 (D-254): the fight card's short line ("Act: 0/2"); the full line is now what inspect shows.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -118,7 +119,27 @@ void FActionPipsTextSpec::Define()
 					  FString::Printf(TEXT("Max %d"), ActionPipsConstants::MAX_ACTIONS_CAP));
 		});
 
-		It("puts the word, the pips, the number and Max on the card's line", [this]()
+		It("reads Act: current/max on the fight card, at 0, full and above Max (D-254)", [this]()
+		{
+			TestEqual(TEXT("at 0"), ActionPipsText::MakeCardActionsLine(PIPS_TEXT_NONE, PIPS_TEXT_TWO).ToString(), FString(TEXT("Act: 0/2")));
+			TestEqual(TEXT("full"), ActionPipsText::MakeCardActionsLine(PIPS_TEXT_TWO, PIPS_TEXT_TWO).ToString(), FString(TEXT("Act: 2/2")));
+			TestEqual(TEXT("above Max keeps a mark (Q-170f3)"), ActionPipsText::MakeCardActionsLine(PIPS_TEXT_THREE, PIPS_TEXT_TWO).ToString(),
+					  FString(TEXT("Act: 3/2 ◆")));
+			TestEqual(TEXT("two above Max: still one mark"), ActionPipsText::MakeCardActionsLine(PIPS_TEXT_FOUR, PIPS_TEXT_TWO).ToString(),
+					  FString(TEXT("Act: 4/2 ◆")));
+			const FString Card = ActionPipsText::MakeCardActionsLine(PIPS_TEXT_TWO, PIPS_TEXT_THREE).ToString();
+			TestFalse(TEXT("no pips, no Max word, no action-point progress on the card"),
+					  Card.Contains(TEXT("●")) || Card.Contains(TEXT("Max")) || Card.Contains(TEXT("+")));
+		});
+
+		It("adds the turn's skills to the fight card's line once one is used (Q-170j, D-254)", [this]()
+		{
+			TestEqual(TEXT("with skills"), ActionPipsText::MakeCardActionsLine(PIPS_TEXT_ONE, PIPS_TEXT_TWO, PIPS_TEXT_TWO).ToString(),
+					  FString::Printf(TEXT("Act: 1/2 · Skills 2/%d"), ActionPipsConstants::SKILLS_PER_TURN_MAX));
+			TestFalse(TEXT("not before the first skill"), ActionPipsText::MakeCardActionsLine(PIPS_TEXT_ONE, PIPS_TEXT_TWO).ToString().Contains(TEXT("Skills")));
+		});
+
+		It("puts the word, the pips, the number and Max on the full line (the card's until D-254, now inspect's)", [this]()
 		{
 			TestEqual(TEXT("the line"), ActionPipsText::MakeActionsLine(PIPS_TEXT_TWO, PIPS_TEXT_THREE, PIPS_TEXT_PROGRESS).ToString(),
 					  FString::Printf(TEXT("Actions ●●○ 2 · Max 3 (+75/%d)"), ActionPipsConstants::ACTION_POINTS_PER_ACTION));
@@ -134,7 +155,7 @@ void FActionPipsTextSpec::Define()
 		{
 			TestEqual(TEXT("the counter"), ActionPipsText::MakeSkillsUsedText(PIPS_TEXT_TWO).ToString(),
 					  FString::Printf(TEXT("Skills 2/%d"), ActionPipsConstants::SKILLS_PER_TURN_MAX));
-			TestTrue(TEXT("on the card's line"),
+			TestTrue(TEXT("on the full line"),
 					 ActionPipsText::MakeActionsLine(PIPS_TEXT_ONE, PIPS_TEXT_THREE, PIPS_TEXT_PROGRESS, PIPS_TEXT_TWO).ToString().EndsWith(
 						 FString::Printf(TEXT("· Skills 2/%d"), ActionPipsConstants::SKILLS_PER_TURN_MAX)));
 			TestFalse(TEXT("not before the first skill"),
