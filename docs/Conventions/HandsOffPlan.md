@@ -103,13 +103,19 @@ Ask unreal-mcp to describe the toolset for the exact argument spelling. Mouse po
 | `Screenshot` | `Screenshot()` | The game picture, to read and to take mouse points from |
 | `TapKey` | `TapKey(Key="Tab")` opens the game menu. `TapKey(Key="SpaceBar", HoldMs=600)` is a hold | Press, then release `HoldMs` later (50 by default), never in the same frame |
 | `KeyDown` / `KeyUp` | `KeyDown(Key="W")`, look, `KeyUp(Key="W")` | A key left down across calls |
-| `MoveMouse` | `MoveMouse(X=640, Y=360)` | Moves the real pointer onto that point of the game (hover) |
+| `MoveMouse` | `MoveMouse(X=640, Y=360)` | Puts the agent's own pointer on that point of the game and leaves it there (hover). The real pointer is not moved |
 | `Click` | `Click(X=1180, Y=64)` clicks the Loadout button. `Button="RightMouseButton"` for the right one | Move there, press, release |
 | `Wheel` | `Wheel(X=900, Y=500, Notches=-3)` scrolls the grid down three notches | Move there, turn the wheel |
 | `PlaySequence` | Perfect Guard: `Steps=[{AtMs:0, Action:"Screenshot"}, {AtMs:850, Action:"KeyTap", Key:"SpaceBar"}, {AtMs:900, Action:"Screenshot"}, {AtMs:1400, Action:"Screenshot"}]`, `ScreenshotDir="docs/PIE/qa/2026-11-23/guard"` | Inputs and screenshots at set times in one call, each sent on the first frame at or after its time. The game keeps running. PNGs are named `shot_step<step>_<ms>ms.png`; with no folder they go to `Intermediate/AgentPlay`. Actions: `KeyDown`, `KeyUp`, `KeyTap`, `MouseMove`, `MouseDown`, `MouseUp`, `MouseClick`, `MouseWheel`, `Screenshot`. Two minutes at most, one sequence at a time |
 | `SetWindowSize` | `SetWindowSize(Width=1280, Height=720)` | The game picture becomes that size (take a new screenshot after it) |
 | `RunConsoleCommand` | `RunConsoleCommand(Command="wor.Party.Print")` | Runs it in the game's world and returns what it printed and logged. The console is not opened and the keys stay where they were |
-| `GetState` | `GetState()` | PIE running or not, picture and window size, where keyboard focus and the mouse are, how much of a sequence is left |
+| `GetState` | `GetState()` | PIE running or not, hold taken or released, picture and window size, where keyboard focus and the agent's mouse are, how much of a sequence is left |
+| `Release` | `Release()` when a person needs this editor's mouse back | Stops a playing sequence and gives back the hold (below). Stopping PIE does the same |
+
+- **The hold (a person can use the PC while the agent plays):** the first play tool of a PIE session takes it; `Release` or the end of PIE gives it back. While it is taken:
+  - The mouse the game sees is the agent's own pointer, which exists only inside this editor. The real pointer is never moved, and moving it does nothing to the game, with Unreal in front or behind another app.
+  - The editor's "use less CPU when in background" setting is off, in memory only (never saved), so the game keeps full speed behind another app and timed inputs land on time.
+  - In this editor, hovering with the real mouse shows nothing; a real click still lands where it is made (so Stop still works).
 
 - **Timing a defence:** run a `PlaySequence` of screenshots only across the enemy's attack first, read the hit's time off them, then run it again with the key at that time. The answer's `AtMs` says when each input really went in.
 - **Keys go nowhere?** `GetState` shows where keyboard focus is. A key step gives focus to the game when it is outside it; a `Click` on the game does the same as a player's click.

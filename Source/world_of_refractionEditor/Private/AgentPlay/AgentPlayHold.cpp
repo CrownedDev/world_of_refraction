@@ -66,11 +66,25 @@ namespace
 		{
 			Real->InitializeWindow(Window, InDefinition, InParent, bShowImmediately);
 		}
-		virtual void SetCapture(const TSharedPtr<FGenericWindow> &InWindow) override { Real->SetCapture(InWindow); }
+		// The real mouse is never taken for the game while the agent plays: a capture or raw mouse input asked for now
+		// (by the agent's own click, or by the game for camera look) is not passed on; letting go of one is.
+		virtual void SetCapture(const TSharedPtr<FGenericWindow> &InWindow) override
+		{
+			if (!InWindow.IsValid())
+			{
+				Real->SetCapture(InWindow);
+			}
+		}
+		virtual void SetHighPrecisionMouseMode(const bool Enable, const TSharedPtr<FGenericWindow> &InWindow) override
+		{
+			if (!Enable)
+			{
+				Real->SetHighPrecisionMouseMode(Enable, InWindow);
+			}
+		}
 		virtual void *GetCapture() const override { return Real->GetCapture(); }
 		virtual FModifierKeysState GetModifierKeys() const override { return Real->GetModifierKeys(); }
 		virtual bool IsMinimized() const override { return Real->IsMinimized(); }
-		virtual void SetHighPrecisionMouseMode(const bool Enable, const TSharedPtr<FGenericWindow> &InWindow) override { Real->SetHighPrecisionMouseMode(Enable, InWindow); }
 		virtual bool IsUsingHighPrecisionMouseMode() const override { return Real->IsUsingHighPrecisionMouseMode(); }
 		virtual bool IsUsingTrackpad() const override { return Real->IsUsingTrackpad(); }
 		virtual bool IsMouseAttached() const override { return Real->IsMouseAttached(); }
@@ -117,6 +131,16 @@ void WoRAgentPlayHold::Take()
 	{
 		return;
 	}
+	// Whatever the game had done to the real pointer (hidden it, kept it inside the window, taken it for camera
+	// look) is let go first: from here on the game only reaches the agent's pointer, so it could never undo it.
+	if (Real->Cursor.IsValid())
+	{
+		Real->Cursor->Lock(nullptr);
+		Real->Cursor->Show(true);
+	}
+	Real->SetCapture(nullptr);
+	Real->SetHighPrecisionMouseMode(false, nullptr);
+
 	GApplication = MakeShared<FAgentPlayApplication>(Real.ToSharedRef());
 	Slate.OverridePlatformApplication(GApplication);
 	// One move at the resting place: whatever the real pointer was over in the game lets go of it.
@@ -138,7 +162,11 @@ void WoRAgentPlayHold::Release()
 		return;
 	}
 	FEditorDelegates::EndPIE.Remove(GEndPIEHandle);
-	GetMutableDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground = bGThrottledBefore;
+	if (bGThrottledBefore)
+	{
+		// Off was ours, so on comes back. A setting a person turned on meanwhile is already on and is left alone.
+		GetMutableDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground = true;
+	}
 	// Only our own stand-in is taken out: if something wrapped the application after us, it stays as it is.
 	if (FSlateApplication::IsInitialized() && FSlateApplication::Get().GetPlatformApplication() == GApplication)
 	{
