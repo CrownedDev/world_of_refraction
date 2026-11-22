@@ -53,6 +53,7 @@ namespace WoRKeyHintsTable
 			{TEXT("Interact"), LOCTEXT("InteractPad", "X"), LOCTEXT("InteractKey", "E"), EWoRKeyCapStyle::FaceX, EKeys::Invalid},
 			{TEXT("ViewButton"), LOCTEXT("ViewButtonPad", "View"), LOCTEXT("ViewButtonKey", "Tab"), EWoRKeyCapStyle::Framed, EKeys::Invalid},
 			{TEXT("Help"), LOCTEXT("HelpPad", "View"), LOCTEXT("HelpKey", "H"), EWoRKeyCapStyle::Framed, EKeys::H}, // B-543
+			{TEXT("Details"), LOCTEXT("DetailsPad", "R3"), LOCTEXT("DetailsKey", "V"), EWoRKeyCapStyle::Framed, EKeys::V}, // B-586: the fight's Intel
 		};
 	}
 }
