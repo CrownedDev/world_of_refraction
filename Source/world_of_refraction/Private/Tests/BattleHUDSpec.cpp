@@ -15,6 +15,9 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/ProgressBar.h"
+#include "Components/SizeBox.h"
+#include "Components/TextBlock.h"
 #include "Combat/CombatConstants.h"
 #include "HAL/IConsoleManager.h"
 #include "Character/CharacterDataComponent.h"
@@ -182,6 +185,52 @@ void FBattleHUDSpec::Define()
 				TestEqual(TEXT("statuses"), Card.StatusText != nullptr, Parts.bStatus);
 				BattleHUDCard::Push(Card); // the parts it didn't build are skipped
 			}
+		});
+
+		It("shows a fight's card compact or full, and leaves the hub and trial cards as built (B-436a)", [this]()
+		{
+			UWidgetTree *Tree = NewObject<UWidgetTree>(GetTransientPackage());
+			FBattleHUDCard Card;
+			Card.bParty = true;
+			Card.DetailLine = FText::FromString(TEXT("Fire Refractor"));
+			BattleHUDCard::Build(Tree, Card, EBattleCardLevel::Battle);
+			if (!TestTrue(TEXT("a battle card keeps its width box and its EP row"), Card.WidthBox && Card.EPRow && Card.StatusText && Card.BuildupBar))
+			{
+				return;
+			}
+			BattleHUDCard::Push(Card);
+			BattleHUDCard::SetCompact(Card, true);
+			TestEqual(TEXT("compact: the narrow width"), Card.WidthBox->GetWidthOverride(), BattleCardStyle::CompactCardWidth);
+			TestTrue(TEXT("compact: the name, the HP bar and the build-up bar stay"),
+					 Card.NameText->GetVisibility() != ESlateVisibility::Collapsed && Card.HPBar->GetVisibility() != ESlateVisibility::Collapsed &&
+						 Card.BuildupBar->GetVisibility() != ESlateVisibility::Collapsed);
+			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get(), Card.BuildupText.Get(), Card.ActionsText.Get(),
+												  Card.StatusText.Get()};
+			for (const UWidget *Hidden : HiddenWhenCompact)
+			{
+				TestTrue(TEXT("compact: the kind, EP, build-up line, actions and statuses are collapsed"),
+						 Hidden && Hidden->GetVisibility() == ESlateVisibility::Collapsed);
+			}
+
+			BattleHUDCard::SetCompact(Card, false);
+			TestEqual(TEXT("full: the card's width"), Card.WidthBox->GetWidthOverride(), BattleCardStyle::CardWidth);
+			TestTrue(TEXT("full: the kind, EP and statuses are back"),
+					 Card.DetailText->GetVisibility() == ESlateVisibility::HitTestInvisible && Card.EPRow->GetVisibility() == ESlateVisibility::HitTestInvisible &&
+						 Card.StatusText->GetVisibility() == ESlateVisibility::HitTestInvisible);
+
+			FBattleHUDCard NoEP;
+			NoEP.bParty = true;
+			NoEP.bShowEP = false; // a Resonator with no EP use
+			BattleHUDCard::Build(Tree, NoEP, EBattleCardLevel::Battle);
+			BattleHUDCard::SetCompact(NoEP, false);
+			TestTrue(TEXT("full: a card with no EP keeps its EP row collapsed"), NoEP.EPRow && NoEP.EPRow->GetVisibility() == ESlateVisibility::Collapsed);
+
+			FBattleHUDCard HubCard;
+			HubCard.bParty = true;
+			BattleHUDCard::Build(Tree, HubCard, EBattleCardLevel::Hub);
+			BattleHUDCard::Push(HubCard);
+			TestTrue(TEXT("the hub's name-only card has no EP row and no fixed width"),
+					 !HubCard.EPRow && HubCard.WidthBox && HubCard.WidthBox->GetWidthOverride() == 0.0f);
 		});
 	});
 
@@ -402,6 +451,66 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("the status panel names every combatant"),
 					 HUD->GetStatusPanelText().ToString().Contains(HUD->GetCards()[1].Name.ToString()));
 			HUD->Teardown();
+		});
+
+		It("features the party member acting, keeps it through an enemy's turn, and never an enemy card (B-436a)", [this]()
+		{
+			USaveSubsystem *Save = CreateTestWorld() ? TestWorld->GetSubsystem<USaveSubsystem>() : nullptr;
+			if (!TestNotNull(TEXT("the save"), Save))
+			{
+				return;
+			}
+			const bool bHiddenBefore = Save->IsEndTurnButtonHidden();
+			ON_SCOPE_EXIT { Save->SetEndTurnButtonHidden(bHiddenBefore); };
+			Save->SetEndTurnButtonHidden(false); // the End Turn row hands the turn to Foe below
+			if (!StartDuel())
+			{
+				return;
+			}
+			AActor *Bystander = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData()); // a party card that never acts
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (!TestNotNull(TEXT("a second party member"), Bystander) || !TestNotNull(TEXT("battle HUD widget"), HUD))
+			{
+				return;
+			}
+			constexpr int32 HERO_CARD = 1;
+			HUD->Initialise({Bystander, Hero}, {Foe});
+			TestEqual(TEXT("Hero is acting: Hero's card is featured, not the first card"), HUD->GetFeaturedCardIndex(), HERO_CARD);
+			TestTrue(TEXT("wor.UI.Print marks the featured card and the compact one"),
+					 HUD->GetBattleHUDString().Contains(TEXT("featured (full card)")) && HUD->GetBattleHUDString().Contains(TEXT("| compact")));
+
+			UBattleCommandMenuWidget *MenuWidget = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+			if (TestNotNull(TEXT("command menu widget"), MenuWidget))
+			{
+				MenuWidget->Initialise();
+				const int32 EndTurnRow = FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString());
+				if (TestTrue(TEXT("an End Turn row"), EndTurnRow != INDEX_NONE))
+				{
+					MenuWidget->PressRow(EndTurnRow);
+					TestTrue(TEXT("it is Foe's turn"), Orchestrator->GetCurrentActor() == Foe);
+					TestFalse(TEXT("Hero's card is no longer marked acting"), HUD->GetCards()[HERO_CARD].bActing);
+					TestEqual(TEXT("Hero's card stays featured through the enemy's turn"), HUD->GetFeaturedCardIndex(), HERO_CARD);
+				}
+				MenuWidget->Teardown();
+			}
+			HUD->Teardown();
+
+			UBattleHUDWidget *NoActorYet = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (TestNotNull(TEXT("a HUD whose party has not acted"), NoActorYet))
+			{
+				NoActorYet->Initialise({Bystander}, {Foe});
+				TestEqual(TEXT("no party member has acted: the first party card is featured"), NoActorYet->GetFeaturedCardIndex(), 0);
+				NoActorYet->Teardown();
+			}
+			UBattleHUDWidget *EnemiesOnly = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (TestNotNull(TEXT("a HUD with no party"), EnemiesOnly))
+			{
+				EnemiesOnly->Initialise({}, {Foe});
+				TestEqual(TEXT("no party card: nothing featured"), EnemiesOnly->GetFeaturedCardIndex(), static_cast<int32>(INDEX_NONE));
+				EnemiesOnly->Teardown();
+			}
+			const FVector2D MenuOffset = UBattleHUDWidget::GetCommandMenuOffset();
+			TestTrue(TEXT("the command menu sits in from the left edge and above the bottom"), MenuOffset.X > 0.0f && MenuOffset.Y < 0.0f);
 		});
 
 		It("floats a damage number over a hit character, stacks a second, and drops a hit that took nothing (B-391b)", [this]()
