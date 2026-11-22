@@ -20,7 +20,9 @@
 #include "Components/TextBlock.h"
 #include "Combat/CombatConstants.h"
 #include "HAL/IConsoleManager.h"
+#include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
+#include "Character/PlayerBuild.h"
 #include "Combat/Actions/ActionPipsText.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
@@ -455,6 +457,73 @@ void FBattleHUDSpec::Define()
 			HUD->Teardown();
 		});
 
+		It("keeps Spirit and Body off a fight's card and shows them when the card is inspected (D-254)", [this]()
+		{
+			if (!StartDuel())
+			{
+				return;
+			}
+			UPackage *Package = GetTransientPackage();
+			UCharacterData *PlayerData = NewObject<UCharacterData>(
+				Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(), *(FString(WoRPlayerBuild::BUILT_NAME) + TEXT("_InspectSpec"))));
+			PlayerData->CharacterClass = ECharacterClass::Caster;
+			PlayerData->InnateElement = ESpellElement::Fire;
+			AActor *Player = TestWorld->SpawnCombatant(PlayerData);
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			UCharacterDataComponent *PlayerComp = Player ? Player->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			if (!TestNotNull(TEXT("a player character"), PlayerComp) || !TestNotNull(TEXT("battle HUD widget"), HUD))
+			{
+				return;
+			}
+			constexpr int32 PLAYER_CARD = 0;
+			constexpr int32 HERO_CARD = 1;
+			constexpr int32 FOE_CARD = 2;
+			HUD->Initialise({Player, Hero}, {Foe});
+			const FString Identity = WoRPlayerBuild::GetDetailLine(PlayerData, PlayerComp->PartyMemberId, TestWorld->GetWorld()).ToString();
+			TestTrue(TEXT("the character has identity lines to show"), Identity.StartsWith(TEXT("Spirit of")));
+			TestTrue(TEXT("no identity lines on the fight's card"), HUD->GetCards()[PLAYER_CARD].DetailLine.IsEmpty());
+			TestFalse(TEXT("closed to start"), HUD->IsStatusPanelOpen());
+
+			HUD->InspectCard(PLAYER_CARD);
+			const FString Inspect = HUD->GetStatusPanelText().ToString();
+			TestTrue(TEXT("a card click opens the panel on that character"), HUD->IsStatusPanelOpen() && HUD->GetInspectedCardIndex() == PLAYER_CARD);
+			TestTrue(TEXT("inspect names the character and holds its Spirit / Body lines"),
+					 Inspect.StartsWith(HUD->GetCards()[PLAYER_CARD].Name.ToString()) && Inspect.Contains(Identity));
+			TestTrue(TEXT("inspect holds the full actions line: pips, Max and the action-point progress"),
+					 Inspect.Contains(ActionPipsText::MakeActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(),
+																	  PlayerComp->GetActionPointProgress(), PlayerComp->SkillsUsedThisTurn).ToString()));
+			TestTrue(TEXT("inspect says there are no statuses"), Inspect.Contains(TEXT("No statuses")));
+			TestFalse(TEXT("inspect is that character alone"), Inspect.Contains(HUD->GetCards()[FOE_CARD].Name.ToString() + TEXT(":")));
+			TestTrue(TEXT("wor.UI.Print says who is inspected"), HUD->GetBattleHUDString().Contains(TEXT("inspecting")));
+
+			PlayerComp->GainActions(PlayerComp->GetMaxActions() + BATTLE_HUD_ONE_ACTION, /*bMayPassMax=*/true);
+			if (TestTrue(TEXT("the bank is above Max"), PlayerComp->CurrentActions > PlayerComp->GetMaxActions()))
+			{
+				TestTrue(TEXT("the open inspect follows the bank"),
+						 HUD->GetStatusPanelText().ToString().Contains(
+							 ActionPipsText::MakeActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(), PlayerComp->GetActionPointProgress(),
+															 PlayerComp->SkillsUsedThisTurn).ToString()));
+				TestTrue(TEXT("and warns that bonus actions are lost at turn end"), HUD->GetStatusPanelText().ToString().Contains(TEXT("lost at turn end")));
+				TestTrue(TEXT("the card keeps only the mark"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString().EndsWith(TEXT("◆")));
+			}
+
+			HUD->InspectCard(HERO_CARD);
+			TestTrue(TEXT("another card switches to it"), HUD->IsStatusPanelOpen() && HUD->GetInspectedCardIndex() == HERO_CARD);
+			HUD->InspectCard(FOE_CARD);
+			TestEqual(TEXT("an enemy card is not inspected"), HUD->GetInspectedCardIndex(), HERO_CARD);
+			HUD->ToggleAllStatuses();
+			TestTrue(TEXT("the Status button goes from one character to everyone"),
+					 HUD->IsStatusPanelOpen() && HUD->GetInspectedCardIndex() == INDEX_NONE &&
+						 HUD->GetStatusPanelText().ToString().Contains(HUD->GetCards()[FOE_CARD].Name.ToString() + TEXT(":")));
+			HUD->ToggleAllStatuses();
+			TestFalse(TEXT("and closes it on the next press"), HUD->IsStatusPanelOpen());
+
+			HUD->InspectCard(HERO_CARD);
+			HUD->InspectCard(HERO_CARD);
+			TestTrue(TEXT("the same card again closes the inspect"), !HUD->IsStatusPanelOpen() && HUD->GetInspectedCardIndex() == INDEX_NONE);
+			HUD->Teardown();
+		});
+
 		It("features the party member acting, keeps it through an enemy's turn, and never an enemy card (B-436a)", [this]()
 		{
 			USaveSubsystem *Save = CreateTestWorld() ? TestWorld->GetSubsystem<USaveSubsystem>() : nullptr;
@@ -724,8 +793,8 @@ void FBattleHUDSpec::Define()
 			HUD->Initialise({Hero}, {Foe});
 			const auto ExpectedLine = [HeroData]()
 			{
-				return ActionPipsText::MakeActionsLine(HeroData->CurrentActions, HeroData->GetMaxActions(), HeroData->GetActionPointProgress())
-					.ToString();
+				// D-254 (B-581): the card's line is the short one ("Act: 0/2"); the full line moved to inspect.
+				return ActionPipsText::MakeCardActionsLine(HeroData->CurrentActions, HeroData->GetMaxActions()).ToString();
 			};
 			if (TestTrue(TEXT("two cards, the party's first"), HUD->GetCards().Num() == 2 && HUD->GetCards()[0].bParty))
 			{
