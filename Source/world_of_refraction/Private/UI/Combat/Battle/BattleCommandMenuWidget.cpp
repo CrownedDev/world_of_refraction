@@ -52,10 +52,13 @@ namespace BattleCommandMenuStyle
 	constexpr float KeyCapOutline = 1.5f;
 	constexpr float IconSize = 20.0f;
 	constexpr float InnerGap = 8.0f;
-	/** The rows scroll past this height (a long item or target list). */
-	constexpr float MaxListHeight = 420.0f;
+	/** The rows scroll past this height, a scroll bar showing (a long item or target list). B-436g QA: 420 cut the 12th
+	 *  item; 600 holds 16 one-line rows and still clears the top-left at 720p (the turn order is top right). */
+	constexpr float MaxListHeight = 600.0f;
 	constexpr float HintGap = 6.0f;
-	constexpr int32 TabFontSize = 14;
+	/** B-436g QA: the corner hints sit on a dark plate in the frame's style, so they read on a bright floor. */
+	constexpr float HintPlatePadding = 8.0f;
+	constexpr int32 TabFontSize = 20; // B-436g QA: the drawing's tab is as tall as a row; 14 read small
 	constexpr int32 HeaderFontSize = 13;
 	constexpr int32 RowFontSize = 17;
 	constexpr int32 KeyFontSize = 12;
@@ -199,23 +202,42 @@ TSharedRef<SWidget> UBattleMenuHintsWidget::RebuildWidget()
 	if (WidgetTree && !WidgetTree->RootWidget)
 	{
 		ClearFlags(RF_Transactional); // TransBuffer rule, as the menu
+		// B-436g QA: a dark plate in the frame's style behind the hints, so they read on any floor.
+		static const FSlateRoundedBoxBrush PlateBrush(WoRMenuStyle::PanelColor, BattleCommandMenuBuild::CutCorner(), WoRMenuStyle::OffColor, FrameOutline);
+		UBorder *Plate = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("HintsPlate"));
+		Plate->SetBrush(PlateBrush);
+		Plate->SetPadding(FMargin(HintPlatePadding));
+		Plate->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		WidgetTree->RootWidget = Plate;
 		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Hints"));
 		Column->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		WidgetTree->RootWidget = Column;
+		Plate->SetContent(Column);
 		for (int32 Index = 0; Index < MAX_HINTS; ++Index)
 		{
 			UButton *Button = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass());
 			Button->SetStyle(BattleCommandMenuBuild::RowStyle(false, /*bFooter=*/true));
 			UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			UTextBlock *Key = BattleCommandMenuBuild::MakeText(WidgetTree, HintFontSize, WoRMenuStyle::DimColor);
-			UTextBlock *Label = BattleCommandMenuBuild::MakeText(WidgetTree, HintFontSize, WoRMenuStyle::TextColor);
-			WoRMenuStyle::AddToRow(Line, Key, FMargin(0.0f, 0.0f, InnerGap, 0.0f));
+			// The key as the rows draw it: a ring in a face button's colour, else a framed cap (PushToWidgets).
+			UBorder *Cap = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+			Cap->SetHorizontalAlignment(HAlign_Center);
+			Cap->SetVerticalAlignment(VAlign_Center);
+			Cap->SetPadding(FMargin(RowPaddingY, 0.0f));
+			Cap->SetVisibility(ESlateVisibility::HitTestInvisible);
+			UTextBlock *Key = BattleCommandMenuBuild::MakeText(WidgetTree, KeyFontSize, WoRMenuStyle::TextColor, /*bBold=*/true);
+			Cap->SetContent(Key);
+			USizeBox *CapSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+			CapSize->SetHeightOverride(KeyCapSize);
+			CapSize->SetMinDesiredWidth(KeyCapSize);
+			CapSize->AddChild(Cap);
+			UTextBlock *Label = BattleCommandMenuBuild::MakeText(WidgetTree, HintFontSize, WoRMenuStyle::TextColor, /*bBold=*/true);
+			WoRMenuStyle::AddToRow(Line, CapSize, FMargin(0.0f, 0.0f, InnerGap, 0.0f));
 			WoRMenuStyle::AddToRow(Line, Label);
 			Button->AddChild(Line);
 			WoRMenuStyle::AddToColumn(Column, Button, FMargin(0.0f, HintGap * 0.5f))->SetHorizontalAlignment(HAlign_Right);
 			UBattleMenuRowRelay *Relay = NewObject<UBattleMenuRowRelay>(this);
 			Button->OnClicked.AddDynamic(Relay, &UBattleMenuRowRelay::HandleClicked);
 			Buttons.Add(Button);
+			KeyCaps.Add(Cap);
 			KeyTexts.Add(Key);
 			LabelTexts.Add(Label);
 			Relays.Add(Relay);
@@ -230,7 +252,7 @@ void UBattleMenuHintsWidget::PushToWidgets()
 	for (int32 Index = 0; Index < Buttons.Num(); ++Index)
 	{
 		UButton *Button = Buttons[Index];
-		if (!Button || !KeyTexts[Index] || !LabelTexts[Index] || !Relays[Index])
+		if (!Button || !KeyCaps[Index] || !KeyTexts[Index] || !LabelTexts[Index] || !Relays[Index])
 		{
 			continue;
 		}
@@ -243,7 +265,9 @@ void UBattleMenuHintsWidget::PushToWidgets()
 		Relays[Index]->Menu = Owner;
 		Relays[Index]->RowIndex = Hint.RowIndex;
 		KeyTexts[Index]->SetText(Hint.Key);
-		KeyTexts[Index]->SetVisibility(Hint.Key.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+		KeyTexts[Index]->SetColorAndOpacity(FSlateColor(BattleCommandMenuBuild::KeyTextColor(Hint.KeyId)));
+		KeyCaps[Index]->SetBrush(BattleCommandMenuBuild::KeyCapBrush(Hint.KeyId));
+		WoRMenuStyle::SetShown(KeyCaps[Index]->GetParent(), !Hint.Key.IsEmpty());
 		LabelTexts[Index]->SetText(Hint.Label);
 		LabelTexts[Index]->SetColorAndOpacity(FSlateColor(Hint.bEnabled ? WoRMenuStyle::TextColor : WoRMenuStyle::OffColor));
 		Button->SetIsEnabled(Hint.bEnabled);
@@ -355,7 +379,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 		static const FSlateRoundedBoxBrush TabBrush(TabColor, BattleCommandMenuBuild::CutCorner(), WoRMenuStyle::CyanColor, FrameOutline);
 		UBorder *Tab = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ActTab"));
 		Tab->SetBrush(TabBrush);
-		Tab->SetPadding(FMargin(RowPaddingX, RowPaddingY * 0.5f));
+		Tab->SetPadding(FMargin(RowPaddingX * 1.5f, RowPaddingY));
 		Tab->SetVisibility(ESlateVisibility::HitTestInvisible);
 		TabText = MakeText(WidgetTree, TabFontSize, WoRMenuStyle::CyanColor, /*bBold=*/true);
 		Tab->SetContent(TabText);
@@ -389,7 +413,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 		WoRMenuStyle::AddToColumn(Body, DurabilityText, FMargin(RowPaddingX, 0.0f, RowPaddingX, RowGap));
 
 		UScrollBox *Scroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("Rows"));
-		Scroll->SetScrollBarVisibility(ESlateVisibility::Collapsed);
+		Scroll->SetScrollBarVisibility(ESlateVisibility::Visible); // B-436g QA: a cut-off row must look scrollable
 		USizeBox *ListHeight = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 		ListHeight->SetMaxDesiredHeight(MaxListHeight);
 		ListHeight->AddChild(Scroll);
@@ -539,6 +563,7 @@ void UBattleCommandMenuWidget::RefreshKeys()
 		{
 			FBattleMenuHint &Hint = Hints.AddDefaulted_GetRef();
 			Hint.Key = KeyName;
+			Hint.KeyId = Shown;
 			Hint.Label = Name;
 			Hint.Reason = Reason;
 			Hint.RowIndex = Index;

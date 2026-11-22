@@ -61,6 +61,7 @@ public:
 struct FBattleMenuHint
 {
 	FText Key;
+	FKey KeyId; // drawn as the rows' cap (QA: the hints' keys must read as well as the rows')
 	FText Label;
 	FText Reason;
 	int32 RowIndex = INDEX_NONE;
@@ -94,6 +95,9 @@ private:
 
 	UPROPERTY()
 	TArray<TObjectPtr<UButton>> Buttons;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UBorder>> KeyCaps;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UTextBlock>> KeyTexts;
