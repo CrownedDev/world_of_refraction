@@ -303,7 +303,7 @@ void FPoolRunLayerSpec::Define()
 		Pool->BeginRunLayer();
 		Pool->CarryOrStore(Key, Owned, RUN_LAYER_ITEMS_FOUND); // a find of a kind already owned
 		const int32 Overflow = Pool->CarryOrStore(Key, FoundOnly, InventoryConstants::ITEM_STACK_MAX + RUN_LAYER_ITEMS_FOUND);
-		TestEqual(TEXT("a find that didn't fit went to storage"), Overflow, RUN_LAYER_ITEMS_FOUND);
+		TestEqual(TEXT("a find past the old stack size is carried too (D-250)"), Overflow, 0);
 		Pool->TakeCarried(Key, Owned, RUN_LAYER_ITEMS_USED); // used in the run
 		TestTrue(TEXT("the print names the finds"), Pool->GetRunLayerString().Contains(TEXT("found in the run")));
 

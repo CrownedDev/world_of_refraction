@@ -126,11 +126,11 @@ Ask unreal-mcp to describe the toolset for the exact argument spelling. Mouse po
 |---|---|
 | `wor.Debug.GiveTestKit` | Everything below, found by kind, so no asset path is needed |
 | `wor.Debug.GiveTestKit apparel` | Apparel up to 60 pieces: with the weapons and adapters, a Gear grid past one screen |
-| `wor.Debug.GiveTestKit adapters` | Adapters until their room is full |
+| `wor.Debug.GiveTestKit adapters` | Adapters until 20 are owned (a second call adds none) |
 | `wor.Debug.GiveTestKit evolution` | Two evolution items |
 | `wor.Debug.GiveTestKit skill` | Three learned abilities, the longest names first |
 | `wor.Debug.GiveTestKit member` | A second party member: the recruitable character in the level, else another character in the played one's body |
-| `wor.Debug.GiveTestKit weapons` | `wor.Debug.GiveTestWeapons` (12; the 20 weapon room is unchanged) |
+| `wor.Debug.GiveTestKit weapons` | `wor.Debug.GiveTestWeapons` (12 more each call; there is no weapon room since D-250) |
 
 The answer has one line per part and says what was refused. Several parts can be named at once.
 
