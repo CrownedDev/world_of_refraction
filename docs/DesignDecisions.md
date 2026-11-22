@@ -1310,7 +1310,7 @@ The queue of questions only Crown can answer.
 1. **A click on a party card opens the Status panel on that character alone.** A click on the same card closes it; a click on another party card switches to that one. Enemy cards are not inspected (their HP is hidden by Q-391; targeting shows it, B-436c).
 2. **The Status button is always the view of everyone.** While one character is inspected it switches to everyone; pressed again it closes.
 3. **Inspect lists, in order:** the name, Spirit of ... and Body of ..., the full actions line as it was on the card (pips, the number, Max with the action-point progress, the turn's skills, and "N bonus, lost at turn end" above Max), then each status in full.
-4. **The card's mark above Max is one ◆,** however many bonus actions there are ("Act: 4/2 ◆"); inspect draws one ◆ pip for each.
+4. **Replaced by D-259 (Crown, the same day):** the card draws pips and no numbers ("Act: ●●○"), one ◆ for each action above Max ("Act: ●●●◆"), as inspect does. (This default was one ◆ on a numbers line, "Act: 4/2 ◆".)
 5. **The party list reads the element and the class under every name,** a player character's included, as a recruit's already did (the class alone with no innate element). The Character sheet keeps Spirit of ... / Body of ....
 **Reference:** Expedition 33 and Persona 5 open a character's detail from its own portrait or card and close it with the same input or Back; a second press on the same thing closing it is the common toggle. From memory, not looked up. The deckbuilder has no inspect.
 **Not built, say if wanted:** a key or pad button for inspect (comes with B-436h); closing inspect by clicking empty ground.
