@@ -1256,6 +1256,14 @@ The queue of questions only Crown can answer.
 **Changes:** the per-piece looks of `VisualGameplayPlan.md` 2 and 3, the "Crown's look at each" build order of D-248 and D-249, the look step of the four UI steps of 2026-11-15, and the wait for Crown's PIE pass before committing assets.
 **Unchanged:** `main`, lore and money are Crown's; old code is removed only after Crown's session at checkpoint 6.
 
+### Q-575 — The fight-item pick (D-250 part 1): what can be picked, where a recruit's items go, and what a load picks
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-575) · **Blocks:** nothing
+**Question:** D-250 rules no carry limit and a pick of up to the item slots. It doesn't say whether a stone can be picked, where a leaving recruit's items go now there is no storage, what happens to the pick when a stack runs out, or what the pick is after a load while the save step waits (Q-250).
+**Answer (defaults):** (1) **Gems only.** A stone is set in a socket, never used in a fight, so it takes no slot. Reference: Elden Ring's quick pouch takes only items that can be used. (2) **A leaving recruit's items go to the host** (the party leader), the same place D-250 sends an old chest. (3) **A stack that runs out leaves the pick;** the next new kind takes the free slot. (4) **A bought slot starts empty,** for the player to fill. (5) **Ten a fight is counted per fight:** each fight brings up to 10 of a picked item again while more is carried. (6) **Until the pick is saved,** a load picks the carried gems in the fight's list order until the slots are full. A save from before D-250 holds at most its slots, so it plays as it did. (7) **An apparel socket's old crystal** goes back to the piece's owner (was storage, Q-380d).
+**Not changed (say if wanted):** the evolution limit of 5 counts worn evolutions too, so it is a rule on owning them, not a carry room. The chest and the old Store / Take buttons still work until part 3.
+**Until part 2's screen:** the pick is changed with the console command `wor.Inventory.SetFightItem` (numbers from `wor.Inventory.PrintSlots`).
+**Built:** B-575.
+
 ### Q-250 — D-250 changes the save: convert the old save once, or wipe it as D-138 says?
 **Status:** OPEN (Crown's: it would break a ruling, so D-251 says ask) · **Raised:** 2026-11-22 (the brain, starting checkpoint 2) · **Blocks:** only the save step of D-250 part 1, and that part's merge
 **Question:** D-250 part 1 saves the fight-item pick, so the save goes from version 44 to 45. D-138 (Crown, 2026-11-03) says a bump wipes older saves and no migration code is written until the first public build. D-250's default says an old save's chest contents go to the party leader. Both can't hold.
