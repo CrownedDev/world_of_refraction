@@ -3,10 +3,21 @@
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Brushes/SlateNoResource.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
+#include "Character/CharacterDataComponent.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Combat/CombatPlayerController.h"
 #include "Combat/WoRFightSubsystem.h"
+#include "CommonInputSubsystem.h"
 #include "Components/Border.h"
 #include "Components/Button.h"
+#include "Components/ButtonSlot.h"
+#include "Components/HorizontalBox.h"
+#include "Components/HorizontalBoxSlot.h"
+#include "Components/Image.h"
+#include "Components/ScrollBox.h"
+#include "Components/ScrollBoxSlot.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -15,24 +26,137 @@
 #include "Equipment/Crystals/CrystalManager.h"
 #include "GameFramework/Actor.h"
 #include "UI/Combat/Battle/BattleHUDButton.h"
+#include "UI/Combat/Battle/BattleHUDCard.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
-#include "WoRGameNames.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "UI/Menus/MenuScreenStyle.h"
+#include "UI/WoRKeyHintText.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "BattleCommandMenu"
 
 namespace BattleCommandMenuStyle
 {
-	// TODO: style pass (placeholder until the CommonUI screens, D-024). Slate units, DPI-scaled.
-	constexpr float MenuWidth = 340.0f;
-	constexpr float Padding = 8.0f;
-	constexpr float RowPadding = 2.0f;
-	constexpr int32 TitleFontSize = 16;
-	constexpr int32 RowFontSize = 14;
-	const FLinearColor BackgroundColor(0.0f, 0.0f, 0.0f, 0.7f);
-	const FLinearColor HeaderColor(0.7f, 0.7f, 0.7f);
+	// TODO: tune in PIE against refine_final/11 and 12 (placeholder until the CommonUI screens, D-024). Slate units,
+	// DPI-scaled. Colours are the menus' (WoRMenuStyle).
+	/** D-260: the frame is exactly the full party card's width (BattleCardStyle, shared with the hub and trial). */
+	constexpr float FrameWidth = BattleCardStyle::CardWidth + 2.0f * BattleCardStyle::CardPadding;
+	constexpr float FramePadding = 6.0f;
+	constexpr float FrameOutline = 1.0f;
+	constexpr float RowGap = 3.0f;
+	constexpr float RowPaddingX = 8.0f;
+	constexpr float RowPaddingY = 5.0f;
+	/** A cut corner drawn as a rounded one (the pictures cut the top-left corner of the tab and each row). */
+	constexpr float CornerRadius = 6.0f;
+	constexpr float KeyCapSize = 22.0f;
+	constexpr float KeyCapOutline = 1.5f;
+	constexpr float IconSize = 20.0f;
+	constexpr float InnerGap = 8.0f;
+	/** The rows scroll past this height (a long item or target list). */
+	constexpr float MaxListHeight = 420.0f;
+	constexpr float HintGap = 6.0f;
+	constexpr int32 TabFontSize = 14;
+	constexpr int32 HeaderFontSize = 13;
+	constexpr int32 RowFontSize = 17;
+	constexpr int32 KeyFontSize = 12;
+	constexpr int32 SmallFontSize = 11;
+	constexpr int32 HintFontSize = 15;
+	const FLinearColor TabColor = FLinearColor::FromSRGBColor(FColor(30, 24, 46));
 	const FLinearColor DurabilityColor(0.85f, 0.85f, 0.7f); // B-391c
+	// shortcut: the face-button colours repeat WoRKeyHintText.cpp's (private there), share them when the menus' caps do.
+	const FLinearColor FaceAColor = FLinearColor::FromSRGBColor(FColor(108, 203, 95));
+	const FLinearColor FaceBColor = FLinearColor::FromSRGBColor(FColor(235, 87, 87));
+	const FLinearColor FaceXColor = FLinearColor::FromSRGBColor(FColor(91, 141, 239));
+	const FLinearColor FaceYColor = FLinearColor::FromSRGBColor(FColor(242, 201, 76));
+}
+
+namespace BattleCommandMenuBuild
+{
+	using namespace BattleCommandMenuStyle;
+
+	/** A rounded top-left corner, the rest square: the pictures' cut corner. */
+	FVector4 CutCorner() { return FVector4(CornerRadius, 0.0f, 0.0f, 0.0f); }
+
+	/** The short name the pictures use: A / B / X / Y, LB / RB, the D-pad and stick by name; a keyboard key as UE names it. */
+	FText ShortKeyName(const FKey &Key)
+	{
+		if (Key == EKeys::Gamepad_FaceButton_Bottom) return INVTEXT("A");
+		if (Key == EKeys::Gamepad_FaceButton_Right) return INVTEXT("B");
+		if (Key == EKeys::Gamepad_FaceButton_Left) return INVTEXT("X");
+		if (Key == EKeys::Gamepad_FaceButton_Top) return INVTEXT("Y");
+		if (Key == EKeys::Gamepad_LeftShoulder) return INVTEXT("LB");
+		if (Key == EKeys::Gamepad_RightShoulder) return INVTEXT("RB");
+		if (Key == EKeys::Gamepad_LeftThumbstick) return INVTEXT("L3");
+		if (Key == EKeys::Gamepad_DPad_Down) return LOCTEXT("DPadDown", "D-pad down");
+		if (Key == EKeys::Gamepad_DPad_Right) return LOCTEXT("DPadRight", "D-pad right");
+		return Key.GetDisplayName(/*bLongDisplayName=*/false);
+	}
+
+	/** A face button's letter in its colour; any other key in the text colour. */
+	FLinearColor KeyTextColor(const FKey &Key)
+	{
+		if (Key == EKeys::Gamepad_FaceButton_Bottom) return FaceAColor;
+		if (Key == EKeys::Gamepad_FaceButton_Right) return FaceBColor;
+		if (Key == EKeys::Gamepad_FaceButton_Left) return FaceXColor;
+		if (Key == EKeys::Gamepad_FaceButton_Top) return FaceYColor;
+		return WoRMenuStyle::TextColor;
+	}
+
+	/** A face button: a ring in its colour (the pictures' A / X / Y); any other key: a framed cap. */
+	const FSlateBrush &KeyCapBrush(const FKey &Key)
+	{
+		static const FSlateRoundedBoxBrush Framed(WoRMenuStyle::PanelColor, CornerRadius * 0.5f, WoRMenuStyle::DimColor, FrameOutline);
+		static const FSlateRoundedBoxBrush RingA(FLinearColor::Transparent, KeyCapSize * 0.5f, FaceAColor, KeyCapOutline);
+		static const FSlateRoundedBoxBrush RingB(FLinearColor::Transparent, KeyCapSize * 0.5f, FaceBColor, KeyCapOutline);
+		static const FSlateRoundedBoxBrush RingX(FLinearColor::Transparent, KeyCapSize * 0.5f, FaceXColor, KeyCapOutline);
+		static const FSlateRoundedBoxBrush RingY(FLinearColor::Transparent, KeyCapSize * 0.5f, FaceYColor, KeyCapOutline);
+		if (Key == EKeys::Gamepad_FaceButton_Bottom) return RingA;
+		if (Key == EKeys::Gamepad_FaceButton_Right) return RingB;
+		if (Key == EKeys::Gamepad_FaceButton_Left) return RingX;
+		if (Key == EKeys::Gamepad_FaceButton_Top) return RingY;
+		return Framed;
+	}
+
+	/** A small row at the foot of the list, no plate: the infusion controls and a section header ("Allies"). */
+	bool IsFooterRow(EPieMenuCategory Category)
+	{
+		return Category == EPieMenuCategory::CycleLevel || Category == EPieMenuCategory::CycleSource ||
+			   Category == EPieMenuCategory::SectionHeader;
+	}
+
+	/** The row's words: the infusion level row says what it is (refine_final/12: "Infusion: Weapon crystal Lv 1"). */
+	FText RowName(const FPieMenuButtonData &Row)
+	{
+		return Row.Category == EPieMenuCategory::CycleLevel ? FText::Format(LOCTEXT("InfusionRow", "Infusion: {0}"), Row.DisplayName)
+															: Row.DisplayName;
+	}
+
+	/** The row's look: plate, violet on hover (the highlighted target uses Highlighted); a footer row has none. */
+	const FButtonStyle &RowStyle(bool bHighlighted, bool bFooter)
+	{
+		static const FSlateRoundedBoxBrush Plate(WoRMenuStyle::PlateColor, CutCorner());
+		static const FSlateRoundedBoxBrush Focus(WoRMenuStyle::FocusColor, CutCorner(), WoRMenuStyle::CyanColor, FrameOutline);
+		static const FSlateRoundedBoxBrush Hover(WoRMenuStyle::HoverColor, CutCorner());
+		static const FSlateNoResource None;
+		const auto Make = [](const FSlateBrush &Normal, const FSlateBrush &Hovered)
+		{
+			FButtonStyle Style;
+			Style.SetNormal(Normal).SetHovered(Hovered).SetPressed(Focus).SetDisabled(Normal);
+			Style.SetNormalPadding(FMargin(0.0f)).SetPressedPadding(FMargin(0.0f));
+			return Style;
+		};
+		static const FButtonStyle Row = Make(Plate, Focus);
+		static const FButtonStyle Highlighted = Make(Focus, Focus);
+		static const FButtonStyle Footer = Make(None, Hover);
+		return bFooter ? Footer : bHighlighted ? Highlighted : Row;
+	}
+
+	UTextBlock *MakeText(UWidgetTree *Tree, int32 Size, const FLinearColor &Color, bool bBold = false)
+	{
+		UTextBlock *Text = WoRMenuStyle::MakeText(Tree, Size, Color, bBold);
+		Text->SetVisibility(ESlateVisibility::HitTestInvisible); // a click lands on the row's button
+		return Text;
+	}
 }
 
 void UBattleMenuRowRelay::HandleClicked()
@@ -48,6 +172,82 @@ void UBattleMenuRowRelay::HandleHovered()
 	if (UBattleCommandMenuWidget *Owner = Menu.Get())
 	{
 		Owner->HoverRow(RowIndex);
+	}
+}
+
+// ========================================
+// B-436g: THE CORNER HINTS
+// ========================================
+
+void UBattleMenuHintsWidget::SetHints(UBattleCommandMenuWidget *Menu, const TArray<FBattleMenuHint> &InHints)
+{
+	Owner = Menu;
+	Hints = InHints;
+	PushToWidgets();
+}
+
+void UBattleMenuHintsWidget::NativeConstruct()
+{
+	Super::NativeConstruct();
+	PushToWidgets();
+}
+
+TSharedRef<SWidget> UBattleMenuHintsWidget::RebuildWidget()
+{
+	using namespace BattleCommandMenuStyle;
+	if (WidgetTree && !WidgetTree->RootWidget)
+	{
+		ClearFlags(RF_Transactional); // TransBuffer rule, as the menu
+		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Hints"));
+		Column->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		WidgetTree->RootWidget = Column;
+		for (int32 Index = 0; Index < MAX_HINTS; ++Index)
+		{
+			UButton *Button = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass());
+			Button->SetStyle(BattleCommandMenuBuild::RowStyle(false, /*bFooter=*/true));
+			UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			UTextBlock *Key = BattleCommandMenuBuild::MakeText(WidgetTree, HintFontSize, WoRMenuStyle::DimColor);
+			UTextBlock *Label = BattleCommandMenuBuild::MakeText(WidgetTree, HintFontSize, WoRMenuStyle::TextColor);
+			WoRMenuStyle::AddToRow(Line, Key, FMargin(0.0f, 0.0f, InnerGap, 0.0f));
+			WoRMenuStyle::AddToRow(Line, Label);
+			Button->AddChild(Line);
+			WoRMenuStyle::AddToColumn(Column, Button, FMargin(0.0f, HintGap * 0.5f))->SetHorizontalAlignment(HAlign_Right);
+			UBattleMenuRowRelay *Relay = NewObject<UBattleMenuRowRelay>(this);
+			Button->OnClicked.AddDynamic(Relay, &UBattleMenuRowRelay::HandleClicked);
+			Buttons.Add(Button);
+			KeyTexts.Add(Key);
+			LabelTexts.Add(Label);
+			Relays.Add(Relay);
+		}
+	}
+	return Super::RebuildWidget();
+}
+
+void UBattleMenuHintsWidget::PushToWidgets()
+{
+	SetVisibility(Hints.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible);
+	for (int32 Index = 0; Index < Buttons.Num(); ++Index)
+	{
+		UButton *Button = Buttons[Index];
+		if (!Button || !KeyTexts[Index] || !LabelTexts[Index] || !Relays[Index])
+		{
+			continue;
+		}
+		if (!Hints.IsValidIndex(Index))
+		{
+			Button->SetVisibility(ESlateVisibility::Collapsed);
+			continue;
+		}
+		const FBattleMenuHint &Hint = Hints[Index];
+		Relays[Index]->Menu = Owner;
+		Relays[Index]->RowIndex = Hint.RowIndex;
+		KeyTexts[Index]->SetText(Hint.Key);
+		KeyTexts[Index]->SetVisibility(Hint.Key.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+		LabelTexts[Index]->SetText(Hint.Label);
+		LabelTexts[Index]->SetColorAndOpacity(FSlateColor(Hint.bEnabled ? WoRMenuStyle::TextColor : WoRMenuStyle::OffColor));
+		Button->SetIsEnabled(Hint.bEnabled);
+		Button->SetToolTipText(Hint.Reason); // a greyed hint says why (Flee in a boss fight)
+		Button->SetVisibility(ESlateVisibility::Visible);
 	}
 }
 
@@ -73,6 +273,13 @@ void UBattleCommandMenuWidget::Initialise()
 	BoundMenu = Menu;
 	Menu->OnCommandMenuReady.AddDynamic(this, &UBattleCommandMenuWidget::HandleMenuReady);
 	Menu->OnCommandMenuClosed.AddDynamic(this, &UBattleCommandMenuWidget::HandleMenuClosed);
+	Menu->OnTargetHighlighted.AddDynamic(this, &UBattleCommandMenuWidget::HandleTargetHighlighted); // B-436g: its row turns violet
+	// B-436g: the keys shown follow the device in use (none headless: the keyboard's).
+	if (UCommonInputSubsystem *Input = UCommonInputSubsystem::Get(GetOwningLocalPlayer()))
+	{
+		BoundInput = Input;
+		InputChangedHandle = Input->OnInputMethodChangedNative.AddUObject(this, &UBattleCommandMenuWidget::HandleInputMethodChanged);
+	}
 	// B-391c: the durability header follows per-cast wear and breaks, as the old header (a run-wide service; the weak
 	// pointer is only for the unbind).
 	if (UGameInstance *GameInstance = GetGameInstance())
@@ -103,8 +310,15 @@ void UBattleCommandMenuWidget::Teardown()
 	{
 		Menu->OnCommandMenuReady.RemoveDynamic(this, &UBattleCommandMenuWidget::HandleMenuReady);
 		Menu->OnCommandMenuClosed.RemoveDynamic(this, &UBattleCommandMenuWidget::HandleMenuClosed);
+		Menu->OnTargetHighlighted.RemoveDynamic(this, &UBattleCommandMenuWidget::HandleTargetHighlighted);
 	}
 	BoundMenu.Reset();
+	if (UCommonInputSubsystem *Input = BoundInput.Get())
+	{
+		Input->OnInputMethodChangedNative.Remove(InputChangedHandle);
+	}
+	BoundInput.Reset();
+	InputChangedHandle.Reset();
 	if (UCrystalManager *Crystals = BoundCrystals.Get())
 	{
 		Crystals->OnCrystalDurabilityChanged.RemoveDynamic(this, &UBattleCommandMenuWidget::HandleCrystalDurabilityChanged);
@@ -128,50 +342,107 @@ void UBattleCommandMenuWidget::NativeDestruct()
 
 TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 {
+	using namespace BattleCommandMenuStyle;
+	using BattleCommandMenuBuild::MakeText;
 	if (WidgetTree && !WidgetTree->RootWidget)
 	{
-		UBorder *Background = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Background"));
-		Background->SetBrushColor(BattleCommandMenuStyle::BackgroundColor);
-		Background->SetPadding(FMargin(BattleCommandMenuStyle::Padding));
-		WidgetTree->RootWidget = Background;
+		// B-436g (D-260): the Act tab on the frame's top edge, then the frame, exactly the full card's width.
+		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Menu"));
+		Column->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		WidgetTree->RootWidget = Column;
 
-		USizeBox *Width = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
-		Width->SetWidthOverride(BattleCommandMenuStyle::MenuWidth);
-		Background->SetContent(Width);
-		UVerticalBox *List = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Rows"));
-		Width->AddChild(List);
+		static const FSlateRoundedBoxBrush TabBrush(TabColor, BattleCommandMenuBuild::CutCorner(), WoRMenuStyle::CyanColor, FrameOutline);
+		UBorder *Tab = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("ActTab"));
+		Tab->SetBrush(TabBrush);
+		Tab->SetPadding(FMargin(RowPaddingX, RowPaddingY * 0.5f));
+		Tab->SetVisibility(ESlateVisibility::HitTestInvisible);
+		TabText = MakeText(WidgetTree, TabFontSize, WoRMenuStyle::CyanColor, /*bBold=*/true);
+		Tab->SetContent(TabText);
+		WoRMenuStyle::AddToColumn(Column, Tab)->SetHorizontalAlignment(HAlign_Left);
 
-		TitleText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Title"));
-		FSlateFontInfo TitleFont = TitleText->GetFont();
-		TitleFont.Size = BattleCommandMenuStyle::TitleFontSize;
-		TitleText->SetFont(TitleFont);
-		if (UVerticalBoxSlot *TitleSlot = List->AddChildToVerticalBox(TitleText))
-		{
-			TitleSlot->SetPadding(FMargin(BattleCommandMenuStyle::RowPadding));
-		}
+		static const FSlateRoundedBoxBrush FrameBrush(WoRMenuStyle::PanelColor, 0.0f, WoRMenuStyle::OffColor, FrameOutline);
+		UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Frame"));
+		Frame->SetBrush(FrameBrush);
+		Frame->SetPadding(FMargin(FramePadding));
+		Frame->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		UVerticalBox *Body = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Body"));
+		Frame->SetContent(Body);
+		WoRMenuStyle::AddToColumn(Column, WoRMenuStyle::MakeSized(WidgetTree, FrameWidth, 0.0f, Frame))->SetHorizontalAlignment(HAlign_Left);
 
-		// B-391c: the durability header, under the title (the old header sat at the top of the menu).
-		DurabilityText = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass(), TEXT("Durability"));
-		FSlateFontInfo DurabilityFont = DurabilityText->GetFont();
-		DurabilityFont.Size = BattleCommandMenuStyle::RowFontSize;
-		DurabilityText->SetFont(DurabilityFont);
-		DurabilityText->SetColorAndOpacity(FSlateColor(BattleCommandMenuStyle::DurabilityColor));
-		if (UVerticalBoxSlot *DurabilitySlot = List->AddChildToVerticalBox(DurabilityText))
-		{
-			DurabilitySlot->SetPadding(FMargin(BattleCommandMenuStyle::RowPadding));
-		}
+		// The header past the main menu ("Skills > Abilities"), a rule under it.
+		UVerticalBox *Header = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Header"));
+		TitleText = MakeText(WidgetTree, HeaderFontSize, WoRMenuStyle::DimColor, /*bBold=*/true);
+		WoRMenuStyle::AddToColumn(Header, TitleText, FMargin(RowPaddingX, RowPaddingY * 0.5f));
+		UBorder *Rule = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Rule->SetBrushColor(WoRMenuStyle::TrackColor);
+		USizeBox *RuleHeight = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		RuleHeight->SetHeightOverride(FrameOutline);
+		RuleHeight->AddChild(Rule);
+		WoRMenuStyle::AddToColumn(Header, RuleHeight, FMargin(0.0f, 0.0f, 0.0f, RowGap * 2.0f));
+		Header->SetVisibility(ESlateVisibility::HitTestInvisible);
+		WoRMenuStyle::AddToColumn(Body, Header);
+		HeaderBlock = Header;
+
+		// B-391c: the durability line (the old header), small, above the rows.
+		DurabilityText = MakeText(WidgetTree, SmallFontSize, DurabilityColor);
+		WoRMenuStyle::AddToColumn(Body, DurabilityText, FMargin(RowPaddingX, 0.0f, RowPaddingX, RowGap));
+
+		UScrollBox *Scroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("Rows"));
+		Scroll->SetScrollBarVisibility(ESlateVisibility::Collapsed);
+		USizeBox *ListHeight = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		ListHeight->SetMaxDesiredHeight(MaxListHeight);
+		ListHeight->AddChild(Scroll);
+		WoRMenuStyle::AddToColumn(Body, ListHeight);
 
 		for (int32 Index = 0; Index < MAX_ROWS; ++Index)
 		{
 			UButton *Button = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass());
-			UTextBlock *Label = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-			FSlateFontInfo RowFont = Label->GetFont();
-			RowFont.Size = BattleCommandMenuStyle::RowFontSize;
-			Label->SetFont(RowFont);
-			Button->AddChild(Label);
-			if (UVerticalBoxSlot *RowSlot = List->AddChildToVerticalBox(Button))
+			Button->SetStyle(BattleCommandMenuBuild::RowStyle(false, false));
+			UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+
+			// The key: a ring in a face button's colour, else a framed cap.
+			UBorder *Cap = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+			Cap->SetHorizontalAlignment(HAlign_Center);
+			Cap->SetVerticalAlignment(VAlign_Center);
+			Cap->SetPadding(FMargin(0.0f));
+			Cap->SetVisibility(ESlateVisibility::HitTestInvisible);
+			UTextBlock *KeyText = MakeText(WidgetTree, KeyFontSize, WoRMenuStyle::TextColor, /*bBold=*/true);
+			Cap->SetContent(KeyText);
+			USizeBox *CapSize = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+			CapSize->SetHeightOverride(KeyCapSize);
+			CapSize->SetMinDesiredWidth(KeyCapSize); // a ring is round; "Backspace" widens its cap
+			CapSize->AddChild(Cap);
+			WoRMenuStyle::AddToRow(Line, CapSize, FMargin(0.0f, 0.0f, InnerGap, 0.0f));
+
+			UImage *Icon = WoRMenuStyle::MakeIcon(WidgetTree, IconSize);
+			WoRMenuStyle::AddToRow(Line, Icon, FMargin(0.0f, 0.0f, InnerGap, 0.0f));
+
+			// The name, wrapping rather than overflowing, and a greyed row's reason under it.
+			UVerticalBox *Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+			Words->SetVisibility(ESlateVisibility::HitTestInvisible);
+			UTextBlock *Label = MakeText(WidgetTree, RowFontSize, WoRMenuStyle::TextColor, /*bBold=*/true);
+			Label->SetAutoWrapText(true);
+			UTextBlock *Reason = MakeText(WidgetTree, SmallFontSize, WoRMenuStyle::WarnColor);
+			Reason->SetAutoWrapText(true);
+			WoRMenuStyle::AddToColumn(Words, Label);
+			WoRMenuStyle::AddToColumn(Words, Reason);
+			WoRMenuStyle::AddToRow(Line, Words)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+
+			UTextBlock *Quantity = MakeText(WidgetTree, HeaderFontSize, WoRMenuStyle::DimColor, /*bBold=*/true);
+			WoRMenuStyle::AddToRow(Line, Quantity, FMargin(InnerGap, 0.0f, 0.0f, 0.0f));
+			UTextBlock *Cost = MakeText(WidgetTree, HeaderFontSize, WoRMenuStyle::CyanColor);
+			WoRMenuStyle::AddToRow(Line, Cost, FMargin(InnerGap, 0.0f, 0.0f, 0.0f));
+
+			Button->AddChild(Line);
+			if (UButtonSlot *Inner = Cast<UButtonSlot>(Line->Slot))
 			{
-				RowSlot->SetPadding(FMargin(BattleCommandMenuStyle::RowPadding));
+				Inner->SetPadding(FMargin(RowPaddingX, RowPaddingY));
+				Inner->SetHorizontalAlignment(HAlign_Fill);
+			}
+			if (UScrollBoxSlot *RowSlot = Cast<UScrollBoxSlot>(Scroll->AddChild(Button)))
+			{
+				RowSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, RowGap));
+				RowSlot->SetHorizontalAlignment(HAlign_Fill);
 			}
 			UBattleMenuRowRelay *Relay = NewObject<UBattleMenuRowRelay>(this);
 			Relay->RowIndex = Index;
@@ -179,7 +450,13 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 			Button->OnClicked.AddDynamic(Relay, &UBattleMenuRowRelay::HandleClicked);
 			Button->OnHovered.AddDynamic(Relay, &UBattleMenuRowRelay::HandleHovered); // B-400b
 			RowButtons.Add(Button);
+			RowKeyCaps.Add(Cap);
+			RowKeyTexts.Add(KeyText);
+			RowIcons.Add(Icon);
 			RowTexts.Add(Label);
+			RowReasonTexts.Add(Reason);
+			RowQuantityTexts.Add(Quantity);
+			RowCostTexts.Add(Cost);
 			RowRelays.Add(Relay);
 		}
 	}
@@ -193,14 +470,45 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> &Buttons)
 {
 	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
-	const bool bAtMainMenu = Menu && Menu->IsAtMainMenu();
+	bAtMainMenu = Menu && Menu->IsAtMainMenu();
 	Rows = Buttons;
 	if (Rows.Num() > MAX_ROWS)
 	{
 		UE_LOG(LogWoRUI, Warning, TEXT("[BattleCommandMenu] %d buttons but %d rows: the rest are not shown"), Rows.Num(), MAX_ROWS);
 		Rows.SetNum(MAX_ROWS);
 	}
+	RefreshKeys();
+	// D-260: no "Your turn" title; past the main menu the header says where you are.
+	Title = Menu ? Menu->GetViewTitle() : FText::GetEmpty();
+	RefreshDurability(); // B-391c: per menu open, as the old header
+	bShowing = true;
+	RefreshActionsLine();
+	PushToWidgets();
+}
 
+void UBattleCommandMenuWidget::HandleMenuClosed()
+{
+	Rows.Reset();
+	RowLabels.Reset();
+	RowKeys.Reset();
+	Hints.Reset();
+	Title = FText::GetEmpty();
+	DurabilityLines.Reset();
+	bShowing = false;
+	PushToWidgets();
+}
+
+bool UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory Category, bool bAtMainMenu)
+{
+	if (bAtMainMenu)
+	{
+		return Category != EPieMenuCategory::Attack && Category != EPieMenuCategory::Skills && Category != EPieMenuCategory::Items;
+	}
+	return Category == EPieMenuCategory::Back;
+}
+
+void UBattleCommandMenuWidget::RefreshKeys()
+{
 	TArray<EPieMenuCategory> Categories;
 	TArray<bool> Enabled;
 	for (const FPieMenuButtonData &Row : Rows)
@@ -210,35 +518,77 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 	}
 	const TArray<int32> KeyForRow = BattleHUDView::AssignMenuKeys(Categories, Enabled, bAtMainMenu);
 	const TArray<FCombatMenuKey> &Keys = ACombatPlayerController::GetMenuKeys();
+	const bool bGamepad = WoRKeyHints::IsGamepad(this); // the device in use only (D-258)
 
+	RowKeys.Reset();
 	RowLabels.Reset();
+	Hints.Reset();
 	for (int32 Index = 0; Index < Rows.Num(); ++Index)
 	{
 		const FPieMenuButtonData &Row = Rows[Index];
-		const FText Label = Row.Description.IsEmpty()
-								? Row.DisplayName
-								: FText::Format(LOCTEXT("RowWithDescription", "{0}  ({1})"), Row.DisplayName, Row.Description);
 		const FCombatMenuKey *Key = Keys.IsValidIndex(KeyForRow[Index]) ? &Keys[KeyForRow[Index]] : nullptr;
-		RowLabels.Add(Key ? BattleHUDView::WithKeyHint(Label, Key->Keyboard, Key->Gamepad) : Label);
+		const FKey Shown = Key ? (bGamepad ? Key->Gamepad : Key->Keyboard) : FKey();
+		const FText KeyName = Shown.IsValid() ? BattleCommandMenuBuild::ShortKeyName(Shown) : FText::GetEmpty();
+		const FText Name = BattleCommandMenuBuild::RowName(Row);
+		const FText Reason = Row.bEnabled ? FText::GetEmpty() : Row.Description; // only a greyed row says why
+		const FText Named = Reason.IsEmpty() ? Name : FText::Format(LOCTEXT("RowWithReason", "{0}  ({1})"), Name, Reason);
+		RowKeys.Add(Shown);
+		RowLabels.Add(KeyName.IsEmpty() ? Named : FText::Format(LOCTEXT("RowWithKey", "[{0}] {1}"), KeyName, Named));
+		if (IsCornerHint(Row.Category, bAtMainMenu))
+		{
+			FBattleMenuHint &Hint = Hints.AddDefaulted_GetRef();
+			Hint.Key = KeyName;
+			Hint.Label = Name;
+			Hint.Reason = Reason;
+			Hint.RowIndex = Index;
+			Hint.bEnabled = Row.bEnabled;
+		}
 	}
-
-	const AActor *Acting = Menu ? Menu->GetCurrentActor() : nullptr;
-	const FText ActingName = Acting ? BattleHUDView::GetCombatantName(Acting) : FText::GetEmpty();
-	Title = !Acting ? FText::GetEmpty()
-		: ActingName.EqualTo(WoRGameNames::GetYouWord()) ? WoRGameNames::GetYourTurnText() // D-229: not "You's turn"
-		: FText::Format(LOCTEXT("Title", "{0}'s turn"), ActingName);
-	RefreshDurability(); // B-391c: per menu open, as the old header
-	bShowing = true;
-	PushToWidgets();
 }
 
-void UBattleCommandMenuWidget::HandleMenuClosed()
+void UBattleCommandMenuWidget::RefreshActionsLine()
 {
-	Rows.Reset();
-	RowLabels.Reset();
-	DurabilityLines.Reset();
-	bShowing = false;
-	PushToWidgets();
+	// D-260: the pips live on the menu's tab now, for whoever the menu is open for (D-259's rules, MakeCardActionsLine).
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	const AActor *Acting = Menu ? Menu->GetCurrentActor() : nullptr;
+	const UCharacterDataComponent *Data = Acting ? Acting->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	ActionsLine = Data ? ActionPipsText::MakeCardActionsLine(Data->CurrentActions, Data->GetMaxActions(), Data->SkillsUsedThisTurn)
+					   : FText::GetEmpty();
+	if (TabText)
+	{
+		TabText->SetText(ActionsLine);
+		WoRMenuStyle::SetShown(TabText->GetParent(), !ActionsLine.IsEmpty());
+	}
+}
+
+UBattleMenuHintsWidget *UBattleCommandMenuWidget::GetHintsWidget()
+{
+	if (!HintsWidget)
+	{
+		HintsWidget = CreateWidget<UBattleMenuHintsWidget>(this, UBattleMenuHintsWidget::StaticClass());
+		if (HintsWidget)
+		{
+			HintsWidget->SetHints(this, bShowing ? Hints : TArray<FBattleMenuHint>());
+		}
+	}
+	return HintsWidget;
+}
+
+void UBattleCommandMenuWidget::HandleTargetHighlighted(AActor *Actor, AActor *Target, int32 TargetCount)
+{
+	if (bShowing)
+	{
+		PushToWidgets(); // the highlighted target's row turns violet
+	}
+}
+
+void UBattleCommandMenuWidget::HandleInputMethodChanged(ECommonInputType InputType)
+{
+	if (bShowing)
+	{
+		RefreshKeys();
+		PushToWidgets();
+	}
 }
 
 void UBattleCommandMenuWidget::RefreshDurability()
@@ -304,10 +654,20 @@ AActor *UBattleCommandMenuWidget::GetRowTarget(int32 RowIndex) const
 
 void UBattleCommandMenuWidget::PushToWidgets()
 {
-	SetVisibility(bShowing ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	using namespace BattleCommandMenuStyle;
+	SetVisibility(bShowing ? ESlateVisibility::SelfHitTestInvisible : ESlateVisibility::Collapsed);
+	if (TabText)
+	{
+		TabText->SetText(ActionsLine);
+		WoRMenuStyle::SetShown(TabText->GetParent(), !ActionsLine.IsEmpty());
+	}
 	if (TitleText)
 	{
 		TitleText->SetText(Title);
+	}
+	if (HeaderBlock)
+	{
+		HeaderBlock->SetVisibility(Title.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
 	}
 	if (DurabilityText)
 	{
@@ -315,25 +675,74 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		DurabilityText->SetVisibility(bShowing && !DurabilityLines.IsEmpty() ? ESlateVisibility::HitTestInvisible
 																			  : ESlateVisibility::Collapsed);
 	}
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	const AActor *Highlighted = Menu ? Menu->GetHighlightedTarget() : nullptr;
 	for (int32 Index = 0; Index < RowButtons.Num(); ++Index)
 	{
 		UButton *Button = RowButtons[Index];
 		UTextBlock *Label = RowTexts.IsValidIndex(Index) ? RowTexts[Index].Get() : nullptr;
-		if (!Button || !Label)
+		UBorder *Cap = RowKeyCaps.IsValidIndex(Index) ? RowKeyCaps[Index].Get() : nullptr;
+		UTextBlock *KeyText = RowKeyTexts.IsValidIndex(Index) ? RowKeyTexts[Index].Get() : nullptr;
+		UImage *Icon = RowIcons.IsValidIndex(Index) ? RowIcons[Index].Get() : nullptr;
+		UTextBlock *Reason = RowReasonTexts.IsValidIndex(Index) ? RowReasonTexts[Index].Get() : nullptr;
+		UTextBlock *Quantity = RowQuantityTexts.IsValidIndex(Index) ? RowQuantityTexts[Index].Get() : nullptr;
+		UTextBlock *Cost = RowCostTexts.IsValidIndex(Index) ? RowCostTexts[Index].Get() : nullptr;
+		if (!Button || !Label || !Cap || !KeyText || !Icon || !Reason || !Quantity || !Cost)
 		{
 			continue;
 		}
-		if (!bShowing || !Rows.IsValidIndex(Index))
+		if (!bShowing || !Rows.IsValidIndex(Index) || IsCornerHint(Rows[Index].Category, bAtMainMenu))
 		{
 			Button->SetVisibility(ESlateVisibility::Collapsed);
 			continue;
 		}
 		const FPieMenuButtonData &Row = Rows[Index];
-		const bool bHeader = Row.Category == EPieMenuCategory::SectionHeader;
-		Label->SetText(RowLabels.IsValidIndex(Index) ? RowLabels[Index] : Row.DisplayName);
-		Label->SetColorAndOpacity(FSlateColor(bHeader ? BattleCommandMenuStyle::HeaderColor : Row.ButtonTint));
-		Button->SetIsEnabled(!bHeader && Row.bEnabled);
+		const bool bFooter = BattleCommandMenuBuild::IsFooterRow(Row.Category);
+		const bool bHighlighted = Highlighted && GetRowTarget(Index) == Highlighted;
+		Button->SetStyle(BattleCommandMenuBuild::RowStyle(bHighlighted, bFooter));
+
+		const FKey Key = RowKeys.IsValidIndex(Index) ? RowKeys[Index] : FKey();
+		WoRMenuStyle::SetShown(Cap->GetParent(), Key.IsValid());
+		if (Key.IsValid())
+		{
+			Cap->SetBrush(BattleCommandMenuBuild::KeyCapBrush(Key));
+			KeyText->SetText(BattleCommandMenuBuild::ShortKeyName(Key));
+			KeyText->SetColorAndOpacity(FSlateColor(BattleCommandMenuBuild::KeyTextColor(Key)));
+		}
+
+		Icon->SetVisibility(Row.Icon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		if (Row.Icon)
+		{
+			Icon->SetBrushFromTexture(Row.Icon);
+		}
+
+		Label->SetText(BattleCommandMenuBuild::RowName(Row));
+		FSlateFontInfo Font = Label->GetFont();
+		Font.Size = bFooter ? HeaderFontSize : RowFontSize;
+		Label->SetFont(Font);
+		Label->SetColorAndOpacity(FSlateColor(!Row.bEnabled ? WoRMenuStyle::OffColor : bFooter ? WoRMenuStyle::DimColor : WoRMenuStyle::TextColor));
+
+		// D-260: a greyed row says why under its name ("Needs 3 actions."); nothing else shows a description.
+		const bool bShowReason = !Row.bEnabled && !bFooter && !Row.Description.IsEmpty();
+		Reason->SetText(bShowReason ? Row.Description : FText::GetEmpty());
+		Reason->SetVisibility(bShowReason ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+		Quantity->SetText(FText::Format(LOCTEXT("ItemCount", "x{0}"), FText::AsNumber(Row.Quantity)));
+		Quantity->SetVisibility(Row.Quantity > 0 ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+		// D-260: the cost as pips at the right (a number past ActionPipsText::MAX_PIPS_SHOWN); none on the main menu.
+		const bool bShowCost = !bAtMainMenu && Row.ActionCost > 0;
+		const FText Pips = ActionPipsText::MakePips(Row.ActionCost, Row.ActionCost);
+		Cost->SetText(Pips.IsEmpty() ? FText::AsNumber(Row.ActionCost) : Pips);
+		Cost->SetColorAndOpacity(FSlateColor(Row.bEnabled ? WoRMenuStyle::CyanColor : WoRMenuStyle::OffColor));
+		Cost->SetVisibility(bShowCost ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+
+		Button->SetIsEnabled(Row.Category != EPieMenuCategory::SectionHeader && Row.bEnabled);
 		Button->SetVisibility(ESlateVisibility::Visible);
+	}
+	if (HintsWidget)
+	{
+		HintsWidget->SetHints(this, bShowing ? Hints : TArray<FBattleMenuHint>());
 	}
 }
 
@@ -343,14 +752,19 @@ void UBattleCommandMenuWidget::PushToWidgets()
 
 FString UBattleCommandMenuWidget::GetCommandMenuString() const
 {
-	FString Out = FString::Printf(TEXT("[BattleCommandMenu] bound=%s showing=%s rows=%d title=\"%s\" durability: %s"),
-								  bBound ? TEXT("yes") : TEXT("no"), bShowing ? TEXT("yes") : TEXT("no"), Rows.Num(), *Title.ToString(),
+	FString Out = FString::Printf(TEXT("[BattleCommandMenu] bound=%s showing=%s main=%s rows=%d tab=\"%s\" header=\"%s\" durability: %s"),
+								  bBound ? TEXT("yes") : TEXT("no"), bShowing ? TEXT("yes") : TEXT("no"), bAtMainMenu ? TEXT("yes") : TEXT("no"),
+								  Rows.Num(), *ActionsLine.ToString(), *Title.ToString(),
 								  DurabilityLines.IsEmpty() ? TEXT("none")
 															: *FText::Join(FText::FromString(TEXT(", ")), DurabilityLines).ToString());
 	for (int32 Index = 0; Index < RowLabels.Num(); ++Index)
 	{
-		Out += FString::Printf(TEXT("\n  [%d] %s%s"), Index, *RowLabels[Index].ToString(),
-							   Rows.IsValidIndex(Index) && !Rows[Index].bEnabled ? TEXT(" (greyed)") : TEXT(""));
+		const bool bHint = Rows.IsValidIndex(Index) && IsCornerHint(Rows[Index].Category, bAtMainMenu);
+		const FString Extra = !Rows.IsValidIndex(Index) ? FString()
+							  : FString::Printf(TEXT("%s%s%s"), Rows[Index].Quantity > 0 ? *FString::Printf(TEXT(" x%d"), Rows[Index].Quantity) : TEXT(""),
+												!bAtMainMenu && Rows[Index].ActionCost > 0 ? *FString::Printf(TEXT(" cost %d"), Rows[Index].ActionCost) : TEXT(""),
+												Rows[Index].bEnabled ? TEXT("") : TEXT(" (greyed)"));
+		Out += FString::Printf(TEXT("\n  [%d]%s %s%s"), Index, bHint ? TEXT(" hint") : TEXT(""), *RowLabels[Index].ToString(), *Extra);
 	}
 	return Out;
 }
