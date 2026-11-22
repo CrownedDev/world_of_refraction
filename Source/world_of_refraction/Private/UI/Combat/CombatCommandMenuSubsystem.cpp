@@ -1674,7 +1674,11 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
 
         FPieMenuButtonData Button;
         Button.ButtonID = Target->GetName();
-        Button.DisplayName = FText::FromString(TargetName);
+        // D-253: a dead ally is listed only for a revive (ResolveTargets); the button says it is down.
+        const UCharacterDataComponent *Life = Target->FindComponentByClass<UCharacterDataComponent>();
+        Button.DisplayName = (Life && !Life->bIsAlive)
+                                 ? FText::Format(NSLOCTEXT("CombatCommandMenu", "TargetDown", "{0} (down)"), FText::FromString(TargetName))
+                                 : FText::FromString(TargetName);
         Button.Category = EPieMenuCategory::Target;
         Button.DataReference = Target;
         Button.ButtonTint = Tint;
@@ -1865,6 +1869,18 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::RebuildCurrentPicker() c
     return BuildTargetButtons(Targets);
 }
 
+bool UCombatCommandMenuSubsystem::IsPendingItemRevive() const
+{
+    if (PendingActionCategory != EPieMenuCategory::Item)
+    {
+        return false;
+    }
+    const ULoadoutComponent *LC = GetLoadoutComponent();
+    const TArray<FItemLoadoutSlot> Items = LC ? LC->GetUsableItems() : TArray<FItemLoadoutSlot>();
+    return Items.IsValidIndex(PendingActionDataIndex) &&
+           ItemIdentity::GetItemEffectType(Items[PendingActionDataIndex].CrystalId) == EItemEffectType::DefyDeath;
+}
+
 TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetType) const
 {
     TArray<AActor *> Result;
@@ -1894,6 +1910,13 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
         UCharacterDataComponent *CDC = Actor->FindComponentByClass<UCharacterDataComponent>();
         return CDC && CDC->bIsAlive;
     };
+    // D-253: the dead can be picked for one thing, a Sapphire on a dead ally (the revive). The user's own side
+    // then lists its dead too; enemies are always the living only.
+    const bool bDeadAlliesToo = IsPendingItemRevive();
+    auto IsAllyTarget = [&IsAlive, bDeadAlliesToo](AActor *Actor) -> bool
+    {
+        return Actor && (bDeadAlliesToo || IsAlive(Actor));
+    };
 
     // Returns the candidate pool for the role only; the count axis
     // (Single/Double/All) is applied at selection time, not here.
@@ -1919,7 +1942,7 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
     case ETargetType::Ally:
         for (AActor *Member : MembersOf(TurnState, TM, UserTeam))
         {
-            if (IsAlive(Member))
+            if (IsAllyTarget(Member))
             {
                 Result.Add(Member);
             }
@@ -1927,15 +1950,15 @@ TArray<AActor *> UCombatCommandMenuSubsystem::ResolveTargets(ETargetType TargetT
         break;
 
     case ETargetType::Anyone:
-        for (AActor *Member : MembersOf(TurnState, TM, 0))
+        for (const int32 Team : {0, 1})
         {
-            if (IsAlive(Member))
-                Result.Add(Member);
-        }
-        for (AActor *Member : MembersOf(TurnState, TM, 1))
-        {
-            if (IsAlive(Member))
-                Result.Add(Member);
+            for (AActor *Member : MembersOf(TurnState, TM, Team))
+            {
+                if (Team == UserTeam ? IsAllyTarget(Member) : IsAlive(Member))
+                {
+                    Result.Add(Member);
+                }
+            }
         }
         break;
     }
