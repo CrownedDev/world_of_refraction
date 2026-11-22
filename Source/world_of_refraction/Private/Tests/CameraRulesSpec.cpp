@@ -155,6 +155,7 @@ void FCameraRulesSpec::Define()
 			return;
 		}
 		TestTrue(TEXT("held from contact"), Encounter->IsHoldingEngagedPlayer() && Player->IsMoveInputIgnored());
+		TestTrue(TEXT("look limited from contact"), Player->PlayerCameraManager->ViewYawMax - Player->PlayerCameraManager->ViewYawMin < 360.0f - 1.0f);
 
 		TestWorld->Tick(CAMERA_TEST_PAST_JOIN_WINDOW_FRAMES); // no trial runs here, so the window closes into a re-arm
 		TestFalse(TEXT("released on re-arm"), Encounter->IsHoldingEngagedPlayer());

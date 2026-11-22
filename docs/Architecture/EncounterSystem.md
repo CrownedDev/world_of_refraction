@@ -25,7 +25,7 @@ A field encounter starts a fight: a `UEncounterComponent` on an enemy pawn in a 
 - Difficulty and rank are set per placement, not per team.
 - The battle lines are not centred; a formation per team is not authored.
 - The payout multiplier is not read yet (no run-end payout; B-073). The variation's boss is not read yet (B-188).
-- D-255 hold (B-583): a remote co-op player is not held at contact (its input and camera live on its own machine); a client RPC if co-op play shows it.
+- D-255 hold (B-583): a remote co-op player is not held at contact (its input and camera live on its own machine); a client RPC if co-op play shows it. When an AI companion makes the contact, nobody is held (D-255 holds the player who made contact).
 - Patrols are a fixed back-and-forth path; teams don't chase the player. First strike is judged from contact geometry until the field ability exists (GAS).
 
 ## Changelog

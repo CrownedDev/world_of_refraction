@@ -220,6 +220,10 @@ void AWoRHubController::BeginPlay()
 	{
 		WoRCameraRules::ApplyFieldLimits(*PlayerCameraManager);
 	}
+	else if (IsLocalController())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("%s No camera manager at BeginPlay: the D-255 look limits are not set"), WoRHubControllerConstants::LOG_TAG);
+	}
 
 	if (!GetPawn())
 	{
