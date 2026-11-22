@@ -235,6 +235,8 @@ ESkillEffectType WoRIcons::GetItemEffectKind(EItemEffectType Type)
 		return ESkillEffectType::Heal;
 	case EItemEffectType::RestoreHealth:
 		return ESkillEffectType::HealthRestore;
+	case EItemEffectType::HealingBoost:
+		return ESkillEffectType::HealingReceivedBuff; // the Healing Stone (D-252)
 	case EItemEffectType::EnergyRestore:
 		return ESkillEffectType::EnergyRestore;
 	case EItemEffectType::DefyDeath:
