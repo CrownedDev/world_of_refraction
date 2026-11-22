@@ -14,6 +14,7 @@ class UBorder;
 class UCharacterDataComponent;
 class ULoadoutComponent;
 class UProgressBar;
+class USizeBox;
 class UTextBlock;
 class UVerticalBox;
 class UWidget;
@@ -53,6 +54,7 @@ namespace BattleCardStyle
 {
 	// TODO: style pass (placeholder until the CommonUI screens, D-024). Slate units, DPI-scaled.
 	inline constexpr float CardWidth = 260.0f;
+	inline constexpr float CompactCardWidth = 190.0f; // B-436a: a fight's party cards other than the featured one
 	inline constexpr float BarHeight = 10.0f;
 	inline constexpr float CardPadding = 6.0f;
 	inline constexpr float RowPadding = 2.0f;
@@ -158,6 +160,14 @@ struct FBattleHUDCard
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> BuildupText;
+
+	/** B-436a: holds the card's width (full or compact). */
+	UPROPERTY()
+	TObjectPtr<USizeBox> WidthBox;
+
+	/** B-436a: the EP bar's row, collapsed on a compact card. */
+	UPROPERTY()
+	TObjectPtr<UWidget> EPRow;
 };
 
 namespace BattleHUDCard
@@ -171,6 +181,10 @@ namespace BattleHUDCard
 
 	/** Writes Card's data into its widgets; the parts its level didn't build are skipped. */
 	WORLD_OF_REFRACTION_API void Push(const FBattleHUDCard &Card);
+
+	/** B-436a: a fight's party row. Compact: the name, the HP bar and the build-up bar at CompactCardWidth; full: every
+	 *  part the card built, at CardWidth. Shows and hides only; call it after Push. The hub and trial HUDs never call it. */
+	WORLD_OF_REFRACTION_API void SetCompact(const FBattleHUDCard &Card, bool bCompact);
 
 	/** A line of text in the card's font and colour, added to Box. */
 	WORLD_OF_REFRACTION_API UTextBlock *AddText(UWidgetTree *Tree, UVerticalBox *Box, int32 FontSize);

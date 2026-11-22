@@ -203,6 +203,7 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 	{
 		Width->SetWidthOverride(CardWidth);
 	}
+	Card.WidthBox = Width;
 	Card.Frame->SetContent(Width);
 	UVerticalBox *Rows = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Width->AddChild(Rows);
@@ -229,8 +230,8 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 	}
 	if (Parts.bEPLine)
 	{
-		USizeBox *EPRow = BuildNumberBar(Tree, Rows, EPBarColor, Card.EPBar, Card.EPText);
-		EPRow->SetVisibility(Card.bShowEP ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		Card.EPRow = BuildNumberBar(Tree, Rows, EPBarColor, Card.EPBar, Card.EPText);
+		Card.EPRow->SetVisibility(Card.bShowEP ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 	}
 	if (Parts.bBuildupBar)
 	{
@@ -300,6 +301,28 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 		}
 	}
 	SetTextSafe(Card.BuildupText, Card.BuildupLine);
+}
+
+void BattleHUDCard::SetCompact(const FBattleHUDCard &Card, bool bCompact)
+{
+	using namespace BattleCardStyle;
+
+	const auto ShowIf = [](UWidget *Widget, bool bShow)
+	{
+		if (Widget)
+		{
+			Widget->SetVisibility(bShow ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		}
+	};
+	if (Card.WidthBox)
+	{
+		Card.WidthBox->SetWidthOverride(bCompact ? CompactCardWidth : CardWidth);
+	}
+	ShowIf(Card.DetailText, !bCompact && !Card.DetailLine.IsEmpty());
+	ShowIf(Card.EPRow, !bCompact && Card.bShowEP);
+	ShowIf(Card.BuildupText, !bCompact);
+	ShowIf(Card.ActionsText, !bCompact);
+	ShowIf(Card.StatusText, !bCompact);
 }
 
 #undef LOCTEXT_NAMESPACE
