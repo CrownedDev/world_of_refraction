@@ -104,7 +104,8 @@ struct FBattleHUDCard
 	/** B-503m: the EP bar (a Broken Darkness pool past max reads full; its line says the overload). */
 	float EPFraction = 0.0f;
 	FText Name;
-	/** D-229: the kind name ("Fire Refractor") under a player character's name; empty (collapsed) for anyone else. */
+	/** OBSOLETE (B-581, D-254): the line under the name (D-229, D-241). No HUD fills it any more, so it stays empty
+	 *  and DetailText collapsed; delete both in the sweep (PIE/Sweep.md 53). */
 	FText DetailLine;
 	FText HPLine;
 	FText EPLine;

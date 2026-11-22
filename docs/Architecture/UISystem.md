@@ -22,9 +22,13 @@ This doc covers three current widgets:
 `UCombatHUD::Build` reads the cvar at each fight. At 1 it builds, with no WBP:
 - `UBattleHUDWidget` (`UI/Combat/Battle/`): one full-screen plain C++ widget. Party cards along the bottom from
   the left (B-436a, D-254): the **featured** card (the party member acting, else the last one that acted, else
-  the first; `GetFeaturedCardIndex`) is full (name, kind, HP and EP bars with their numbers, build-up bar and
-  line, actions, status chips), the others sit in a row to its right as compact cards (name, HP bar, build-up
+  the first; `GetFeaturedCardIndex`) is full (name, HP and EP bars with their numbers, build-up bar, "Act: ●●○",
+  status chips), the others sit in a row to its right as compact cards (name, HP bar, build-up
   bar; `BattleHUDCard::SetCompact`); the command menu stacks above the featured card (`GetCommandMenuOffset`).
+  D-254 (B-581): no card shows Spirit of ... / Body of ...; a click on a party card inspects it (`InspectCard`):
+  the status panel shows that character alone (name, Spirit / Body, the full actions line with pips, Max, the
+  action-point progress and the bonus warning, its statuses). The same card again closes it, another card
+  switches, the Status button (`ToggleAllStatuses`) goes back to everyone.
   Top-right: the turn order (`BattleHUDView::ReadTurnStrip`: the replicated turn state, else the TurnManager)
   with the enemy cards under it (name, HP bar without numbers, status chips). A Statuses button opens every
   status in full. `Initialise` binds and fills
@@ -421,8 +425,10 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
   `UCombatHUD` passes at fight start. Nothing in the code adds a combatant mid-fight or announces one (no summon
   system; no orchestrator or TurnManager join event), so there is nothing to bind to. When summons land, they need a
   join event, and the HUD a spare card pool built once (TransBuffer rule).
+- **Inspect (B-581):** mouse only (a pad route comes with B-436h); the panel takes no clicks, so it closes on the
+  same card or the Status button, not on a click elsewhere; enemy cards are not inspected.
 - **Party row (B-436a):** a compact card shows no status chips, EP or actions; an idle party member's statuses are
-  in the Statuses panel only. The gap between the command menu and the featured card is a fixed height
+  in the Statuses panel or its inspect (B-581). The gap between the command menu and the featured card is a fixed height
   (`FeaturedCardReserve` in `BattleHUDWidget.cpp`), not the card's measured height: a card with many wrapped status
   lines can reach the menu. The cards keep the placeholder sizes, about half the mockup's (the look is B-436b on).
 - **Buildup bar (B-391c):** it cracks (Q-111 A) but doesn't shatter or show shards during a break yet (art pass).
@@ -603,3 +609,4 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
 | 2026-11-22 | B-436a (D-254; piece 1 of `Design/BattleHUDRefinePlan.md`, replayed from `541c9c97f` onto the shared card): the battle HUD's party cards sit on the canvas itself along the bottom from the left; the featured card (the party member acting, else the last that acted, else the first: `GetFeaturedCardIndex`) is full and the others compact (name, HP bar, build-up bar), switched by `BattleHUDCard::SetCompact` (shows, hides and sets a width; only the battle HUD calls it, so the hub and trial cards are as before) and moved by canvas slot only (`LayoutPartyCards`, nothing re-parented or recreated). The turn order moved top-right with the enemy cards under it (unused turn lines Hidden, so the cards do not jump); the command menu moved bottom-left above the featured card (`UBattleHUDWidget::GetCommandMenuOffset`, a fixed reserve: `FeaturedCardReserve`, to tune). `wor.UI.Print` marks each party card featured or compact. Spec `WoR.UI.BattleHUD`. | `feature/B-436a-party-row` |
 | 2026-11-22 | B-584 (D-256): the silver frame means slotted. `EWoRIconKind::LooseGem` and `UWoRIconTable::LooseGems` for a crystal or evolution in no socket (inventory, vendor, loadout pickers and spare lists); Reality gets a badge | feature/B-584-loose-gem-icons |
 | 2026-11-22 | B-585 (D-257): the fight card's build-up bar is as tall as its HP bar, with `current/max` on it for party cards (small ones too) and no label or line under it (replaces B-503m's label); in the loadout a piece's own icon leads its name and a filled slot row has no slot word | fix/B-585-status-bar-and-slot-rows |
+| 2026-11-22 | B-581 (D-254): card text and inspect. The battle, hub and trial cards no longer get the Spirit of ... / Body of ... lines (`UBattleHUDWidget::AddCard`, `WoRHubHUD::BuildPartyStrip`; `FBattleHUDCard::DetailLine` stays empty), and the game menu's party list reads the element and class for everyone (`WoRPauseMenu::GetClassLine`). The Character sheet keeps both lines through the row's new `SheetLine` (`GetSheetLine`); the title slot and `GetMemberListName` are unchanged. The fight card's actions line is `ActionPipsText::MakeCardActionsLine` (D-259: pips and no numbers, "Act: ●●○", one ◆ per action above Max, "Act: 9/3" past `MAX_PIPS_SHOWN`, "· Skills 2/3"). A left click on a party card (`UBorder::OnMouseButtonDownEvent`, one handler, the card under the pointer) calls `UBattleHUDWidget::InspectCard`: the status panel for that character alone, with what left the card (`BuildInspectText`); `ToggleAllStatuses` is the Status button. `wor.UI.Print` says who is inspected. Specs `WoR.UI.BattleHUD`, `WoR.Combat.ActionPipsText`, `WoR.UI.HubHUD`, `WoR.UI.PauseMenu`. | `feature/B-581-card-text-inspect` |

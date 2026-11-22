@@ -8,6 +8,7 @@
 #include "Misc/AutomationTest.h"
 #include "Blueprint/UserWidget.h"
 #include "Character/CharacterData.h"
+#include "Character/PlayerBuild.h"
 #include "Field/FieldSkillTypes.h"
 #include "Infusion/ElementColors.h"
 #include "Party/Party.h"
@@ -95,6 +96,26 @@ void FHubHUDSpec::Define()
 		const TArray<FBattleHUDCard> Played = WoRHubHUD::BuildPartyStrip(Party, 1);
 		TestTrue(TEXT("B-503m4 (D-217): the played member first, then the rest in party order"),
 				 Played.Num() == 2 && Played[0].Name.ToString() == Hurt->Name && Played[1].Name.ToString() == Hub->Name);
+	});
+
+	It("shows no Spirit or Body line under a player character's name, in the hub or a trial (D-254)", [this]()
+	{
+		UPackage *Package = GetTransientPackage();
+		UCharacterData *Player = NewObject<UCharacterData>(
+			Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(), *(FString(WoRPlayerBuild::BUILT_NAME) + TEXT("_HubCardSpec"))));
+		Player->CharacterClass = ECharacterClass::Caster;
+		Player->InnateElement = ESpellElement::Fire;
+		UParty *Party = NewObject<UParty>();
+		Party->Members.AddDefaulted_GetRef().CharacterData = Player;
+		TestFalse(TEXT("the character has identity lines (the Character sheet shows them)"),
+				  WoRPlayerBuild::GetDetailLine(Player, Party->Members[0].MemberId, nullptr).IsEmpty());
+		// One strip builds the hub's and the trial's cards; the level only picks which parts are drawn.
+		const TArray<FBattleHUDCard> Cards = WoRHubHUD::BuildPartyStrip(Party);
+		if (TestEqual(TEXT("one card"), Cards.Num(), 1))
+		{
+			TestTrue(TEXT("nothing under the name"), Cards[0].DetailLine.IsEmpty());
+			TestFalse(TEXT("the name still shows"), Cards[0].Name.IsEmpty());
+		}
 	});
 
 	It("fits a full party on one row (B-503i, B-503j; the chip's room is kept until it is deleted, B-503k)", [this]()

@@ -48,9 +48,15 @@ namespace ActionPipsText
 	 *  GetActionPointProgress, Q-170); "Max 5" at ActionPipsConstants::MAX_ACTIONS_CAP, where more points add nothing. */
 	WORLD_OF_REFRACTION_API FText MakeMaxActionsText(int32 MaxActions, int32 ActionPointProgress);
 
-	/** The party card's line: "Actions ●●○ 2 · Max 3 (+75/100)" (the pips, then the number, as the deckbuilder's
-	 *  "ACT 2"). With bonus actions it says they expire: "Actions ●●●◆ 4 · Max 3 (+75/100) · 1 bonus, lost at turn end". */
+	/** The full line, shown when a party card is inspected (D-254; it was the card's line until B-581):
+	 *  "Actions ●●○ 2 · Max 3 (+75/100)" (the pips, then the number, as the deckbuilder's "ACT 2"). With bonus actions
+	 *  it says they expire: "Actions ●●●◆ 4 · Max 3 (+75/100) · 1 bonus, lost at turn end". */
 	WORLD_OF_REFRACTION_API FText MakeActionsLine(int32 CurrentActions, int32 MaxActions, int32 ActionPointProgress, int32 SkillsUsed = 0);
+
+	/** D-254 / D-259: the fight card's short line, pips and no numbers (MakePips): "Act: ●●○"; one ◆ per action above
+	 *  Max (Q-170f3): "Act: ●●●◆". Too many pips to draw (MAX_PIPS_SHOWN): the number, "Act: 9/3". Once a skill is used
+	 *  the limit joins it (Q-170j): "Act: ●○○ · Skills 2/3". The rest is MakeActionsLine, in inspect. */
+	WORLD_OF_REFRACTION_API FText MakeCardActionsLine(int32 CurrentActions, int32 MaxActions, int32 SkillsUsed = 0);
 
 	/** Q-170j (Crown, 2026-11-12): "Skills 2/3", the turn's skills against SKILLS_PER_TURN_MAX. The card line adds it
 	 *  while the holder has used one this turn (the limit is shown, never hidden). */

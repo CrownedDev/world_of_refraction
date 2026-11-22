@@ -5,6 +5,8 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Character/CharacterData.h"
+#include "Character/PlayerBuild.h"
 #include "Trial/DefeatRules.h"
 #include "Trial/RunRewards.h"
 #include "Trial/TrialData.h"
@@ -98,6 +100,38 @@ void FPauseMenuSpec::Define()
 		TestFalse(TEXT("a warning in a run"), InRun.IsEmpty());
 		TestFalse(TEXT("not the hub's line"), InRun.EqualTo(WoRPauseMenu::GetQuitWarning(false)));
 		TestTrue(TEXT("Quit's preview is the warning"), WoRPauseMenu::BuildPages(true, true)[static_cast<int32>(EPauseMenuPage::Quit)].Preview.EqualTo(InRun));
+	});
+
+	It("keeps Spirit and Body off the party list and on the Character sheet (D-254)", [this]()
+	{
+		UPackage *Package = GetTransientPackage();
+		UCharacterData *Player = NewObject<UCharacterData>(
+			Package, MakeUniqueObjectName(Package, UCharacterData::StaticClass(), *(FString(WoRPlayerBuild::BUILT_NAME) + TEXT("_PartyListSpec"))));
+		Player->CharacterClass = ECharacterClass::Caster;
+		Player->InnateElement = ESpellElement::Fire;
+		UCharacterData *Recruit = NewObject<UCharacterData>(Package);
+		Recruit->CharacterClass = ECharacterClass::Caster;
+		Recruit->InnateElement = ESpellElement::Water;
+		UCharacterData *NoElement = NewObject<UCharacterData>(Package);
+		NoElement->CharacterClass = ECharacterClass::Generic;
+		if (!TestTrue(TEXT("a player character and two that are not"), WoRPlayerBuild::IsPlayerCharacter(Player) &&
+																		 !WoRPlayerBuild::IsPlayerCharacter(Recruit) && !WoRPlayerBuild::IsPlayerCharacter(NoElement)))
+		{
+			return;
+		}
+		const FString Identity = WoRPlayerBuild::GetDetailLine(Player, FGuid(), nullptr).ToString();
+		const FString ListLine = WoRPauseMenu::GetClassLine(Player).ToString();
+		TestTrue(TEXT("the identity reads Spirit of ..."), Identity.StartsWith(TEXT("Spirit of")));
+		TestFalse(TEXT("party list: no Spirit or Body for a player character"), ListLine.Contains(TEXT("Spirit of")) || ListLine.Contains(TEXT("Body of")));
+		TestEqual(TEXT("party list: its element and class, as for anyone"), ListLine,
+				  FText::Format(INVTEXT("{0} {1}"), WoRGameNames::GetElementName(ESpellElement::Fire),
+								WoRGameNames::GetCharacterClassName(ECharacterClass::Caster)).ToString());
+		TestEqual(TEXT("party list: the class alone with no innate element"), WoRPauseMenu::GetClassLine(NoElement).ToString(),
+				  WoRGameNames::GetCharacterClassName(ECharacterClass::Generic).ToString());
+		TestEqual(TEXT("Character sheet: a player character's Spirit / Body lines"), WoRPauseMenu::GetSheetLine(Player, FGuid(), nullptr).ToString(), Identity);
+		TestEqual(TEXT("Character sheet: anyone else's class line"), WoRPauseMenu::GetSheetLine(Recruit, FGuid(), nullptr).ToString(),
+				  WoRPauseMenu::GetClassLine(Recruit).ToString());
+		TestTrue(TEXT("no character: nothing"), WoRPauseMenu::GetClassLine(nullptr).IsEmpty() && WoRPauseMenu::GetSheetLine(nullptr, FGuid(), nullptr).IsEmpty());
 	});
 
 	It("shows the hub outside a run and the run's wipes left inside one", [this]()

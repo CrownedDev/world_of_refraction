@@ -182,7 +182,7 @@ void UBattleHUDWidget::AddCard(AActor *Actor, bool bParty)
 
 	UCharacterDataComponent *CharData = Actor->FindComponentByClass<UCharacterDataComponent>();
 	Card.CharData = CharData;
-	Card.DetailLine = CharData ? WoRPlayerBuild::GetDetailLine(CharData->CharacterData, CharData->PartyMemberId, GetWorld()) : FText::GetEmpty(); // D-241
+	// D-254: no Spirit of ... / Body of ... on a fight's card (Card.DetailLine stays empty); InspectCard shows them.
 	if (CharData)
 	{
 		CharData->OnHPChanged.AddDynamic(this, &UBattleHUDWidget::HandlePoolChanged);
@@ -383,6 +383,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 			UBorder *Frame = BattleHUDCard::Build(WidgetTree, Card, EBattleCardLevel::Battle);
 			if (Card.bParty)
 			{
+				Frame->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleHUDWidget, HandleCardMouseDown)); // D-254: click to inspect
 				BattleHUDBuild::Place(Canvas, Frame, BattleHUDStyle::PartyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor));
 			}
 			else if (UVerticalBoxSlot *ColumnSlot = EnemyColumn->AddChildToVerticalBox(Frame))
@@ -440,9 +441,14 @@ void UBattleHUDWidget::RefreshPools()
 											 : BattleHUDStyle::TextColor;
 		if (Card.bParty) // B-170e
 		{
-			Card.ActionsLine = ActionPipsText::MakeActionsLine(CharData->CurrentActions, CharData->GetMaxActions(),
-															   CharData->GetActionPointProgress(), CharData->SkillsUsedThisTurn); // Q-170j
+			// D-254 / D-259: "Act: ●●○"; the number, Max and the action-point progress are in inspect (BuildInspectText).
+			Card.ActionsLine = ActionPipsText::MakeCardActionsLine(CharData->CurrentActions, CharData->GetMaxActions(),
+																   CharData->SkillsUsedThisTurn); // Q-170j
 		}
+	}
+	if (Cards.IsValidIndex(InspectedCard))
+	{
+		StatusPanelText = BuildInspectText(Cards[InspectedCard]); // its actions line follows the bank
 	}
 	PushToWidgets();
 }
@@ -479,8 +485,67 @@ void UBattleHUDWidget::RefreshStatuses()
 			PanelLines.Add(FText::Format(LOCTEXT("StatusPanelLine", "  {0}"), BattleHUDView::DescribeStatus(Status)));
 		}
 	}
-	StatusPanelText = FText::Join(FText::FromString(TEXT("\n")), PanelLines);
+	StatusPanelText = Cards.IsValidIndex(InspectedCard) ? BuildInspectText(Cards[InspectedCard])
+														: FText::Join(FText::FromString(TEXT("\n")), PanelLines);
 	PushToWidgets();
+}
+
+FText UBattleHUDWidget::BuildInspectText(const FBattleHUDCard &Card) const
+{
+	TArray<FText> Lines;
+	Lines.Add(Card.Name);
+	const UCharacterDataComponent *CharData = Card.CharData.Get();
+	if (CharData)
+	{
+		// D-254: Spirit of ... / Body of ... left the card for here (empty for anyone but a player character).
+		const FText Identity = WoRPlayerBuild::GetDetailLine(CharData->CharacterData, CharData->PartyMemberId, GetWorld());
+		if (!Identity.IsEmpty())
+		{
+			Lines.Add(Identity);
+		}
+		Lines.Add(ActionPipsText::MakeActionsLine(CharData->CurrentActions, CharData->GetMaxActions(), CharData->GetActionPointProgress(),
+												  CharData->SkillsUsedThisTurn));
+	}
+	const TArray<FActiveSkillEffect> Statuses = GetStatusesOf(Card.Actor.Get());
+	if (Statuses.IsEmpty())
+	{
+		Lines.Add(LOCTEXT("InspectNoStatuses", "No statuses"));
+	}
+	for (const FActiveSkillEffect &Status : Statuses)
+	{
+		Lines.Add(BattleHUDView::DescribeStatus(Status));
+	}
+	return FText::Join(FText::FromString(TEXT("\n")), Lines);
+}
+
+void UBattleHUDWidget::InspectCard(int32 CardIndex)
+{
+	if (!Cards.IsValidIndex(CardIndex) || !Cards[CardIndex].bParty)
+	{
+		return;
+	}
+	const bool bCloses = bStatusPanelOpen && InspectedCard == CardIndex; // a second click on the same card closes it
+	InspectedCard = bCloses ? INDEX_NONE : CardIndex;
+	SetStatusPanelOpen(!bCloses);
+}
+
+FEventReply UBattleHUDWidget::HandleCardMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent)
+{
+	if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
+	{
+		return FEventReply(false);
+	}
+	// One handler for every party card: the card under the pointer is the one clicked.
+	const int32 Clicked = Cards.IndexOfByPredicate([&MouseEvent](const FBattleHUDCard &Card)
+	{
+		return Card.bParty && Card.Frame && Card.Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition());
+	});
+	if (Clicked == INDEX_NONE)
+	{
+		return FEventReply(false);
+	}
+	InspectCard(Clicked);
+	return FEventReply(true);
 }
 
 void UBattleHUDWidget::RefreshTurnStrip()
@@ -616,6 +681,7 @@ void UBattleHUDWidget::SetStatusPanelOpen(bool bOpen)
 		RefreshStatuses(); // pushes too
 		return;
 	}
+	InspectedCard = INDEX_NONE; // closed: the next open is the view of everyone unless a card asks
 	PushToWidgets();
 }
 
@@ -694,9 +760,16 @@ void UBattleHUDWidget::HandleTurnStateChanged()
 	RefreshPools(); // B-170e, as HandleTurnStarted
 }
 
+void UBattleHUDWidget::ToggleAllStatuses()
+{
+	const bool bWasInspecting = Cards.IsValidIndex(InspectedCard);
+	InspectedCard = INDEX_NONE;
+	SetStatusPanelOpen(bWasInspecting || !bStatusPanelOpen);
+}
+
 void UBattleHUDWidget::HandleStatusButtonClicked()
 {
-	SetStatusPanelOpen(!bStatusPanelOpen);
+	ToggleAllStatuses();
 }
 
 void UBattleHUDWidget::HandleHitShown(AActor *Target, const FCombatHitShown &Hit)
@@ -914,6 +987,11 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 	FString Out = FString::Printf(TEXT("[BattleHUD] bound=%s cards=%d turn=%d statusPanel=%s built=%s"), bBound ? TEXT("yes") : TEXT("no"),
 								  Cards.Num(), CurrentTurnNumber, bStatusPanelOpen ? TEXT("open") : TEXT("closed"),
 								  WidgetTree && WidgetTree->RootWidget ? TEXT("yes") : TEXT("no"));
+	if (Cards.IsValidIndex(InspectedCard)) // D-254
+	{
+		Out += FString::Printf(TEXT("\n  inspecting %s:\n    %s"), *Cards[InspectedCard].Name.ToString(),
+							   *StatusPanelText.ToString().Replace(TEXT("\n"), TEXT("\n    ")));
+	}
 	const int32 Featured = GetFeaturedCardIndex();
 	const FBattleHUDCard *FeaturedCard = Cards.IsValidIndex(Featured) ? &Cards[Featured] : nullptr;
 	for (const FBattleHUDCard &Card : Cards)

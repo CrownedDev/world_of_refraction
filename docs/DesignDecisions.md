@@ -1311,6 +1311,19 @@ The queue of questions only Crown can answer.
 **Defaults for the amendment (Crown vetoes):** (g) the game menu's party list drops them as well. (h) The title's save slot keeps them (Crown's D-241). (i) A list keeps them under the name only when one player has two characters in it, to tell the two apart. (j) No new profile screen.
 **Process:** under D-251 the B-436 pieces this fight needs pass by agent QA against the mockup; they no longer wait for Crown's PIE pass.
 
+### Q-581 — How inspect opens and closes, and what the party list shows instead (D-254, built in B-581)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-581, from building it) · **Blocks:** nothing
+**Question:** D-254 says a click on a player inspects it in the Status panel, and that the party list drops Spirit / Body. It does not say how inspect closes, what the Status button does while one character is inspected, or what the party list's line reads then.
+**Answer (defaults):**
+1. **A click on a party card opens the Status panel on that character alone.** A click on the same card closes it; a click on another party card switches to that one. Enemy cards are not inspected (their HP is hidden by Q-391; targeting shows it, B-436c).
+2. **The Status button is always the view of everyone.** While one character is inspected it switches to everyone; pressed again it closes.
+3. **Inspect lists, in order:** the name, Spirit of ... and Body of ..., the full actions line as it was on the card (pips, the number, Max with the action-point progress, the turn's skills, and "N bonus, lost at turn end" above Max), then each status in full.
+4. **Replaced by D-259 (Crown, the same day):** the card draws pips and no numbers ("Act: ●●○"), one ◆ for each action above Max ("Act: ●●●◆"), as inspect does. (This default was one ◆ on a numbers line, "Act: 4/2 ◆".)
+5. **The party list reads the element and the class under every name,** a player character's included, as a recruit's already did (the class alone with no innate element). The Character sheet keeps Spirit of ... / Body of ....
+**Reference:** Expedition 33 and Persona 5 open a character's detail from its own portrait or card and close it with the same input or Back; a second press on the same thing closing it is the common toggle. From memory, not looked up. The deckbuilder has no inspect.
+**Not built, say if wanted:** a key or pad button for inspect (comes with B-436h); closing inspect by clicking empty ground.
+**Built:** B-581.
+
 ### Q-579 — The potions' price, and what can't be done with a potion (D-253, built in B-579)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-579) · **Blocks:** nothing
 **Question:** D-253 gives the potions' strength and says they are sold for less than a tier F Sapphire or Citrine. It doesn't give the price, or say whether a potion can be sold, dismantled, merged or socketed.

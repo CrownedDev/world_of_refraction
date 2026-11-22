@@ -3,8 +3,9 @@
 // today's systems. One full-screen widget added straight to the viewport by UCombatHUD (wor.UI.NewHUD 1):
 // - party cards along the bottom from the left (B-436a, D-254): the featured card (the party member acting, else the
 //   last one that acted, else the first) is full: name, HP bar and "HP x / y", "EP x / y" (hidden for a Resonator with
-//   no EP use), status chips; the others sit in a row to its right as compact cards (name, HP bar, build-up bar). The
-//   command menu stacks above the featured card (GetCommandMenuOffset);
+//   no EP use), "Act: ●●○", status chips; the others sit in a row to its right as compact cards (name, HP bar,
+//   build-up bar). The command menu stacks above the featured card (GetCommandMenuOffset). D-254 (B-581): no Spirit /
+//   Body lines on a card; a click on a party card inspects it in the status panel (InspectCard);
 // - turn order top-right: the current actor, then the next turns (bonus turns marked);
 // - enemy cards under the turn order: name, HP bar (no numbers, Q-391), status chips;
 // - a Statuses button (top centre) opening one panel with every status in full (FeelGuide 5);
@@ -94,8 +95,20 @@ public:
 	const FText &GetStatusPanelText() const { return StatusPanelText; }
 	bool IsStatusPanelOpen() const { return bStatusPanelOpen; }
 
-	/** Open or close the view-all status panel (the Statuses button toggles it). */
+	/** Open or close the view-all status panel (the Statuses button toggles it). Closing ends an inspect. */
 	void SetStatusPanelOpen(bool bOpen);
+
+	/** D-254: inspect a party card (a click on it): the status panel shows that character alone: name, Spirit of ... /
+	 *  Body of ..., the full actions line (pips, Max, action-point progress, the bonus warning) and its statuses. The
+	 *  same card again closes it; another card switches; the Status button goes back to everyone. Enemy cards: no-op. */
+	void InspectCard(int32 CardIndex);
+
+	/** The Status button: the view of everyone. From an inspected character it switches to that view, else it opens
+	 *  or closes the panel. */
+	void ToggleAllStatuses();
+
+	/** The party card being inspected; INDEX_NONE when the panel is closed or shows everyone. */
+	int32 GetInspectedCardIndex() const { return InspectedCard; }
 
 	/** B-391b: float one number over Target, on this machine only (the hit handler and wor.UI.DamageNumber). */
 	void ShowDamageNumber(AActor *Target, const FCombatHitShown &Hit);
@@ -165,6 +178,13 @@ private:
 	UFUNCTION()
 	void HandleStatusButtonClicked();
 
+	/** D-254: a left click on a party card (UBorder::OnMouseButtonDownEvent, one handler for all of them). */
+	UFUNCTION()
+	FEventReply HandleCardMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent);
+
+	/** What the status panel shows for one inspected card. */
+	FText BuildInspectText(const FBattleHUDCard &Card) const;
+
 	UFUNCTION()
 	void HandleBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source);
 
@@ -181,6 +201,8 @@ private:
 	TArray<FLinearColor> TurnLineColors;
 	FText StatusPanelText;
 	bool bStatusPanelOpen = false;
+	/** D-254: the party card the status panel shows alone; INDEX_NONE: everyone. */
+	int32 InspectedCard = INDEX_NONE;
 	bool bBound = false;
 	int32 CurrentTurnNumber = 1;
 	/** B-436a: the last party card that acted (GetFeaturedCardIndex falls back to the first party card). */
