@@ -345,6 +345,7 @@ void UCharacterDataComponent::InitializeFromTemplate()
     CurrentHP = MaxHP;
     CurrentEP = MaxEP;
     bIsAlive = true;
+    HealingBoostAtDeath = 0.0f;
 
     UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s: Initialized (%s) - HP: %d, EP: %d"),
            *GetOwner()->GetName(),
@@ -506,6 +507,7 @@ void UCharacterDataComponent::ResetToMax()
         CurrentEP = IsBrokenDarkness() ? 0 : MaxEP;
 
         bIsAlive = true;
+        HealingBoostAtDeath = 0.0f;
         OnHPChanged.Broadcast(CurrentHP, MaxHP);
         OnEPChanged.Broadcast(CurrentEP, MaxEP);
     }
@@ -645,11 +647,13 @@ void UCharacterDataComponent::CheckDeath()
                     const float HPFraction = (LastStandPercent > 0.0f)
                                                  ? (LastStandPercent / 100.0f)
                                                  : ItemConstants::REVIVE_HP_PERCENT;
-                    // The HP is written first: the character is alive and above 0 before anything reacts to
-                    // its effects going.
-                    CurrentHP = GetBoostedRevivalHP(HPFraction, SaveBoostPercent);
+                    // Every other Last Stand: exactly as before B-580 (no boost, no cap at max HP, nothing cleared).
+                    CurrentHP = FMath::Max(1, FMath::RoundToInt(MaxHP * HPFraction));
                     if (bSaveTakesEffects)
                     {
+                        // Sapphire's: the HP is written first, so the character is alive and above 0 before
+                        // anything reacts to its effects going.
+                        CurrentHP = GetBoostedRevivalHP(HPFraction, SaveBoostPercent);
                         SEM->RemoveEffectsOnDeath(Owner);
                         // Again, now that its buffs are gone: losing a MaxHP buff changes MaxHP, and the saved HP
                         // is a share of what the character has without them.

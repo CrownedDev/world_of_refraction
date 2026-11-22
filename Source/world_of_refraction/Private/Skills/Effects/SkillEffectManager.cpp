@@ -3070,10 +3070,11 @@ void USkillEffectManager::DebugPrintEffects(AActor *Actor) const
 	for (int32 i = 0; i < Effects.Num(); ++i)
 	{
 		const FActiveSkillEffect &Effect = Effects[i];
-		UE_LOG(LogWoREffects, Display, TEXT("  [%d] %s (ID:%d, Source:%s/%s key %d%s%s) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
+		UE_LOG(LogWoREffects, Display, TEXT("  [%d] %s (ID:%d, Source:%s/%s key %d%s%s%s) - %s, Value:%.1f, Duration:%s, Stacks:%d"),
 			   i, *Effect.EffectName, Effect.EffectID,
 			   *GetNameSafe(Effect.SourceActor.Get()), *Effect.SourceAbilityName, Effect.SourceKey,
 			   Effect.bDoesNotStack ? TEXT(", doesn't stack") : TEXT(""), Effect.bFromGear ? TEXT(", from gear") : TEXT(""),
+			   SurvivesDeath(Effect) ? TEXT(", stays at death") : TEXT(", goes at death"), // D-253
 			   *UEnum::GetValueAsString(Effect.EffectType),
 			   Effect.EffectValue, *Effect.GetDurationString(), Effect.CurrentStacks);
 	}

@@ -9,10 +9,12 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
+#include "Misc/ScopeExit.h"
 #include "WoRTestWorld.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/TurnManager.h"
+#include "GAS/WoREffectMirrorComponent.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "GAS/WoRAbsorb.h"
 #include "GAS/WoRTurnEffectTracker.h"
@@ -154,7 +156,9 @@ void FDeathAndRevivalSpec::Define()
 		for (const FCrystalId &Other : {DEATH_TEST_HEALING_STONE, DEATH_TEST_GARNET, DEATH_TEST_CITRINE})
 		{
 			TestFalse(TEXT("another item on the dead ally is not valid"), Executor->ValidateAction(Hero, ItemOn(Other, Ally)).bIsValid);
-			TestFalse(TEXT("and its use is refused"), Executor->ExecuteItem(Hero, Other, {Ally}).bSuccess);
+			const FActionResult Refused = Executor->ExecuteItem(Hero, Other, {Ally});
+			TestFalse(TEXT("and its use is refused"), Refused.bSuccess);
+			TestEqual(TEXT("because the target is dead"), Refused.ErrorMessage, FString(TEXT("Target is dead")));
 		}
 		FAction Skill; // an attack or an ability: one action type since the merge
 		Skill.ActionType = EActionType::Ability;
@@ -321,6 +325,27 @@ void FDeathAndRevivalSpec::Define()
 
 		Apply(Ally, DEATH_TEST_SHIELD_ID, ESkillEffectType::NegatePhysical, false, false, Hero);
 		TestFalse(TEXT("a shield is not given to the dead"), HasShieldFrom(DEATH_TEST_SHIELD_ID));
+	});
+
+	It("clears at a death from a DOT tick paid through GAS (wor.Effects.UseGAS 1, the effects mirrored)", [this]()
+	{
+		if (!Effects) return;
+		FWoRTestWorld::AddEffectMirror(Ally);
+		UWoREffectMirrorComponent::SetReadsFromGAS(true);
+		ON_SCOPE_EXIT { UWoREffectMirrorComponent::SetReadsFromGAS(false); };
+		Apply(Ally, DEATH_TEST_BUFF_ID, ESkillEffectType::DefenseBuff, false, false, Hero);
+		Apply(Ally, DEATH_TEST_GEAR_ID, ESkillEffectType::DamageBuff, /*bFromGear=*/true, /*bPermanent=*/true, nullptr);
+		const FActiveSkillEffect Lethal = FActiveSkillEffect::CreateDOT(TEXT("Lethal DOT"), DEATH_TEST_DOT_ID, static_cast<float>(AllyChar->MaxHP) * DEATH_TEST_OVERKILL,
+																	 DEATH_TEST_TURNS, ESpellElement::Fire);
+		Effects->ApplyEffect(Ally, Lethal, Foe);
+		if (AllyChar->bIsAlive)
+		{
+			Effects->ProcessStartOfTurnEffects(Ally); // its turn start pays the tick (landed off its turn)
+		}
+		TestFalse(TEXT("the tick killed"), AllyChar->bIsAlive);
+		TestFalse(TEXT("the buff is gone"), Has(Ally, DEATH_TEST_BUFF_ID));
+		TestFalse(TEXT("the DOT is gone"), Has(Ally, DEATH_TEST_DOT_ID));
+		TestTrue(TEXT("the permanent gear effect stays"), Has(Ally, DEATH_TEST_GEAR_ID));
 	});
 
 	It("leaves every other Last Stand as it was: no boost, effects and remaining charges kept", [this]()
