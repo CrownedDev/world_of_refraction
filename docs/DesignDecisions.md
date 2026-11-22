@@ -1250,6 +1250,12 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-259 — The fight card's actions are pips: "Act: ●●○"
+**Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown, from the fight card's screenshot) · **Blocks:** B-581
+**Answer (Crown):** "and the actions shoudld we not just turn them into pips? i.e Act: * * * for example"
+**Ruled:** the card reads "Act: ●●○": a filled pip for each action held, an empty one up to Max, and no numbers. This replaces D-254's "Act: 0/2" and is part of B-581, before the command menu (D-258).
+**Defaults (Crown vetoes):** (a) actions above Max are one ◆ each ("Act: ●●●◆"), as inspect draws them (Q-170f3). (b) Past 8 pips (`MAX_PIPS_SHOWN`) the card falls back to the number ("Act: 9/3"). (c) "Skills 1/3" still joins once a skill is used (Q-170j). (d) Inspect is unchanged: pips, the number, Max and progress.
+
 ### D-258 — The command menu is built next: the main menu only, ahead of the skill screens
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown: "also should we not create the proper command menu?") · **Blocks:** B-436g
 **Answer (Crown):** "Yes, menu next", to the brain's proposal:
