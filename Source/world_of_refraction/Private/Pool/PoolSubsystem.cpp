@@ -242,10 +242,10 @@ bool UPoolSubsystem::AttachToApparel(const FGuid &PersistentID, const FRuntimeAt
     Owned->AttachedItem = Attachment;
     if (Previous.IsCrystal())
     {
-        // TODO: Q-380d: a worn or broken crystal comes back whole (stored crystals carry no wear): Crown's call.
-        AddCrystalToPool(Previous.Crystal.Id, 1);
-        OnPoolItemsChanged.Broadcast();
-        UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel socket: the old crystal went back to storage"));
+        // TODO: Q-380d: a worn or broken crystal comes back whole (carried crystals carry no wear): Crown's call.
+        // D-250: back to the piece owner's pouch (storage only when the piece is nobody's or the chest's).
+        CarryOrStore(GetGearOwner(PersistentID), Previous.Crystal.Id, 1);
+        UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel socket: the old crystal went back to its owner"));
     }
     UE_LOG(LogWoR, Log, TEXT("[Pool] Apparel %s socket: %s"), *GetNameSafe(Owned->Apparel.Get()),
            *UEnum::GetDisplayValueAsText(Owned->GetElement()).ToString());
@@ -752,46 +752,64 @@ int32 UPoolSubsystem::GetCarriedCount(FName CharacterKey, const FCrystalId &InId
 int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &InId) const
 {
     const FCrystalId Id = StatStone::Normalize(InId); // B-353
-    if (Id.Type == ECrystalType::None || CharacterKey.IsNone())
+    if (Id.Type == ECrystalType::None || CharacterKey.IsNone() || CharacterKey == GetChestKey()) // the chest is no character
     {
         return 0;
     }
-    const FPoolPouch &Pouch = GetPouch(CharacterKey);
-    const int32 *Stack = Pouch.Stacks.Find(Id);
-    if (!Stack && Pouch.Stacks.Num() >= Pouch.SlotCount)
-    {
-        return 0;
-    }
-    return FMath::Max(0, InventoryConstants::ITEM_STACK_MAX - (Stack ? *Stack : 0));
+    return InventoryConstants::UNLIMITED_CARRY_ROOM; // D-250: no slot or stack limit on what is carried
 }
 
-int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &InId, int32 Count)
+// ---- The fight-item pick (D-250) ----
+
+bool UPoolSubsystem::CanBeFightItem(const FCrystalId &Id)
 {
-    const FCrystalId Id = StatStone::Normalize(InId); // B-353
-    if (Count <= 0 || Id.Type == ECrystalType::None)
+    return Id.Type != ECrystalType::None && CrystalTypeHelpers::IsGemType(Id.Type);
+}
+
+bool UPoolSubsystem::IsFightItem(FName CharacterKey, const FCrystalId &InId) const
+{
+    return GetPouch(CharacterKey).FightItems.Contains(StatStone::Normalize(InId));
+}
+
+bool UPoolSubsystem::SetFightItem(FName CharacterKey, const FCrystalId &InId, bool bPicked)
+{
+    const FCrystalId Id = StatStone::Normalize(InId);
+    FPoolPouch *Pouch = Pouches.Find(CharacterKey);
+    if (!Pouch || Pouch->FightItems.Contains(Id) == bPicked)
     {
-        return 0;
+        return false;
     }
-    // No character (an enemy, a debug add): everything goes to the shared storage.
-    const int32 Carried = FMath::Min(Count, GetCarryRoom(CharacterKey, Id));
-    if (Carried > 0)
+    if (!bPicked)
     {
-        FindOrAddPouch(CharacterKey).Stacks.FindOrAdd(Id) += Carried;
+        Pouch->FightItems.Remove(Id);
     }
-    const int32 Stored = Count - Carried;
-    if (Stored > 0)
+    else if (Pouch->Stacks.Contains(Id) && CanBeFightItem(Id) && Pouch->FightItems.Num() < Pouch->SlotCount)
     {
-        AddCrystalToPool(Id, Stored);
-        UE_LOG(LogTemp, Log, TEXT("[Pool] %d %s didn't fit %s's pouch: sent to storage"), Stored, *ItemIdentity::GetDisplayName(Id),
-               *FPaths::GetBaseFilename(CharacterKey.ToString()));
+        Pouch->FightItems.Add(Id);
     }
+    else
+    {
+        return false;
+    }
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s %s %s as a fight item: %d of %d slot(s) picked"), *FPaths::GetBaseFilename(CharacterKey.ToString()),
+           bPicked ? TEXT("picked") : TEXT("unpicked"), *ItemIdentity::GetDisplayName(Id), Pouch->FightItems.Num(), Pouch->SlotCount);
     OnPoolItemsChanged.Broadcast();
-    return Stored;
+    return true;
 }
 
-int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &InId, int32 Count)
+void UPoolSubsystem::AddCarried(FName CharacterKey, const FCrystalId &Id, int32 Count)
 {
-    const FCrystalId Id = StatStone::Normalize(InId); // B-353
+    FPoolPouch &Pouch = FindOrAddPouch(CharacterKey);
+    const bool bNewStack = !Pouch.Stacks.Contains(Id);
+    Pouch.Stacks.FindOrAdd(Id) += Count;
+    if (bNewStack && CanBeFightItem(Id) && Pouch.FightItems.Num() < Pouch.SlotCount)
+    {
+        Pouch.FightItems.Add(Id);
+    }
+}
+
+int32 UPoolSubsystem::RemoveCarried(FName CharacterKey, const FCrystalId &Id, int32 Count)
+{
     FPoolPouch *Pouch = Pouches.Find(CharacterKey);
     int32 *Stack = Pouch ? Pouch->Stacks.Find(Id) : nullptr;
     if (!Stack || Count <= 0)
@@ -803,8 +821,57 @@ int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &InId, in
     if (*Stack <= 0)
     {
         Pouch->Stacks.Remove(Id);
+        Pouch->FightItems.Remove(Id);
+    }
+    return Taken;
+}
+
+void UPoolSubsystem::PickDefaultFightItems(FPoolPouch &Pouch)
+{
+    TArray<FCrystalId> Gems;
+    for (const TPair<FCrystalId, int32> &Stack : Pouch.Stacks)
+    {
+        if (CanBeFightItem(Stack.Key))
+        {
+            Gems.Add(Stack.Key);
+        }
+    }
+    // The order a fight lists them in (ULoadoutComponent::GetUsableItems): the pouch is a map, so it has none.
+    Gems.Sort([](const FCrystalId &A, const FCrystalId &B) { return A.Type != B.Type ? A.Type < B.Type : A.Tier > B.Tier; });
+    Gems.SetNum(FMath::Min(Gems.Num(), Pouch.SlotCount));
+    Pouch.FightItems = MoveTemp(Gems);
+}
+
+int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &InId, int32 Count)
+{
+    const FCrystalId Id = StatStone::Normalize(InId); // B-353
+    if (Count <= 0 || Id.Type == ECrystalType::None)
+    {
+        return 0;
+    }
+    // D-250: a character carries all of it. No character (an enemy, a debug add): it goes to the shared storage.
+    const int32 Carried = FMath::Min(Count, GetCarryRoom(CharacterKey, Id));
+    if (Carried > 0)
+    {
+        AddCarried(CharacterKey, Id, Carried);
+    }
+    const int32 Stored = Count - Carried;
+    if (Stored > 0)
+    {
+        AddCrystalToPool(Id, Stored);
+        UE_LOG(LogTemp, Log, TEXT("[Pool] %d %s given to no character: sent to storage"), Stored, *ItemIdentity::GetDisplayName(Id));
     }
     OnPoolItemsChanged.Broadcast();
+    return Stored;
+}
+
+int32 UPoolSubsystem::TakeCarried(FName CharacterKey, const FCrystalId &InId, int32 Count)
+{
+    const int32 Taken = RemoveCarried(CharacterKey, StatStone::Normalize(InId), Count); // B-353
+    if (Taken > 0)
+    {
+        OnPoolItemsChanged.Broadcast();
+    }
     return Taken;
 }
 
@@ -845,20 +912,28 @@ bool UPoolSubsystem::MoveToStorage(FName CharacterKey, const FCrystalId &Id, int
     return true;
 }
 
-int32 UPoolSubsystem::ReleasePouch(FName CharacterKey)
+int32 UPoolSubsystem::ReleasePouch(FName CharacterKey, FName HeirKey)
 {
     FPoolPouch Released;
-    if (!Pouches.RemoveAndCopyValue(CharacterKey, Released))
+    if (CharacterKey == HeirKey || !Pouches.RemoveAndCopyValue(CharacterKey, Released))
     {
         return 0;
     }
     int32 Moved = 0;
     for (const TPair<FCrystalId, int32> &Stack : Released.Stacks)
     {
-        AddCrystalToPool(Stack.Key, Stack.Value);
+        if (HeirKey.IsNone())
+        {
+            AddCrystalToPool(Stack.Key, Stack.Value); // nobody to take it: kept, never thrown away (D-097)
+        }
+        else
+        {
+            AddCarried(HeirKey, Stack.Key, Stack.Value);
+        }
         Moved += Stack.Value;
     }
-    UE_LOG(LogTemp, Log, TEXT("[Pool] %s leaves: %d carried item(s) go to storage"), *CharacterKey.ToString(), Moved);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] %s leaves: %d carried item(s) go to %s"), *CharacterKey.ToString(), Moved,
+           HeirKey.IsNone() ? TEXT("storage (nobody to take them)") : *FPaths::GetBaseFilename(HeirKey.ToString()));
     OnPoolItemsChanged.Broadcast();
     return Moved;
 }
@@ -870,7 +945,7 @@ bool UPoolSubsystem::MoveToCarried(FName CharacterKey, const FCrystalId &Id, int
         return false;
     }
     TakeStored(Id, Count);
-    FindOrAddPouch(CharacterKey).Stacks.FindOrAdd(Id) += Count;
+    AddCarried(CharacterKey, StatStone::Normalize(Id), Count);
     OnPoolItemsChanged.Broadcast();
     return true;
 }
@@ -892,8 +967,8 @@ bool UPoolSubsystem::BankStartingItems(FName CharacterKey, const TMap<FCrystalId
         }
     }
     const FPoolPouch &Pouch = GetPouch(CharacterKey);
-    UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting items: %d of %d pouch slot(s) in use"),
-           *FPaths::GetBaseFilename(CharacterKey.ToString()), Pouch.Stacks.Num(), Pouch.SlotCount);
+    UE_LOG(LogTemp, Log, TEXT("[Pool] Banked %s's starting items: %d kind(s) carried, %d of %d fight item slot(s) picked"),
+           *FPaths::GetBaseFilename(CharacterKey.ToString()), Pouch.Stacks.Num(), Pouch.FightItems.Num(), Pouch.SlotCount);
     return true;
 }
 
@@ -916,6 +991,11 @@ void UPoolSubsystem::RestorePouches(const TMap<FName, FPoolPouch> &InPouches, co
     for (TPair<FName, FPoolPouch> &Pair : Pouches)
     {
         Pair.Value.SlotCount = FMath::Max(Pair.Value.SlotCount, InventoryConstants::ITEM_SLOTS_START);
+        // SAVE SEAM (Q-250): the pick is not saved yet, so every restored pouch arrives without one.
+        if (Pair.Value.FightItems.IsEmpty())
+        {
+            PickDefaultFightItems(Pair.Value);
+        }
     }
     BankedItemCharacters = TSet<FName>(InBanked);
     OnPoolItemsChanged.Broadcast();
@@ -927,14 +1007,9 @@ bool UPoolSubsystem::GiveCarried(FName FromKey, FName ToKey, const FCrystalId &I
     {
         return false;
     }
-    FPoolPouch &From = FindOrAddPouch(FromKey);
-    int32 &Stack = From.Stacks.FindChecked(Id);
-    Stack -= Count;
-    if (Stack <= 0)
-    {
-        From.Stacks.Remove(Id);
-    }
-    FindOrAddPouch(ToKey).Stacks.FindOrAdd(Id) += Count;
+    const FCrystalId Moved = StatStone::Normalize(Id); // B-353: the key GetCarriedCount found it under
+    RemoveCarried(FromKey, Moved, Count);
+    AddCarried(ToKey, Moved, Count);
     UE_LOG(LogTemp, Log, TEXT("[Pool] %s gave %d %s to %s"), *FPaths::GetBaseFilename(FromKey.ToString()), Count,
            *ItemIdentity::GetDisplayName(Id), *FPaths::GetBaseFilename(ToKey.ToString()));
     OnPoolItemsChanged.Broadcast();
@@ -944,13 +1019,18 @@ bool UPoolSubsystem::GiveCarried(FName FromKey, FName ToKey, const FCrystalId &I
 FString UPoolSubsystem::GetItemSlotsString() const
 {
     FString Out = FString::Printf(TEXT("[Pool] Pouches (B-322): %d character(s), %d banked"), Pouches.Num(), BankedItemCharacters.Num());
+    int32 PouchNumber = 0;
     for (const TPair<FName, FPoolPouch> &Pouch : Pouches)
     {
-        Out += FString::Printf(TEXT("\n  %s: %d of %d slot(s)"), *FPaths::GetBaseFilename(Pouch.Key.ToString()), Pouch.Value.Stacks.Num(),
-                               Pouch.Value.SlotCount);
+        // D-250: the numbers are what wor.Inventory.SetFightItem takes.
+        Out += FString::Printf(TEXT("\n  [%d] %s: %d of %d fight item slot(s) picked, %d kind(s) carried"), PouchNumber++,
+                               *FPaths::GetBaseFilename(Pouch.Key.ToString()), Pouch.Value.FightItems.Num(), Pouch.Value.SlotCount,
+                               Pouch.Value.Stacks.Num());
+        int32 StackNumber = 0;
         for (const TPair<FCrystalId, int32> &Pair : Pouch.Value.Stacks)
         {
-            Out += FString::Printf(TEXT("\n    slot: %s x%d"), *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value);
+            Out += FString::Printf(TEXT("\n    [%d] %s x%d%s"), StackNumber++, *ItemIdentity::GetDisplayName(Pair.Key), Pair.Value,
+                                   Pouch.Value.FightItems.Contains(Pair.Key) ? TEXT(" (fight item)") : TEXT(""));
         }
     }
     // B-324: the chest's gear beside the stored items.
@@ -1344,6 +1424,34 @@ namespace
                 {
                     UE_LOG(LogTemp, Log, TEXT("%s"), *Pool->GetItemSlotsString());
                 }
+            }));
+
+    static FAutoConsoleCommandWithWorldAndArgs GSetFightItemCmd(
+        TEXT("wor.Inventory.SetFightItem"),
+        TEXT("D-250: wor.Inventory.SetFightItem <pouch> <stack> <0|1>: unpicks (0) or picks (1) a carried stack as a fight item, by the numbers wor.Inventory.PrintSlots shows (PIE debug, until the one-list screen)."),
+        FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
+            [](const TArray<FString> &Args, UWorld *World)
+            {
+                UPoolSubsystem *Pool = ResolvePoolFromWorld(World);
+                if (!Pool || Args.Num() < 3)
+                {
+                    UE_LOG(LogTemp, Warning, TEXT("[Pool] wor.Inventory.SetFightItem <pouch> <stack> <0|1>: no pool, or too few numbers."));
+                    return;
+                }
+                TArray<FName> PouchKeys;
+                Pool->GetPouches().GetKeys(PouchKeys);
+                const int32 PouchNumber = FCString::Atoi(*Args[0]);
+                TArray<FCrystalId> StackIds;
+                if (PouchKeys.IsValidIndex(PouchNumber))
+                {
+                    Pool->GetCarriedItems(PouchKeys[PouchNumber]).GetKeys(StackIds);
+                }
+                const int32 StackNumber = FCString::Atoi(*Args[1]);
+                const bool bChanged = StackIds.IsValidIndex(StackNumber) &&
+                                      Pool->SetFightItem(PouchKeys[PouchNumber], StackIds[StackNumber], FCString::Atoi(*Args[2]) != 0);
+                UE_LOG(LogTemp, Log, TEXT("[Pool] wor.Inventory.SetFightItem: %s\n%s"),
+                       bChanged ? TEXT("changed") : TEXT("refused (no such pouch or stack, already so, a stone, or no free slot)"),
+                       *Pool->GetItemSlotsString());
             }));
 
     static FAutoConsoleCommandWithWorld GPrintPoolCmd(
