@@ -155,13 +155,13 @@ void FOneInventorySpec::Define()
 		AActor *Actor = SpawnMember(0);
 		UInventoryComponent *Inventory = Actor ? Actor->FindComponentByClass<UInventoryComponent>() : nullptr;
 		if (!TestNotNull(TEXT("Inventory"), Inventory)) return;
-		for (int32 Index = 0; Index <= InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS; ++Index)
+		for (int32 Index = 0; Index < WoRTestInventory::PAST_FULL_ITEMS; ++Index)
 		{
 			UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
 			TestTrue(TEXT("room for another weapon"), Inventory->CanAddWeapon(Weapon));
 			TestTrue(TEXT("added"), Inventory->AddWeapon(Weapon));
 		}
-		TestTrue(TEXT("more than the old room of 20"), Inventory->GetWeaponSlotCostTotal() > InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS);
+		TestTrue(TEXT("more than a test's full inventory"), Inventory->GetWeaponSlotCostTotal() > WoRTestInventory::FULL_ITEMS);
 		TestEqual(TEXT("weapon room"), Inventory->GetRemainingWeaponCapacity(), InventoryConstants::UNLIMITED_CARRY_ROOM);
 		TestEqual(TEXT("adapter room"), Inventory->GetRemainingRingCapacity(), InventoryConstants::UNLIMITED_CARRY_ROOM);
 	});
@@ -416,13 +416,13 @@ void FOneInventorySpec::Define()
 		FSavedPouch &Pouch = Saved.Pouches[0];
 		if (!TestEqual(TEXT("three stacks, two picked"), Pouch.Stacks.Num() - Pouch.FightItemStacks.Num(), 1)) return;
 		int32 StoneStack = 0; // the one stack the pick doesn't name
-		while (Pouch.FightItemStacks.Contains(StoneStack))
+		for (; StoneStack < Pouch.Stacks.Num() && Pouch.FightItemStacks.Contains(StoneStack); ++StoneStack)
 		{
-			++StoneStack;
 		}
 		Pouch.FightItemStacks.Add(StoneStack);				 // the Durability Stone: no use in a fight
 		Pouch.FightItemStacks.Add(Pouch.Stacks.Num());		 // no such stack
-		Pouch.FightItemStacks.Add(Pouch.FightItemStacks[0]); // the same one twice
+		const int32 FirstPicked = Pouch.FightItemStacks[0];
+		Pouch.FightItemStacks.Add(FirstPicked); // the same one twice
 
 		FWoRTestWorld After;
 		UPoolSubsystem *Restored = After.Create() ? After.GetSubsystem<UPoolSubsystem>() : nullptr;

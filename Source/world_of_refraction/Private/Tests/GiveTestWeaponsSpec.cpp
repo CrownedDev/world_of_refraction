@@ -39,7 +39,7 @@ void FGiveTestWeaponsSpec::Define()
 			}
 		}
 		AddInfo(FString::Printf(TEXT("%d of %d test weapon assets are not in this checkout"), Missing, static_cast<int32>(UE_ARRAY_COUNT(WoRGiveTestWeapons::TEST_WEAPONS))));
-		TestTrue(TEXT("the set fits the weapon room"), Asked <= InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS);
+		TestTrue(TEXT("the set is no more than a test's full inventory"), Asked <= WoRTestInventory::FULL_ITEMS);
 	});
 
 	It("gives the asked count of each weapon quietly, names a missing one, and is never stopped by a full inventory (D-250)", [this]()
@@ -60,10 +60,10 @@ void FGiveTestWeaponsSpec::Define()
 		TestTrue(TEXT("the missing one is named as refused"), Lines.Last().EndsWith(TEXT("(REFUSED)")));
 		TestFalse(TEXT("the duplicate notice is back on"), Inventory->bSuppressDuplicateNotice);
 
-		// D-250 (B-575): no inventory is ever full, so one past the old room of 20 still takes the give.
-		for (int32 Index = 0; Index <= InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS; ++Index)
+		// D-250 (B-575): no inventory is ever full, so one filled past a test's full still takes the give.
+		for (int32 Index = 0; Index < WoRTestInventory::PAST_FULL_ITEMS; ++Index)
 		{
-			TestTrue(TEXT("past the old room"), Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
+			TestTrue(TEXT("past full"), Inventory->AddWeapon(NewObject<UWeaponData>(GetTransientPackage())));
 		}
 		Lines.Reset();
 		TestEqual(TEXT("it still takes the asked count"), WoRGiveTestWeapons::GiveWeapons(*Inventory, {Weapons[0]}, Count, Lines), Count);
