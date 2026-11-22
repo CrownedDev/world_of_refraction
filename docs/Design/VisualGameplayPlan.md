@@ -5,8 +5,8 @@
 ## Order
 
 1. **Placeholder UI, rewritten for the game as it is now.** Many systems have changed since the old HUD: the six schools, apparel, curses, Amp, resistance by type, co-op seats and rest spots. Build each screen fresh as plain C++ widgets (simple buttons and text, no `.uasset`), **as the vertical slice needs it**, not all up front. The list of screens is `UI_ScreenInventory.md`. CommonUI replaces them later (D-024).
-2. **Animations, spells and abilities from scratch, one at a time.** Start with the one-fight vertical slice (`FeelGuide.md` "How it's used"): entry, turns, hits, defence, victory, return. Each new animation, spell or ability gets its own job, so Crown sees every piece as it goes in.
-3. **Claude adds the marks.** Once Crown is happy with an animation, Claude adds its cast and impact notifies (`SkillPresentationPipeline.md`), VFX and sounds, then checks them with the notify validator (B-368).
+2. **Animations, spells and abilities from scratch, one at a time.** Start with the one-fight vertical slice (`FeelGuide.md` "How it's used"): entry, turns, hits, defence, victory, return. Each new animation, spell or ability gets its own job. An agent checks every piece; Crown judges at the checkpoints of `docs/Conventions/HandsOffPlan.md` (D-251), which also puts weapons and abilities before spells.
+3. **Claude adds the marks.** Once an animation passes agent QA (D-251), Claude adds its cast and impact notifies (`SkillPresentationPipeline.md`), VFX and sounds, then checks them with the notify validator (B-368).
 4. **Feel refinement.** Crown plays the slice and gives notes, and each note becomes a `FeelGuide.md` row or a value. Feel checks on the PIE sheets wait for this phase.
 
 ## Effects and parry rules (D-170)

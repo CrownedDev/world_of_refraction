@@ -32,6 +32,10 @@ The brain itself doesn't do long jobs: it delegates, so its context stays small 
 
 ---
 
+**D-251 (Crown, 2026-11-22):** `docs/Conventions/HandsOffPlan.md` sets what is worked on now and who checks it. Don't hand Crown a per-piece check an agent can do.
+
+---
+
 ## 3. Workers (one per tool)
 
 | Worker | Where | Does | Limit |
