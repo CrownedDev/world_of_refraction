@@ -27,6 +27,7 @@ class UInputAction;
 struct FInputActionInstance;
 class UDefenseSystem;
 class ACombatOrchestrator;
+class UBattleHUDWidget;
 
 /** B-229: what the server did with one player input. */
 UENUM()
@@ -147,8 +148,25 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> SkipCinematicAction;
 
+	/** B-586 (D-261): Intel open / close (V / R3) and its tabs (Q / E, LB / RB), in the same context. */
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> IntelDetailsAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> IntelTabPrevAction;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UInputAction> IntelTabNextAction;
+
 	/** Creates the menu-key actions (and the cinematic skip) and their mapping context once. */
 	void BuildMenuKeys();
+
+	void OnIntelDetails(const FInputActionValue &Value);
+	void OnIntelTabPrev(const FInputActionValue &Value);
+	void OnIntelTabNext(const FInputActionValue &Value);
+
+	/** B-586: this machine's new battle HUD in the running fight; null with the old HUD or no fight. */
+	UBattleHUDWidget *FindBattleHUD() const;
 
 	// ========================================
 	// DEFENSE INPUT HANDLERS

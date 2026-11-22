@@ -160,8 +160,9 @@ void FBattleHUDSpec::Define()
 		{
 			const FBattleCardParts Party = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/true);
 			TestTrue(TEXT("a party card has every part"), Party.bHPBar && Party.bHPLine && Party.bEPLine && Party.bBuildupBar &&
-															  Party.bBuildupLine && Party.bGear && Party.bStatus);
+															  Party.bBuildupLine && Party.bGear);
 			TestFalse(TEXT("but no action pips: they are on the command menu's tab (D-260)"), Party.bActions);
+			TestFalse(TEXT("and no statuses: they are in Intel (D-261)"), Party.bStatus);
 			const FBattleCardParts Enemy = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/false);
 			TestTrue(TEXT("an enemy: the bars and statuses"), Enemy.bHPBar && Enemy.bBuildupBar && Enemy.bStatus);
 			TestFalse(TEXT("an enemy: no numbers, gear or actions"), Enemy.bHPLine || Enemy.bEPLine || Enemy.bBuildupLine || Enemy.bGear || Enemy.bActions);
@@ -197,10 +198,11 @@ void FBattleHUDSpec::Define()
 			Card.bParty = true;
 			Card.DetailLine = FText::FromString(TEXT("Fire Refractor"));
 			BattleHUDCard::Build(Tree, Card, EBattleCardLevel::Battle);
-			if (!TestTrue(TEXT("a battle card keeps its width box and its EP row"), Card.WidthBox && Card.EPRow && Card.StatusText && Card.BuildupBar))
+			if (!TestTrue(TEXT("a battle card keeps its width box and its EP row"), Card.WidthBox && Card.EPRow && Card.BuildupBar))
 			{
 				return;
 			}
+			TestNull(TEXT("no status line on a party card: its effects are in Intel (D-261)"), Card.StatusText.Get());
 			BattleHUDCard::Push(Card);
 			BattleHUDCard::SetCompact(Card, true);
 			TestEqual(TEXT("compact: the narrow width"), Card.WidthBox->GetWidthOverride(), BattleCardStyle::CompactCardWidth);
@@ -210,19 +212,18 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("compact: the build-up number stays on its bar (D-257)"),
 					 Card.BuildupText && Card.BuildupText->GetVisibility() != ESlateVisibility::Collapsed &&
 						 Card.BuildupText->GetParent() && Card.BuildupText->GetParent() == Card.BuildupBar->GetParent());
-			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get(), Card.StatusText.Get()};
+			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get()};
 			for (const UWidget *Hidden : HiddenWhenCompact)
 			{
-				TestTrue(TEXT("compact: the kind, EP and statuses are collapsed"),
+				TestTrue(TEXT("compact: the kind and EP are collapsed"),
 						 Hidden && Hidden->GetVisibility() == ESlateVisibility::Collapsed);
 			}
 			TestNull(TEXT("no actions line on a fight card at all: the pips are on the menu's tab (D-260)"), Card.ActionsText.Get());
 
 			BattleHUDCard::SetCompact(Card, false);
 			TestEqual(TEXT("full: the card's width"), Card.WidthBox->GetWidthOverride(), BattleCardStyle::CardWidth);
-			TestTrue(TEXT("full: the kind, EP and statuses are back"),
-					 Card.DetailText->GetVisibility() == ESlateVisibility::HitTestInvisible && Card.EPRow->GetVisibility() == ESlateVisibility::HitTestInvisible &&
-						 Card.StatusText->GetVisibility() == ESlateVisibility::HitTestInvisible);
+			TestTrue(TEXT("full: the kind and EP are back"),
+					 Card.DetailText->GetVisibility() == ESlateVisibility::HitTestInvisible && Card.EPRow->GetVisibility() == ESlateVisibility::HitTestInvisible);
 
 			FBattleHUDCard NoEP;
 			NoEP.bParty = true;
@@ -464,7 +465,7 @@ void FBattleHUDSpec::Define()
 			HUD->Teardown();
 		});
 
-		It("keeps Spirit and Body off a fight's card and shows them when the card is inspected (D-254)", [this]()
+		It("keeps Spirit and Body off a fight's card and shows them in Intel on a card click (D-254, D-261)", [this]()
 		{
 			if (!StartDuel())
 			{
@@ -489,47 +490,51 @@ void FBattleHUDSpec::Define()
 			const FString Identity = WoRPlayerBuild::GetDetailLine(PlayerData, PlayerComp->PartyMemberId, TestWorld->GetWorld()).ToString();
 			TestTrue(TEXT("the character has identity lines to show"), Identity.StartsWith(TEXT("Spirit of")));
 			TestTrue(TEXT("no identity lines on the fight's card"), HUD->GetCards()[PLAYER_CARD].DetailLine.IsEmpty());
-			TestFalse(TEXT("closed to start"), HUD->IsStatusPanelOpen());
+			TestFalse(TEXT("closed to start"), HUD->IsIntelOpen() || HUD->IsStatusPanelOpen());
 
+			// D-261 (B-586): the card click opens Intel on that character's tab, not the status panel (D-254's inspect).
 			HUD->InspectCard(PLAYER_CARD);
-			const FString Inspect = HUD->GetStatusPanelText().ToString();
-			TestTrue(TEXT("a card click opens the panel on that character"), HUD->IsStatusPanelOpen() && HUD->GetInspectedCardIndex() == PLAYER_CARD);
-			TestTrue(TEXT("inspect names the character and holds its Spirit / Body lines"),
-					 Inspect.StartsWith(HUD->GetCards()[PLAYER_CARD].Name.ToString()) && Inspect.Contains(Identity));
-			TestTrue(TEXT("inspect holds the full actions line: pips, Max and the action-point progress"),
-					 Inspect.Contains(ActionPipsText::MakeActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(),
-																	  PlayerComp->GetActionPointProgress(), PlayerComp->SkillsUsedThisTurn).ToString()));
-			TestTrue(TEXT("inspect says there are no statuses"), Inspect.Contains(TEXT("No statuses")));
-			TestFalse(TEXT("inspect is that character alone"), Inspect.Contains(HUD->GetCards()[FOE_CARD].Name.ToString() + TEXT(":")));
-			TestTrue(TEXT("wor.UI.Print says who is inspected"), HUD->GetBattleHUDString().Contains(TEXT("inspecting")));
+			const auto OpenPage = [HUD]() -> const FBattleIntelPage & { return HUD->GetIntelPages()[HUD->GetIntelTab()]; };
+			if (!TestTrue(TEXT("a card click opens Intel on that character"), HUD->IsIntelOpen() && !HUD->IsStatusPanelOpen() &&
+																				   HUD->GetIntelPages().IsValidIndex(HUD->GetIntelTab()) &&
+																				   OpenPage().Actor.Get() == Player))
+			{
+				return;
+			}
+			TestTrue(TEXT("Intel names the character and holds its Spirit / Body lines"),
+					 OpenPage().Heading.EqualTo(HUD->GetCards()[PLAYER_CARD].Name) && OpenPage().Subline.ToString() == Identity);
+			TestEqual(TEXT("Intel holds the full actions line: pips, Max and the action-point progress (D-259)"), OpenPage().ActionsLine.ToString(),
+					  ActionPipsText::MakeActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(),
+													  PlayerComp->GetActionPointProgress(), PlayerComp->SkillsUsedThisTurn).ToString());
+			TestTrue(TEXT("Intel shows no effects"), OpenPage().Effects.IsEmpty());
+			TestTrue(TEXT("wor.UI.Print shows the open Intel page"), HUD->GetBattleHUDString().Contains(TEXT("intel tab")));
 
 			PlayerComp->GainActions(PlayerComp->GetMaxActions() + BATTLE_HUD_ONE_ACTION, /*bMayPassMax=*/true);
 			if (TestTrue(TEXT("the bank is above Max"), PlayerComp->CurrentActions > PlayerComp->GetMaxActions()))
 			{
-				TestTrue(TEXT("the open inspect follows the bank"),
-						 HUD->GetStatusPanelText().ToString().Contains(
-							 ActionPipsText::MakeActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(), PlayerComp->GetActionPointProgress(),
-															 PlayerComp->SkillsUsedThisTurn).ToString()));
-				TestTrue(TEXT("and warns that bonus actions are lost at turn end"), HUD->GetStatusPanelText().ToString().Contains(TEXT("lost at turn end")));
+				TestEqual(TEXT("the open Intel page follows the bank"), OpenPage().ActionsLine.ToString(),
+						  ActionPipsText::MakeActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(), PlayerComp->GetActionPointProgress(),
+														  PlayerComp->SkillsUsedThisTurn).ToString());
+				TestTrue(TEXT("and warns that bonus actions are lost at turn end"), OpenPage().ActionsLine.ToString().Contains(TEXT("lost at turn end")));
 				TestEqual(TEXT("the short line has the bonus as ◆ pips, with no warning text (D-259; drawn on the menu's tab since D-260)"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString(),
 						  ActionPipsText::MakeCardActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(), PlayerComp->SkillsUsedThisTurn).ToString());
 				TestTrue(TEXT("a ◆ on the card"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString().Contains(TEXT("◆")));
 			}
 
 			HUD->InspectCard(HERO_CARD);
-			TestTrue(TEXT("another card switches to it"), HUD->IsStatusPanelOpen() && HUD->GetInspectedCardIndex() == HERO_CARD);
+			TestTrue(TEXT("another card switches to its tab"), HUD->IsIntelOpen() && OpenPage().Actor.Get() == Hero);
 			HUD->InspectCard(FOE_CARD);
-			TestEqual(TEXT("an enemy card is not inspected"), HUD->GetInspectedCardIndex(), HERO_CARD);
+			TestTrue(TEXT("an enemy card opens its own tab now (D-261)"), HUD->IsIntelOpen() && OpenPage().bEnemy && OpenPage().Actor.Get() == Foe);
 			HUD->ToggleAllStatuses();
-			TestTrue(TEXT("the Status button goes from one character to everyone"),
-					 HUD->IsStatusPanelOpen() && HUD->GetInspectedCardIndex() == INDEX_NONE &&
+			TestTrue(TEXT("the Status button shows everyone and closes Intel"),
+					 HUD->IsStatusPanelOpen() && !HUD->IsIntelOpen() && HUD->GetInspectedCardIndex() == INDEX_NONE &&
 						 HUD->GetStatusPanelText().ToString().Contains(HUD->GetCards()[FOE_CARD].Name.ToString() + TEXT(":")));
 			HUD->ToggleAllStatuses();
 			TestFalse(TEXT("and closes it on the next press"), HUD->IsStatusPanelOpen());
 
 			HUD->InspectCard(HERO_CARD);
 			HUD->InspectCard(HERO_CARD);
-			TestTrue(TEXT("the same card again closes the inspect"), !HUD->IsStatusPanelOpen() && HUD->GetInspectedCardIndex() == INDEX_NONE);
+			TestFalse(TEXT("the same card again closes Intel"), HUD->IsIntelOpen() || HUD->IsStatusPanelOpen());
 			HUD->Teardown();
 		});
 

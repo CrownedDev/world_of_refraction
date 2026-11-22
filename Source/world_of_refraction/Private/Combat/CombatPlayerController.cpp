@@ -19,6 +19,7 @@
 #include "InputCoreTypes.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/CombatHUD.h"
+#include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/Camera/CombatCameraDirector.h"
@@ -37,6 +38,19 @@ namespace CombatMenuKeys
 	constexpr const TCHAR *SKIP_CINEMATIC_ACTION_NAME = TEXT("IA_Combat_SkipCinematic");
 	FKey GetSkipCinematicKeyboard() { return EKeys::Tab; } // not Space: the likely dodge key and Slate's Accept
 	FKey GetSkipCinematicGamepad() { return EKeys::Gamepad_Special_Right; }
+
+	/** B-586 (D-261, InputMap Battle rows): the Intel panel. Q / E and LB / RB step its tabs while it is open. */
+	constexpr const TCHAR *INTEL_DETAILS_ACTION_NAME = TEXT("IA_UI_Details");
+	constexpr const TCHAR *INTEL_TAB_PREV_ACTION_NAME = TEXT("IA_UI_TabPrev");
+	constexpr const TCHAR *INTEL_TAB_NEXT_ACTION_NAME = TEXT("IA_UI_TabNext");
+	FKey GetIntelDetailsKeyboard() { return EKeys::V; }
+	FKey GetIntelDetailsGamepad() { return EKeys::Gamepad_RightThumbstick; }
+	FKey GetIntelTabPrevKeyboard() { return EKeys::Q; }
+	FKey GetIntelTabPrevGamepad() { return EKeys::Gamepad_LeftShoulder; }
+	FKey GetIntelTabNextKeyboard() { return EKeys::E; }
+	FKey GetIntelTabNextGamepad() { return EKeys::Gamepad_RightShoulder; }
+	constexpr int32 INTEL_TAB_PREV = -1;
+	constexpr int32 INTEL_TAB_NEXT = 1;
 
 	FAutoConsoleCommand GPrintMenuKeysCmd(
 		TEXT("wor.Input.MenuKeys"),
@@ -173,6 +187,9 @@ void ACombatPlayerController::SetupInputComponent()
 		EnhancedInput->BindAction(CategoryAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnCategoryKey);
 	}
 	EnhancedInput->BindAction(SkipCinematicAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnSkipCinematic);
+	EnhancedInput->BindAction(IntelDetailsAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelDetails); // B-586
+	EnhancedInput->BindAction(IntelTabPrevAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelTabPrev);
+	EnhancedInput->BindAction(IntelTabNextAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelTabNext);
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
 }
@@ -602,6 +619,68 @@ void ACombatPlayerController::BuildMenuKeys()
 	SkipCinematicAction->bConsumeInput = false;
 	MenuKeysContext->MapKey(SkipCinematicAction, CombatMenuKeys::GetSkipCinematicKeyboard());
 	MenuKeysContext->MapKey(SkipCinematicAction, CombatMenuKeys::GetSkipCinematicGamepad());
+
+	// B-586: the Intel keys, also never consumed (LB / RB are infusion and Defend too; PressMenuKey stands down while
+	// Intel is open).
+	const auto MakeIntelAction = [this](const TCHAR *Name, const FKey &Keyboard, const FKey &Gamepad)
+	{
+		UInputAction *Action = NewObject<UInputAction>(this, Name);
+		Action->ValueType = EInputActionValueType::Boolean;
+		Action->bConsumeInput = false;
+		MenuKeysContext->MapKey(Action, Keyboard);
+		MenuKeysContext->MapKey(Action, Gamepad);
+		return Action;
+	};
+	IntelDetailsAction = MakeIntelAction(CombatMenuKeys::INTEL_DETAILS_ACTION_NAME, CombatMenuKeys::GetIntelDetailsKeyboard(),
+										 CombatMenuKeys::GetIntelDetailsGamepad());
+	IntelTabPrevAction = MakeIntelAction(CombatMenuKeys::INTEL_TAB_PREV_ACTION_NAME, CombatMenuKeys::GetIntelTabPrevKeyboard(),
+										 CombatMenuKeys::GetIntelTabPrevGamepad());
+	IntelTabNextAction = MakeIntelAction(CombatMenuKeys::INTEL_TAB_NEXT_ACTION_NAME, CombatMenuKeys::GetIntelTabNextKeyboard(),
+										 CombatMenuKeys::GetIntelTabNextGamepad());
+}
+
+UBattleHUDWidget *ACombatPlayerController::FindBattleHUD() const
+{
+	UWorld *World = GetWorld();
+	if (!World || !UCombatHUD::WantsNewHUD())
+	{
+		return nullptr;
+	}
+	for (TActorIterator<ACombatOrchestrator> It(World); It; ++It)
+	{
+		if (UCombatHUD *HUD = It->GetCombatHUD())
+		{
+			if (UBattleHUDWidget *BattleHUD = HUD->GetBattleHUD())
+			{
+				return BattleHUD;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void ACombatPlayerController::OnIntelDetails(const FInputActionValue &Value)
+{
+	if (UBattleHUDWidget *HUD = IsLocalController() ? FindBattleHUD() : nullptr)
+	{
+		HUD->ToggleIntel();
+	}
+}
+
+void ACombatPlayerController::OnIntelTabPrev(const FInputActionValue &Value)
+{
+	if (UBattleHUDWidget *HUD = IsLocalController() ? FindBattleHUD() : nullptr)
+	{
+		HUD->StepIntelTab(CombatMenuKeys::INTEL_TAB_PREV); // a no-op while closed
+	}
+}
+
+void ACombatPlayerController::OnIntelTabNext(const FInputActionValue &Value)
+{
+	if (UBattleHUDWidget *HUD = IsLocalController() ? FindBattleHUD() : nullptr)
+	{
+		HUD->StepIntelTab(CombatMenuKeys::INTEL_TAB_NEXT);
+	}
 }
 
 void ACombatPlayerController::OnSkipCinematic(const FInputActionValue &Value)
@@ -663,6 +742,15 @@ void ACombatPlayerController::PressMenuKey(EPieMenuCategory Category)
 	{
 		return;
 	}
+	// B-586 (D-261): while Intel is open the menu keys stand down (LB / RB are its tabs); Back closes it.
+	if (UBattleHUDWidget *HUD = FindBattleHUD(); HUD && HUD->IsIntelOpen())
+	{
+		if (Category == EPieMenuCategory::Back)
+		{
+			HUD->CloseIntel();
+		}
+		return;
+	}
 	UGameInstance *GI = GetGameInstance();
 	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GI))
 	{
@@ -682,6 +770,17 @@ FString ACombatPlayerController::GetMenuKeysString()
 	Out += FString::Printf(TEXT("\n  %s (skip boss cinematic, B-406b): %s / %s"), CombatMenuKeys::SKIP_CINEMATIC_ACTION_NAME,
 						   *CombatMenuKeys::GetSkipCinematicKeyboard().GetDisplayName().ToString(),
 						   *CombatMenuKeys::GetSkipCinematicGamepad().GetDisplayName().ToString());
+	const auto AddIntelKey = [&Out](const TCHAR *Name, const TCHAR *What, const FKey &Keyboard, const FKey &Gamepad)
+	{
+		Out += FString::Printf(TEXT("\n  %s (%s, B-586): %s / %s"), Name, What, *Keyboard.GetDisplayName().ToString(),
+							   *Gamepad.GetDisplayName().ToString());
+	};
+	AddIntelKey(CombatMenuKeys::INTEL_DETAILS_ACTION_NAME, TEXT("Intel open / close"), CombatMenuKeys::GetIntelDetailsKeyboard(),
+				CombatMenuKeys::GetIntelDetailsGamepad());
+	AddIntelKey(CombatMenuKeys::INTEL_TAB_PREV_ACTION_NAME, TEXT("Intel previous tab"), CombatMenuKeys::GetIntelTabPrevKeyboard(),
+				CombatMenuKeys::GetIntelTabPrevGamepad());
+	AddIntelKey(CombatMenuKeys::INTEL_TAB_NEXT_ACTION_NAME, TEXT("Intel next tab"), CombatMenuKeys::GetIntelTabNextKeyboard(),
+				CombatMenuKeys::GetIntelTabNextGamepad());
 	return Out;
 }
 
