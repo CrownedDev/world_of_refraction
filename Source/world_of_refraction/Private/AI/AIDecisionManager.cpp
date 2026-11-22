@@ -1430,7 +1430,8 @@ bool UAIDecisionManager::TrySurvivalBranch(AActor *AIActor, ULoadoutComponent *L
                 }
             }
 
-            // Use healing item (the Healing Stone — RestoreHealth, AI-1)
+            // Use an item that gives HP (RestoreHealth). Not the Healing Stone: it is a boost now (D-252), so
+            // until the Health Potion (B-579) no item is found here.
             bool bFoundHeal = false;
             const FCrystalId HealId = FindHealingItem(Loadout, bFoundHeal);
             if (bFoundHeal)
@@ -1575,9 +1576,9 @@ FCrystalId UAIDecisionManager::FindHealingItem(ULoadoutComponent *Loadout, bool 
         {
             continue;
         }
-        // AI-1: the real heal is now the Healing Stone (RestoreHealth). Sapphire moved to DefyDeath
-        // (Last Stand / revive), so it is deliberately NOT matched here — the AI self-heal must find
-        // the actual heal, not the defy-death ward.
+        // Only an item that gives HP on use (RestoreHealth). Sapphire is DefyDeath (Last Stand / revive) and
+        // the Healing Stone is HealingBoost (D-252: no HP on use), so neither is matched: the AI's low-HP
+        // heal must not spend a ward or a boost.
         if (ItemIdentity::GetItemEffectType(Slot.CrystalId) == EItemEffectType::RestoreHealth)
         {
             bOutFound = true;
