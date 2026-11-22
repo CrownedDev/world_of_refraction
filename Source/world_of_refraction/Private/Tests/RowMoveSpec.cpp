@@ -168,6 +168,37 @@ void FRowMoveSpec::Define()
 			TestTrue(TEXT("the free move is back"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_BACK).IsEmpty());
 		});
 
+		It("comes back on your next turn after End Turn (B-436g QA)", [this]()
+		{
+			if (!StartFight())
+			{
+				return;
+			}
+			FText Reason;
+			TestTrue(TEXT("stepped forward"), Orchestrator->TryMoveRow(Hero, ROW_MOVE_FORWARD, Reason));
+			FAction EndTurn;
+			EndTurn.ActionType = EActionType::EndTurn;
+			const int32 StepTurn = Orchestrator->GetCurrentTurnNumber();
+			Orchestrator->SubmitActionAsync(EndTurn);
+			FAction Defend;
+			Defend.ActionType = EActionType::Defend;
+			// The hero's NEXT turn: a later turn number, so a turn End Turn failed to end can't pass.
+			const auto IsHerosNextTurn = [&]() { return Orchestrator->GetCurrentActor() == Hero && Orchestrator->GetCurrentTurnNumber() > StepTurn; };
+			for (int32 Frame = 0; Frame < ROW_MOVE_NEXT_TURN_MAX_FRAMES && !IsHerosNextTurn(); ++Frame)
+			{
+				if (Orchestrator->GetCurrentActor() != Hero)
+				{
+					Orchestrator->SubmitActionAsync(Defend); // the ally and the foe just defend; the hero's turn only End Turn ends
+				}
+				TestWorld->Tick(1);
+			}
+			if (!TestTrue(TEXT("hero's next turn"), IsHerosNextTurn()))
+			{
+				return;
+			}
+			TestTrue(TEXT("the free move is back"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_BACK).IsEmpty());
+		});
+
 		It("is refused while stunned", [this]()
 		{
 			if (!StartFight())

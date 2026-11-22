@@ -800,6 +800,7 @@ void FBattleHUDSpec::Define()
 			{
 				HintLabels.Add(Hint.Label.ToString());
 				TestTrue(TEXT("a hint presses a real row"), Labels.IsValidIndex(Hint.RowIndex));
+				TestEqual(TEXT("a hint with a key carries the key, drawn as the rows' cap (B-436g QA)"), Hint.KeyId.IsValid(), !Hint.Key.IsEmpty());
 			}
 			TestTrue(TEXT("Defend is a corner hint"), HintLabels.ContainsByPredicate([](const FString &Label) { return Label.Contains(TEXT("Defend")); }));
 			TestFalse(TEXT("Attack is a frame row, not a hint"), HintLabels.ContainsByPredicate([](const FString &Label) { return Label.Contains(TEXT("Attack")); }));
