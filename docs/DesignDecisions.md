@@ -1250,6 +1250,15 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-261 — An Intel panel for the party and enemies; the B, S, D squares leave the player's card
+**Status:** OPEN (a draft was sent; waits for Crown's word) · **Raised:** 2026-11-22 (Crown, on the approved menu drawing) · **Blocks:** the status badges of B-436b; not B-436g
+**Crown:** "im also thinking we remove the MBS for players i dont think theres a need that would be for somewhere else matter of fact i think ff13 does something well where they have Inspect Enemy Intel which we could have something similar i.e it allows us to see our parties intel buffs debufss etc"
+**Brain's reading (to confirm):** "MBS" is the row of three squares under the card's bars. In the drawing they are B, S, D: example status badges (buffs and debuffs), not Mind, Body, Spirit. The draft takes them off the player's card and puts both things in Intel, so either meaning has a place.
+**Proposed:** (1) B-581's inspect grows into an Intel panel in this game's own menu frame, with a tab per character. (2) A party member's page: bars, Spirit / Body, Mind / Body / Spirit, buffs and debuffs with turns left. (3) An enemy's page: bars, weaknesses, resistances, buffs and debuffs; what isn't learned yet shows "?".
+**The cost:** with no badge on the card a debuff, a stun included, isn't seen until Intel is opened.
+**Open after the look:** how an enemy's details are learned (Q-572's Kit Sight reveals gear only), and the key and pad button (InputMap).
+**Reference:** Final Fantasy XIII's enemy info screen opens on one button in a fight and fills its unknown entries as they are learned (https://www.gamerguides.com/final-fantasy-xiii/introduction/tutorials/libra-screen). The idea only, not its layout or look.
+
 ### D-260 — The action pips move to the command menu, which is one frame with Act attached on top
 **Status:** ANSWERED, the place, the grouping and the look (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-436g
 **Answer (Crown):** "im thinking why dont we have it on the action menu instead?"; then, shown a drawing with the pips above Attack: "this works though i think we should group the command menu in one frame then we can have the acts above it attached but somewhat seperate if that makes sense maybe show me some other menus to see how it looks i.e the skills items etc"
