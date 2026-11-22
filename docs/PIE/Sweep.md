@@ -94,6 +94,7 @@
 | 50 | `FieldSkillRules::NextSource` and `FIELD_ATTACK_SOURCE_COUNT` (B-214g's Innate → Weapon → Ring switch), with their two lines in `WoR.Field.Attack` — `Public/Field/FieldSkillTypes.h` (B-503, D-215) | The loadout cycle (`NextFieldAttackIndex`, `UFieldMovementComponent::CycleFieldAttack`) | [B-503](B-503.md) checks 1 and 2 | sweep | [ ] |
 | 51 | `GTitleLeftThisLaunch` and `UTitleScreenWidget::MarkLeftThisLaunch` (and its call in `NewGameScreenWidget.cpp`) — `Private/UI/Menus/TitleScreenWidget.cpp` (B-469) | `OpenAtLaunch` keyed on the game instance (B-535) | PIE of B-535, checks 1 to 3 | sweep | [ ] |
 | 52 | `UTitleScreenWidget::OpenAtLaunch`, `GTitleStartSeenFor`, `CVarTitleAtStart` (`wor.UI.TitleAtStart`) and `WoRTitleScreen::ShouldOpenAtStart` with its spec case, and the `OpenAtLaunch` call in `AWoRHubController::BeginPlay` (B-535) | The menu level opens the title (B-537) | PIE of B-537 after its editor steps, checks 1, 6 and 7 | sweep | [ ] |
+| 53 | `FBattleHUDCard::DetailLine` and `DetailText` (the line under a card's name) with their writes in `BattleHUDCard::Build` / `Push` / `SetCompact` — `Public/UI/Combat/Battle/BattleHUDCard.h` (B-581, D-254): no HUD fills the line any more | Nothing on the cards; the lines are in the fight's inspect and on the Character sheet | PIE of B-581, checks 1, 2 and 9 | sweep | [ ] |
 
 ## Flags on branches not yet in `dev`
 
