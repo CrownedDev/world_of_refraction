@@ -26,7 +26,7 @@
 | # | Do this | You should see | Result |
 |---|---|---|---|
 | 1 | Game menu, Inventory | **Screenshot.** The merged screen with the loadout out: character tabs, then Gear / Pouch / Chest, the Loadout button top right, the grid across the whole width, 14 tiles to a row | QA passed (agent) |
-| 2 | Look at the Gear tiles | Your weapons, adapters, evolutions and apparel as picture tiles: a tick on a worn one, "x2" on a stack | Not tested (agent): no way to give an evolution or apparel |
+| 2 | Look at the Gear tiles | Your weapons, adapters, evolutions and apparel as picture tiles: a tick on a worn one, "x2" on a stack | Not tested (agent): partly seen; no apparel, and no "x2" in Gear |
 | 3 | Arrows over the tiles | The highlight goes tile to tile and the card follows it: the piece's name, under it its kind and tier, its lines | QA passed (agent) |
 | 4 | Up from the top row, then Left / Right, then Down | The keys go to the filter row (no tile is lit); Left / Right change the filter and the tiles; Down goes back to the tiles | QA passed (agent) |
 | 5 | Q / E (LB / RB) | Gear, Pouch, Chest in a ring; the Pouch has no filter row; the heading says the pouch's slots | QA passed (agent) |
@@ -40,11 +40,13 @@
 | 13 | With the loadout's window open (step 12, before picking), click the Loadout button | It stays in and a message says to finish or leave first | QA passed (agent) |
 | 14 | On the inventory's side, R (Y) again | The loadout goes out; the grid is wide again | QA passed (agent) |
 | 15 | Game menu, Loadout | The same screen opens with the loadout in and the keys on it | QA passed (agent) |
-| 16 | The loadout's tabs | No Inventory tab; Equipment, Skills, Apparel work as before; Cosmetics greyed | Not tested (agent): tabs open; no skill or apparel to pick |
-| 17 | Z / C (LT / RT) | The next character: both sides change to it | Not tested (agent): no second party member |
+| 16 | The loadout's tabs | No Inventory tab; Equipment, Skills, Apparel work as before; Cosmetics greyed | Not tested (agent): partly seen; the tabs open, no skill or apparel was used |
+| 17 | Z / C (LT / RT) | The next character: both sides change to it | QA passed (agent) |
 | 18 | A on an inventory tile | A message: equipping from here comes next. Nothing else happens | QA passed (agent) |
-| 19 | Console `wor.UI.InventoryScreen` | The old inventory screen, with Give / Store / Take working and no Loadout tab | Not tested (agent): Store and Take work; Give needs a second member |
+| 19 | Console `wor.UI.InventoryScreen` | The old inventory screen, with Give / Store / Take working and no Loadout tab | QA passed (agent) |
 | 20 | B on the inventory's side | Back to the game menu | QA passed (agent) |
-| 21 | The Skills and Apparel tabs with the loadout in | They work as before; their details are the card at the grid's left edge. Note here anything that reads badly in the narrower list | Not tested (agent): no long skill or apparel name to show |
+| 21 | The Skills and Apparel tabs with the loadout in | They work as before; their details are the card at the grid's left edge. Note here anything that reads badly in the narrower list | Not tested (agent): partly seen; the tabs open with empty slots only |
 
 **Agent run, 2026-11-22 (D-251 checkpoint 1):** two passes, each verdict audited against its screenshot by the brain. Screenshots: `qa/2026-11-22/` (sheet1 to 7 first pass, p2 second). Faults: B-574.
+
+**Agent run 2, 2026-11-22 (D-251 checkpoint 1, a fresh tester with the B-573 tool):** the results above are this run's, each audited against its screenshots by the brain (`qa/2026-11-22/run2-1` to `run2-7`). Faults: B-574.
