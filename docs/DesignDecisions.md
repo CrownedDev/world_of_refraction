@@ -1250,6 +1250,21 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-252 — The Healing Stone increases the amount healed instead of giving HP
+**Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-577
+**Answer (Crown):** "lets also change what a healingstone does lets make it so it increases the amount healed rather than gives you health".
+**Defaults (approved by the reference-backed default; Crown vetoes):** (1) it is still used up in a fight on any target and gives that target the existing Healing Boost (`HealingReceivedBuff`): the healing it receives is increased. No HP on use, and still inert when socketed. (2) Size: today's tier numbers read as percent more healing (F 15, E 20, D 25, C 30, B 35, A 45, S 60). (3) Length: the shared consumable curve (F and E 4 turns, D to B 3, A and S 2). (4) The AI stops using it as its low-HP heal. No new AI scoring.
+**Reference:** Final Fantasy XIV's Mantra and Krasis are timed boosts to the healing a character receives (from memory, not looked up). The deckbuilder's reference has no Healing Stone rule.
+**Consequence:** nothing in the game uses this stone as a heal any more, and milestone 1 planned it as the likely potion: Q-577.
+
+### Q-577 — What restores HP in the first battle, now the Healing Stone doesn't?
+**Status:** OPEN · **Raised:** 2026-11-22 · **Blocks:** the potion of D-251 milestone 1 (not B-577)
+**Question:** what is milestone 1's one potion?
+**Context:** D-252 takes away the Healing Stone's instant heal. Milestone 1 has no spells, and its four abilities aren't written as heals, so a boost would have no healing to raise until Mend (milestone 2).
+**Options:** A a plain health potion as a separate item, which the stone can boost / B no healing until spells.
+**Recommendation:** A. Expedition 33 keeps a separate Healing Tint beside its stat and effect gear (from memory, not looked up), and HandsOffPlan already asks for one potion.
+**Answer (Crown):** _write here_
+
 ### D-251 — Hands-off plan: agents check the pieces, Crown plays at four checkpoints; weapons and abilities before spells
 **Status:** ANSWERED (Crown, 2026-11-22: "Approve and start") · checkpoint 1 running · **Raised:** 2026-11-22 (Crown: "we need to make a plan to remove myself from it")
 **Answer (Crown):** `docs/Conventions/HandsOffPlan.md` as drafted. "we should be able to have one full battle with weapons and abilities which we can test refine etc then we move onto spells". So: (1) milestone 1 is one battle, two Generic fighters (sword and shield; two axes) against their mirror, no spells; spells are milestone 2, after the lock. (2) An agent plays and checks each piece and compares it with its mockup; Crown plays at checkpoints 3, 4 and 6 and approves the lock at 7. (3) Game assets may be committed and merged to `dev` after agent QA. (4) An agent's pass is written "QA passed (agent)", never as Crown's.

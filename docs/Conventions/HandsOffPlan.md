@@ -47,7 +47,7 @@ Crown: "we should be able to have one full battle with weapons and abilities whi
 - Both are Generic: only a Generic's weapon entry holds a pair (CL-23b), and the other classes' differences are mostly spells, which are milestone 2.
 - Two styles, because they are the two with animation files saved in the project (sword and shield: Light Hit, Attack, Slash, Combo1; dual: six attacks and the whirlwinds).
 - Enemies: a mirror of the same two (FeelGuide's Maelle vs Painted Maelle reference; telegraphs belong to the skill).
-- Also: Guard, Perfect Guard, Dodge, weapon hit effects and sounds, one potion, one arena.
+- Also: Guard, Perfect Guard, Dodge, weapon hit effects and sounds, one potion (which one is open, Q-577: the Healing Stone becomes a healing boost, D-252), one arena.
 - Parked, not deleted: spells, adapters, crystals and elements, greatswords, bows, guns, every other ability.
 - To confirm at checkpoint 2: both loadouts are legal, each ability does what its name says, and an existing animation fits it. A piece that fails is swapped for the nearest that passes and named in the report.
 
