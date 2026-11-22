@@ -7,6 +7,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 - Each file lists numbered checks: **what to do**, **what you should see**, and a result box.
 - Crown ticks results in the file (or tells Claude, who ticks them):
   - `[ ]` not tested yet · `[x]` passed · `[!]` failed — write what happened underneath.
+- **An agent's results (D-251)** are written `QA passed (agent)` or `QA failed (agent)` in the result box, never `[x]`, which is Crown's.
 - A job's PIE file being all `[x]` is the signal it's ready for `dev → main`.
 - A `[!]` becomes a new backlog job (or reopens the old one) — Claude reads the notes.
 
