@@ -1300,6 +1300,16 @@ The queue of questions only Crown can answer.
 **Not built, say if wanted:** giving timed gear effects back on a revive; a cap on what one save can clear.
 **Built:** B-580.
 
+### Q-436a — Which party card is the big one when no party member is acting (D-254, built in B-436a)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-436a, from building it) · **Blocks:** nothing
+**Question:** D-254 puts the acting character's big card bottom left. It does not say which card is big on an enemy's turn, or before any party member has acted.
+**Answer (defaults):**
+1. **On an enemy's turn the big card stays on the party member that acted last,** so the cards do not move while the enemy acts. If that member is knocked out on an enemy's turn, the card stays big (dimmed) until another party member acts.
+2. **Before any party member has acted, the first party member's card is the big one.**
+3. **A small card shows the name, the HP bar with its number and the thin status bar,** as the picture and the plan's decision 2. EP, actions and status text are on the big card and in the Status panel.
+**Reference:** a party panel that holds still on the enemy's turn is the usual way in turn-based fights (Persona 5's party column and Final Fantasy X's party list do not move when an enemy acts). From memory, not looked up. The deckbuilder has no party row.
+**Built:** B-436a.
+
 ### D-253 — Potions; death takes buffs and debuffs; the Healing Stone counts in a Sapphire revival
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown, answering Q-577 and the Sapphire question) · **Blocks:** B-577, B-579, B-580
 **Answer (Crown):** "okay lets add potions and enegy potions which will be less powerfull then sapphire and citrine crystals also healing stone can only be used on alive as when you die you loose buffs and debuffs while healingstone ffect is included with sappire revival you still loose all buffs and debuffs including the healing stone one"
