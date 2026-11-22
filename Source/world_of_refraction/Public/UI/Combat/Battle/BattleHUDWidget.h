@@ -3,7 +3,7 @@
 // today's systems. One full-screen widget added straight to the viewport by UCombatHUD (wor.UI.NewHUD 1):
 // - party cards along the bottom from the left (B-436a, D-254): the featured card (the party member acting, else the
 //   last one that acted, else the first) is full: name, HP bar and "HP x / y", "EP x / y" (hidden for a Resonator with
-//   no EP use), "Act: 0/2", status chips; the others sit in a row to its right as compact cards (name, HP bar,
+//   no EP use), "Act: ●●○", status chips; the others sit in a row to its right as compact cards (name, HP bar,
 //   build-up bar). The command menu stacks above the featured card (GetCommandMenuOffset). D-254 (B-581): no Spirit /
 //   Body lines on a card; a click on a party card inspects it in the status panel (InspectCard);
 // - turn order top-right: the current actor, then the next turns (bonus turns marked);

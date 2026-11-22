@@ -504,7 +504,9 @@ void FBattleHUDSpec::Define()
 							 ActionPipsText::MakeActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(), PlayerComp->GetActionPointProgress(),
 															 PlayerComp->SkillsUsedThisTurn).ToString()));
 				TestTrue(TEXT("and warns that bonus actions are lost at turn end"), HUD->GetStatusPanelText().ToString().Contains(TEXT("lost at turn end")));
-				TestTrue(TEXT("the card keeps only the mark"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString().EndsWith(TEXT("◆")));
+				TestEqual(TEXT("the card draws the bonus as ◆ pips, with no warning text (D-259)"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString(),
+						  ActionPipsText::MakeCardActionsLine(PlayerComp->CurrentActions, PlayerComp->GetMaxActions(), PlayerComp->SkillsUsedThisTurn).ToString());
+				TestTrue(TEXT("a ◆ on the card"), HUD->GetCards()[PLAYER_CARD].ActionsLine.ToString().Contains(TEXT("◆")));
 			}
 
 			HUD->InspectCard(HERO_CARD);
@@ -793,7 +795,7 @@ void FBattleHUDSpec::Define()
 			HUD->Initialise({Hero}, {Foe});
 			const auto ExpectedLine = [HeroData]()
 			{
-				// D-254 (B-581): the card's line is the short one ("Act: 0/2"); the full line moved to inspect.
+				// D-254, D-259 (B-581): the card's line is the short one ("Act: ●●○"); the full line moved to inspect.
 				return ActionPipsText::MakeCardActionsLine(HeroData->CurrentActions, HeroData->GetMaxActions()).ToString();
 			};
 			if (TestTrue(TEXT("two cards, the party's first"), HUD->GetCards().Num() == 2 && HUD->GetCards()[0].bParty))

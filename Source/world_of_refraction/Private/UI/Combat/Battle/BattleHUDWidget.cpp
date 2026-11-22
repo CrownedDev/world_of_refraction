@@ -441,7 +441,7 @@ void UBattleHUDWidget::RefreshPools()
 											 : BattleHUDStyle::TextColor;
 		if (Card.bParty) // B-170e
 		{
-			// D-254: "Act: 0/2"; the pips, Max and the action-point progress are in inspect (BuildInspectText).
+			// D-254 / D-259: "Act: ●●○"; the number, Max and the action-point progress are in inspect (BuildInspectText).
 			Card.ActionsLine = ActionPipsText::MakeCardActionsLine(CharData->CurrentActions, CharData->GetMaxActions(),
 																   CharData->SkillsUsedThisTurn); // Q-170j
 		}
