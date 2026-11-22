@@ -61,10 +61,10 @@ Bolt (one enemy), Wave (the group), Mend (an ally): Generic spells, so each is b
 |---|---|---|---|
 | 1 | Trial run: plays the two newest menu sheets (38 checks) | 30+ decided with screenshots, and the known text-only tiles found unprompted. On a fail: build the test tool, run again | reads a short result |
 | 2 | Prepare: finish D-250, build the two loadouts and the mirror, list animation and sound gaps | both load and are legal; every gap has an owned asset or is on one shopping list | answers only if money is needed |
-| 3 | Rough fight: start to finish with the set, unpolished | agent wins and loses it, uses every skill and defence, log clean | **plays 10 min: is this the right fight?** |
+| 3 | Rough fight: start to finish with the set, unpolished | agent wins and loses it, uses every skill and defence, log clean, smoothness measured | **plays 10 min: is this the right fight?** |
 | 4 | One ability to final quality (Sniping Flurry): animation, camera, hit, effect, sound, defence timing | agent checks pass from both sides (using it, defending it) | **plays 5 min: is this the quality bar?** |
 | 5 | The other three abilities and both attacks copy that bar; entry, victory, return, battle screen | every piece has before / after captures and passes QA | nothing |
-| 6 | Full fight, handed over as finished | full QA pass, 60 fps, defaults listed | **plays 20 min: approve, or give notes** |
+| 6 | Full fight, handed over as finished | full QA pass, smoothness targets met, defaults listed | **plays 20 min: approve, or give notes** |
 | 7 | Refine from the notes (two rounds at most), then lock | Crown approves | **approves the lock** |
 
 After the lock: milestone 2 (spells). Further weapon types come later, one at a time, copying the locked fight.
@@ -88,6 +88,19 @@ After the lock: milestone 2 (spells). Further weapon types come later, one at a 
 - The user supplies character animations and montages. It is Blueprint only, documents no co-op, and updates by re-migrating its folder.
 - Our turn rules, timed defence, saves and tests would all have to be rebuilt inside it.
 - It may be bought later as a feel reference. Nothing in this plan depends on it.
+
+## Smoothness (Crown, 2026-11-22: "can we check the semlessness/ optimisation I.e ensure it feels smooth")
+Measured by the agent at checkpoint 3 (a baseline, faults listed), after each piece at 4 and 5, and met at 6. The tool needs B-576 first.
+
+| What | Target (starting values) | From |
+|---|---|---|
+| Frame rate | 60 fps at 1080p on Crown's PC | D-068 |
+| Stutters | no frame over 50 ms | 3 missed frames at 60 fps |
+| Key to visible answer | within 100 ms | Nielsen's "feels instant" limit |
+| Into a fight | within 1 to 2 s | FeelGuide 1 |
+| Zone travel | a fade under 1 s, loading hidden | FeelGuide 10 |
+
+Editor numbers only compare one change with the last. The pass at 6 is measured outside the editor at 1080p. An agent measures smoothness; whether it feels good stays Crown's.
 
 ## How an agent plays
 - Open the editor with `-saveddirsuffix=QA -ModelContextProtocolStartServer`: saves go to `Saved_QA/`, never Crown's. Stopping Play always writes the last-used slot, so never play-test without it.
