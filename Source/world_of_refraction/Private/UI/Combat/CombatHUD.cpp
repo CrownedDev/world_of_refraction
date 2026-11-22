@@ -24,7 +24,8 @@ namespace CombatHUDLayout
     const FVector2D LocalPartyAnchor(0.0f, 1.0f);    // bottom-left, stacks upward
     const FVector2D OpposingPartyAnchor(1.0f, 0.0f); // top-right, stacks downward
     const FVector2D TurnStripAnchor(0.5f, 0.0f);     // top-centre
-    const FVector2D CommandMenuAnchor(1.0f, 1.0f);   // bottom-right
+    const FVector2D CommandMenuAnchor(1.0f, 1.0f);   // bottom-right (the old WBP menu)
+    const FVector2D BattleMenuAnchor(0.0f, 1.0f);    // bottom-left, above the featured party card (B-436a)
     const FVector2D DefensePromptAnchor(0.5f, 0.5f); // centre
 
     constexpr int32 PanelZOrder = 10;
@@ -109,8 +110,7 @@ void UCombatHUD::BuildNewHUD(APlayerController *PC, const TArray<AActor *> &Loca
     if (BattleMenu)
     {
         BattleMenu->AddToViewport(CombatHUDLayout::MenuZOrder);
-        PlaceInViewport(BattleMenu, CombatHUDLayout::CommandMenuAnchor,
-                        FVector2D(-CombatHUDLayout::ScreenMargin, -CombatHUDLayout::ScreenMargin));
+        PlaceInViewport(BattleMenu, CombatHUDLayout::BattleMenuAnchor, UBattleHUDWidget::GetCommandMenuOffset());
         // Replays an already-open menu, so turn 1 (fired inside InitializeCombat) is not missed.
         BattleMenu->Initialise();
     }
