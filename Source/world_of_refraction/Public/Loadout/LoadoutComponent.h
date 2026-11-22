@@ -294,8 +294,10 @@ public:
     // ==================== THE MEMBER'S POUCH IN A FIGHT (B-313, D-111, D-117, Q-313) ====================
     // A party member's fight items are the pick from its own pouch (D-250, UPoolSubsystem::GetFightItems), nothing
     // else: GetUsableItems lists them and UseCarriedItem spends from the pouch. A fight brings at most
-    // InventoryConstants::ITEM_STACK_MAX of each (Q-250); the rest stays carried. No tier cap (B-354, D-143). Stones
-    // are slot-only, so they are never picked. Actors with no pouch keep the loadout's item slots.
+    // InventoryConstants::ITEM_STACK_MAX of each (Q-250); the rest stays carried. No tier cap (B-354, D-143). A
+    // stone with a use (the Healing Stone, a stat stone) is a fight item like a gem (D-097; before D-250 a member's
+    // list hid every stone); only the Durability Stone can't be picked. Actors with no pouch keep the loadout's
+    // item slots.
 
     /** True when the owner carries a pouch (its crystal inventory is bound to the pool). */
     bool UsesPouchItems() const;
@@ -376,8 +378,8 @@ public:
     TArray<USpellData *> GetActiveSlotSpells() const;
 
     /** Get usable item slots (C++ only - use GetUsableItemCount for Blueprint).
-     *  B-313: for a member with a pouch, the pouch's gems (one entry per stack, Quantity = what this fight can
-     *  still use: the whole stack, B-354), sorted by type then highest tier. Otherwise the
+     *  B-313, D-250: for a member with a pouch, its picked fight items, gems and stones alike (one entry per
+     *  stack, Quantity = GetFightItemsLeft), sorted by type, highest tier, then a stat stone's stat. Otherwise the
      *  active loadout's non-empty item slots (OBSOLETE (B-313) path, kept for enemies). */
     TArray<FItemLoadoutSlot> GetUsableItems() const;
 

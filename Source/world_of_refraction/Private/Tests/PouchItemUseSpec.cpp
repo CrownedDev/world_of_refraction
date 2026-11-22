@@ -2,7 +2,8 @@
 // B-313 (D-111, D-117, Q-313): a party member's fight items are its own pouch, one instance per item. Using an
 // item in a fight spends it from the user's pouch and nothing else (not another member's pouch, not the shared
 // storage, not the preset's item slots). No tier cap on what a member carries or uses (B-354, D-143 retired the
-// D-072 bands); stones are slot-only and never listed.
+// D-072 bands). D-250 (B-575): the fight lists the picked fight items, stones with a use included (before, a
+// member's list hid every stone).
 // B-313b: a member's crystal inventory reads its pouch; the item-slot rules skip a pouch member's preset picks,
 // which hold no supply. B-317: the bound crystal inventory keeps no copy of the pouch. B-429: ValidateAction refuses
 // an item the pouch can't supply, so the orchestrator spends no action and notes nothing for it.
@@ -17,6 +18,7 @@
 #include "Currency/CurrencyComponent.h"
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
+#include "Equipment/Crystals/StatStone.h"
 #include "Inventory/InventoryComponent.h"
 #include "Inventory/InventoryConstants.h"
 #include "Loadout/LoadoutComponent.h"
@@ -164,14 +166,15 @@ void FPouchItemUseSpec::Define()
 		TestEqual(TEXT("Storage keeps its Garnets"), Pool->GetStoredCount(POUCH_USE_GARNET), POUCH_USE_STORED);
 	});
 
-	It("lists the pouch's gems for the fight, but no stones", [this]()
+	It("lists the pouch's picked gems and stones for the fight (D-250: a stone with a use is a fight item)", [this]()
 	{
 		if (!Pool) return;
 		Pool->CarryOrStore(KeyOf(0), POUCH_USE_STONE, 1);
 		const TArray<FItemLoadoutSlot> Usable = Loadout->GetUsableItems();
-		if (!TestEqual(TEXT("One usable stack"), Usable.Num(), 1)) return;
-		TestTrue(TEXT("The Garnet"), Usable[0].CrystalId == POUCH_USE_GARNET);
+		if (!TestEqual(TEXT("Two usable stacks"), Usable.Num(), 2)) return;
+		TestTrue(TEXT("The Garnet first"), Usable[0].CrystalId == POUCH_USE_GARNET);
 		TestEqual(TEXT("All of it: no tier cap"), Usable[0].Quantity, POUCH_USE_A_STACK);
+		TestTrue(TEXT("Then the stat stone, as the pouch carries it"), Usable[1].CrystalId == StatStone::Normalize(POUCH_USE_STONE));
 	});
 
 	It("has no tier cap on owned S crystals: all are carried and each can be used in one fight (B-354)", [this]()

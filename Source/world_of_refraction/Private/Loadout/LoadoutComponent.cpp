@@ -35,6 +35,7 @@
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Crystals/StatStone.h" // StatStone::Normalize: the pouch's key for a stone (D-250)
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"
@@ -1356,7 +1357,8 @@ int32 ULoadoutComponent::GetFightItemsLeft(const FCrystalId &Id) const
     {
         return 0;
     }
-    const int32 BroughtLeft = InventoryConstants::ITEM_STACK_MAX - FightItemUses.FindRef(Id);
+    // Counted under the pouch's own key: an old single-stat stone is its StatStone there (B-353).
+    const int32 BroughtLeft = InventoryConstants::ITEM_STACK_MAX - FightItemUses.FindRef(StatStone::Normalize(Id));
     return FMath::Clamp(Pool->GetCarriedCount(Key, Id), 0, FMath::Max(0, BroughtLeft));
 }
 
@@ -1378,7 +1380,7 @@ bool ULoadoutComponent::UseCarriedItem(const FCrystalId &Id)
         return false;
     }
 
-    ++FightItemUses.FindOrAdd(Id);
+    ++FightItemUses.FindOrAdd(StatStone::Normalize(Id));
     const int32 Left = GetFightItemsLeft(Id);
     UE_LOG(LogWoRLoadout, Verbose, TEXT("%s used %s from its fight items: %d left this fight"), *GetNameSafe(GetOwner()),
            *ItemIdentity::GetDisplayName(Id), Left);
@@ -1868,8 +1870,13 @@ TArray<FItemLoadoutSlot> ULoadoutComponent::GetUsableItems() const
             }
         }
         // A stable order for menus that index this list (the pick is in pick order).
+        // Stat stones share one type (B-353), so their stat breaks the tie.
         Carried.Sort([](const FItemLoadoutSlot &A, const FItemLoadoutSlot &B)
-                     { return A.CrystalId.Type != B.CrystalId.Type ? A.CrystalId.Type < B.CrystalId.Type : A.CrystalId.Tier > B.CrystalId.Tier; });
+                     {
+                         const FCrystalId &Left = A.CrystalId;
+                         const FCrystalId &Right = B.CrystalId;
+                         return Left.Type != Right.Type ? Left.Type < Right.Type : Left.Tier != Right.Tier ? Left.Tier > Right.Tier : Left.StoneStat < Right.StoneStat;
+                     });
         return Carried;
     }
 
