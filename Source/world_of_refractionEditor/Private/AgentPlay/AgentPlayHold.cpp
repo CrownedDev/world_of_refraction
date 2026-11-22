@@ -116,6 +116,7 @@ namespace
 
 	TSharedPtr<FAgentPlayApplication> GApplication;
 	bool bGThrottledBefore = false;
+	bool bGHandledInputInBackgroundBefore = false;
 	FDelegateHandle GEndPIEHandle;
 }
 
@@ -143,6 +144,11 @@ void WoRAgentPlayHold::Take()
 
 	GApplication = MakeShared<FAgentPlayApplication>(Real.ToSharedRef());
 	Slate.OverridePlatformApplication(GApplication);
+	// A pressed button asks to hold the pointer until the release, and only clicks if it still holds it then. Slate
+	// refuses that ask while this editor is not the active application (FSlateApplication::ProcessReply), which is
+	// how the agent plays. The pointer held is the agent's: the stand-in passes no capture on to the real mouse.
+	bGHandledInputInBackgroundBefore = Slate.GetHandleDeviceInputWhenApplicationNotActive();
+	Slate.SetHandleDeviceInputWhenApplicationNotActive(true);
 	// One move at the resting place: whatever the real pointer was over in the game lets go of it.
 	Slate.ProcessMouseMoveEvent(
 		FPointerEvent(Slate.GetUserIndexForMouse(), FSlateApplication::CursorPointerIndex, PARKED_POSITION, PARKED_POSITION, TSet<FKey>(), EKeys::Invalid, 0.0f, FModifierKeysState()));
@@ -167,10 +173,18 @@ void WoRAgentPlayHold::Release()
 		// Off was ours, so on comes back. A setting a person turned on meanwhile is already on and is left alone.
 		GetMutableDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground = true;
 	}
-	// Only our own stand-in is taken out: if something wrapped the application after us, it stays as it is.
-	if (FSlateApplication::IsInitialized() && FSlateApplication::Get().GetPlatformApplication() == GApplication)
+	if (FSlateApplication::IsInitialized())
 	{
-		FSlateApplication::Get().OverridePlatformApplication(GApplication->Real);
+		FSlateApplication &Slate = FSlateApplication::Get();
+		if (!bGHandledInputInBackgroundBefore)
+		{
+			Slate.SetHandleDeviceInputWhenApplicationNotActive(false); // on was ours; one that was on before stays on
+		}
+		// Only our own stand-in is taken out: if something wrapped the application after us, it stays as it is.
+		if (Slate.GetPlatformApplication() == GApplication)
+		{
+			Slate.OverridePlatformApplication(GApplication->Real);
+		}
 	}
 	GApplication.Reset();
 	UE_LOG(LogWoRAgentPlayHold, Log, TEXT("[AgentPlay] hold released: the real pointer and the background throttle are as they were"));
