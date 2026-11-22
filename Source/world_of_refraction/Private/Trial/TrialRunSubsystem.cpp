@@ -172,6 +172,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     OtherPlayerDrops.Reset(); // B-235
     PendingDuplicates.Reset(); // B-570
     SeenKitTypes.Reset(); // B-572
+    LearnedIntel.Reset(); // B-586
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
     bDropHasSpot = false;
@@ -418,6 +419,7 @@ void UTrialRunSubsystem::FinishRun()
     OtherPlayerDrops.Reset(); // B-235
     PendingDuplicates.Reset(); // B-570
     SeenKitTypes.Reset(); // B-572
+    LearnedIntel.Reset(); // B-586
     DropEncounters.Reset();
     DropSpot = FVector::ZeroVector; // B-362c
     bDropHasSpot = false;

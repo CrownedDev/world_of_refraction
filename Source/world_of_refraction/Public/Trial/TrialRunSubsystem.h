@@ -33,6 +33,7 @@
 #include "Combat/Encounter/EFirstStrike.h"
 #include "Field/FieldSkillTypes.h"
 #include "Combat/Encounter/EnemyZone.h"
+#include "Combat/Resistance/EWoRDamageType.h"
 #include "Trial/TrialGate.h"
 #include "Trial/TrialDuplicates.h"
 #include "Trial/RunRewards.h"
@@ -227,6 +228,15 @@ public:
     void MarkKitTypeSeen(FName EnemyType) { SeenKitTypes.Add(EnemyType); }
     bool IsKitTypeSeen(FName EnemyType) const { return SeenKitTypes.Contains(EnemyType); }
     int32 GetSeenKitTypeCount() const { return SeenKitTypes.Num(); }
+    /** B-586 (Q-586 1-2): a hit of one damage type on an enemy teaches Intel that type's weakness or resistance for every
+     *  enemy of that type (its character key, as MarkKitTypeSeen) for the rest of the run. Run state, not saved; each
+     *  machine learns from the hits it is shown (UCombatPresentationComponent::OnHitDetailShown reaches every machine). */
+    void MarkIntelLearned(FName EnemyType, EWoRDamageType DamageType) { LearnedIntel.FindOrAdd(EnemyType).Add(DamageType); }
+    bool IsIntelLearned(FName EnemyType, EWoRDamageType DamageType) const
+    {
+        const TSet<EWoRDamageType> *Learned = LearnedIntel.Find(EnemyType);
+        return Learned && Learned->Contains(DamageType);
+    }
     int32 GetTotalUnspentLevels() const;
     void AddUnspentLevels(FName CharacterKey, int32 Count);
     /** Takes one of the character's unspent levels; false when it has none. */
@@ -677,6 +687,8 @@ private:
     TArray<FTrialDuplicate> PendingDuplicates;
     /** B-572: see MarkKitTypeSeen. */
     TSet<FName> SeenKitTypes;
+    /** B-586: see MarkIntelLearned. */
+    TMap<FName, TSet<EWoRDamageType>> LearnedIntel;
     TArray<FName> DropEncounters;
     /** B-362c: the drop's spot, run state like DroppedPrisms (saved with the run). */
     FVector DropSpot = FVector::ZeroVector;
