@@ -1250,6 +1250,12 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### D-257 — The status bar looks like HP and EP; a filled slot is its icon, then its name
+**Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-585
+**Answer (Crown):** "status shouldnt say status" · "the status bar should be similar to the ep and hp bar" · "just put 0/max (whatever the value is)" · "also shouldnt the icon be before the text and also we dont need it to say off hand augment etc when its been attached"
+**Read as:** (1) the build-up bar has no word and no line under it: it is as tall as the HP bar, with current/max on it ("0/100"). This replaces B-503m's quiet "Status" label. (2) In the loadout a piece's own icon comes before its name, and a filled slot has no slot word beside it.
+**Defaults (Crown vetoes):** (a) a small party card shows the number too, as its HP bar does (the mockup had a thin bar with none). (b) An enemy's bar matches its HP bar, so no number (Q-391). (c) "etc" covers every filled slot, Main hand included; an empty slot keeps its word. (d) An entry's socket badges stay after the entry's name. (e) The top-centre Status button keeps its word.
+
 ### D-256 — The silver frame means slotted: a loose crystal is the gem alone; Iolite gets its icon
 **Status:** ANSWERED (Crown, 2026-11-22) · **Raised:** 2026-11-22 (Crown) · **Blocks:** B-584
 **Answer (Crown):** "illodfite should have the same icon as the rest also as crystals they shouldnt have the silver fram around them since that means they are sloted"
