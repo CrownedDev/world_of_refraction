@@ -52,6 +52,28 @@ void FGameInputSpec::Define()
 		TestFalse(TEXT("and leaves game input on"), Viewport->IgnoreInput());
 	});
 
+	It("does it from the level change itself (OpenLevel's PreLoadMap), and leaves a level change with game input on alone", [this]()
+	{
+		FWoRTestWorld TestWorld;
+		if (!TestTrue(TEXT("test world created"), TestWorld.Create())) return;
+		FWorldContext &Context = GEngine->GetWorldContextFromWorldChecked(TestWorld.GetWorld());
+		UGameViewportClient *Viewport = NewObject<UGameViewportClient>(GEngine);
+		Context.GameViewport = Viewport;
+		ON_SCOPE_EXIT { Context.GameViewport = nullptr; };
+
+		// The project's own start-of-game mouse capture is not CapturePermanently: a level change that finds game
+		// input on must not change it.
+		Viewport->SetMouseCaptureMode(EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+		FCoreUObjectDelegates::PreLoadMapWithContext.Broadcast(Context, FString());
+		TestTrue(TEXT("game input on: the capture mode is untouched"),
+				 Viewport->GetMouseCaptureMode() == EMouseCaptureMode::CapturePermanently_IncludingInitialMouseDown);
+
+		LeaveMenuOnly(*Viewport);
+		FCoreUObjectDelegates::PreLoadMapWithContext.Broadcast(Context, FString());
+		TestFalse(TEXT("menu-only left on: the level change gives game input back"), Viewport->IgnoreInput());
+		TestTrue(TEXT("and the mouse to the game"), Viewport->GetMouseCaptureMode() == EMouseCaptureMode::CapturePermanently);
+	});
+
 	It("leaves another game's viewport alone, and does nothing with no viewport", [this]()
 	{
 		FWoRTestWorld TestWorld;

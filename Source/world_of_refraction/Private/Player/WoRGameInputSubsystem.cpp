@@ -40,7 +40,10 @@ bool UWoRGameInputSubsystem::RestoreGameInput(const FWorldContext &WorldContext)
 	{
 		return false;
 	}
-	const bool bWasIgnoring = Viewport->IgnoreInput();
+	if (!Viewport->IgnoreInput())
+	{
+		return false; // no menu-only mode was left on: the level change is not ours to touch
+	}
 	// Focus and the mouse go back to the game through each player's own controller, as when a menu closes.
 	for (const ULocalPlayer *LocalPlayer : GetGameInstance()->GetLocalPlayers())
 	{
@@ -51,11 +54,8 @@ bool UWoRGameInputSubsystem::RestoreGameInput(const FWorldContext &WorldContext)
 		}
 	}
 	ApplyGameOnly(*Viewport); // also with no player or viewport widget to apply a mode through
-	if (bWasIgnoring)
-	{
-		UE_LOG(LogWoR, Log, TEXT("[GameInput] A menu-only input mode was still on at a level change: game input given back"));
-	}
-	return bWasIgnoring;
+	UE_LOG(LogWoR, Log, TEXT("[GameInput] A menu-only input mode was still on at a level change: game input given back"));
+	return true;
 }
 
 void UWoRGameInputSubsystem::HandlePreLoadMap(const FWorldContext &WorldContext, const FString &MapName)
