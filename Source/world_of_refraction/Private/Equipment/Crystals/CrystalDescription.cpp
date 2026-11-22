@@ -9,6 +9,7 @@
 #include "Equipment/Crystals/ItemIdentity.h"
 #include "Equipment/Crystals/CrystalEffectTable.h"
 #include "Combat/CombatConstants.h"
+#include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "WoRCrystalDescription"
 
@@ -56,6 +57,10 @@ FText CrystalDescription::GetCrystalText(const FCrystalId &InId)
 {
     const FCrystalId Id = StatStone::AsRowId(InId); // B-353: a StatStone reads as its sub-stat's stone
     // TODO: ItemIdentity::GetTypeName is an FString name table; move it to FText (D-062) with the item names.
+    if (CrystalTypeHelpers::IsPotionType(Id.Type))
+    {
+        return FText::Format(LOCTEXT("PotionSentence", "A {0}."), WoRGameNames::GetCrystalTypeName(Id.Type)); // B-579: no tier
+    }
     if (CrystalTypeHelpers::IsAugmentStoneType(Id.Type))
     {
         return FText::Format(LOCTEXT("StoneSentence", "A {0} {1}."), GetTierDescriptor(Id.Tier), FText::FromString(ItemIdentity::GetTypeName(Id.Type)));
@@ -154,6 +159,12 @@ FText CrystalDescription::GetItemEffectText(const FCrystalId &InId)
         // D-252: a Healing Boost, no HP on use. The key is new, so an old translation of the heal text is not reused.
         return FText::Format(LOCTEXT("HealingStoneBoost", "Consume on a living target (ally or enemy): the healing they receive is raised by {0}% for {1} {1}|plural(one=turn,other=turns). It gives no HP itself. Consume-only: attaching it to a weapon does nothing."),
                              Whole(CrystalEffectTable::GetHealingBoostPercent(Id)), CrystalEffectTable::GetHealingBoostDuration(Id));
+    case ECrystalType::HealthPotion: // B-579 (D-253)
+        return FText::Format(LOCTEXT("HealthPotion", "Drink or give to a living target: restores {0}% of their max HP, more while their healing is boosted. It fits no socket."),
+                             Whole(ItemConstants::HEALTH_POTION_HP_PERCENT));
+    case ECrystalType::EnergyPotion:
+        return FText::Format(LOCTEXT("EnergyPotion", "Drink or give to a living target: restores {0}% of their max energy, with no status buildup. It fits no socket."),
+                             Whole(CrystalEffectTable::GetEPRestorePercent(Id)));
     default:
         return LOCTEXT("Unknown", "Unknown effect.");
     }

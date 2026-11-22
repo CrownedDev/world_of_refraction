@@ -140,6 +140,7 @@ private:
 
 	/** Healing Stone - consume-only plain instant heal, any target */
 	void ExecuteHealingStoneEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
+	void ExecuteHealthPotionEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
 
 	/** Citrine - restore target EP %, apply Lightning buildup to the user */
 	void ExecuteEnergyRestoreEffect(AActor *User, AActor *Target, FCrystalId Id, FItemUseResult &OutResult);
