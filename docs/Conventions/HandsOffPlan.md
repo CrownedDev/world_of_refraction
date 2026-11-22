@@ -1,6 +1,6 @@
 # Hands-off plan
 
-**Status: APPROVED (Crown, 2026-11-22: "Approve and start", D-251). Checkpoint 1: first run FAILED, 2026-11-22 (28 of 38 decided, 30 needed; the text-only tiles were found unprompted). Next: the test tool (B-573), then run again.**
+**Status: APPROVED (Crown, 2026-11-22: "Approve and start", D-251). Checkpoint 1 PASSED on its second run, 2026-11-22 (33 of 38 decided: 30 passed, 3 replaced by D-249, 5 not fully seen; the text-only tiles were found unprompted). Checkpoint 2 is next.**
 
 Crown: "I've become involved in the process again due to the detailed aspects of this part of the project, we need to make a plan to remove myself from it."
 
@@ -106,7 +106,7 @@ Ask unreal-mcp to describe the toolset for the exact argument spelling. Mouse po
 | `MoveMouse` | `MoveMouse(X=640, Y=360)` | Puts the agent's own pointer on that point of the game and leaves it there (hover). The real pointer is not moved |
 | `Click` | `Click(X=1180, Y=64)` clicks the Loadout button. `Button="RightMouseButton"` for the right one | Move there, press, release |
 | `Wheel` | `Wheel(X=900, Y=500, Notches=-3)` scrolls the grid down three notches | Move there, turn the wheel |
-| `PlaySequence` | Perfect Guard: `Steps=[{AtMs:0, Action:"Screenshot"}, {AtMs:850, Action:"KeyTap", Key:"SpaceBar"}, {AtMs:900, Action:"Screenshot"}, {AtMs:1400, Action:"Screenshot"}]`, `ScreenshotDir="docs/PIE/qa/2026-11-23/guard"` | Inputs and screenshots at set times in one call, each sent on the first frame at or after its time. The game keeps running. PNGs are named `shot_step<step>_<ms>ms.png`; with no folder they go to `Intermediate/AgentPlay`. Actions: `KeyDown`, `KeyUp`, `KeyTap`, `MouseMove`, `MouseDown`, `MouseUp`, `MouseClick`, `MouseWheel`, `Screenshot`. Two minutes at most, one sequence at a time |
+| `PlaySequence` | Perfect Guard: `Steps=[{AtMs:0, Action:"Screenshot"}, {AtMs:850, Action:"KeyTap", Key:"SpaceBar"}, {AtMs:900, Action:"Screenshot"}, {AtMs:1400, Action:"Screenshot"}]`, `ScreenshotDir="docs/PIE/qa/2026-11-23/guard"` | Inputs and screenshots at set times in one call, each sent on the first frame at or after its time. The game keeps running. PNGs are named `shot_step<step>_<ms>ms.png` and overwrite, so give each sequence its own folder; with no folder they go to `Intermediate/AgentPlay`. Actions: `KeyDown`, `KeyUp`, `KeyTap`, `MouseMove`, `MouseDown`, `MouseUp`, `MouseClick`, `MouseWheel`, `Screenshot`. Two minutes at most, one sequence at a time |
 | `SetWindowSize` | `SetWindowSize(Width=1280, Height=720)` | The game picture becomes that size (take a new screenshot after it) |
 | `RunConsoleCommand` | `RunConsoleCommand(Command="wor.Party.Print")` | Runs it in the game's world and returns what it printed and logged. The console is not opened and the keys stay where they were |
 | `GetState` | `GetState()` | PIE running or not, hold taken or released, picture and window size, where keyboard focus and the agent's mouse are, how much of a sequence is left |
@@ -135,6 +135,8 @@ Ask unreal-mcp to describe the toolset for the exact argument spelling. Mouse po
 The answer has one line per part and says what was refused. Several parts can be named at once.
 
 ## Limits
+- Not yet proven: an agent playing a fight; `GiveTestKit apparel` (it found no apparel asset on 2026-11-22).
+- While an agent plays, a real click or key in that Unreal window still counts.
 - An agent can't hear, and judges timing and feel poorly from screenshots. Those stay with Crown's checkpoints.
 - The editor connection has no import tool, so asset imports still need Crown until one is built.
 - The weekly usage limit has already stopped the Writer once; it sets the pace, so no dates are promised.
