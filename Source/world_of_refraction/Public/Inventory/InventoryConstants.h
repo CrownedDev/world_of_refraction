@@ -29,10 +29,18 @@ namespace InventoryConstants
 
     // ==================== EQUIPMENT INVENTORIES ====================
 
-    /** Maximum weighted slots for weapons */
+    /** D-250 (Crown, 2026-11-20): nothing limits what a character carries out of a fight. False turns off every
+     *  carry-room check (the weapon and adapter room below, the pouch's kinds and stack size); only the fight-item
+     *  pick is limited (ITEM_SLOTS_START). The checks it guards are OBSOLETE: delete after Crown's checkpoint 6. */
+    constexpr bool CARRY_IS_CAPPED = false;
+
+    /** The room reported while nothing is capped. */
+    constexpr int32 UNLIMITED_CARRY_ROOM = MAX_int32;
+
+    /** Maximum weighted slots for weapons. OBSOLETE (D-250) as a cap; the test kit still gives this many. */
     constexpr int32 MAX_WEAPON_INVENTORY_SLOTS = 20;
 
-    /** Maximum weighted slots for rings */
+    /** Maximum weighted slots for rings. OBSOLETE (D-250) as a cap; the test kit still gives this many. */
     constexpr int32 MAX_RING_INVENTORY_SLOTS = 20;
 
     /** Maximum evolution crystals */
@@ -46,14 +54,15 @@ namespace InventoryConstants
      *  and refined-crystal pools each respect this cap independently. */
     constexpr int32 CRYSTAL_PER_TIER_CAP = 20;
 
-    /** B-203 (D-097, Q-203): item slots the party's carried inventory starts with (raised later by
-     *  a hub vendor). One item type (crystal type and tier) per slot. */
+    /** B-203 (D-097, Q-203), D-250: the fight-item slots a character starts with (raised later by a hub vendor).
+     *  One picked item type (crystal type and tier) per slot; what is carried has no limit. */
     constexpr int32 ITEM_SLOTS_START = 10;
 
     /** B-239 (Q-239): the most item slots one character's pouch can be upgraded to at the hub vendor. TODO: tune. */
     constexpr int32 ITEM_SLOTS_MAX = 20;
 
-    /** B-203 (Q-203): how many of one item type a slot holds. // TODO: tune, per item once items say. */
+    /** B-203 (Q-203), Q-250: how many of one picked item a character brings into a fight; the rest stays carried.
+     *  // TODO: tune, per item once items say. */
     constexpr int32 ITEM_STACK_MAX = 10;
 
     // ==================== EQUIPMENT SLOT COSTS ====================

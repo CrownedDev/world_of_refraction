@@ -929,7 +929,8 @@ int32 UInventoryComponent::GetWeaponSlotCostTotal() const
 
 int32 UInventoryComponent::GetRemainingWeaponCapacity() const
 {
-    return InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS - GetWeaponSlotCostTotal();
+    return InventoryConstants::CARRY_IS_CAPPED ? InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS - GetWeaponSlotCostTotal()
+                                               : InventoryConstants::UNLIMITED_CARRY_ROOM; // D-250
 }
 
 bool UInventoryComponent::CanAddWeapon(UWeaponData *Weapon) const
@@ -2438,7 +2439,8 @@ int32 UInventoryComponent::GetRingSlotCostTotal() const
 
 int32 UInventoryComponent::GetRemainingRingCapacity() const
 {
-    return InventoryConstants::MAX_RING_INVENTORY_SLOTS - GetRingSlotCostTotal();
+    return InventoryConstants::CARRY_IS_CAPPED ? InventoryConstants::MAX_RING_INVENTORY_SLOTS - GetRingSlotCostTotal()
+                                               : InventoryConstants::UNLIMITED_CARRY_ROOM; // D-250
 }
 
 bool UInventoryComponent::AttachEvolutionToWeapon(FGuid WeaponPersistentID, FGuid EvoInstanceID)

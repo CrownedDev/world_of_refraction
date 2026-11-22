@@ -1091,7 +1091,9 @@ namespace
         {
             AdapterCost += Adapter->GetSlotCost();
         }
-        if (WeaponCost > InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS || AdapterCost > InventoryConstants::MAX_RING_INVENTORY_SLOTS)
+        // OBSOLETE (D-250): nothing limits what a character carries, so neither room check below can refuse.
+        if (InventoryConstants::CARRY_IS_CAPPED &&
+            (WeaponCost > InventoryConstants::MAX_WEAPON_INVENTORY_SLOTS || AdapterCost > InventoryConstants::MAX_RING_INVENTORY_SLOTS))
         {
             WOR_REFUSE_PURCHASE(PurchaseRefusalNoRoomForGear(), TEXT("[EconomyService] PurchaseFor: %s has no room for the gear - refused, nothing spent"),
                                 *ForKey.ToString());
@@ -1108,7 +1110,7 @@ namespace
                                     Demand.Value, *ItemIdentity::GetDisplayName(Demand.Key));
             }
         }
-        if (Pool.GetUsedItemSlots(ForKey) + NewSlots > Pool.GetItemSlotCount(ForKey))
+        if (InventoryConstants::CARRY_IS_CAPPED && Pool.GetUsedItemSlots(ForKey) + NewSlots > Pool.GetItemSlotCount(ForKey))
         {
             WOR_REFUSE_PURCHASE(NSLOCTEXT("EconomyService", "RefusedPouchSlots", "Their pouch has no free slot."),
                                 TEXT("[EconomyService] PurchaseFor: %s's pouch has too few free slots - refused, nothing spent"), *ForKey.ToString());
