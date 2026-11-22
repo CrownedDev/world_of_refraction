@@ -65,11 +65,13 @@ is removed from the code; its stock line on each merchant now loads as an empty 
 
 | Asset | Enum type | Stock |
 |---|---|---|
-| `DA_Merchant_Blacksmith` | Blacksmith | 30 = 18 weapons + 12 crystals |
-| `DA_Merchant_Jewler` *(sic)* | Jeweler | 49 = 37 rings (1 template + 9 crystal + 27 themed — `Resources_Design.md` §5.1c taxonomy) + 12 crystals |
-| `DA_Merchant_CombatMaster` | CombatMaster | 156 = 144 abilities + 12 crystals |
-| `DA_Merchant_Refractor` | SpellShop | 27 = 15 spells + 12 crystals |
-| `DA_Merchant_Evolutionist` | Spiritualist | 39 = 27 evolutions + 12 crystals |
+| `DA_Merchant_Blacksmith` | Blacksmith | 32 = 18 weapons + 12 crystals + 2 potions |
+| `DA_Merchant_Jewler` *(sic)* | Jeweler | 53 = 51 lines (rings per `Resources_Design.md` §5.1c, and the 12 crystal lines) + 2 potions |
+| `DA_Merchant_CombatMaster` | CombatMaster | 158 = 144 abilities + 12 crystals + 2 potions |
+| `DA_Merchant_Refractor` | SpellShop | 29 = 15 spells + 12 crystals + 2 potions |
+| `DA_Merchant_Evolutionist` | Spiritualist | 41 = 27 evolutions + 12 crystals + 2 potions |
+
+Each ends with a Health Potion and an Energy Potion line (B-579, tier F). A home shop shows both; a trial vendor rolls them like any other line of its own list, so it may show neither.
 
 (`DA_Merchant_Test` under `Content/Data/Merchant/` is the wiring-test asset.)
 
@@ -229,3 +231,4 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 | 2026-11-16 | B-527 (D-226 (1)): a stock entry may name a `UPrebuiltFindData` (B-522b): a piece with its gem or evolution. `UEconomyService` splits it into its parts (`SplitPrebuilt`) for the price (piece plus socket), the room and the buy-for-another checks, and grants it whole through `TrialLoot::GrantTo`, so it arrives socketed. The vendor row shows the piece named with its socket (`TrialLoot::GetItemName`); stock validation checks it by its piece. Q-527. Spec `WoR.Trial.PrebuiltFind`. | `feature/B-527-adapter-slots-names-shop` |
 | 2026-11-18 | B-571 (D-225, trial pool stage 7): `MerchantStockRoll::RollWithPool`, `TRIAL_POOL_SHARE`, `TRIAL_POOL_SEED_SALT`, `IsSameLine`; `UTrialRunSubsystem::GetMerchantStock` rolls a trial vendor's shelf half from its own list, half from the trial's pool (`TrialVendorPool`, gathered once when the trial becomes active). The shelf follows from the run seed, the trial and the authored assets alone, so a co-op client rolls the same once it has the seed and the trial. `StockFor` is OBSOLETE in a trial. | `feature/B-571-trial-merchant` |
 | 2026-11-22 | B-579 (D-253, Q-579): a potion stock row (`FMerchantStockEntry::Crystal` = Health Potion or Energy Potion) is priced by `EconomyYield::GetPotionPrisms`: half the tier F Prisms price, no essence. A potion can't be sold or dismantled (`WoRVendorServices::GetRefusal`) or merged. **No asset was changed, so no merchant stocks potions yet:** the five merchant assets in the table above each need the two rows, added in the editor. | `feature/B-579-potions` |
+| 2026-11-22 | B-579 (assets): the five merchants got their two potion stock lines, at the end of each list; the table above corrected to the counts read in the editor (the Jeweler had 51, not 49). | `feature/B-579-merchant-stock` |
