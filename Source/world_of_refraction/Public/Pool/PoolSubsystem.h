@@ -67,7 +67,7 @@ struct FPoolGearView
 };
 
 /** B-322 (D-117, Q-322), D-250: everything one character carries (crystal and stone stacks, no limit) and its
- *  fight-item pick: up to SlotCount of the carried gems, ITEM_SLOTS_START slots to begin with. */
+ *  fight-item pick: up to SlotCount of the carried kinds that have a use, ITEM_SLOTS_START slots to begin with. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FPoolPouch
 {
@@ -81,8 +81,8 @@ struct WORLD_OF_REFRACTION_API FPoolPouch
     UPROPERTY()
     int32 SlotCount = InventoryConstants::ITEM_SLOTS_START;
 
-    /** D-250: the carried gems this character takes into fights, in pick order, at most SlotCount.
-     *  SAVE SEAM (Q-250): not in FSavedPouch yet, so a load picks again (UPoolSubsystem::RestorePouches). */
+    /** D-250: the carried kinds this character takes into fights, in pick order, at most SlotCount. Saved since
+     *  v45 (FSavedPouch::FightItemStacks, Q-250). */
     UPROPERTY()
     TArray<FCrystalId> FightItems;
 };
@@ -447,10 +447,11 @@ public:
 
     // ==================== POUCHES AND STORAGE (B-203, B-322, D-097, D-117, Q-322, D-250) ====================
     // Each character carries its own pouch: every crystal and stone stack it has, with no limit (D-250). Its
-    // fight items are a pick of those (gems only, up to its item slots; ITEM_STACK_MAX of each in a fight).
-    // The shared storage (the Crystals / Stones above) is OBSOLETE (D-250): nothing is sent there any more; what
-    // an old save left in it stays until the save step (Q-250). A member's UCrystalInventoryComponent reads its
-    // own pouch. Every call takes the character key (GetCharacterKey) of the pouch it means.
+    // fight items are a pick of those (any kind with a use, CanBeFightItem; up to its item slots; ITEM_STACK_MAX
+    // of each in a fight).
+    // The shared storage (the Crystals / Stones above) is OBSOLETE (D-250): nothing is sent there any more, and no
+    // save that loads has anything in it but what Store put there (Q-250: older saves are wiped). It goes with
+    // the chest in part 3. A member's UCrystalInventoryComponent reads its own pouch. Every call takes the character key (GetCharacterKey) of the pouch it means.
 
     /** The character's pouch (an empty default when it has none yet). */
     const FPoolPouch &GetPouch(FName CharacterKey) const;
@@ -465,11 +466,13 @@ public:
     const TArray<FCrystalId> &GetFightItems(FName CharacterKey) const { return GetPouch(CharacterKey).FightItems; }
     bool IsFightItem(FName CharacterKey, const FCrystalId &Id) const;
 
-    /** Only a gem is used in a fight, so a stone is never a fight item. */
+    /** Id has a use in a fight (ItemIdentity::GetItemEffectType is not None): every gem, the Healing Stone and
+     *  every stat stone (D-097: crystals and stones are consumables). The Durability Stone is attach-only, so it
+     *  is the one kind that can't be picked. A picked stack can still be socketed instead. */
     static bool CanBeFightItem(const FCrystalId &Id);
 
     /** Picks or unpicks Id as one of the character's fight items. False (nothing changed) when it is already so,
-     *  or to pick: Id is not carried, is not a gem, or every item slot is taken. A new carried stack is picked by
+     *  or to pick: Id is not carried, has no use in a fight (CanBeFightItem), or every item slot is taken. A new carried stack is picked by
      *  itself while a slot is free, and a stack that runs out is unpicked. */
     bool SetFightItem(FName CharacterKey, const FCrystalId &Id, bool bPicked);
 
@@ -510,8 +513,8 @@ public:
     bool HasBankedItems(FName CharacterKey) const { return BankedItemCharacters.Contains(CharacterKey); }
     const TSet<FName> &GetBankedItemCharacters() const { return BankedItemCharacters; }
 
-    /** B-090 restore of every pouch and whose items are banked. SAVE SEAM (Q-250): a pouch that arrives with no
-     *  pick (every save, until the pick is saved) gets the default one, PickDefaultFightItems. */
+    /** B-090 restore of every pouch (its fight-item pick with it, save v45) and whose items are banked. A pick the
+     *  pouch can't back (not carried, a stone, past its slots) is dropped. */
     void RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked);
 
     /** B-323 (D-117): moves Count of FromKey's carried Id into ToKey's pouch. False (nothing moved) when FromKey
@@ -863,11 +866,6 @@ private:
 
     /** D-250: takes up to Count from a stack; a stack that runs out is removed and unpicked. No broadcast. */
     int32 RemoveCarried(FName CharacterKey, const FCrystalId &Id, int32 Count);
-
-    /** D-250: the pick a pouch gets when none was saved: its carried gems in a fixed order (by type, the higher
-     *  tier first) until the slots are full. A pouch from before D-250 holds at most its slots, so all of its
-     *  gems are picked and it plays as it did. */
-    static void PickDefaultFightItems(FPoolPouch &Pouch);
 
     // ==================== THE RUN LAYER (B-314) ====================
     // Saved since B-314b: the open layer with the run (FSavedRun), the upgrade memory with the pool (FSavedPool).

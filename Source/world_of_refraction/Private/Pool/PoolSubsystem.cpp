@@ -763,7 +763,8 @@ int32 UPoolSubsystem::GetCarryRoom(FName CharacterKey, const FCrystalId &InId) c
 
 bool UPoolSubsystem::CanBeFightItem(const FCrystalId &Id)
 {
-    return Id.Type != ECrystalType::None && CrystalTypeHelpers::IsGemType(Id.Type);
+    // Anything with a use: every gem, the Healing Stone, every stat stone. Only the Durability Stone has none.
+    return Id.Type != ECrystalType::None && ItemIdentity::GetItemEffectType(Id) != EItemEffectType::None;
 }
 
 bool UPoolSubsystem::IsFightItem(FName CharacterKey, const FCrystalId &InId) const
@@ -824,22 +825,6 @@ int32 UPoolSubsystem::RemoveCarried(FName CharacterKey, const FCrystalId &Id, in
         Pouch->FightItems.Remove(Id);
     }
     return Taken;
-}
-
-void UPoolSubsystem::PickDefaultFightItems(FPoolPouch &Pouch)
-{
-    TArray<FCrystalId> Gems;
-    for (const TPair<FCrystalId, int32> &Stack : Pouch.Stacks)
-    {
-        if (CanBeFightItem(Stack.Key))
-        {
-            Gems.Add(Stack.Key);
-        }
-    }
-    // The order a fight lists them in (ULoadoutComponent::GetUsableItems): the pouch is a map, so it has none.
-    Gems.Sort([](const FCrystalId &A, const FCrystalId &B) { return A.Type != B.Type ? A.Type < B.Type : A.Tier > B.Tier; });
-    Gems.SetNum(FMath::Min(Gems.Num(), Pouch.SlotCount));
-    Pouch.FightItems = MoveTemp(Gems);
 }
 
 int32 UPoolSubsystem::CarryOrStore(FName CharacterKey, const FCrystalId &InId, int32 Count)
@@ -991,11 +976,10 @@ void UPoolSubsystem::RestorePouches(const TMap<FName, FPoolPouch> &InPouches, co
     for (TPair<FName, FPoolPouch> &Pair : Pouches)
     {
         Pair.Value.SlotCount = FMath::Max(Pair.Value.SlotCount, InventoryConstants::ITEM_SLOTS_START);
-        // SAVE SEAM (Q-250): the pick is not saved yet, so every restored pouch arrives without one.
-        if (Pair.Value.FightItems.IsEmpty())
-        {
-            PickDefaultFightItems(Pair.Value);
-        }
+        // The pick as saved (v45), less what a damaged save can't back: not carried, no use in a fight, or past the slots.
+        FPoolPouch &Pouch = Pair.Value;
+        Pouch.FightItems.RemoveAll([&Pouch](const FCrystalId &Id) { return !Pouch.Stacks.Contains(Id) || !CanBeFightItem(Id); });
+        Pouch.FightItems.SetNum(FMath::Min(Pouch.FightItems.Num(), Pouch.SlotCount));
     }
     BankedItemCharacters = TSet<FName>(InBanked);
     OnPoolItemsChanged.Broadcast();
@@ -1450,7 +1434,7 @@ namespace
                 const bool bChanged = StackIds.IsValidIndex(StackNumber) &&
                                       Pool->SetFightItem(PouchKeys[PouchNumber], StackIds[StackNumber], FCString::Atoi(*Args[2]) != 0);
                 UE_LOG(LogTemp, Log, TEXT("[Pool] wor.Inventory.SetFightItem: %s\n%s"),
-                       bChanged ? TEXT("changed") : TEXT("refused (no such pouch or stack, already so, a stone, or no free slot)"),
+                       bChanged ? TEXT("changed") : TEXT("refused (no such pouch or stack, already so, no use in a fight, or no free slot)"),
                        *Pool->GetItemSlotsString());
             }));
 
