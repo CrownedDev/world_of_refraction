@@ -58,6 +58,9 @@ public:
     /** B-391: the value of wor.UI.NewHUD (1 = the new battle HUD). */
     static bool WantsNewHUD();
 
+    /** B-586: the new battle HUD; null when the old widgets are built. */
+    UBattleHUDWidget *GetBattleHUD() const { return BattleHUD; }
+
     /** Debug: one line per widget with bound actor / validity. */
     FString GetHUDStateString() const;
 

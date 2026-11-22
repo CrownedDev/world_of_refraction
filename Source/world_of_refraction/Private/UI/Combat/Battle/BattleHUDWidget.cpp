@@ -42,6 +42,8 @@
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDButton.h"
+#include "UI/Combat/Battle/BattleIntelWidget.h"
+#include "Trial/TrialRunSubsystem.h"
 #include "Widgets/Layout/Anchors.h"
 #include "WoRLog.h"
 
@@ -360,16 +362,19 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		Canvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		WidgetTree->RootWidget = Canvas;
 
-		// B-436a: the right-hand column, top: the turn order, the enemy cards under it. Nothing in it takes a click.
+		// B-436a: the right-hand column, top: the turn order, the enemy cards under it. B-586: only the enemy cards take a
+		// click (Intel).
 		UVerticalBox *RightColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightColumn"));
-		RightColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
+		RightColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		UVerticalBox *TurnColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TurnOrder"));
+		TurnColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
 		BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::NameFontSize)->SetText(LOCTEXT("TurnOrderTitle", "Turn order"));
 		for (int32 Index = 0; Index <= BattleHUDView::UPCOMING_TURNS_SHOWN; ++Index)
 		{
 			TurnTexts.Add(BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::TurnFontSize));
 		}
 		UVerticalBox *EnemyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Enemies"));
+		EnemyColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		if (UVerticalBoxSlot *TurnSlot = RightColumn->AddChildToVerticalBox(TurnColumn))
 		{
 			TurnSlot->SetHorizontalAlignment(HAlign_Right);
@@ -411,9 +416,10 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		for (FBattleHUDCard &Card : Cards)
 		{
 			UBorder *Frame = BattleHUDCard::Build(WidgetTree, Card, EBattleCardLevel::Battle);
+			Frame->SetVisibility(ESlateVisibility::Visible); // B-586 (D-261): every card takes a click (Intel)
+			Frame->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleHUDWidget, HandleCardMouseDown));
 			if (Card.bParty)
 			{
-				Frame->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleHUDWidget, HandleCardMouseDown)); // D-254: click to inspect
 				if (UOverlaySlot *CardSlot = PartyRow->AddChildToOverlay(Frame))
 				{
 					CardSlot->SetHorizontalAlignment(HAlign_Left);
@@ -444,6 +450,11 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		StatusPanel->SetContent(PanelSize);
 		StatusPanelBody = BattleHUDBuild::AddText(WidgetTree, PanelRows, BattleHUDStyle::LineFontSize);
 		BattleHUDBuild::Place(Canvas, StatusPanel, BattleHUDStyle::StatusPanelAnchor, FVector2D::ZeroVector);
+
+		// B-586 (D-261): the Intel panel, centred like the status panel; the two never show together.
+		IntelPanel = WidgetTree->ConstructWidget<UBattleIntelWidget>(UBattleIntelWidget::StaticClass(), TEXT("Intel"));
+		IntelPanel->OnTabClicked.BindUObject(this, &UBattleHUDWidget::HandleIntelTabClicked);
+		BattleHUDBuild::Place(Canvas, IntelPanel, BattleHUDStyle::StatusPanelAnchor, FVector2D::ZeroVector);
 
 		BuildDamageNumberWidgets(Canvas); // last, so the numbers draw over the cards
 	}
@@ -558,13 +569,104 @@ FText UBattleHUDWidget::BuildInspectText(const FBattleHUDCard &Card) const
 
 void UBattleHUDWidget::InspectCard(int32 CardIndex)
 {
-	if (!Cards.IsValidIndex(CardIndex) || !Cards[CardIndex].bParty)
+	OpenIntel(CardIndex); // D-261: was the party-only inspect in the status panel (D-254)
+}
+
+// ========================================
+// INTEL (B-586, D-261)
+// ========================================
+
+TArray<int32> UBattleHUDWidget::GetIntelCardOrder() const
+{
+	TArray<int32> Order;
+	for (const bool bParty : {true, false})
+	{
+		for (int32 Index = 0; Index < Cards.Num(); ++Index)
+		{
+			if (Cards[Index].bParty == bParty)
+			{
+				Order.Add(Index);
+			}
+		}
+	}
+	return Order;
+}
+
+void UBattleHUDWidget::OpenIntel(int32 CardIndex)
+{
+	const int32 Tab = GetIntelCardOrder().IndexOfByKey(CardIndex);
+	if (Tab == INDEX_NONE)
 	{
 		return;
 	}
-	const bool bCloses = bStatusPanelOpen && InspectedCard == CardIndex; // a second click on the same card closes it
-	InspectedCard = bCloses ? INDEX_NONE : CardIndex;
-	SetStatusPanelOpen(!bCloses);
+	if (bIntelOpen && IntelTab == Tab)
+	{
+		CloseIntel(); // the same card again closes it
+		return;
+	}
+	if (bStatusPanelOpen)
+	{
+		bStatusPanelOpen = false;
+		InspectedCard = INDEX_NONE;
+	}
+	bIntelOpen = true;
+	IntelTab = Tab;
+	PushToWidgets();
+}
+
+void UBattleHUDWidget::ToggleIntel()
+{
+	if (bIntelOpen)
+	{
+		CloseIntel();
+		return;
+	}
+	const int32 Featured = GetFeaturedCardIndex();
+	const TArray<int32> Order = GetIntelCardOrder();
+	OpenIntel(Cards.IsValidIndex(Featured) ? Featured : (Order.IsEmpty() ? INDEX_NONE : Order[0]));
+}
+
+void UBattleHUDWidget::StepIntelTab(int32 Delta)
+{
+	const int32 TabCount = GetIntelCardOrder().Num();
+	if (!bIntelOpen || TabCount == 0)
+	{
+		return;
+	}
+	SelectIntelTab((IntelTab + Delta % TabCount + TabCount) % TabCount);
+}
+
+void UBattleHUDWidget::SelectIntelTab(int32 Tab)
+{
+	if (!bIntelOpen || !GetIntelCardOrder().IsValidIndex(Tab))
+	{
+		return;
+	}
+	IntelTab = Tab;
+	PushToWidgets();
+}
+
+void UBattleHUDWidget::CloseIntel()
+{
+	bIntelOpen = false;
+	PushToWidgets();
+}
+
+void UBattleHUDWidget::HandleIntelTabClicked(int32 Tab)
+{
+	SelectIntelTab(Tab);
+}
+
+void UBattleHUDWidget::RefreshIntelPages()
+{
+	IntelPages.Reset();
+	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	for (const int32 CardIndex : GetIntelCardOrder())
+	{
+		const FBattleHUDCard &Card = Cards[CardIndex];
+		IntelPages.Add(BattleIntelView::BuildPage(Card, GetStatusesOf(Card.Actor.Get()), Run));
+	}
 }
 
 FEventReply UBattleHUDWidget::HandleCardMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent)
@@ -573,10 +675,10 @@ FEventReply UBattleHUDWidget::HandleCardMouseDown(FGeometry MyGeometry, const FP
 	{
 		return FEventReply(false);
 	}
-	// One handler for every party card: the card under the pointer is the one clicked.
+	// One handler for every card: the card under the pointer is the one clicked.
 	const int32 Clicked = Cards.IndexOfByPredicate([&MouseEvent](const FBattleHUDCard &Card)
 	{
-		return Card.bParty && Card.Frame && Card.Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition());
+		return Card.Frame && Card.Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition());
 	});
 	if (Clicked == INDEX_NONE)
 	{
@@ -726,6 +828,8 @@ void UBattleHUDWidget::SetStatusPanelOpen(bool bOpen)
 	bStatusPanelOpen = bOpen;
 	if (bOpen)
 	{
+		bIntelOpen = false; // B-586: never both
+
 		RefreshStatuses(); // pushes too
 		return;
 	}
@@ -757,6 +861,15 @@ void UBattleHUDWidget::PushToWidgets()
 	if (StatusPanel)
 	{
 		StatusPanel->SetVisibility(bStatusPanelOpen ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+	}
+	if (bIntelOpen) // B-586: built from the live cards on every push while open
+	{
+		RefreshIntelPages();
+	}
+	if (IntelPanel)
+	{
+		IntelPanel->SetVisibility(bIntelOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+		IntelPanel->Push(IntelPages, IntelTab);
 	}
 }
 
@@ -823,6 +936,18 @@ void UBattleHUDWidget::HandleStatusButtonClicked()
 void UBattleHUDWidget::HandleHitShown(AActor *Target, const FCombatHitShown &Hit)
 {
 	ShowDamageNumber(Target, Hit);
+	// B-586 (Q-586): a hit of a type teaches that type's line for this enemy type, for the run (every machine sees the hit).
+	const FBattleHUDCard *Card = Cards.FindByPredicate([Target](const FBattleHUDCard &Candidate) { return Candidate.Actor.Get() == Target; });
+	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
+	UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+	const FName TypeKey = BattleIntelView::GetEnemyTypeKey(Target);
+	if (Card && !Card->bParty && Run && !Hit.bHeal && Hit.DamageType != EWoRDamageType::None && !TypeKey.IsNone()
+		&& !Run->IsIntelLearned(TypeKey, Hit.DamageType))
+	{
+		Run->MarkIntelLearned(TypeKey, Hit.DamageType);
+		UE_LOG(LogWoRUI, Log, TEXT("[BattleHUD] Intel learned: %s %s"), *TypeKey.ToString(), *UEnum::GetValueAsString(Hit.DamageType));
+		PushToWidgets();
+	}
 }
 
 void UBattleHUDWidget::HandleBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source)
@@ -1039,6 +1164,11 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 	{
 		Out += FString::Printf(TEXT("\n  inspecting %s:\n    %s"), *Cards[InspectedCard].Name.ToString(),
 							   *StatusPanelText.ToString().Replace(TEXT("\n"), TEXT("\n    ")));
+	}
+	if (bIntelOpen && IntelPages.IsValidIndex(IntelTab)) // B-586
+	{
+		Out += FString::Printf(TEXT("\n  intel tab %d/%d: %s"), IntelTab + 1, IntelPages.Num(),
+							   *BattleIntelView::GetPageString(IntelPages[IntelTab]).Replace(TEXT("\n"), TEXT("\n    ")));
 	}
 	const int32 Featured = GetFeaturedCardIndex();
 	const FBattleHUDCard *FeaturedCard = Cards.IsValidIndex(Featured) ? &Cards[Featured] : nullptr;

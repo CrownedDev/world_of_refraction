@@ -6,7 +6,8 @@
 //   no EP use), status chips; the others sit in a row to its right as compact cards (name, HP bar, build-up bar).
 //   B-436g (D-260): the command menu stacks just above the featured card in one bottom-left column (SetCommandMenu), its
 //   corner hints bottom right; the "Act ●●○" pips moved from the card to the menu's tab. D-254 (B-581): no Spirit /
-//   Body lines on a card; a click on a party card inspects it in the status panel (InspectCard);
+//   Body lines on a card. B-586 (D-261): a click on any card, or V / R3, opens the Intel panel (UBattleIntelWidget) on
+//   that character's tab; a party card shows no status chips (they are in Intel);
 // - turn order top-right: the current actor, then the next turns (bonus turns marked);
 // - enemy cards under the turn order: name, HP bar (no numbers, Q-391), status chips;
 // - a Statuses button (top centre) opening one panel with every status in full (FeelGuide 5);
@@ -36,10 +37,12 @@
 #include "Skills/Effects/ActiveSkillEffect.h" // UFUNCTION handler parameter type
 #include "UI/Combat/Battle/BattleHUDCard.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
+#include "UI/Combat/Battle/BattleIntelView.h"
 #include "UI/Combat/Battle/DamageNumberView.h" // FCombatHitShown: UFUNCTION handler parameter type
 #include "BattleHUDWidget.generated.h"
 
 class UBattleCommandMenuWidget;
+class UBattleIntelWidget;
 class UBorder;
 class UCombatPresentationComponent;
 class UButton;
@@ -100,16 +103,32 @@ public:
 	/** Open or close the view-all status panel (the Statuses button toggles it). Closing ends an inspect. */
 	void SetStatusPanelOpen(bool bOpen);
 
-	/** D-254: inspect a party card (a click on it): the status panel shows that character alone: name, Spirit of ... /
-	 *  Body of ..., the full actions line (pips, Max, action-point progress, the bonus warning) and its statuses. The
-	 *  same card again closes it; another card switches; the Status button goes back to everyone. Enemy cards: no-op. */
+	/** D-261 (B-586): a click on any card opens the Intel panel on that character's tab (OpenIntel). Was D-254's
+	 *  party-only inspect in the status panel. */
 	void InspectCard(int32 CardIndex);
+
+	// B-586 (D-261): the Intel panel. One tab per card, party first then enemies (yours reads "You"). The status panel
+	// and Intel never show together.
+	/** Open on CardIndex's tab; the same tab again closes it. */
+	void OpenIntel(int32 CardIndex);
+	/** V / R3: open on the featured card's tab, or close. */
+	void ToggleIntel();
+	/** Q / E, LB / RB while open: the previous or next tab, wrapping. */
+	void StepIntelTab(int32 Delta);
+	void SelectIntelTab(int32 Tab);
+	void CloseIntel();
+	bool IsIntelOpen() const { return bIntelOpen; }
+	int32 GetIntelTab() const { return IntelTab; }
+	/** The pages as last built (rebuilt on every push while open). */
+	const TArray<FBattleIntelPage> &GetIntelPages() const { return IntelPages; }
+	/** Card index of each tab: party cards, then enemies. */
+	TArray<int32> GetIntelCardOrder() const;
 
 	/** The Status button: the view of everyone. From an inspected character it switches to that view, else it opens
 	 *  or closes the panel. */
 	void ToggleAllStatuses();
 
-	/** The party card being inspected; INDEX_NONE when the panel is closed or shows everyone. */
+	/** OBSOLETE (B-586, D-261): inspect moved to Intel; always INDEX_NONE now. Kept until PIE (docs/PIE/Sweep.md). */
 	int32 GetInspectedCardIndex() const { return InspectedCard; }
 
 	/** B-391b: float one number over Target, on this machine only (the hit handler and wor.UI.DamageNumber). */
@@ -191,8 +210,14 @@ private:
 	UFUNCTION()
 	FEventReply HandleCardMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent);
 
-	/** What the status panel shows for one inspected card. */
+	/** What the status panel shows for one inspected card. OBSOLETE (B-586, D-261): Intel replaced the inspect; kept
+	 *  until PIE (docs/PIE/Sweep.md). */
 	FText BuildInspectText(const FBattleHUDCard &Card) const;
+
+	/** B-586: rebuild IntelPages from the cards (only while open). */
+	void RefreshIntelPages();
+
+	void HandleIntelTabClicked(int32 Tab);
 
 	UFUNCTION()
 	void HandleBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source);
@@ -244,4 +269,11 @@ private:
 	/** B-436g: the command menu in the party column (UCombatHUD made it). */
 	UPROPERTY()
 	TObjectPtr<UBattleCommandMenuWidget> CommandMenu;
+
+	/** B-586 (D-261): the Intel panel, its open tab and pages (plain data; the widget only draws). */
+	UPROPERTY()
+	TObjectPtr<UBattleIntelWidget> IntelPanel;
+	bool bIntelOpen = false;
+	int32 IntelTab = 0;
+	TArray<FBattleIntelPage> IntelPages;
 };
