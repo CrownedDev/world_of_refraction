@@ -27,8 +27,10 @@ namespace WoRAgentTestKit
 	constexpr int32 EVOLUTIONS = 2;
 	constexpr int32 SKILLS = 3;
 	constexpr int32 PARTY_MEMBERS = 2;
+	constexpr int32 ADAPTERS = 20; // the kit's own count: the game has no adapter limit (D-250)
 
-	/** Adds the adapters in turn until the inventory refuses every one of them (its room is full). Returns how many. */
+	/** Adds the adapters in turn until the inventory owns ADAPTERS of them or refuses every one. Returns how many
+	 *  were added. */
 	WORLD_OF_REFRACTION_API int32 GiveRings(UInventoryComponent &Inventory, const TArray<URingData *> &Rings);
 
 	/** Runs wor.Debug.GiveTestKit on the played character; Parts as the command's arguments (empty: all). Returns one

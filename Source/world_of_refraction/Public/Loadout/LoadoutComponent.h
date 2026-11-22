@@ -292,15 +292,22 @@ public:
     bool UseItem(int32 SlotIndex);
 
     // ==================== THE MEMBER'S POUCH IN A FIGHT (B-313, D-111, D-117, Q-313) ====================
-    // A party member's fight items are its own pouch (UPoolSubsystem::GetPouch), nothing else: GetUsableItems
-    // lists it and UseCarriedItem spends from it. No tier cap on what it uses (B-354, D-143 retired Q-313's per-fight
-    // bands). Stones are slot-only, so they never show. Actors with no pouch keep the loadout's item slots.
+    // A party member's fight items are the pick from its own pouch (D-250, UPoolSubsystem::GetFightItems), nothing
+    // else: GetUsableItems lists them and UseCarriedItem spends from the pouch. A fight brings at most
+    // InventoryConstants::ITEM_STACK_MAX of each (Q-250); the rest stays carried. No tier cap (B-354, D-143). A
+    // stone with a use (the Healing Stone, a stat stone) is a fight item like a gem (D-097; before D-250 a member's
+    // list hid every stone); only the Durability Stone can't be picked. Actors with no pouch keep the loadout's
+    // item slots.
 
     /** True when the owner carries a pouch (its crystal inventory is bound to the pool). */
     bool UsesPouchItems() const;
 
-    /** Id is carried in the member's pouch and is a gem. */
+    /** Id is one of the member's fight items and this fight still has some of it left. */
     bool CanUseCarriedItem(const FCrystalId &Id) const;
+
+    /** D-250: how many of Id this fight still has: what is carried, but no more than ITEM_STACK_MAX less what the
+     *  fight already used. 0 when Id is not a fight item or the owner has no pouch. */
+    int32 GetFightItemsLeft(const FCrystalId &Id) const;
 
     /** Spends one Id from the member's pouch (storage, other pouches and the loadout's item slots are
      *  untouched). False when not ready for battle or
@@ -371,8 +378,8 @@ public:
     TArray<USpellData *> GetActiveSlotSpells() const;
 
     /** Get usable item slots (C++ only - use GetUsableItemCount for Blueprint).
-     *  B-313: for a member with a pouch, the pouch's gems (one entry per stack, Quantity = what this fight can
-     *  still use: the whole stack, B-354), sorted by type then highest tier. Otherwise the
+     *  B-313, D-250: for a member with a pouch, its picked fight items, gems and stones alike (one entry per
+     *  stack, Quantity = GetFightItemsLeft), sorted by type, highest tier, then a stat stone's stat. Otherwise the
      *  active loadout's non-empty item slots (OBSOLETE (B-313) path, kept for enemies). */
     TArray<FItemLoadoutSlot> GetUsableItems() const;
 
@@ -989,12 +996,17 @@ protected:
     UPROPERTY(BlueprintReadOnly, Category = "Loadout|Runtime")
     bool bIsReadyForBattle = false;
 
+    /** D-250 (Q-250): how many of each fight item this fight has used, so no more than ITEM_STACK_MAX of one comes
+     *  in. Per-fight state on the fighter (D-064): cleared by PrepareForBattle and ResetBattleState. */
+    TMap<FCrystalId, int32> FightItemUses;
+
     /** OBSOLETE (B-354, D-143): B-313's pouch uses this fight per D-072 tier band. No longer counted; still cleared by
      *  PrepareForBattle and ResetBattleState. Delete after Crown's PIE. */
     TMap<int32, int32> BattleBandUses;
 
-    /** OBSOLETE (B-354, D-143): how many of Id this fight still allows from the pouch. No cap for a gem since the bands
-     *  retired (MAX_int32); 0 for a stone or None (slot-only). Delete with BattleBandUses after Crown's PIE. */
+    /** OBSOLETE (B-354, D-143; unused since D-250, GetFightItemsLeft): how many of Id this fight still allows from the
+     *  pouch. No cap for a gem since the bands retired (MAX_int32); 0 for a stone or None (slot-only). Delete with
+     *  BattleBandUses after Crown's PIE. */
     int32 GetCarriedBandRoom(const FCrystalId &Id) const;
 
     /** Ensure at least one loadout exists */

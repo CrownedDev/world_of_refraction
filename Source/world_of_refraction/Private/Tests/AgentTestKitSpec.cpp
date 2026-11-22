@@ -1,5 +1,6 @@
 // AgentTestKitSpec.cpp
-// wor.Debug.GiveTestKit, headless: the adapters go in in turn until the room is full, a second give adds nothing, and
+// wor.Debug.GiveTestKit, headless: the adapters go in in turn until the kit's count is owned (20; D-250 removed the
+// room, so the kit counts for itself), a second give adds nothing, and
 // no adapter to give is no give; with no played character the kit says so.
 // Unproven here: apparel, evolutions, skills and the second member on a real character (the brain's live check).
 
@@ -17,7 +18,7 @@ END_DEFINE_SPEC(FAgentTestKitSpec)
 
 void FAgentTestKitSpec::Define()
 {
-	It("fills the adapter room in turn and stops when every adapter is refused", [this]()
+	It("gives the adapters in turn up to the kit's count, and a second give adds none", [this]()
 	{
 		FWoRTestWorld TestWorld;
 		TestTrue(TEXT("test world created"), TestWorld.Create());
@@ -30,10 +31,10 @@ void FAgentTestKitSpec::Define()
 		const TArray<URingData *> Rings = {NewObject<URingData>(GetTransientPackage()), NewObject<URingData>(GetTransientPackage())};
 		const int32 Given = WoRAgentTestKit::GiveRings(*Inventory, Rings);
 		TestTrue(TEXT("some given"), Given > 0);
-		TestTrue(TEXT("within the room"), Given <= InventoryConstants::MAX_RING_INVENTORY_SLOTS);
+		TestTrue(TEXT("within the kit's count"), Given <= WoRAgentTestKit::ADAPTERS);
 		TestEqual(TEXT("all owned"), Inventory->Rings.Num(), Given);
 		TestTrue(TEXT("both kinds given"), Inventory->OwnsRingAsset(Rings[0]) && Inventory->OwnsRingAsset(Rings[1]));
-		TestEqual(TEXT("a full room takes no more"), WoRAgentTestKit::GiveRings(*Inventory, Rings), 0);
+		TestEqual(TEXT("a second give adds none"), WoRAgentTestKit::GiveRings(*Inventory, Rings), 0);
 	});
 
 	It("says so when there is no played character", [this]()

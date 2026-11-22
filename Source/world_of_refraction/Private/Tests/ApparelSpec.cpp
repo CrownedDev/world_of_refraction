@@ -306,7 +306,9 @@ void FApparelSpec::Define()
 		TestFalse(TEXT("another owner's evolution is refused"), Pool->AttachToApparel(Piece.PersistentID, Socketed));
 		Pool->SetGearOwner(Evolution.InstanceID, Wearer);
 		TestTrue(TEXT("the wearer's own evolution fits"), Pool->AttachToApparel(Piece.PersistentID, Socketed));
-		TestEqual(TEXT("and the Fire crystal went back"), Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM), StoredBefore + 1);
+		// D-250 (B-575): the old crystal goes back to the piece's owner, not to storage.
+		TestEqual(TEXT("and the Fire crystal went back to the wearer"), Pool->GetCarriedCount(Wearer, APPAREL_TEST_FIRE_GEM), 1);
+		TestEqual(TEXT("not to storage"), Pool->GetStoredCount(APPAREL_TEST_FIRE_GEM), StoredBefore);
 	});
 }
 

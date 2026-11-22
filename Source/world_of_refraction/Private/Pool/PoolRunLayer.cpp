@@ -416,11 +416,9 @@ void UPoolSubsystem::CloseRun(EPoolRunEnding Ending)
             }
         }
     }
-    if (bKept)
-    {
-        StoreRunFoundItems(); // B-238b (D-097, Q-238b): the run's finds go to home storage
-    }
-    else
+    // D-250: a kept run's finds stay where they are, carried. StoreRunFoundItems (B-238b: to home storage) is
+    // OBSOLETE and no longer called.
+    if (!bKept)
     {
         TakeRunFoundItems(); // B-439b (Q-439 point 2, D-176) and B-451 (D-189): a quit or a lost run loses its finds
     }

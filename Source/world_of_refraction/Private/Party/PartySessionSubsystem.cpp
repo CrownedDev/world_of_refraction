@@ -537,7 +537,8 @@ bool UPartySessionSubsystem::InviteRunMember(TSoftClassPtr<ACombatCharacter> Paw
 namespace
 {
 	/** A run-only member leaves: what it wore is free again, its clash lines go, its pouch (a save from before B-361)
-	 *  goes to storage and its skills stay with the host (B-361, D-152). Shared by the run's end and a step-out (B-471). */
+	 *  goes to the host's (D-250) and its skills stay with the host (B-361, D-152). Shared by the run's end and a
+	 *  step-out (B-471). */
 	void ReleaseRunMember(const FPartyMember &Member, UPoolSubsystem &Pool, FName HostKey)
 	{
 		const FName Key = UPoolSubsystem::GetCharacterKey(Member);
@@ -554,7 +555,7 @@ namespace
 			Pool.ReleaseWearer(GearID);
 		}
 		Pool.NoteClashes(Key, {});
-		Pool.ReleasePouch(Key);
+		Pool.ReleasePouch(Key, HostKey); // D-250: to the host's pouch, not storage
 		Pool.HandOverSkills(Key, HostKey);
 	}
 }

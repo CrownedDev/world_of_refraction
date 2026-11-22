@@ -35,6 +35,7 @@
 #include "Combat/TurnManager.h"
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Equipment/Crystals/ItemIdentity.h"
+#include "Equipment/Crystals/StatStone.h" // StatStone::Normalize: the pouch's key for a stone (D-250)
 #include "Equipment/Crystals/CrystalInventoryComponent.h"
 #include "Equipment/Crystals/EvolutionInventoryComponent.h"
 #include "Equipment/FRuntimeAttachedItem.h"
@@ -1270,6 +1271,7 @@ bool ULoadoutComponent::PrepareForBattle(UInventoryComponent *Inventory)
     ClearInvalidSlots();
 
     BattleBandUses.Reset();
+    FightItemUses.Reset();
     if (UsesPouchItems())
     {
         // B-313 (D-111, Q-155): a member's fight items are its pouch as it is; refills happen at rest spots.
@@ -1347,11 +1349,22 @@ int32 ULoadoutComponent::GetCarriedBandRoom(const FCrystalId &Id) const
     return FLoadoutRules::GetUtilityBandIndex(Id) != INDEX_NONE ? MAX_int32 : 0;
 }
 
-bool ULoadoutComponent::CanUseCarriedItem(const FCrystalId &Id) const
+int32 ULoadoutComponent::GetFightItemsLeft(const FCrystalId &Id) const
 {
     FName Key;
     const UPoolSubsystem *Pool = LoadoutFindPouch(GetOwner(), Key);
-    return Pool && Pool->GetCarriedCount(Key, Id) > 0 && GetCarriedBandRoom(Id) > 0;
+    if (!Pool || !Pool->IsFightItem(Key, Id))
+    {
+        return 0;
+    }
+    // Counted under the pouch's own key: an old single-stat stone is its StatStone there (B-353).
+    const int32 BroughtLeft = InventoryConstants::ITEM_STACK_MAX - FightItemUses.FindRef(StatStone::Normalize(Id));
+    return FMath::Clamp(Pool->GetCarriedCount(Key, Id), 0, FMath::Max(0, BroughtLeft));
+}
+
+bool ULoadoutComponent::CanUseCarriedItem(const FCrystalId &Id) const
+{
+    return GetFightItemsLeft(Id) > 0;
 }
 
 bool ULoadoutComponent::UseCarriedItem(const FCrystalId &Id)
@@ -1367,10 +1380,9 @@ bool ULoadoutComponent::UseCarriedItem(const FCrystalId &Id)
         return false;
     }
 
-    FName Key;
-    const UPoolSubsystem *Pool = LoadoutFindPouch(GetOwner(), Key);
-    const int32 Left = Pool ? Pool->GetCarriedCount(Key, Id) : 0;
-    UE_LOG(LogWoRLoadout, Verbose, TEXT("%s used %s from its pouch: %d left"), *GetNameSafe(GetOwner()),
+    ++FightItemUses.FindOrAdd(StatStone::Normalize(Id));
+    const int32 Left = GetFightItemsLeft(Id);
+    UE_LOG(LogWoRLoadout, Verbose, TEXT("%s used %s from its fight items: %d left this fight"), *GetNameSafe(GetOwner()),
            *ItemIdentity::GetDisplayName(Id), Left);
     OnItemUsed.Broadcast(INDEX_NONE, Id, Left);
     return true;
@@ -1845,21 +1857,26 @@ TArray<FItemLoadoutSlot> ULoadoutComponent::GetUsableItems() const
     FName PouchKey;
     if (const UPoolSubsystem *Pool = LoadoutFindPouch(GetOwner(), PouchKey))
     {
-        // B-313 (D-111, D-117): the member's pouch is its only item list.
+        // B-313 (D-111, D-117), D-250: the fight items picked from the member's pouch are its only item list.
         TArray<FItemLoadoutSlot> Carried;
-        for (const TPair<FCrystalId, int32> &Stack : Pool->GetCarriedItems(PouchKey))
+        for (const FCrystalId &Picked : Pool->GetFightItems(PouchKey))
         {
-            const int32 Usable = FMath::Min(Stack.Value, GetCarriedBandRoom(Stack.Key));
+            const int32 Usable = GetFightItemsLeft(Picked);
             if (Usable > 0)
             {
                 FItemLoadoutSlot &Item = Carried.AddDefaulted_GetRef();
-                Item.CrystalId = Stack.Key;
+                Item.CrystalId = Picked;
                 Item.Quantity = Usable;
             }
         }
-        // A stable order for menus that index this list (the pouch is a map).
+        // A stable order for menus that index this list (the pick is in pick order).
+        // Stat stones share one type (B-353), so their stat breaks the tie.
         Carried.Sort([](const FItemLoadoutSlot &A, const FItemLoadoutSlot &B)
-                     { return A.CrystalId.Type != B.CrystalId.Type ? A.CrystalId.Type < B.CrystalId.Type : A.CrystalId.Tier > B.CrystalId.Tier; });
+                     {
+                         const FCrystalId &Left = A.CrystalId;
+                         const FCrystalId &Right = B.CrystalId;
+                         return Left.Type != Right.Type ? Left.Type < Right.Type : Left.Tier != Right.Tier ? Left.Tier > Right.Tier : Left.StoneStat < Right.StoneStat;
+                     });
         return Carried;
     }
 
@@ -1888,6 +1905,7 @@ void ULoadoutComponent::ResetBattleState()
 {
     bIsReadyForBattle = false;
     BattleBandUses.Reset();
+    FightItemUses.Reset();
 }
 
 // ==================== QUICK SETUP ====================

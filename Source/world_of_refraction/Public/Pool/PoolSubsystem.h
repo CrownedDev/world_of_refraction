@@ -66,19 +66,25 @@ struct FPoolGearView
     int32 Num() const { return Weapons.Num() + Adapters.Num() + Evolutions.Num(); }
 };
 
-/** B-322 (D-117, Q-322): one character's pouch of carried item slots: one item type per slot, stacked to
- *  ITEM_STACK_MAX, ITEM_SLOTS_START slots to begin with. */
+/** B-322 (D-117, Q-322), D-250: everything one character carries (crystal and stone stacks, no limit) and its
+ *  fight-item pick: up to SlotCount of the carried kinds that have a use, ITEM_SLOTS_START slots to begin with. */
 USTRUCT()
 struct WORLD_OF_REFRACTION_API FPoolPouch
 {
     GENERATED_BODY()
 
-    /** Crystal and stone stacks carried; one entry per slot. */
+    /** Crystal and stone stacks carried: any number of kinds, any count (D-250). */
     UPROPERTY()
     TMap<FCrystalId, int32> Stacks;
 
+    /** The fight-item slots (D-250): how many kinds FightItems can hold. */
     UPROPERTY()
     int32 SlotCount = InventoryConstants::ITEM_SLOTS_START;
+
+    /** D-250: the carried kinds this character takes into fights, in pick order, at most SlotCount. Saved since
+     *  v45 (FSavedPouch::FightItemStacks, Q-250). */
+    UPROPERTY()
+    TArray<FCrystalId> FightItems;
 };
 
 /** B-314 (D-111, D-097, Q-314): where one piece of gear stands in the run layer, by its ID. Kept in the store beside
@@ -439,11 +445,13 @@ public:
     UPROPERTY(BlueprintAssignable, Category = "Pool|Armoury")
     FOnWornGearChanged OnWornGearChanged;
 
-    // ==================== POUCHES AND STORAGE (B-203, B-322, D-097, D-117, Q-322) ====================
-    // Each character carries its own pouch of item slots (one item type, a crystal type and tier, per
-    // slot, stacked to ITEM_STACK_MAX; ITEM_SLOTS_START slots each); everything else waits in the one
-    // shared storage (the Crystals / Stones above, unlimited). A member's UCrystalInventoryComponent
-    // mirrors its own pouch. Every call takes the character key (GetCharacterKey) of the pouch it means.
+    // ==================== POUCHES AND STORAGE (B-203, B-322, D-097, D-117, Q-322, D-250) ====================
+    // Each character carries its own pouch: every crystal and stone stack it has, with no limit (D-250). Its
+    // fight items are a pick of those (any kind with a use, CanBeFightItem; up to its item slots; ITEM_STACK_MAX
+    // of each in a fight).
+    // The shared storage (the Crystals / Stones above) is OBSOLETE (D-250): nothing is sent there any more, and no
+    // save that loads has anything in it but what Store put there (Q-250: older saves are wiped). It goes with
+    // the chest in part 3. A member's UCrystalInventoryComponent reads its own pouch. Every call takes the character key (GetCharacterKey) of the pouch it means.
 
     /** The character's pouch (an empty default when it has none yet). */
     const FPoolPouch &GetPouch(FName CharacterKey) const;
@@ -451,18 +459,34 @@ public:
     const TMap<FCrystalId, int32> &GetCarriedItems(FName CharacterKey) const { return GetPouch(CharacterKey).Stacks; }
     int32 GetCarriedCount(FName CharacterKey, const FCrystalId &Id) const;
     int32 GetItemSlotCount(FName CharacterKey) const { return GetPouch(CharacterKey).SlotCount; }
-    int32 GetUsedItemSlots(FName CharacterKey) const { return GetPouch(CharacterKey).Stacks.Num(); }
+    /** D-250: the item slots in use, which is how many fight items are picked (not how many kinds are carried). */
+    int32 GetUsedItemSlots(FName CharacterKey) const { return GetPouch(CharacterKey).FightItems.Num(); }
+
+    // ---- The fight-item pick (D-250) ----
+    const TArray<FCrystalId> &GetFightItems(FName CharacterKey) const { return GetPouch(CharacterKey).FightItems; }
+    bool IsFightItem(FName CharacterKey, const FCrystalId &Id) const;
+
+    /** Id has a use in a fight (ItemIdentity::GetItemEffectType is not None): every gem, the Healing Stone and
+     *  every stat stone (D-097: crystals and stones are consumables). The Durability Stone is attach-only, so it
+     *  is the one kind that can't be picked. A picked stack can still be socketed instead. */
+    static bool CanBeFightItem(const FCrystalId &Id);
+
+    /** Picks or unpicks Id as one of the character's fight items. False (nothing changed) when it is already so,
+     *  or to pick: Id is not carried, has no use in a fight (CanBeFightItem), or every item slot is taken. A new carried stack is picked by
+     *  itself while a slot is free, and a stack that runs out is unpicked. */
+    bool SetFightItem(FName CharacterKey, const FCrystalId &Id, bool bPicked);
 
     /** B-239 (D-097, Q-239): one more item slot in the character's pouch (bought at the hub vendor, ItemSlotUpgrade).
      *  False (nothing changed) for no key or when the pouch already has InventoryConstants::ITEM_SLOTS_MAX. Saved
      *  with the pouch (FSavedPouch::SlotCount). */
     bool AddItemSlot(FName CharacterKey);
 
-    /** How many of Count fit the character's pouch (a free slot, or room in Id's stack). */
+    /** How many more of Id the character can carry: no limit (D-250, UNLIMITED_CARRY_ROOM); 0 for no character
+     *  or no item. */
     int32 GetCarryRoom(FName CharacterKey, const FCrystalId &Id) const;
 
-    /** D-097: what fits the character's pouch is carried, the rest goes to storage (never thrown away).
-     *  Returns how many went to storage. */
+    /** D-250: the character carries all of it. Only a call with no character (an enemy, a debug add) still goes
+     *  to storage. Returns how many went to storage (0 for a character). */
     int32 CarryOrStore(FName CharacterKey, const FCrystalId &Id, int32 Count);
 
     /** Takes up to Count items from the character's pouch; returns how many. */
@@ -474,9 +498,10 @@ public:
     /** Moves Count of the character's carried items to storage. False (nothing moved) when fewer are carried. */
     bool MoveToStorage(FName CharacterKey, const FCrystalId &Id, int32 Count);
 
-    /** A character leaves for good (a run-only member at run end): its whole pouch goes to storage
-     *  (D-097: items are never thrown away) and the pouch is removed. Returns how many items moved. */
-    int32 ReleasePouch(FName CharacterKey);
+    /** A character leaves for good (a run-only member at run end): everything it carries goes to HeirKey's pouch
+     *  (D-250: nothing goes to storage; D-097: items are never thrown away) and its pouch is removed. Returns how
+     *  many items moved. */
+    int32 ReleasePouch(FName CharacterKey, FName HeirKey);
 
     /** Moves Count stored items into the character's pouch. False (nothing moved) when fewer are
      *  stored or they don't fit (no free slot, or the stack is full). */
@@ -488,14 +513,16 @@ public:
     bool HasBankedItems(FName CharacterKey) const { return BankedItemCharacters.Contains(CharacterKey); }
     const TSet<FName> &GetBankedItemCharacters() const { return BankedItemCharacters; }
 
-    /** B-090 restore of every pouch and whose items are banked. */
+    /** B-090 restore of every pouch (its fight-item pick with it, save v45) and whose items are banked. A pick the
+     *  pouch can't back (not carried, a stone, past its slots) is dropped. */
     void RestorePouches(const TMap<FName, FPoolPouch> &InPouches, const TArray<FName> &InBanked);
 
     /** B-323 (D-117): moves Count of FromKey's carried Id into ToKey's pouch. False (nothing moved) when FromKey
-     *  carries fewer, or ToKey's pouch has no room for all of them (a full pouch refuses). */
+     *  carries fewer. No pouch is ever full (D-250). */
     bool GiveCarried(FName FromKey, FName ToKey, const FCrystalId &Id, int32 Count);
 
-    /** Debug: each character's pouch (slots in use, each stack) and storage. wor.Inventory.PrintSlots. */
+    /** Debug: each character's pouch (fight items picked of its slots; each stack, numbered, and whether it is
+     *  picked) and storage. wor.Inventory.PrintSlots; wor.Inventory.SetFightItem changes a pick. */
     FString GetItemSlotsString() const;
 
     UPROPERTY(BlueprintAssignable, Category = "Pool|Items")
@@ -645,8 +672,8 @@ public:
     /** A resumed run's saved copy (after RestoreRunLayer, which clears it). */
     void RestoreRunStartWornGear(const TMap<FName, FWornGear> &Saved) { RunStartWornGear = Saved; }
 
-    /** B-508: the run ends (UTrialRunSubsystem::FinishRun, the save's closed-run settle). Kept: the found items go to
-     *  storage; Lost and Quit: they are taken back (B-439b, B-451). Then EndRunLayer (upgrades kept only on Kept), and
+    /** B-508: the run ends (UTrialRunSubsystem::FinishRun, the save's closed-run settle). Kept: the found items stay
+     *  carried (D-250); Lost and Quit: they are taken back (B-439b, B-451). Then EndRunLayer (upgrades kept only on Kept), and
      *  a Quit puts the run-start records back, wheel picks included (D-219). No-op when no layer is open.
      *  B-510: Lost and Quit first lower the tier of every piece the run party wears (ApplyLostRunTierDrop). */
     void CloseRun(EPoolRunEnding Ending);
@@ -671,8 +698,9 @@ public:
     /** A quit run (UTrialRunSubsystem::ExitTrial, before EndRunLayer): of each item, what is held above the run's start
      *  count leaves, from the pouches first, then storage. Returns how many left. No-op when no layer is open. */
     int32 TakeRunFoundItems();
-    /** A run that ends any other way (B-238b, D-097, Q-238b): of each item, what is held above the run's start count and
-     *  sits in a pouch moves to storage. Returns how many moved. No-op when no layer is open. */
+    /** OBSOLETE (D-250): a kept run's finds stay carried, so CloseRun no longer calls this. Delete after Crown's
+     *  checkpoint 6. Was (B-238b, D-097, Q-238b): of each item, what is held above the run's start count and sits in
+     *  a pouch moves to storage. Returns how many moved. No-op when no layer is open. */
     int32 StoreRunFoundItems();
 
     /** The key upgrade memory knows a gear definition by (its asset path), as GetCharacterKey does for characters. */
@@ -832,6 +860,12 @@ private:
     TSet<FName> BankedItemCharacters;
 
     FPoolPouch &FindOrAddPouch(FName CharacterKey);
+
+    /** D-250: adds to a stack; a new stack is picked as a fight item while a slot is free. No broadcast. */
+    void AddCarried(FName CharacterKey, const FCrystalId &Id, int32 Count);
+
+    /** D-250: takes up to Count from a stack; a stack that runs out is removed and unpicked. No broadcast. */
+    int32 RemoveCarried(FName CharacterKey, const FCrystalId &Id, int32 Count);
 
     // ==================== THE RUN LAYER (B-314) ====================
     // Saved since B-314b: the open layer with the run (FSavedRun), the upgrade memory with the pool (FSavedPool).

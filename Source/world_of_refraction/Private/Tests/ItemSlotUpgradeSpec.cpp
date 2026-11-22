@@ -108,7 +108,7 @@ void FItemSlotUpgradeSpec::Define()
 			TestEqual(TEXT("no slot"), Pool->GetItemSlotCount(ITEM_SLOT_TEST_KEY), InventoryConstants::ITEM_SLOTS_START);
 
 			Wallet->Add(ItemSlotUpgrade::GetCurrency(), ITEM_SLOT_TEST_RICH);
-			while (Pool->GetItemSlotCount(ITEM_SLOT_TEST_KEY) < InventoryConstants::ITEM_SLOTS_MAX)
+			for (int32 Slot = InventoryConstants::ITEM_SLOTS_START; Slot < InventoryConstants::ITEM_SLOTS_MAX; ++Slot)
 			{
 				if (!TestTrue(TEXT("buys up to the cap"), ItemSlotUpgrade::TryBuy(TestWorld->GetWorld(), *Pool, ITEM_SLOT_TEST_KEY, Wallet, Refusal)))
 				{

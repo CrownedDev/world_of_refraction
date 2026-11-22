@@ -102,6 +102,8 @@ All files live in `Source/world_of_refraction/Private/Tests/`, wrapped in `WITH_
 
 Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout, grid slot or effects; `SpawnCombatantWithLoadout` adds the loadout. Expected values come from `CombatConstants` rather than literals, so a tuning change doesn't break them, but a formula change does.
 
+**A full inventory in a test is 20 items** (`WoRTestInventory::FULL_ITEMS`, `PAST_FULL_ITEMS` = 21, in `WoRTestWorld.h`; Crown, 2026-11-22). The game has no carry limit (D-250), so every fill is a counted loop: no test loops until the game refuses. The test kit counts for itself (`WoRAgentTestKit::ADAPTERS`).
+
 ## Integration Points
 
 - `Scripts/ue/test.sh [filter]` launches `UnrealEditor-Cmd -nullrhi`. It reads the report's `index.json` and prints each test's state with its error messages. It counts `succeeded` + `succeededWithWarnings` as passes. A test that logs a `UE_LOG` warning (the orchestrator does, on purpose) still passes.
@@ -163,3 +165,4 @@ Combatants are bare unless a spec needs more: `SpawnCombatant` gives no loadout,
 | 2026-11-14 | B-154: `WoR.Loadout.RingWeaponQueries` loses its manager checks (manager-vs-loadout equalities); one weapon-query check kept; the broken-ring switch goes through `ULoadoutComponent::SwitchToNextUsableRing`. | `chore/B-154-ring-weapon-managers` |
 | 2026-11-18 | Stale-reference sweep (after the Generic trial-entry crash): `Scripts/ue/test.sh` takes `WOR_STOMP=1` (the guard allocator). The whole suite run under it found four specs reading freed memory, fixed: `EffectLifetimeSpec` (a copy pointer read after `BuffGE()` refilled the list, two places), `InventoryScreenSpec` (`FindVerb` into a temporary `VerbsOf` list, four places), `JournalScreenSpec` (a row pointer from a page rebuilt since), `LoadoutScreenSpec` (a reference into a temporary page). No further case in game code. | `chore/stale-reference-sweep` |
 | 2026-11-22 | B-573: the first specs outside the game module. `WoR.AgentPlay.Schedule` (4) lives in the editor module (`Source/world_of_refractionEditor/Private/Tests/AgentPlayScheduleSpec.cpp`): a sequence's steps as timed events, a release kept out of its press's frame, bad steps refused. `WoR.Debug.GiveTestKit` (2, `AgentTestKitSpec.cpp`): the adapter room is filled in turn; no played character is said. See `AgentPlay.md`. | `feature/B-573-agent-test-tool` |
+| 2026-11-22 | B-575: `WoR.Pool.OneInventory` (no carry limit, the fight-item pick, its save). The rule above for a full inventory in a test: three specs that filled until the game refused never ended once D-250 took the limit away; they and the slot, loadout and vendor fills are counted loops now. | `feature/D-250-one-inventory` |

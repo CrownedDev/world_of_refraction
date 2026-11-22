@@ -26,6 +26,14 @@
 
 class UWeaponData;
 
+/** What "full" means in an inventory test (Crown, 2026-11-22). The game has no carry limit (D-250), so a spec fills
+ *  with a counted loop to one of these and never loops until the game refuses. */
+namespace WoRTestInventory
+{
+	constexpr int32 FULL_ITEMS = 20;
+	constexpr int32 PAST_FULL_ITEMS = FULL_ITEMS + 1;
+}
+
 class FWoRTestWorld
 {
 public:

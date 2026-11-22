@@ -207,7 +207,7 @@ void FGiveSpec::Define()
 		TestEqual(TEXT("B holds both until it chooses"), B->Weapons.FilterByPredicate([this](const FWeaponInventoryEntry &E) { return E.Weapon == Dagger; }).Num(), 2);
 	});
 
-	It("gives part of a pouch stack, and refuses a stack a full pouch can't take", [this]()
+	It("gives part of a pouch stack, and a pouch with every slot picked still takes a new kind (D-250)", [this]()
 	{
 		if (!Pool) return;
 		const FName A = KeyOf(0);
@@ -223,13 +223,15 @@ void FGiveSpec::Define()
 		{
 			Pool->CarryOrStore(B, GiveItemType(Index), 1);
 		}
-		TestEqual(TEXT("B's pouch is full"), Pool->GetUsedItemSlots(B), InventoryConstants::ITEM_SLOTS_START);
+		// D-250 (B-575): no pouch is full. B's ten fight-item slots are taken, and it still takes an 11th kind.
+		TestEqual(TEXT("B's fight-item slots are all taken"), Pool->GetUsedItemSlots(B), InventoryConstants::ITEM_SLOTS_START);
 		Pool->CarryOrStore(A, GIVE_ELEVENTH, 1);
 		const FText Refusal = WoRGive::TryGiveCarried(TestWorld->GetWorld(), A, B, GIVE_ELEVENTH, 1);
-		TestFalse(TEXT("A full pouch refuses a new type"), Refusal.IsEmpty());
-		TestEqual(TEXT("A still carries it"), Pool->GetCarriedCount(A, GIVE_ELEVENTH), 1);
-		TestEqual(TEXT("B doesn't"), Pool->GetCarriedCount(B, GIVE_ELEVENTH), 0);
-		TestTrue(TEXT("But a type B already stacks still fits"), WoRGive::TryGiveCarried(TestWorld->GetWorld(), A, B, Garnet, 1).IsEmpty());
+		TestTrue(TEXT("B takes a new type all the same"), Refusal.IsEmpty());
+		TestEqual(TEXT("A gave it"), Pool->GetCarriedCount(A, GIVE_ELEVENTH), 0);
+		TestEqual(TEXT("B carries it"), Pool->GetCarriedCount(B, GIVE_ELEVENTH), 1);
+		TestFalse(TEXT("unpicked: no free slot"), Pool->IsFightItem(B, GIVE_ELEVENTH));
+		TestTrue(TEXT("And a type B already stacks is taken too"), WoRGive::TryGiveCarried(TestWorld->GetWorld(), A, B, Garnet, 1).IsEmpty());
 	});
 }
 

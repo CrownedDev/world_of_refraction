@@ -115,7 +115,7 @@ void FLoadoutSavedSpec::Define()
 			}
 			TestEqual(TEXT("the first free name"), Inventory->SavedLoadouts[NewIndex].LoadoutName, FirstFreeName);
 			TestNotEqual(TEXT("the next name is another"), WoRLoadoutSaved::MakeNewName(*Inventory), Inventory->SavedLoadouts[NewIndex].LoadoutName);
-			while (WoRLoadoutSaved::BuildList(*Inventory).CustomCount < PoolConstants::MAX_CUSTOM_LOADOUTS)
+			for (int32 Made = 0; Made < PoolConstants::MAX_CUSTOM_LOADOUTS && WoRLoadoutSaved::BuildList(*Inventory).CustomCount < PoolConstants::MAX_CUSTOM_LOADOUTS; ++Made)
 			{
 				if (!TestTrue(TEXT("room for another"), WoRLoadoutSaved::CreateNew(*Loadout, *Inventory, NewIndex).IsEmpty()))
 				{

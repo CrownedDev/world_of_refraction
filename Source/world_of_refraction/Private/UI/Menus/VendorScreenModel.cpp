@@ -446,7 +446,7 @@ FVendorScreenPage WoRVendorScreen::BuildItemSlotsPage(UWorld *World, AActor *Pay
 			continue;
 		}
 		Line.Pay = PriceText(Line.Slots);
-		Line.Note = FText::Format(LOCTEXT("SlotsAfter", "{0}'s pouch will hold {1} kinds of item."), Member.Name, FText::AsNumber(Line.Slots + 1));
+		Line.Note = FText::Format(LOCTEXT("SlotsAfter", "{0} will take {1} kinds of item into a fight."), Member.Name, FText::AsNumber(Line.Slots + 1));
 		if (ItemSlotUpgrade::CanGrow(Line.Slots + 1))
 		{
 			Line.Details.Add({LOCTEXT("DetailNextSlot", "Next slot after this"), PriceText(Line.Slots + 1)});
