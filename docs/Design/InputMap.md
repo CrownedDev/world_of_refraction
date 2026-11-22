@@ -7,8 +7,8 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
-| Move | WASD | Left stick | — | Built |
-| Camera | Mouse | Right stick | — | Built |
+| Move | WASD | Left stick | — | Built. D-255 (B-583): ignored from contact with an enemy team until the fight starts; given back if it doesn't |
+| Camera | Mouse | Right stick | — | Built. D-255 (B-583): looks at most 10° up and 55° down (`WoRCameraRules`, set by `AWoRHubController` on its camera manager). From contact until the fight starts, within 30° of yaw and 10° of pitch of where it pointed; given back if the fight doesn't start. The fight's camera is unchanged |
 | Sprint (fast, free) | Left Shift (hold) | L3 click (toggle) | `IA_Sprint` | Built (key: check editor) |
 | Field movement (double-click sprint: Enhanced Sprint or the equipped field movement; D-099) | Double-tap Left Shift | **Double-click L3** | `IA_Field_MovementSkill` | Code bound (B-214a: `AWoRHubController`, config `DefaultFieldMovementSkillAction`, Triggered). B-214g editor step: the asset (Digital) with a double-tap trigger (Tap ×2 within 0.3 s; Crown checks the feel), mapped, the ini line uncommented; until then `wor.Field.Activate`. With no skill picked it dashes (Q-214a) |
 | Jump | Space | A (Cross) | `IA_Field_Jump` | Proposed |

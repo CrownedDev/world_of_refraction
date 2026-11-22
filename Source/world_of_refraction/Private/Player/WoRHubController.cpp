@@ -19,6 +19,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Player/InputPriorities.h"
+#include "Player/WoRCameraRules.h"
 #include "Player/WoRFrontEndGameMode.h"
 #include "UI/Hub/HubHUDWidget.h"
 #include "UI/Menus/PauseMenuWidget.h"
@@ -213,6 +214,16 @@ void AWoRHubController::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AWoRHubController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// D-255 (a): the hub and trial look at most 10 up and 55 down (the engine's +-89.9 put the camera in the floor).
+	if (PlayerCameraManager)
+	{
+		WoRCameraRules::ApplyFieldLimits(*PlayerCameraManager);
+	}
+	else if (IsLocalController())
+	{
+		UE_LOG(LogWoR, Warning, TEXT("%s No camera manager at BeginPlay: the D-255 look limits are not set"), WoRHubControllerConstants::LOG_TAG);
+	}
 
 	if (!GetPawn())
 	{
