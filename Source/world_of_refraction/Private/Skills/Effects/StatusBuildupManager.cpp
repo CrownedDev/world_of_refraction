@@ -256,6 +256,15 @@ bool UStatusBuildupManager::AddStatusBuildupForHit(AActor *Source, AActor *Targe
 	{
 		return false;
 	}
+	// D-253: death empties the status bar, and nothing fills it again on the dead (the buildup of the blow that
+	// killed, or of a tick that landed after its holder fell).
+	if (const UCharacterDataComponent *TargetLife = Target->FindComponentByClass<UCharacterDataComponent>())
+	{
+		if (!TargetLife->bIsAlive)
+		{
+			return false;
+		}
+	}
 
 	// Source-BD-ness for the dispatch: a BD caster emits Darkness (post-collapse)
 	// but must apply EP-DRAIN, not Silence. Computed at entry so the corrected
