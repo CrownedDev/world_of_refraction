@@ -320,19 +320,23 @@ void FInventoryScreenSpec::Define()
 		TestEqual(TEXT("its count"), Pouch.Tiles[0].Row.Count, SCREEN_GEM_COUNT);
 		TestEqual(TEXT("the slots it starts with"), Pouch.Slots, InventoryConstants::ITEM_SLOTS_START);
 		TestEqual(TEXT("the rest are the Jeweler's"), Pouch.LockedSlots, InventoryConstants::ITEM_SLOTS_MAX - InventoryConstants::ITEM_SLOTS_START);
-		TestFalse(TEXT("a heading with the slot count"), Pouch.Heading.IsEmpty());
+		TestEqual(TEXT("the heading counts the fight items picked of the slots (D-250)"), Pouch.Heading.ToString(),
+				  FString::Printf(TEXT("Pouch  1/%d fight items"), InventoryConstants::ITEM_SLOTS_START));
+		TestTrue(TEXT("the picked stack's card says it is a fight item"),
+				 Pouch.Tiles[0].Details.ContainsByPredicate([](const FLoadoutScreenDetail &Detail) { return Detail.Label.ToString() == TEXT("Fight item"); }));
 		const FName Giver = KeyOf(SCREEN_MEMBER);
 		const FName Receiver = KeyOf(SCREEN_RECEIVER);
 		TestEqual(TEXT("one at a time"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Store, Giver, NAME_None, Pouch.Tiles[0], /*bWholeStack=*/false), 1);
 		TestEqual(TEXT("or the whole stack"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Store, Giver, NAME_None, Pouch.Tiles[0], /*bWholeStack=*/true),
 				  SCREEN_GEM_COUNT);
 
-		// A whole-stack Give moves what fits the receiver's stack, not more.
+		// D-250: a whole-stack Give moves the whole stack; the receiver's stack has no size limit.
 		Pool->CarryOrStore(Receiver, SCREEN_GEM, InventoryConstants::ITEM_STACK_MAX - 1);
-		TestEqual(TEXT("only what fits is given"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Give, Giver, Receiver, Pouch.Tiles[0], /*bWholeStack=*/true), 1);
+		TestEqual(TEXT("the whole stack is given"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Give, Giver, Receiver, Pouch.Tiles[0], /*bWholeStack=*/true),
+				  SCREEN_GEM_COUNT);
 	});
 
-	It("greys Take when the pouch has no room for the stack", [this]()
+	It("never greys Take for room: a pouch with every slot picked still takes the stack (D-250)", [this]()
 	{
 		if (!IsReady()) return;
 		Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), SCREEN_GEM, SCREEN_GEM_COUNT);
@@ -358,10 +362,10 @@ void FInventoryScreenSpec::Define()
 		if (!TestTrue(TEXT("still on the Chest tab"), Stored != INDEX_NONE)) return;
 		ChestVerbs = VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]);
 		Take = FindVerb(ChestVerbs, EInventoryVerb::Take);
-		TestTrue(TEXT("a full pouch greys Take with the reason"), Take && !Take->Refusal.IsEmpty());
+		TestTrue(TEXT("every slot picked, and Take still runs: carrying has no limit"), Take && Take->Refusal.IsEmpty());
 	});
 
-	It("says who has room in Give to, and refuses a full pouch", [this]()
+	It("says who has a free fight-item slot in Give to, and never refuses a pouch for room (D-250)", [this]()
 	{
 		if (!IsReady()) return;
 		Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), SCREEN_GEM, SCREEN_GEM_COUNT);
@@ -380,13 +384,14 @@ void FInventoryScreenSpec::Define()
 				Pool->CarryOrStore(KeyOf(SCREEN_RECEIVER), FCrystalId(Kind, Tier), 1);
 			}
 		}
-		TestEqual(TEXT("the receiver's pouch is full"), Pool->GetUsedItemSlots(KeyOf(SCREEN_RECEIVER)), Pool->GetItemSlotCount(KeyOf(SCREEN_RECEIVER)));
+		TestEqual(TEXT("the receiver's fight-item slots are all taken"), Pool->GetUsedItemSlots(KeyOf(SCREEN_RECEIVER)), Pool->GetItemSlotCount(KeyOf(SCREEN_RECEIVER)));
 		Receivers = WoRInventoryScreen::BuildReceivers(World(), KeyOf(SCREEN_MEMBER), Pouch.Tiles[0]);
 		if (!TestEqual(TEXT("still listed"), Receivers.Num(), SCREEN_PARTY_SIZE - 1)) return;
-		TestFalse(TEXT("a full pouch is refused with a reason"), Receivers[0].Refusal.IsEmpty());
+		TestTrue(TEXT("it can still receive: carrying has no limit"), Receivers[0].Refusal.IsEmpty());
+		TestTrue(TEXT("with no free slot to speak of"), Receivers[0].Note.IsEmpty());
 		const TArray<FInventoryScreenVerb> PouchVerbs = VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]); // kept: FindVerb points into it
 		const FInventoryScreenVerb *Give = FindVerb(PouchVerbs, EInventoryVerb::Give);
-		TestTrue(TEXT("so Give is greyed: no one can take it"), Give && !Give->Refusal.IsEmpty());
+		TestTrue(TEXT("so Give is not greyed"), Give && Give->Refusal.IsEmpty());
 	});
 
 	It("lists the member's evolutions and apparel on the Gear tab, their verbs refused (B-461, Q-323)", [this]()

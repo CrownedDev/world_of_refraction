@@ -1,8 +1,8 @@
 // ItemSlotsSpec.cpp
-// B-203 / B-322 (D-097, D-117, Q-203, Q-322): each party member carries its own pouch of item slots (one
-// crystal type and tier per slot, stacked to ITEM_STACK_MAX, 10 slots each); what doesn't fit goes to
-// the one unlimited storage, and moving it back fails until that pouch has room. A member's crystal
-// inventory mirrors its own pouch; a save from before B-322 gives its party pouch to the leader.
+// B-203 / B-322 (D-097, D-117, Q-203, Q-322): each party member carries its own pouch. D-250 (B-575): it holds
+// any number of kinds and any count; the item slots (10 each) limit only the fight-item pick, and nothing
+// overflows to the one storage (Store / Take still move stacks until part 3). A member's crystal inventory
+// reads its own pouch. The pick itself is in OneInventorySpec.
 // B-313 (D-111): a fight uses the pouch as it is (no auto-equip into the preset's item slots).
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -94,27 +94,27 @@ void FItemSlotsSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("stores an 11th item type in A's pouch while B's pouch has room, and moving it back waits for a free slot", [this]()
+	It("carries an 11th item type in A's pouch, unpicked; storage only by Store, and Take needs no free slot (D-250)", [this]()
 	{
 		if (!Pool) return;
 		const FName A = KeyOf(0);
 		const FName B = KeyOf(1);
 		for (int32 Index = 0; Index < InventoryConstants::ITEM_SLOTS_START; ++Index)
 		{
-			TestEqual(TEXT("Fits A's pouch"), Pool->CarryOrStore(A, ItemSlotsType(Index), 1), 0);
+			TestEqual(TEXT("Carried by A"), Pool->CarryOrStore(A, ItemSlotsType(Index), 1), 0);
 		}
-		TestEqual(TEXT("All ten of A's slots in use"), Pool->GetUsedItemSlots(A), InventoryConstants::ITEM_SLOTS_START);
+		TestEqual(TEXT("All ten of A's fight-item slots in use"), Pool->GetUsedItemSlots(A), InventoryConstants::ITEM_SLOTS_START);
 		TestEqual(TEXT("B's pouch is empty"), Pool->GetUsedItemSlots(B), 0);
-		TestEqual(TEXT("The 11th type goes to storage, not to B"), Pool->CarryOrStore(A, ITEM_SLOTS_ELEVENTH, 1), 1);
-		TestEqual(TEXT("It waits there"), Pool->GetStoredCount(ITEM_SLOTS_ELEVENTH), 1);
-		TestEqual(TEXT("A doesn't carry it"), Pool->GetCarriedCount(A, ITEM_SLOTS_ELEVENTH), 0);
-		TestEqual(TEXT("B doesn't either"), Pool->GetCarriedCount(B, ITEM_SLOTS_ELEVENTH), 0);
-		TestTrue(TEXT("B still has room for a new type"), Pool->GetCarryRoom(B, ITEM_SLOTS_ELEVENTH) > 0);
+		TestEqual(TEXT("The 11th type is carried too, not stored"), Pool->CarryOrStore(A, ITEM_SLOTS_ELEVENTH, 1), 0);
+		TestEqual(TEXT("Nothing in storage"), Pool->GetStoredCount(ITEM_SLOTS_ELEVENTH), 0);
+		TestEqual(TEXT("A carries it"), Pool->GetCarriedCount(A, ITEM_SLOTS_ELEVENTH), 1);
+		TestFalse(TEXT("But it is no fight item: the slots are taken"), Pool->IsFightItem(A, ITEM_SLOTS_ELEVENTH));
+		TestEqual(TEXT("B doesn't carry it"), Pool->GetCarriedCount(B, ITEM_SLOTS_ELEVENTH), 0);
 
-		TestFalse(TEXT("No slot in A's pouch to move it back to"), Pool->MoveToCarried(A, ITEM_SLOTS_ELEVENTH, 1));
-		TestEqual(TEXT("Still in storage"), Pool->GetStoredCount(ITEM_SLOTS_ELEVENTH), 1);
-		TestTrue(TEXT("A frees a slot"), Pool->MoveToStorage(A, ItemSlotsType(0), 1));
-		TestTrue(TEXT("Now it moves into A's pouch"), Pool->MoveToCarried(A, ITEM_SLOTS_ELEVENTH, 1));
+		// The old Store / Take still work until the chest goes (D-250 part 3).
+		TestTrue(TEXT("A stores it"), Pool->MoveToStorage(A, ITEM_SLOTS_ELEVENTH, 1));
+		TestEqual(TEXT("It waits in storage"), Pool->GetStoredCount(ITEM_SLOTS_ELEVENTH), 1);
+		TestTrue(TEXT("Taking it back needs no free slot"), Pool->MoveToCarried(A, ITEM_SLOTS_ELEVENTH, 1));
 		TestEqual(TEXT("A carries it"), Pool->GetCarriedCount(A, ITEM_SLOTS_ELEVENTH), 1);
 		TestEqual(TEXT("Nothing left in storage"), Pool->GetStoredCount(ITEM_SLOTS_ELEVENTH), 0);
 	});
@@ -136,14 +136,14 @@ void FItemSlotsSpec::Define()
 		TestFalse(TEXT("A can't store more than it carries"), Pool->MoveToStorage(A, Garnet, 2));
 	});
 
-	It("stores what doesn't fit a full stack", [this]()
+	It("carries past the old stack size: nothing overflows to storage (D-250)", [this]()
 	{
 		if (!Pool) return;
 		const FName A = KeyOf(0);
 		const FCrystalId Garnet = ItemSlotsType(0);
-		TestEqual(TEXT("Two over the stack go to storage"), Pool->CarryOrStore(A, Garnet, InventoryConstants::ITEM_STACK_MAX + 2), 2);
-		TestEqual(TEXT("One full stack carried"), Pool->GetCarriedCount(A, Garnet), InventoryConstants::ITEM_STACK_MAX);
-		TestFalse(TEXT("A full stack takes no more"), Pool->MoveToCarried(A, Garnet, 1));
+		TestEqual(TEXT("None goes to storage"), Pool->CarryOrStore(A, Garnet, InventoryConstants::ITEM_STACK_MAX + 2), 0);
+		TestEqual(TEXT("All of it carried"), Pool->GetCarriedCount(A, Garnet), InventoryConstants::ITEM_STACK_MAX + 2);
+		TestEqual(TEXT("Storage is empty"), Pool->GetStoredCount(Garnet), 0);
 	});
 
 	It("gives each member its own pouch: what one finds the other doesn't see", [this]()
@@ -165,7 +165,7 @@ void FItemSlotsSpec::Define()
 		TestEqual(TEXT("The first has one left"), First->GetCount(Garnet), 1);
 	});
 
-	It("never refuses a member's add for space: the rest goes to storage", [this]()
+	It("never refuses a member's add for space: all of it is carried (D-250)", [this]()
 	{
 		if (!Pool) return;
 		UCrystalInventoryComponent *Member = SpawnMember(0);
@@ -174,8 +174,8 @@ void FItemSlotsSpec::Define()
 		const int32 Many = InventoryConstants::CRYSTAL_PER_TIER_CAP + 1;
 		TestTrue(TEXT("Room is never the reason to refuse"), Member->CanAddCount(Garnet, Many));
 		TestTrue(TEXT("Added"), Member->AddCount(Garnet, Many));
-		TestEqual(TEXT("A full stack carried"), Member->GetCount(Garnet), InventoryConstants::ITEM_STACK_MAX);
-		TestEqual(TEXT("The rest stored"), Pool->GetStoredCount(Garnet), Many - InventoryConstants::ITEM_STACK_MAX);
+		TestEqual(TEXT("All of it carried"), Member->GetCount(Garnet), Many);
+		TestEqual(TEXT("None stored"), Pool->GetStoredCount(Garnet), 0);
 	});
 
 	It("banks a member's starting items once, and a refill doesn't reach the party's", [this]()
@@ -262,14 +262,14 @@ void FItemSlotsSpec::Define()
 		if (!TestNotNull(TEXT("Pool after"), Restored)) return;
 		USaveSubsystem::RestorePool(Saved, *Restored);
 		TestEqual(TEXT("A's stack"), Restored->GetCarriedCount(KeyOf(0), ItemSlotsType(0)), ITEM_SLOTS_STARTING_COUNT);
-		TestEqual(TEXT("B's full stack"), Restored->GetCarriedCount(KeyOf(1), ItemSlotsType(1)), InventoryConstants::ITEM_STACK_MAX);
+		TestEqual(TEXT("B's whole stack, past the old stack size"), Restored->GetCarriedCount(KeyOf(1), ItemSlotsType(1)), InventoryConstants::ITEM_STACK_MAX + 1);
 		TestEqual(TEXT("Not in A's"), Restored->GetCarriedCount(KeyOf(0), ItemSlotsType(1)), 0);
-		TestEqual(TEXT("Same stored overflow"), Restored->GetStoredCount(ItemSlotsType(1)), 1);
+		TestEqual(TEXT("Nothing stored (D-250: no overflow)"), Restored->GetStoredCount(ItemSlotsType(1)), 0);
 		TestEqual(TEXT("Same slot count"), Restored->GetItemSlotCount(KeyOf(1)), InventoryConstants::ITEM_SLOTS_START);
 		TestTrue(TEXT("Still banked"), Restored->HasBankedItems(KeyOf(0)));
 	});
 
-	It("sends a run-only member's pouch to storage when the run ends", [this]()
+	It("hands a run-only member's pouch to the host when the run ends (D-250: not to storage)", [this]()
 	{
 		if (!Pool) return;
 		UParty *Party = TestWorld->GetSubsystem<UPartySessionSubsystem>()->GetLocalParty();
@@ -278,7 +278,8 @@ void FItemSlotsSpec::Define()
 		const FCrystalId Garnet = ItemSlotsType(0);
 		Pool->CarryOrStore(KeyOf(1), Garnet, 2);
 		TestEqual(TEXT("One run-only member leaves"), TestWorld->GetSubsystem<UPartySessionSubsystem>()->DismissRunMembers(), 1);
-		TestEqual(TEXT("Its items wait in storage"), Pool->GetStoredCount(Garnet), 2);
+		TestEqual(TEXT("The host carries its items"), Pool->GetCarriedCount(KeyOf(0), Garnet), 2);
+		TestEqual(TEXT("None in storage"), Pool->GetStoredCount(Garnet), 0);
 		TestFalse(TEXT("Its pouch is gone"), Pool->GetPouches().Contains(KeyOf(1)));
 	});
 
