@@ -7,6 +7,7 @@
 #include "Character/EWorldPillar.h"
 #include "Character/PlayerBuild.h"
 #include "Character/StatLayers.h"
+#include "Combat/Actions/ActionPipsText.h"
 #include "Combat/Actions/ActionStatModifiers.h"
 #include "Combat/Damage/DamageMath.h"
 #include "Combat/Resistance/ResistanceQuery.h"
@@ -303,6 +304,8 @@ FBattleIntelPage BattleIntelView::BuildPage(const FBattleHUDCard &Card, const TA
 	if (Character)
 	{
 		Page.Subline = WoRPlayerBuild::GetDetailLine(Character->CharacterData, Character->PartyMemberId, Actor ? Actor->GetWorld() : nullptr);
+		Page.ActionsLine = ActionPipsText::MakeActionsLine(Character->CurrentActions, Character->GetMaxActions(),
+														   Character->GetActionPointProgress(), Character->SkillsUsedThisTurn);
 		Page.Pillars = BuildPillars(*Character);
 	}
 	Page.Stats = BuildStats(Actor);
@@ -311,8 +314,8 @@ FBattleIntelPage BattleIntelView::BuildPage(const FBattleHUDCard &Card, const TA
 
 FString BattleIntelView::GetPageString(const FBattleIntelPage &Page)
 {
-	FString Out = FString::Printf(TEXT("tab=%s heading=%s%s"), *Page.Tab.ToString(), *Page.Heading.ToString(),
-								  Page.bEnemy ? TEXT(" (enemy)") : TEXT(""));
+	FString Out = FString::Printf(TEXT("tab=%s heading=%s%s | %s | %s"), *Page.Tab.ToString(), *Page.Heading.ToString(),
+								  Page.bEnemy ? TEXT(" (enemy)") : TEXT(""), *Page.Subline.ToString(), *Page.ActionsLine.ToString());
 	const auto AddSection = [&Out](const TCHAR *Name, const TArray<FBattleIntelRow> &Rows)
 	{
 		for (const FBattleIntelRow &Row : Rows)

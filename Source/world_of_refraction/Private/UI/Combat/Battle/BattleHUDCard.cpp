@@ -160,7 +160,7 @@ FBattleCardParts BattleHUDCard::GetParts(EBattleCardLevel Level, bool bParty)
 	Parts.bHPLine = Parts.bEPLine = Level != EBattleCardLevel::Hub && bParty;
 	Parts.bBuildupLine = Parts.bGear = Level == EBattleCardLevel::Battle && bParty;
 	Parts.bActions = false; // B-436g (D-260): the pips moved to the command menu's tab; OBSOLETE with ActionsText, kept until PIE (docs/PIE/Sweep.md)
-	Parts.bStatus = Level == EBattleCardLevel::Battle;
+	Parts.bStatus = Level == EBattleCardLevel::Battle && !bParty; // D-261 (B-586): a party member's effects are in Intel
 	Parts.bFixedWidth = Level != EBattleCardLevel::Hub; // the hub's name-only card shrinks to the name
 	return Parts;
 }

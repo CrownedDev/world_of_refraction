@@ -48,6 +48,8 @@ struct FBattleIntelPage
 	FText Tab;
 	FText Heading;
 	FText Subline;
+	/** A party page's full actions line (pips, number, Max, progress): D-259 (d) kept it in inspect, which Intel replaced. */
+	FText ActionsLine;
 	float HPFraction = 0.0f;
 	FText HPLine; // empty for an enemy (Q-391: its HP number stays hidden)
 	bool bShowEP = false;
