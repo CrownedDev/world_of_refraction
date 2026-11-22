@@ -79,7 +79,9 @@ BEGIN_DEFINE_SPEC(FCommandMenuKeysSpec, "WoR.UI.CommandMenu.Keys",
 		}
 		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
 		Data->CharacterClass = ECharacterClass::Caster;
-		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, NewObject<UWeaponData>(GetTransientPackage()));
+		UWeaponData *Weapon = NewObject<UWeaponData>(GetTransientPackage());
+		Weapon->WeaponAttack = NewObject<UAbilityData>(GetTransientPackage());
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Weapon);
 		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		if (!TestTrue(TEXT("Combatants spawned"), Loadout && Foe))
 		{
@@ -92,6 +94,9 @@ BEGIN_DEFINE_SPEC(FCommandMenuKeysSpec, "WoR.UI.CommandMenu.Keys",
 		{
 			return false;
 		}
+		FWeaponInventoryEntry Owned; // the fight keeps only gear the inventory owns (as AIActionPipsSpec)
+		Owned.Weapon = Weapon;
+		Inventory->Weapons.Add(Owned);
 		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
 		Active.PrimarySlotType = EPrimarySlotType::Weapon;
 		Active.bShowPrimary = true;

@@ -210,12 +210,13 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("compact: the build-up number stays on its bar (D-257)"),
 					 Card.BuildupText && Card.BuildupText->GetVisibility() != ESlateVisibility::Collapsed &&
 						 Card.BuildupText->GetParent() && Card.BuildupText->GetParent() == Card.BuildupBar->GetParent());
-			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get(), Card.ActionsText.Get(), Card.StatusText.Get()};
+			const UWidget *HiddenWhenCompact[] = {Card.DetailText.Get(), Card.EPRow.Get(), Card.StatusText.Get()};
 			for (const UWidget *Hidden : HiddenWhenCompact)
 			{
-				TestTrue(TEXT("compact: the kind, EP, actions and statuses are collapsed"),
+				TestTrue(TEXT("compact: the kind, EP and statuses are collapsed"),
 						 Hidden && Hidden->GetVisibility() == ESlateVisibility::Collapsed);
 			}
+			TestNull(TEXT("no actions line on a fight card at all: the pips are on the menu's tab (D-260)"), Card.ActionsText.Get());
 
 			BattleHUDCard::SetCompact(Card, false);
 			TestEqual(TEXT("full: the card's width"), Card.WidthBox->GetWidthOverride(), BattleCardStyle::CardWidth);
