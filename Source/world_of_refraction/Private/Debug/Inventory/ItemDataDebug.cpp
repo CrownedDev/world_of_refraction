@@ -222,7 +222,8 @@ void UItemDataDebug::LogItemValues(const UEvolutionItemData *Item)
     // Effect values (Phase 2 percentage-based getters)
     UE_LOG(LogTemp, Display, TEXT("--- Effect Values ---"));
     UE_LOG(LogTemp, Display, TEXT("DOT Damage %%: %.1f for %d turns"), CrystalEffectTable::GetDOTDamagePercent(FCrystalId{Item->CrystalType, Item->Tier}), CrystalEffectTable::GetDOTDuration(FCrystalId{Item->CrystalType, Item->Tier}));
-    UE_LOG(LogTemp, Display, TEXT("Heal %%: %.1f"), CrystalEffectTable::GetHealPercent(FCrystalId{Item->CrystalType, Item->Tier}));
+    UE_LOG(LogTemp, Display, TEXT("Healing Boost %%: %.1f for %d turns (Healing Stone, D-252)"), CrystalEffectTable::GetHealingBoostPercent(FCrystalId{Item->CrystalType, Item->Tier}),
+           CrystalEffectTable::GetHealingBoostDuration(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("EP Restore %%: %.1f"), CrystalEffectTable::GetEPRestorePercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Speed Buff %%: %.1f"), CrystalEffectTable::GetSpeedBuffPercent(FCrystalId{Item->CrystalType, Item->Tier}));
     UE_LOG(LogTemp, Display, TEXT("Emerald Bonus Turns: %d, landing next (0 for non-Emerald)"), CrystalEffectTable::GetEmeraldBonusTurnCount(FCrystalId{Item->CrystalType, Item->Tier}));
