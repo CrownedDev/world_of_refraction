@@ -6,6 +6,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Equipment/Crystals/CrystalTypeHelpers.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/Crystals/StoneRowTable.h"
 
@@ -28,6 +29,10 @@ namespace StatStone
 	 *  stray sub-stat (only a StatStone carries one; a stray value would break stack equality). */
 	inline FCrystalId Normalize(const FCrystalId &Id)
 	{
+		if (CrystalTypeHelpers::IsPotionType(Id.Type))
+		{
+			return FCrystalId(Id.Type, EItemTier::F_Tier); // B-579: a potion has one strength, so one stack whatever tier it was made with
+		}
 		if (IsRetiredKind(Id.Type))
 		{
 			return Make(StoneRowTable::Find(Id.Type)->Stat, Id.Tier);
