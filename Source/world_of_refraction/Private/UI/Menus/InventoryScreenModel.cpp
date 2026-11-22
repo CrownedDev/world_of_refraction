@@ -51,11 +51,12 @@ namespace InventoryScreenBuild
 		Tile.Mark = LOCTEXT("MarkEvolution", "Ev");
 		Tile.Element = Entry.Item->GetAssociatedElement();
 		Tile.KindLine = KindWithElement(LOCTEXT("KindEvolution", "Evolution"), Tile.Element);
-		Tile.Icon.Kind = EWoRIconKind::Element; // B-487: its element's diamond, and a tier badge
+		Tile.bWorn = Inventory.IsEvolutionInUse(Entry.InstanceID);
+		// B-487: its element's diamond, and a tier badge. B-584 (D-256): framed only while it is slotted.
+		Tile.Icon.Kind = Tile.bWorn ? EWoRIconKind::Element : EWoRIconKind::LooseGem;
 		Tile.Icon.Element = Tile.Element;
 		Tile.Icon.Name = Tile.Name;
 		Tile.bTierBadge = true;
-		Tile.bWorn = Inventory.IsEvolutionInUse(Entry.InstanceID);
 		// D-231: the wear number alone, no word
 		Tile.Details.Add({FText::GetEmpty(), FText::Format(LOCTEXT("DurabilityOfMax", "{0} / {1}"),
 																					 FText::AsNumber(Entry.CurrentDurability),
@@ -219,7 +220,7 @@ namespace InventoryScreenBuild
 		Tile.Note = CrystalDescription::GetItemEffectText(Row.Item); // B-460
 		// B-487: a crystal is its element's diamond (Ice has none of its own: it is keyed Water), a stone the stone;
 		// its tier is a badge; its effect sentence gets the effect's icon.
-		Tile.Icon.Kind = (bStone || bPotion) ? EWoRIconKind::Stone : EWoRIconKind::Element;
+		Tile.Icon.Kind = (bStone || bPotion) ? EWoRIconKind::Stone : EWoRIconKind::LooseGem; // B-584 (D-256): a stack is in no socket
 		Tile.Icon.Element = Tile.Element;
 		Tile.Icon.Name = Tile.Name;
 		Tile.bTierBadge = !bPotion;

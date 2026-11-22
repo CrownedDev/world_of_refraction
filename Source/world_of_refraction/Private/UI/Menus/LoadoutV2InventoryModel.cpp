@@ -11,6 +11,7 @@
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/FCombatLoadout.h"
 #include "UI/Menus/LoadoutV2Model.h"
+#include "UI/WoRIconTable.h"
 #include "WoRGameNames.h"
 
 #define LOCTEXT_NAMESPACE "WoRLoadoutV2Inventory"
@@ -159,7 +160,7 @@ FLoadoutV2InventoryPage WoRLoadoutV2::BuildInventoryPage(const FCombatLoadout &W
 		FLoadoutV2InventoryRow &Row = Rows.AddDefaulted_GetRef();
 		Row.Kind = ELoadoutV2InventoryRowKind::Evolution;
 		Row.Name = FText::FromString(Owned.Item->ItemName);
-		Row.Icon = MakeSocketIcon(MakeEvolutionAttachment(Owned));
+		Row.Icon = WoRIcons::AsLoose(MakeSocketIcon(MakeEvolutionAttachment(Owned))); // B-584: none listed here is slotted
 		Row.bHasTier = true;
 		Row.Tier = Owned.Tier;
 		Row.Evolution = Owned;
@@ -192,7 +193,7 @@ FLoadoutV2InventoryPage WoRLoadoutV2::BuildInventoryPage(const FCombatLoadout &W
 		Row.Crystal.Crystal.CurrentDurability = bStone ? 0 : ItemIdentity::GetMaxDurability(Stack.Key);
 		Row.Count = Stack.Value;
 		Row.Name = GetStackedName(WoRGameNames::GetCrystalTypeName(StatStone::AsRowId(Row.Crystal.Crystal.Id).Type), Stack.Value);
-		Row.Icon = MakeSocketIcon(Row.Crystal);
+		Row.Icon = WoRIcons::AsLoose(MakeSocketIcon(Row.Crystal)); // B-584: the pouch is loose
 		Row.bHasTier = GetAttachmentTier(Row.Crystal, Row.Tier);
 	}
 	return Page;

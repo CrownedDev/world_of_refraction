@@ -169,7 +169,7 @@ namespace VendorScreenBuild
 			Line.Tier = WoRGameNames::GetTierLetter(Evolution->Tier);
 			Line.Element = Evolution->GetAssociatedElement();
 			Line.KindLine = KindWithElement(LOCTEXT("KindEvolution", "Evolution"), Line.Element);
-			Line.Icon.Kind = EWoRIconKind::Element; // B-487: its element's diamond, and a tier badge
+			Line.Icon.Kind = EWoRIconKind::LooseGem; // B-487, B-584 (D-256): on a shelf, so no socket frame; a tier badge
 			Line.Icon.Element = Line.Element;
 			Line.Icon.Name = Line.Name;
 			Line.bTierBadge = true;
