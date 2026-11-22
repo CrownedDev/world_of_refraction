@@ -79,7 +79,9 @@ void FStatStoneSpec::Define()
 		{
 			const ECrystalType Type = static_cast<ECrystalType>(Kinds->GetValueByIndex(Index));
 			const float Percent = CrystalEffectTable::GetBrokenDarknessEnergyPercent(FCrystalId(Type, EItemTier::S_Tier));
-			if (Type == ECrystalType::None || CrystalTypeHelpers::IsAugmentStoneType(Type))
+			// B-579 (D-253): a potion is neither a gem nor a stone, and gives a Broken Darkness character none either.
+			// So the split is "a gem, or not": None, every stone and the potions grant nothing.
+			if (!CrystalTypeHelpers::IsGemType(Type))
 			{
 				TestEqual(Kinds->GetNameStringByIndex(Index) + TEXT(": no energy"), Percent, 0.0f, STAT_STONE_TEST_TOLERANCE);
 			}
