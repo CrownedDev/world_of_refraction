@@ -69,7 +69,7 @@ namespace BattleCardStyle
 	inline const FLinearColor EnemyHPColor(0.55f, 0.1f, 0.1f);
 
 	// B-391c: the status buildup bar under the HP bar, and its cracks (Q-111 A).
-	inline constexpr float BuildupBarHeight = 6.0f;
+	inline constexpr float BuildupBarHeight = 6.0f; // OBSOLETE (B-585): as tall as the HP bar now; delete after checkpoint 6
 	inline constexpr float CrackWidth = 2.0f;
 	inline const FLinearColor CrackColor(0.0f, 0.0f, 0.0f, 0.85f);
 
@@ -79,6 +79,7 @@ namespace BattleCardStyle
 	inline const FLinearColor BarTextShadowColor(0.0f, 0.0f, 0.0f, 0.9f);
 	inline const FLinearColor EmptyBarColor(1.0f, 1.0f, 1.0f, 0.15f);
 	inline const FLinearColor EPBarColor(0.15f, 0.4f, 0.85f);
+	// OBSOLETE (B-585, D-257): the build-up bar's label; delete the three after checkpoint 6.
 	inline constexpr int32 BuildupLabelFontSize = 10;
 	inline constexpr float BuildupLabelGap = 4.0f;
 	inline const FLinearColor BuildupLabelColor(1.0f, 1.0f, 1.0f, 0.55f);
@@ -182,7 +183,7 @@ namespace BattleHUDCard
 	/** Writes Card's data into its widgets; the parts its level didn't build are skipped. */
 	WORLD_OF_REFRACTION_API void Push(const FBattleHUDCard &Card);
 
-	/** B-436a: a fight's party row. Compact: the name, the HP bar and the build-up bar at CompactCardWidth; full: every
+	/** B-436a: a fight's party row. Compact: the name, the HP and build-up bars with their numbers at CompactCardWidth; full: every
 	 *  part the card built, at CardWidth. Shows and hides only; call it after Push. The hub and trial HUDs never call it. */
 	WORLD_OF_REFRACTION_API void SetCompact(const FBattleHUDCard &Card, bool bCompact);
 
