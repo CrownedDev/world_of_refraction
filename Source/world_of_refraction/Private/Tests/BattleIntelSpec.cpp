@@ -363,7 +363,7 @@ void FBattleIntelSpec::Define()
 		}
 		const UWidget *TurnOrder = HUD ? HUD->GetWidgetFromName(TEXT("TurnOrder")) : nullptr;
 		TArray<const UWidget *> Hidden;
-		for (const TCHAR *Name : {TEXT("Enemies"), TEXT("CommandMenuHolder"), TEXT("CornerHints")})
+		for (const TCHAR *Name : {TEXT("TargetMarkers"), TEXT("CommandMenuHolder"), TEXT("CornerHints")})
 		{
 			const UWidget *Piece = HUD ? HUD->GetWidgetFromName(Name) : nullptr;
 			TestNotNull(*FString::Printf(TEXT("%s built"), Name), Piece);
