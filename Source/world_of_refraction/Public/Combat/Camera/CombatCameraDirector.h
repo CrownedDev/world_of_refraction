@@ -84,7 +84,7 @@ public:
 	/** B-587 (D-262): Intel's open tab. A character on the viewer's own turn view: a cut to its close-up
 	 *  (ComputeIntelView). Null (Intel closed) while the close-up shows: a cut back to the turn view, then the target
 	 *  view again if the picker still highlights one. Static (movement off), a cinematic, a held shot or another's turn:
-	 *  nothing moves. */
+	 *  nothing moves. The subject is kept: the next turn view (ShowTurnView) cuts to it again while Intel is open. */
 	void SetIntelSubject(AActor *Subject);
 	bool IsIntelViewShowing() const { return bIntelViewShowing; }
 	/** B-587 (debug, specs): the Intel camera moves this fight (to a close-up, between tabs and back). */
@@ -438,7 +438,8 @@ private:
 	int32 HighlightTargetCount = 0;
 	bool bTargetViewShowing = false;
 	int32 TargetMoveCount = 0;
-	// B-587: Intel's close-up.
+	// B-587: Intel's close-up. The subject is kept so a new turn view (a turn change, movement back on) shows it again.
+	TWeakObjectPtr<AActor> IntelSubject;
 	bool bIntelViewShowing = false;
 	int32 IntelMoveCount = 0;
 

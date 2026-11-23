@@ -267,6 +267,7 @@ void UBattleHUDWidget::Teardown()
 	{
 		return;
 	}
+	IntelCameraSubject.Reset(); // B-587: the next fight's director starts with no subject
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		if (UCharacterDataComponent *CharData = Card.CharData.Get())

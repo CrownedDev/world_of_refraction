@@ -150,7 +150,8 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	HighlightTargetCount = 0;
 	bTargetViewShowing = false;
 	TargetMoveCount = 0;
-	bIntelViewShowing = false; // B-587
+	IntelSubject.Reset(); // B-587
+	bIntelViewShowing = false;
 	IntelMoveCount = 0;
 	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
 	{
@@ -233,7 +234,8 @@ void UCombatCameraDirector::EndCombat()
 	HighlightedTarget.Reset(); // B-400
 	HighlightTargetCount = 0;
 	bTargetViewShowing = false;
-	bIntelViewShowing = false; // B-587
+	IntelSubject.Reset(); // B-587
+	bIntelViewShowing = false;
 
 	if (APlayerController *Viewer = GetViewer())
 	{
@@ -517,6 +519,7 @@ void UCombatCameraDirector::CutBackFromTargetView()
 
 void UCombatCameraDirector::SetIntelSubject(AActor *Subject)
 {
+	IntelSubject = Subject;
 	AActor *Actor = ViewedActor.Get();
 	// Movement off (Static, D-262 d), a cinematic, a held shot or someone else's turn: nothing moves.
 	const bool bTurnViewShowing = bInCombat && Actor && CurrentMode == ECombatCameraMode::Turn && !PlayingSequence && !IsShotPlaying();
@@ -768,6 +771,10 @@ void UCombatCameraDirector::ShowTurnView()
 		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // B-371: undo a punch
 		const float Blend = CurrentMode == ECombatCameraMode::Static ? 0.0f : CombatCameraTiming::TurnBlendSeconds;
 		Viewer->SetViewTargetWithBlend(CameraActor, Blend);
+	}
+	if (AActor *Subject = IntelSubject.Get())
+	{
+		SetIntelSubject(Subject); // B-587: Intel still open (a turn change, movement back on): its close-up again
 	}
 }
 
