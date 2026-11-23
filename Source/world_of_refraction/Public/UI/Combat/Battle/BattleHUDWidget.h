@@ -61,6 +61,8 @@ class USkillEffectManager;
 class UStatusBarStateComponent;
 class UStatusBuildupManager;
 class UTextBlock;
+class UTexture;
+class UTextureRenderTarget2D;
 class UTurnManager;
 class UTurnStateComponent;
 class UVerticalBox;
@@ -284,6 +286,15 @@ private:
 	TArray<FBattleTurnHex> TurnHexes;
 	int32 TurnsShown = BattleHUDView::DEFAULT_TURNS_SHOWN;
 	bool bTurnOrderColumn = false;
+
+	/** B-590 QA (Q-590, Crown 2026-11-23): a fighter's face for its hexagon. Initialise captures every card's fighter
+	 *  at the fight's start; one with no card is captured the first time it shows. Kept for the fight (Teardown clears);
+	 *  a failed capture stays null, so it is never retried. */
+	UTexture *FindFace(const AActor *Actor);
+	/** Lookup only (never dereferenced): FaceTargets holds the captures. */
+	TMap<const AActor *, UTextureRenderTarget2D *> FaceCaptures;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextureRenderTarget2D>> FaceTargets;
 	FText StatusPanelText;
 	bool bStatusPanelOpen = false;
 	/** D-254: the party card the status panel shows alone; INDEX_NONE: everyone. */

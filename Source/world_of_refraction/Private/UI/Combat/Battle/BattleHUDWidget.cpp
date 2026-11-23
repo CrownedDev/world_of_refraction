@@ -36,6 +36,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "Engine/World.h"
 #include "GAS/WoREffectMirrorComponent.h"
 #include "HAL/IConsoleManager.h"
@@ -188,6 +189,11 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 	for (AActor *Actor : Enemies)
 	{
 		AddCard(Actor, /*bParty=*/false);
+	}
+	// B-590 QA (Q-590): every fighter's face at the fight's start, in one go, not when it first reaches the strip.
+	for (const FBattleHUDCard &Card : Cards)
+	{
+		FindFace(Card.Actor.Get());
 	}
 
 	if (USkillEffectManager *Effects = WoRFight::Get<USkillEffectManager>(this))
@@ -345,6 +351,8 @@ void UBattleHUDWidget::Teardown()
 		return;
 	}
 	IntelCameraSubject.Reset(); // B-587: the next fight's director starts with no subject
+	FaceCaptures.Reset(); // B-590: the faces are this fight's
+	FaceTargets.Reset();
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		if (UCharacterDataComponent *CharData = Card.CharData.Get())
@@ -1010,11 +1018,14 @@ void UBattleHUDWidget::RefreshTurnStrip()
 		}
 	}
 
-	TurnHexes = BattleHUDView::MakeTurnHexes(Strip, TurnsShown, [this](const AActor *Actor)
-	{
-		const FBattleHUDCard *Card = Cards.FindByPredicate([Actor](const FBattleHUDCard &Candidate) { return Candidate.Actor.Get() == Actor; });
-		return Card && Card->bParty;
-	});
+	TurnHexes = BattleHUDView::MakeTurnHexes(
+		Strip, TurnsShown,
+		[this](const AActor *Actor)
+		{
+			const FBattleHUDCard *Card = Cards.FindByPredicate([Actor](const FBattleHUDCard &Candidate) { return Candidate.Actor.Get() == Actor; });
+			return Card && Card->bParty;
+		},
+		[this](const AActor *Actor) { return FindFace(Actor); });
 	TurnLines.Reset(); // the strip as text: wor.UI.Print and the specs
 	for (const FBattleTurnSlot &TurnSlot : Strip)
 	{
@@ -1030,6 +1041,25 @@ void UBattleHUDWidget::RefreshTurnStrip()
 									: FText::Format(LOCTEXT("TurnNext", "   {0}  {1}{2}"), FText::AsNumber(TurnSlot.TurnNumber), Name, Bonus));
 	}
 	PushToWidgets();
+}
+
+UTexture *UBattleHUDWidget::FindFace(const AActor *Actor)
+{
+	if (!Actor)
+	{
+		return nullptr;
+	}
+	if (UTextureRenderTarget2D *const *Known = FaceCaptures.Find(Actor))
+	{
+		return *Known;
+	}
+	UTextureRenderTarget2D *Face = TurnHexFace::Capture(const_cast<AActor *>(Actor), this);
+	FaceCaptures.Add(Actor, Face);
+	if (Face)
+	{
+		FaceTargets.Add(Face);
+	}
+	return Face;
 }
 
 int32 UBattleHUDWidget::GetFeaturedCardIndex() const
@@ -1529,7 +1559,7 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 	Out += FString::Printf(TEXT("\n  turn order: %s, %d hexagons"), bTurnOrderColumn ? TEXT("column") : TEXT("row"), TurnHexes.Num()); // B-590
 	for (const FBattleTurnHex &Hex : TurnHexes)
 	{
-		Out += FString::Printf(TEXT("\n  hex: %s | %s | %s | %.0f | portrait: %s"), *BattleHUDView::GetCombatantName(Hex.Actor.Get()).ToString(),
+		Out += FString::Printf(TEXT("\n  hex: %s | %s | %s | %.0f | face: %s"), *BattleHUDView::GetCombatantName(Hex.Actor.Get()).ToString(),
 							   Hex.bCurrent ? TEXT("current") : TEXT("next"), Hex.bParty ? TEXT("party") : TEXT("enemy"), Hex.Size,
 							   Hex.Portrait.IsValid() ? *Hex.Portrait->GetName() : TEXT("none (placeholder)"));
 	}
