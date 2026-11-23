@@ -8,7 +8,8 @@
 //   corner hints bottom right; the "Act ●●○" pips moved from the card to the menu's tab. D-254 (B-581): no Spirit /
 //   Body lines on a card. B-586 (D-261): a click on any card, or V / R3, opens the Intel panel (UBattleIntelWidget) on
 //   that character's tab; a party card shows no status chips (they are in Intel);
-// - turn order top-right: the current actor, then the next turns (bonus turns marked);
+// - turn order top-right (B-590, D-264): hexagon portraits, the current turn larger with a violet edge, then the next
+//   turns, cyan edges for the party and rose for enemies; a row or a column and 1 to 6 turns, by the settings;
 // - B-436c (D-263): an enemy's card (name, HP bar without numbers (Q-391), build-up bar, status chips, "Tier C") is
 //   the target marker: shown only above the enemy the picker highlights, none in the command state;
 // - a Statuses button (top centre) opening one panel with every status in full (FeelGuide 5);
@@ -54,6 +55,7 @@ class UButton;
 class UCanvasPanel;
 class UCharacterDataComponent;
 class ULoadoutComponent;
+class UPanelWidget;
 class UProgressBar;
 class USkillEffectManager;
 class UStatusBarStateComponent;
@@ -102,6 +104,8 @@ public:
 
 	const TArray<FBattleHUDCard> &GetCards() const { return Cards; }
 	const TArray<FText> &GetTurnLines() const { return TurnLines; }
+	const TArray<FBattleTurnHex> &GetTurnHexes() const { return TurnHexes; }
+	bool IsTurnOrderColumn() const { return bTurnOrderColumn; }
 	const FText &GetStatusPanelText() const { return StatusPanelText; }
 	bool IsStatusPanelOpen() const { return bStatusPanelOpen; }
 
@@ -276,7 +280,9 @@ private:
 	TArray<FBattleHUDCard> Cards;
 
 	TArray<FText> TurnLines;
-	TArray<FLinearColor> TurnLineColors;
+	/** B-590: the turn order's hexagons and the layout setting, from RefreshTurnStrip. */
+	TArray<FBattleTurnHex> TurnHexes;
+	bool bTurnOrderColumn = false;
 	FText StatusPanelText;
 	bool bStatusPanelOpen = false;
 	/** D-254: the party card the status panel shows alone; INDEX_NONE: everyone. */
@@ -306,8 +312,12 @@ private:
 	int32 DamageNumbersShown = 0;
 	FString LastDamageNumber;
 
+	/** B-590: the turn order's two hexagon strips, built once; one shows. */
 	UPROPERTY()
-	TArray<TObjectPtr<UTextBlock>> TurnTexts;
+	TObjectPtr<UPanelWidget> TurnRow;
+
+	UPROPERTY()
+	TObjectPtr<UPanelWidget> TurnColumn;
 
 	UPROPERTY()
 	TObjectPtr<UBorder> StatusPanel;
