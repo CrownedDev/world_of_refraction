@@ -1172,11 +1172,11 @@ The queue of questions only Crown can answer.
 ---
 
 ### Q-450 — Does the rest menu's "Revive boss" stay?
-**Status:** OPEN · **Raised:** 2026-11-14 (D-187, B-450) · **Blocks:** — (B-450 leaves this one label alone until answered)
+**Status:** ANSWERED (Crown, 2026-11-23: **B**) · **Raised:** 2026-11-14 (D-187, B-450) · **Blocks:** B-589
 **Question:** D-187 says no enemy rank is shown to the player; D-182 (the same day) names the rest menu's row "Revive boss". Keep it, or reword?
 **Options:** **A** keep "Revive boss" (it names what you just beat, after the fact, so nothing is spoiled) · **B** name the opponent ("Revive the Ash Warden") · **C** a rank-free word ("Revive the guardian").
 **Recommendation:** **B**: Elden Ring and Hades name the foe itself and never its rank, and D-187 already asks for the opponent's name on the wipe card. A stays until Crown answers.
-**Answer (Crown):** _write here_
+**Answer (Crown):** B, name the opponent ("Revive the Ash Warden"); built by B-589.
 
 ### Q-408 — A game closed in the middle of a run: lost, or resumed once?
 **Status:** ANSWERED (reference-backed default, 2026-11-14; **confirmed by Crown, 2026-11-14**: A, closing the game mid-run counts as a quit) · **Raised:** 2026-11-14 (B-408, D-172, D-176) · **Blocks:** — (B-408a, which waits for Crown's agreement to the survey anyway)
