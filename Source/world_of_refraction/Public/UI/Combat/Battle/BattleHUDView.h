@@ -96,7 +96,7 @@ namespace BattleHUDView
 
 	/** Below this share of max HP a living party member's HP bar turns LowHPColor and pulses. */
 	constexpr float LOW_HP_FRACTION = 0.3f;
-	// TODO: tune in PIE.
+	// TODO: tune LOW_HP_FRACTION and the three pulse values below in PIE.
 	/** One pulse (full, dim, full) per this many seconds. */
 	constexpr double LOW_HP_PULSE_PERIOD_SECONDS = 1.0;
 	/** The HP bar's opacity at the pulse's dimmest. */

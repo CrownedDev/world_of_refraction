@@ -470,12 +470,21 @@ void FBattleHUDSpec::Define()
 					 HUD->GetBattleHUDString().Contains(BattleHUDView::FormatCardName(HUD->GetCards()[0].Name, HeroLetter).ToString()));
 			TestFalse(TEXT("full HP: not low"), HUD->GetCards()[0].bLowHP);
 
-			const int32 LowHP = FMath::Max(1, FMath::FloorToInt(HeroData->MaxHP * BattleHUDView::LOW_HP_FRACTION) - 1);
-			HeroData->ServerSetHP(LowHP);
-			if (TestTrue(TEXT("the hero lives under 30%"), HeroData->bIsAlive && HeroData->CurrentHP <= LowHP))
+			int32 LowHP = FMath::FloorToInt(HeroData->MaxHP * BattleHUDView::LOW_HP_FRACTION); // the most HP the HUD's own rule calls low
+			while (LowHP > 0 && !BattleHUDView::IsLowHP(true, BattleHUDView::PoolFraction(LowHP, HeroData->MaxHP)))
 			{
-				TestTrue(TEXT("the card is low"), HUD->GetCards()[0].bLowHP);
+				--LowHP;
+			}
+			if (TestTrue(TEXT("the hero has HP to be under 30% and alive"), LowHP >= 1))
+			{
+				HeroData->ServerSetHP(LowHP);
+				TestTrue(TEXT("the card is low"), HeroData->bIsAlive && HUD->GetCards()[0].bLowHP);
 				TestTrue(TEXT("wor.UI.Print says it pulses"), HUD->GetBattleHUDString().Contains(TEXT("low HP, pulsing")));
+				HeroData->ServerSetHP(HeroData->MaxHP);
+				TestFalse(TEXT("healed: not low"), HUD->GetCards()[0].bLowHP);
+				HeroData->ServerSetHP(0);
+				TestFalse(TEXT("downed: dimmed, never low"), !HeroData->bIsAlive && HUD->GetCards()[0].bLowHP);
+				TestFalse(TEXT("downed: no pulse in wor.UI.Print"), HUD->GetBattleHUDString().Contains(TEXT("low HP, pulsing")));
 			}
 			HUD->Teardown();
 		});
