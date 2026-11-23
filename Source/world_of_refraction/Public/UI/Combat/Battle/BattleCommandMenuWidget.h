@@ -183,6 +183,9 @@ public:
 	 *  (ClassColors: a Caster's element, a Resonator's silver, a Generic's brown); the violet focus with no character. */
 	const FLinearColor &GetSelectorFill() const { return SelectorFill; }
 	const FLinearColor &GetSelectorOutline() const { return SelectorOutline; }
+	/** B-582c: the Act tag's plate and text colours as drawn (debug, specs); transparent before the widget is built. */
+	FLinearColor GetActTabFill() const;
+	FLinearColor GetActTabTextColour() const;
 	/** B-582c: Accent darkened until white text on it reads well (about the old violet's contrast), and an outline that
 	 *  shows on the dark panel (the pale crystal outline for a near-black colour such as Darkness). */
 	static void MakeSelectorColours(const FLinearColor &Accent, FLinearColor &OutFill, FLinearColor &OutOutline);
@@ -228,6 +231,9 @@ private:
 
 	/** B-582c: a row W / S can light. */
 	bool IsNavigableRow(int32 RowIndex) const;
+	/** B-582c (D-270): a target name row (or its section header) in a single-target pick: not drawn; W / S / the pointer
+	 *  mark the target on the field instead. wor.UI.Print tags it "field". */
+	bool IsPickedOnField(int32 RowIndex) const;
 
 	TArray<FPieMenuButtonData> Rows;
 	/** B-582c: the row W / S or a target highlight last lit; kept through a rebuild of the same view (an infusion pick). */

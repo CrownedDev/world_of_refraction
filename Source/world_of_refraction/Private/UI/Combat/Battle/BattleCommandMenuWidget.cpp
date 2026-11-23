@@ -700,6 +700,17 @@ void UBattleCommandMenuWidget::HandleTargetHighlighted(AActor *Actor, AActor *Ta
 	}
 }
 
+FLinearColor UBattleCommandMenuWidget::GetActTabFill() const
+{
+	const UBorder *Tab = TabText ? Cast<UBorder>(TabText->GetParent()) : nullptr;
+	return Tab ? Tab->Background.TintColor.GetSpecifiedColor() : FLinearColor::Transparent;
+}
+
+FLinearColor UBattleCommandMenuWidget::GetActTabTextColour() const
+{
+	return TabText ? TabText->GetColorAndOpacity().GetSpecifiedColor() : FLinearColor::Transparent;
+}
+
 float UBattleCommandMenuWidget::GetRelativeLuminance(const FLinearColor &Colour)
 {
 	return 0.2126f * Colour.R + 0.7152f * Colour.G + 0.0722f * Colour.B; // linear channels (WCAG 2)
@@ -727,6 +738,14 @@ void UBattleCommandMenuWidget::RefreshSelectorColours()
 	}
 	SelectorFill = WoRMenuStyle::FocusColor;
 	SelectorOutline = WoRMenuStyle::CyanColor;
+}
+
+bool UBattleCommandMenuWidget::IsPickedOnField(int32 RowIndex) const
+{
+	// B-582c (D-270): a single-target pick happens on the field (the marker and the enemy's card name it): no name rows.
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	return bShowing && Rows.IsValidIndex(RowIndex) && Menu && Menu->IsSingleTargetPickerOpen() &&
+		   (GetRowTarget(RowIndex) || Rows[RowIndex].Category == EPieMenuCategory::SectionHeader);
 }
 
 bool UBattleCommandMenuWidget::IsNavigableRow(int32 RowIndex) const
@@ -761,6 +780,11 @@ void UBattleCommandMenuWidget::MoveLitRow(int32 Direction)
 		return;
 	}
 	const int32 Step = Direction > 0 ? 1 : -1;
+	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get(); Menu && Menu->IsSingleTargetPickerOpen())
+	{
+		Menu->CycleHighlightedTarget(Step); // D-270: no target rows; the marker moves on the field, wrapping
+		return;
+	}
 	const int32 From = GetLitRow();
 	int32 Index = From != INDEX_NONE ? From : (Step > 0 ? Count - 1 : 0); // unlit: the first step lands on the first / last
 	for (int32 Tried = 0; Tried < Count; ++Tried)
@@ -778,6 +802,10 @@ void UBattleCommandMenuWidget::MoveLitRow(int32 Direction)
 
 bool UBattleCommandMenuWidget::PressLitRow()
 {
+	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get(); bShowing && Menu && Menu->IsSingleTargetPickerOpen())
+	{
+		return Menu->ConfirmHighlightedTarget(); // D-270: the marked target, as Enter / Space
+	}
 	const int32 Lit = bShowing ? GetLitRow() : INDEX_NONE;
 	if (Lit == INDEX_NONE)
 	{
@@ -877,6 +905,12 @@ void UBattleCommandMenuWidget::PushToWidgets()
 	{
 		TabText->SetText(ActionsLine);
 		WoRMenuStyle::SetShown(TabText->GetParent(), !ActionsLine.IsEmpty());
+		// B-582c (Crown): the Act tag is the selector's colour too, white text and dots (the empty dot is an outline).
+		TabText->SetColorAndOpacity(FSlateColor(WoRMenuStyle::TextColor));
+		if (UBorder *Tab = Cast<UBorder>(TabText->GetParent()))
+		{
+			Tab->SetBrush(FSlateRoundedBoxBrush(SelectorFill, BattleCommandMenuBuild::CutCorner(), SelectorOutline, FrameOutline));
+		}
 	}
 	if (TitleText)
 	{
@@ -937,7 +971,7 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		{
 			continue;
 		}
-		if (!bShowing || !Rows.IsValidIndex(Index) || IsCornerHint(Rows[Index].Category, bAtMainMenu))
+		if (!bShowing || !Rows.IsValidIndex(Index) || IsCornerHint(Rows[Index].Category, bAtMainMenu) || IsPickedOnField(Index))
 		{
 			Button->SetVisibility(ESlateVisibility::Collapsed);
 			continue;
@@ -1019,7 +1053,8 @@ FString UBattleCommandMenuWidget::GetCommandMenuString() const
 							  : FString::Printf(TEXT("%s%s%s"), Rows[Index].Quantity > 0 ? *FString::Printf(TEXT(" x%d"), Rows[Index].Quantity) : TEXT(""),
 												!bAtMainMenu && Rows[Index].ActionCost > 0 ? *FString::Printf(TEXT(" cost %d"), Rows[Index].ActionCost) : TEXT(""),
 												Rows[Index].bEnabled ? TEXT("") : TEXT(" (greyed)"));
-		Out += FString::Printf(TEXT("\n  [%d]%s %s%s"), Index, bHint ? TEXT(" hint") : TEXT(""), *RowLabels[Index].ToString(), *Extra);
+		Out += FString::Printf(TEXT("\n  [%d]%s %s%s"), Index, bHint ? TEXT(" hint") : IsPickedOnField(Index) ? TEXT(" field") : TEXT(""),
+							   *RowLabels[Index].ToString(), *Extra);
 	}
 	return Out;
 }

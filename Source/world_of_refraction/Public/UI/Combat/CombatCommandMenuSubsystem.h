@@ -317,6 +317,9 @@ public:
 
     /** B-588 (D-263): the Position row picker (Front / Middle / Back) is open. */
     bool IsPositionPickerOpen() const { return CurrentDepth == ECombatMenuDepth::Submenu && ActiveSubmenuType == EPieMenuCategory::MoveRow; }
+    /** B-400: the single-target picker is open (per-actor buttons: not Self, not a group). Public for B-582c (D-270):
+     *  the battle HUD picks on the field then, with no target rows. */
+    bool IsSingleTargetPickerOpen() const;
 
     /** B-588 (D-263): the picker's rows, Front, Middle, Back, then Back: the current row greyed "You are here.", a row
      *  the move is refused for greyed with why (a co-op client greys its current row only; the server checks the rest). */
@@ -429,8 +432,6 @@ private:
     void BroadcastMenuDepthIfChanged();
     int32 BroadcastMenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
 
-    /** B-400: the single-target picker is open (per-actor buttons: not Self, not a group). */
-    bool IsSingleTargetPickerOpen() const;
     /** B-400: re-reads the picker's targets and keeps the highlight on one of them (the first when it isn't), or
      *  clears it when no single-target picker is open. Runs next to BroadcastMenuDepthIfChanged and in Close. */
     void RefreshTargetHighlight();
