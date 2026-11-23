@@ -72,7 +72,9 @@ enum class EPieMenuCategory : uint8
 	MoveRow UMETA(DisplayName = "Move Row"), // B-588 (D-263): Position (DataIndex -1) opens the row picker; a picker row's DataIndex is its ECombatRow
 	HandToAI UMETA(DisplayName = "Let AI Play"), // Hand this party member to the AI (D-026, B-071)
 	EndTurn UMETA(DisplayName = "End Turn"), // B-170e: end the turn, the actions left stay banked
-	Skills UMETA(DisplayName = "Skills")	 // B-436g (D-258a): the main menu's Skills, straight in with one kind, else the kinds
+	Skills UMETA(DisplayName = "Skills"),	 // B-436g (D-258a): the main menu's Skills, straight in with one kind, else the kinds
+	TargetPanelWeapon UMETA(DisplayName = "Target Panel Weapon"),	  // B-592 (D-268): the target step's weapon line (X / 2)
+	TargetPanelInfusion UMETA(DisplayName = "Target Panel Infusion") // B-592 (D-268): the target step's infusion lines (Y / 3)
 };
 
 /**
