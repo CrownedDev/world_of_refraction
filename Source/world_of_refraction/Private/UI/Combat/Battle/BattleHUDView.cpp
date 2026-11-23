@@ -167,11 +167,6 @@ FText BattleHUDView::GetCombatantName(const AActor *Actor)
 	return FText::FromString(Actor->GetName());
 }
 
-FText BattleHUDView::FormatCardName(const FText &Name, const FText &TierLetter)
-{
-	return TierLetter.IsEmpty() ? Name : FText::Format(LOCTEXT("CardNameWithTier", "{0} ({1})"), Name, TierLetter);
-}
-
 bool BattleHUDView::IsLowHP(bool bAlive, float HPFraction)
 {
 	return bAlive && HPFraction < LOW_HP_FRACTION;

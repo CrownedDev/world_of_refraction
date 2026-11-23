@@ -92,7 +92,7 @@ namespace BattleHUDView
 	/** The character's name from its data asset, else the actor's name; empty for null. */
 	WORLD_OF_REFRACTION_API FText GetCombatantName(const AActor *Actor);
 
-	// ---- B-436b (BattleHUDRefinePlan decision 2): the party card's name and low HP ----
+	// ---- B-436b (BattleHUDRefinePlan decision 2): the party card's low HP. No tier by the name (Crown, 2026-11-23) ----
 
 	/** Below this share of max HP a living party member's HP bar turns LowHPColor and pulses. */
 	constexpr float LOW_HP_FRACTION = 0.3f;
@@ -103,9 +103,6 @@ namespace BattleHUDView
 	constexpr float LOW_HP_PULSE_MIN_OPACITY = 0.45f;
 	/** How often the pulse steps while a card is low (a timer, no Tick). */
 	constexpr float LOW_HP_PULSE_STEP_SECONDS = 0.05f;
-
-	/** "Garrick (C)": the Combat Tier beside the name; Name alone when TierLetter is empty. */
-	WORLD_OF_REFRACTION_API FText FormatCardName(const FText &Name, const FText &TierLetter);
 
 	/** Alive and under LOW_HP_FRACTION (a downed card never pulses). */
 	WORLD_OF_REFRACTION_API bool IsLowHP(bool bAlive, float HPFraction);

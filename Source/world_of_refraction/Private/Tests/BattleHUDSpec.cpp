@@ -273,12 +273,8 @@ void FBattleHUDSpec::Define()
 			TestEqual(TEXT("over max"), BattleHUDView::PoolFraction(50, 40), 1.0f);
 		});
 
-		It("puts the tier beside the name, and pulses only a living card under 30% HP (B-436b)", [this]()
+		It("pulses only a living card under 30% HP (B-436b)", [this]()
 		{
-			const FText Garrick = FText::FromString(TEXT("Garrick"));
-			TestEqual(TEXT("Garrick (C)"), BattleHUDView::FormatCardName(Garrick, FText::FromString(TEXT("C"))).ToString(), FString(TEXT("Garrick (C)")));
-			TestEqual(TEXT("no letter: the name alone"), BattleHUDView::FormatCardName(Garrick, FText::GetEmpty()).ToString(), FString(TEXT("Garrick")));
-
 			TestTrue(TEXT("under 30%: low"), BattleHUDView::IsLowHP(true, BattleHUDView::LOW_HP_FRACTION - KINDA_SMALL_NUMBER));
 			TestFalse(TEXT("at 30%: not low"), BattleHUDView::IsLowHP(true, BattleHUDView::LOW_HP_FRACTION));
 			TestFalse(TEXT("downed: never low"), BattleHUDView::IsLowHP(false, 0.0f));
@@ -445,7 +441,7 @@ void FBattleHUDSpec::Define()
 
 	Describe("the widgets on a duel", [this]()
 	{
-		It("shows the party card's tier beside its name and marks it low under 30% HP (B-436b)", [this]()
+		It("names a party card without its tier and marks it low under 30% HP (B-436b)", [this]()
 		{
 			if (!StartDuel())
 			{
@@ -463,11 +459,11 @@ void FBattleHUDSpec::Define()
 				HUD->Teardown();
 				return;
 			}
-			const FText HeroLetter = WoRGameNames::GetTierLetter(WoRCombatTier::GetCombatTier(Hero));
-			TestTrue(TEXT("the hero's card carries its Combat Tier"), HUD->GetCards()[0].TierLetter.EqualTo(HeroLetter));
-			TestTrue(TEXT("an enemy card has no letter beside its name (its tier is on the marker)"), HUD->GetCards()[1].TierLetter.IsEmpty());
-			TestTrue(TEXT("wor.UI.Print shows Name (letter)"),
-					 HUD->GetBattleHUDString().Contains(BattleHUDView::FormatCardName(HUD->GetCards()[0].Name, HeroLetter).ToString()));
+			// Crown, 2026-11-23: "We don't need the tier on names".
+			const FString Name = HUD->GetCards()[0].Name.ToString();
+			const FString WithTier = FString::Printf(TEXT("%s (%s)"), *Name, *WoRGameNames::GetTierLetter(WoRCombatTier::GetCombatTier(Hero)).ToString());
+			TestTrue(TEXT("wor.UI.Print names the hero"), HUD->GetBattleHUDString().Contains(TEXT("party ") + Name));
+			TestFalse(TEXT("no tier letter beside the name"), HUD->GetBattleHUDString().Contains(WithTier));
 			TestFalse(TEXT("full HP: not low"), HUD->GetCards()[0].bLowHP);
 
 			int32 LowHP = FMath::FloorToInt(HeroData->MaxHP * BattleHUDView::LOW_HP_FRACTION); // the most HP the HUD's own rule calls low
