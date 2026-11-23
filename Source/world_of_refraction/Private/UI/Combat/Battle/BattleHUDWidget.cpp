@@ -369,7 +369,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 
 		// B-436a: the right-hand column, top: the turn order, the enemy cards under it. B-586: only the enemy cards take a
 		// click (Intel).
-		UVerticalBox *RightColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightColumn"));
+		RightColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightColumn"));
 		RightColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		UVerticalBox *TurnColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TurnOrder"));
 		TurnColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -413,7 +413,12 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		BattleHUDBuild::Place(Canvas, PartyColumn, BattleHUDStyle::PartyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor));
 		if (UWidget *Hints = CommandMenu ? CommandMenu->GetHintsWidget() : nullptr)
 		{
-			BattleHUDBuild::Place(Canvas, Hints, BattleHUDStyle::MenuHintsAnchor, BattleHUDBuild::Inset(BattleHUDStyle::MenuHintsAnchor));
+			// B-587 QA: in a holder the HUD can hide under Intel; the hints widget keeps its own visibility.
+			UOverlay *Holder = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("CornerHints"));
+			Holder->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			Holder->AddChild(Hints);
+			BattleHUDBuild::Place(Canvas, Holder, BattleHUDStyle::MenuHintsAnchor, BattleHUDBuild::Inset(BattleHUDStyle::MenuHintsAnchor));
+			CornerHints = Holder;
 		}
 
 		// One card per combatant, made here once. A party card sits in the overlay (B-391c: it takes a hover, its
@@ -887,6 +892,16 @@ void UBattleHUDWidget::PushToWidgets()
 	{
 		IntelPanel->SetVisibility(bIntelOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		IntelPanel->Push(IntelPages, IntelTab);
+	}
+	// B-587 QA: the side panel stands where the turn order, the enemy cards and the corner hints are; Intel shows the
+	// enemies and its own keys, and no combat menu key acts while it is open, so they step aside until it closes.
+	const ESlateVisibility UnderIntel = bIntelOpen ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible;
+	for (UWidget *Piece : {static_cast<UWidget *>(RightColumn.Get()), CornerHints.Get()})
+	{
+		if (Piece)
+		{
+			Piece->SetVisibility(UnderIntel);
+		}
 	}
 	UpdateIntelCamera();
 }

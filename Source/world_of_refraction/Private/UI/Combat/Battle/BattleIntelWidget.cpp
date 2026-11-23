@@ -7,7 +7,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/ProgressBar.h"
-#include "Components/ScaleBox.h"
+#include "Components/WrapBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -88,20 +88,15 @@ TSharedRef<SWidget> UBattleIntelWidget::RebuildWidget()
 		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Panel->SetContent(MakeSized(WidgetTree, PanelWidth, 0.0f, Column));
 
-		UHorizontalBox *TabRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		// B-587 QA: each tab as wide as its name, at full size, wrapping to a second row in the narrower side panel.
+		UWrapBox *TabRow = WidgetTree->ConstructWidget<UWrapBox>(UWrapBox::StaticClass());
+		TabRow->SetInnerSlotPadding(FVector2D(TabGap, TabGap));
 		for (int32 Index = 0; Index < MAX_TABS; ++Index)
 		{
 			UTextBlock *Label = nullptr;
 			UBorder *Tab = MakeTab(WidgetTree, Label);
-			Label->SetJustification(ETextJustify::Center);
-			// B-587: the narrower panel shrinks a long name to its tab instead of pushing the row wider.
-			UScaleBox *Fit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
-			Fit->SetStretch(EStretch::ScaleToFit);
-			Fit->SetStretchDirection(EStretchDirection::DownOnly);
-			Fit->AddChild(Label);
-			Tab->SetContent(Fit);
 			Tab->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleIntelWidget, HandleTabMouseDown));
-			AddToRow(TabRow, Tab, FMargin(0.0f, 0.0f, TabGap, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+			TabRow->AddChildToWrapBox(Tab);
 			Tabs.Add(Tab);
 			TabLabels.Add(Label);
 		}
@@ -172,6 +167,7 @@ void UBattleIntelWidget::AddRows(UPanelWidget *Parent, int32 Count, bool bTurnsC
 		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		Widgets.Root = Row;
 		Widgets.Label = MakeText(WidgetTree, LineFontSize, TextColor);
+		Widgets.Label->SetAutoWrapText(true); // B-587 QA: a long name wraps in the narrow panel instead of running into its value
 		AddToRow(Row, Widgets.Label, FMargin(LabelIndent, RowGap, WordGap, RowGap))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		Widgets.Before = MakeText(WidgetTree, SmallFontSize, DimColor);
 		AddToRow(Row, Widgets.Before);

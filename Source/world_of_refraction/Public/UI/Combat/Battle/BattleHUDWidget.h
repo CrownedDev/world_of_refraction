@@ -277,6 +277,12 @@ private:
 	int32 IntelTab = 0;
 	TArray<FBattleIntelPage> IntelPages;
 
+	/** B-587 QA: the turn order with the enemy cards, and the corner hints' holder: hidden while Intel is open. */
+	UPROPERTY()
+	TObjectPtr<UVerticalBox> RightColumn;
+	UPROPERTY()
+	TObjectPtr<UWidget> CornerHints;
+
 	/** B-587 (D-262): asks the fight camera for the open tab's close-up (null: Intel closed) when it changes. */
 	void UpdateIntelCamera();
 	/** The character last asked for, so a push for any other reason doesn't cut again. */
