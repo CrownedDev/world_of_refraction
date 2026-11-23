@@ -230,14 +230,32 @@ FText BattleHUDView::WithKeyHint(const FText &Label, const FKey &Keyboard, const
 }
 
 TArray<int32> BattleHUDView::AssignMenuKeys(const TArray<EPieMenuCategory> &Categories, const TArray<bool> &Enabled,
-											 bool bAtMainMenu)
+											 bool bAtMainMenu, bool bPositionPicker)
 {
 	TArray<int32> KeyForRow;
 	KeyForRow.Init(INDEX_NONE, Categories.Num());
+	TArray<int32> PickerRows; // B-588: the Position picker's rows, top to bottom
+	for (int32 Row = 0; bPositionPicker && Row < Categories.Num(); ++Row)
+	{
+		if (Categories[Row] == EPieMenuCategory::MoveRow)
+		{
+			PickerRows.Add(Row);
+		}
+	}
 	const TArray<FCombatMenuKey> &Keys = ACombatPlayerController::GetMenuKeys();
 	for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
 	{
 		const EPieMenuCategory KeyCategory = Keys[KeyIndex].Category;
+		const int32 Slot = CommandMenuRules::PositionPickerRowForKey(KeyCategory);
+		if (PickerRows.IsValidIndex(Slot))
+		{
+			const int32 Row = PickerRows[Slot];
+			if (Enabled.IsValidIndex(Row) && Enabled[Row] && KeyForRow[Row] == INDEX_NONE)
+			{
+				KeyForRow[Row] = KeyIndex;
+			}
+			continue;
+		}
 		if (CommandMenuRules::IsMainMenuKey(KeyCategory) && !bAtMainMenu)
 		{
 			continue;

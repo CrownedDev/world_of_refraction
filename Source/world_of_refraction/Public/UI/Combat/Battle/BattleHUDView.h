@@ -109,9 +109,10 @@ namespace BattleHUDView
 	 *  that presses it, or INDEX_NONE. Mirrors UCombatCommandMenuSubsystem::PressMenuKey: a key goes to the first
 	 *  enabled row it presses; the category keys (CommandMenuRules::IsMainMenuKey, Defend among them since D-258c) only
 	 *  when bAtMainMenu; Back and the infusion keys wherever their rows show. A row two keys press shows the first in the
-	 *  key table (B-436g: Back shows Backspace, not Esc). */
+	 *  key table (B-436g: Back shows Backspace, not Esc). B-588: in the Position picker the Nth MoveRow row takes the
+	 *  key CommandMenuRules::PositionPickerRowForKey gives slot N (1 / A, 2 / X, 3 / Y). */
 	WORLD_OF_REFRACTION_API TArray<int32> AssignMenuKeys(const TArray<EPieMenuCategory> &Categories, const TArray<bool> &Enabled,
-														  bool bAtMainMenu);
+														  bool bAtMainMenu, bool bPositionPicker = false);
 
 	// ---- B-391c: the status buildup bar (the old panel's bar, with Q-111 A's cracks) ----
 
