@@ -23,7 +23,6 @@
 #include "Combat/TurnManager.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "Components/Border.h"
-#include "Components/Button.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Components/HorizontalBox.h"
@@ -48,7 +47,6 @@
 #include "Skills/Effects/SkillEffectManager.h"
 #include "Skills/Effects/StatusBuildupManager.h"
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
-#include "UI/Combat/Battle/BattleHUDButton.h"
 #include "UI/Combat/Battle/BattleIntelWidget.h"
 #include "UI/Combat/Battle/TurnHexWidget.h"
 #include "Trial/TrialRunSubsystem.h"
@@ -69,7 +67,6 @@ namespace BattleHUDStyle
 	// B-436a layout (docs/Design/BattleHUDRefinePlan.md piece 1, D-254: refine_final/1_main_menu.png).
 	const FVector2D RightColumnAnchor(1.0f, 0.0f);  // top-right: the turn order (Intel under it, B-587)
 	const FVector2D PartyAnchor(0.0f, 1.0f);        // bottom-left: the featured card, the compact cards in a row to its right
-	const FVector2D StatusButtonAnchor(0.5f, 0.0f); // top centre
 	const FVector2D StatusPanelAnchor(0.5f, 0.5f);  // centre
 	constexpr float CardGap = 8.0f;
 	constexpr float RightColumnGap = 16.0f; // between the turn order and Intel
@@ -688,14 +685,8 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 			}
 		}
 
-		// The one button that shows every status (FeelGuide 5).
-		UButton *StatusButton = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass(), TEXT("StatusesButton")); // not focusable: keeps A / Enter for the command menu
-		UTextBlock *StatusButtonLabel = WidgetTree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
-		StatusButtonLabel->SetText(LOCTEXT("StatusesButton", "Status"));
-		StatusButton->AddChild(StatusButtonLabel);
-		StatusButton->OnClicked.AddDynamic(this, &UBattleHUDWidget::HandleStatusButtonClicked);
-		BattleHUDBuild::Place(Canvas, StatusButton, BattleHUDStyle::StatusButtonAnchor, BattleHUDBuild::Inset(BattleHUDStyle::StatusButtonAnchor));
-
+		// B-591 (D-265): no Status button; Intel opens from a party card and V / R3.
+		// OBSOLETE (D-265): the all-status panel has no way to open in play now; kept until the B-591 PIE pass.
 		StatusPanel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("StatusPanel"));
 		StatusPanel->SetBrushColor(BattleHUDStyle::PanelColor);
 		StatusPanel->SetPadding(FMargin(BattleHUDStyle::CardPadding));
@@ -1334,24 +1325,6 @@ void UBattleHUDWidget::HandleTurnStateChanged()
 	RefreshTurnStrip();
 	RefreshStatuses();
 	RefreshPools(); // B-170e, as HandleTurnStarted
-}
-
-void UBattleHUDWidget::ToggleAllStatuses()
-{
-	const bool bWasInspecting = Cards.IsValidIndex(InspectedCard);
-	InspectedCard = INDEX_NONE;
-	SetStatusPanelOpen(bWasInspecting || !bStatusPanelOpen);
-}
-
-void UBattleHUDWidget::HandleStatusButtonClicked()
-{
-	// B-587 QA (D-261: Intel replaced the status list): open Intel on the party, or close it.
-	if (bIntelOpen)
-	{
-		CloseIntel();
-		return;
-	}
-	ToggleIntel();
 }
 
 void UBattleHUDWidget::HandleHitShown(AActor *Target, const FCombatHitShown &Hit)
