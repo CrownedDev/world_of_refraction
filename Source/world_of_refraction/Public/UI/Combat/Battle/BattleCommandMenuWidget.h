@@ -153,11 +153,11 @@ public:
 	/** B-400b (debug, specs): the actor a per-actor target row picks; null for any other row. */
 	AActor *GetRowTarget(int32 RowIndex) const;
 
-	/** B-582c (D-269): the lit row: the one W / S last moved to, else the highlighted target's row; INDEX_NONE when
-	 *  none (the main menu until W / S is pressed). It draws violet, as the highlighted target's row did. */
+	/** B-582c (D-269): the lit row: the one W / S last moved to, else the highlighted target's row; INDEX_NONE only
+	 *  when no row can be lit. A list opens on the row it was left on (Back), else its first. It draws violet. */
 	int32 GetLitRow() const;
 	/** B-582c: W (Direction < 0) / S (> 0): light the previous / next frame row (not a header, a greyed row or a corner
-	 *  hint), wrapping; the first press lights the first / last. A target row also highlights its target, as hover. */
+	 *  hint), wrapping. A target row also highlights its target, as hover. */
 	void MoveLitRow(int32 Direction);
 	/** B-582c: D, forward: press the lit row as a click (a target row picks its target). False: nothing lit. */
 	bool PressLitRow();
@@ -222,6 +222,9 @@ private:
 	TArray<FPieMenuButtonData> Rows;
 	/** B-582c: the row W / S or a target highlight last lit; kept through a rebuild of the same view (an infusion pick). */
 	int32 LitRow = INDEX_NONE;
+	/** B-582c QA: each list's lit row when it was left, by title, so Back re-lights the row you came from. Target rows
+	 *  aren't kept (the picker opens on its own target, B-582). Cleared when the menu closes (a new turn starts fresh). */
+	TMap<FString, int32> LitRowByTitle;
 	TArray<FText> RowLabels;
 	/** B-436g: each row's key for the device in use (invalid: none). */
 	TArray<FKey> RowKeys;

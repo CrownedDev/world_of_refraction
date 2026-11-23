@@ -542,11 +542,17 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 	{
 		UE_LOG(LogWoRUI, Warning, TEXT("[BattleCommandMenu] %d infusion sources but %d chips: the rest are not shown"), Panel.Elements.Num(), MAX_CHIPS);
 	}
-	// B-582c: the same view rebuilt (an infusion pick, the main menu refreshed) keeps its lit row; a new one starts unlit.
+	// B-582c: the same view rebuilt (an infusion pick, the main menu refreshed) keeps its lit row. A new one takes the
+	// row it was left on (QA: Back re-lights the row you came from), else its first (below).
 	const FText NewTitle = Menu ? Menu->GetViewTitle() : FText::GetEmpty();
 	if (!NewTitle.EqualTo(Title) || Buttons.Num() != Rows.Num() || !bShowing)
 	{
-		LitRow = INDEX_NONE;
+		if (bShowing && Rows.IsValidIndex(LitRow) && !GetRowTarget(LitRow))
+		{
+			LitRowByTitle.Add(Title.ToString(), LitRow);
+		}
+		const int32 *Left = LitRowByTitle.Find(NewTitle.ToString());
+		LitRow = Left ? *Left : INDEX_NONE;
 	}
 	Rows = Buttons;
 	if (Rows.Num() > MAX_ROWS)
@@ -559,6 +565,11 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 	Title = Menu ? Menu->GetViewTitle() : FText::GetEmpty();
 	RefreshDurability(); // B-391c: per menu open, as the old header
 	bShowing = true;
+	// B-582c QA: something is always lit, so D works at once (a new turn: the first row).
+	for (int32 Index = 0; GetLitRow() == INDEX_NONE && Index < Rows.Num(); ++Index)
+	{
+		LitRow = IsNavigableRow(Index) ? Index : INDEX_NONE;
+	}
 	RefreshActionsLine();
 	PushToWidgets();
 }
@@ -567,6 +578,7 @@ void UBattleCommandMenuWidget::HandleMenuClosed()
 {
 	Rows.Reset();
 	LitRow = INDEX_NONE;
+	LitRowByTitle.Reset();
 	RowLabels.Reset();
 	RowKeys.Reset();
 	Hints.Reset();
@@ -783,6 +795,10 @@ void UBattleCommandMenuWidget::PressRow(int32 RowIndex)
 	if (!Pressed.bEnabled || Pressed.Category == EPieMenuCategory::SectionHeader)
 	{
 		return;
+	}
+	if (IsNavigableRow(RowIndex))
+	{
+		LitRow = RowIndex; // B-582c QA: a click or D leaves this list on this row, for Back
 	}
 	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get())
 	{

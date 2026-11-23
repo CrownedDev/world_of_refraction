@@ -610,15 +610,15 @@ void FCommandMenuKeysSpec::Define()
 			const int32 Lit = View->GetLitRow();
 			return View->GetRowLabels().IsValidIndex(Lit) ? View->GetRowLabels()[Lit].ToString() : FString();
 		};
-		TestEqual(TEXT("the main menu starts unlit"), View->GetLitRow(), static_cast<int32>(INDEX_NONE));
-		TestFalse(TEXT("D with nothing lit does nothing"), View->PressLitRow());
-		View->MoveLitRow(1);
-		TestTrue(TEXT("S lights the first row, Attack"), LitLabel().Contains(TEXT("Attack")));
+		TestTrue(TEXT("the main menu opens lit on its first row, Attack"), LitLabel().Contains(TEXT("Attack")));
 		View->MoveLitRow(-1);
 		const FString Last = LitLabel();
-		TestTrue(TEXT("W from the first wraps to the last row"), !Last.IsEmpty() && !Last.Contains(TEXT("Attack")));
+		TestTrue(TEXT("W from the first wraps to the last row"), Last.Contains(TEXT("Skills")));
 		View->MoveLitRow(1);
 		TestTrue(TEXT("S from the last wraps to the first"), LitLabel().Contains(TEXT("Attack")));
+		View->MoveLitRow(1);
+		TestTrue(TEXT("S skips greyed Items and wraps to Skills"), LitLabel().Contains(TEXT("Skills")));
+		View->MoveLitRow(1);
 		TestTrue(TEXT("wor.UI.Print shows the lit row"), View->GetCommandMenuString().Contains(FString::Printf(TEXT("lit=%d"), View->GetLitRow())));
 
 		TestFalse(TEXT("A (Back) on the main menu does nothing"), Menu->PressMenuKey(EPieMenuCategory::Back));
@@ -629,9 +629,29 @@ void FCommandMenuKeysSpec::Define()
 		TestEqual(TEXT("the foe's row is lit"), View->GetRowTarget(View->GetLitRow()), Foe);
 		TestTrue(TEXT("A goes back one step"), Menu->PressMenuKey(EPieMenuCategory::Back));
 		TestTrue(TEXT("to the main menu"), Menu->IsAtMainMenu());
-		TestEqual(TEXT("a new view starts unlit"), View->GetLitRow(), static_cast<int32>(INDEX_NONE));
+		TestTrue(TEXT("Back re-lights the row you came from, Attack"), LitLabel().Contains(TEXT("Attack")));
 
+		// QA: Skills, a kind, then Back twice re-lights the kind, then Skills.
 		View->MoveLitRow(1);
+		TestTrue(TEXT("D opens Skills"), View->PressLitRow() && !Menu->IsAtMainMenu());
+		const FString Kind = LitLabel();
+		TestTrue(TEXT("the kinds list opens lit on its first, Abilities"), Kind.Contains(TEXT("Abilities")));
+		const FText KindsTitle = View->GetTitle();
+		TestTrue(TEXT("D opens the kind"), View->PressLitRow() && !View->GetTitle().EqualTo(KindsTitle));
+		TestFalse(TEXT("its list opens lit"), LitLabel().IsEmpty());
+		TestTrue(TEXT("Back to the kinds"), Menu->PressMenuKey(EPieMenuCategory::Back) && View->GetTitle().EqualTo(KindsTitle));
+		TestEqual(TEXT("on the kind you opened"), LitLabel(), Kind);
+		TestTrue(TEXT("Back to the main menu"), Menu->PressMenuKey(EPieMenuCategory::Back) && Menu->IsAtMainMenu());
+		TestTrue(TEXT("on Skills"), LitLabel().Contains(TEXT("Skills")));
+
+		// A new turn starts fresh: both Defend round to the hero, whose menu opens on Attack, not the Skills it was left on.
+		TestTrue(TEXT("the hero defends"), Menu->PressMenuKey(EPieMenuCategory::Defend));
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		TestTrue(TEXT("the foe defends"), Menu->GetCurrentActor() == Foe && Menu->PressMenuKey(EPieMenuCategory::Defend));
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		TestTrue(TEXT("the hero's next turn"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero && Menu->IsAtMainMenu());
+		TestTrue(TEXT("opens lit on its first row, Attack"), LitLabel().Contains(TEXT("Attack")));
+
 		View->PressLitRow();
 		TestTrue(TEXT("D on a target row picks it, as Enter"), View->PressLitRow());
 		TestNull(TEXT("and leaves the picker"), Menu->GetHighlightedTarget());
