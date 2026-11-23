@@ -81,6 +81,15 @@ public:
 	/** B-400 (wor.Camera): e.g. "target view: Goblin_2 of 3 (cut, 4 moves)" or "target view: none". */
 	FString GetTargetViewString() const;
 
+	/** B-587 (D-262): Intel's open tab. A character on the viewer's own turn view: a cut to its close-up
+	 *  (ComputeIntelView). Null (Intel closed) while the close-up shows: a cut back to the turn view, then the target
+	 *  view again if the picker still highlights one. Static (movement off), a cinematic, a held shot or another's turn:
+	 *  nothing moves. */
+	void SetIntelSubject(AActor *Subject);
+	bool IsIntelViewShowing() const { return bIntelViewShowing; }
+	/** B-587 (debug, specs): the Intel camera moves this fight (to a close-up, between tabs and back). */
+	int32 GetIntelMoveCount() const { return IntelMoveCount; }
+
 	bool IsInCombat() const { return bInCombat; }
 	ETurnViewStyle GetTurnViewStyle() const { return TurnViewStyle; }
 	bool IsCameraMovementOff() const { return bCameraMovementOff; }
@@ -429,6 +438,9 @@ private:
 	int32 HighlightTargetCount = 0;
 	bool bTargetViewShowing = false;
 	int32 TargetMoveCount = 0;
+	// B-587: Intel's close-up.
+	bool bIntelViewShowing = false;
+	int32 IntelMoveCount = 0;
 
 	// B-401: an action started since the orchestrator last asked for one (or since the turn start).
 	bool bActedSinceAsked = false;

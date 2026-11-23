@@ -283,6 +283,11 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static FTransform ComputeTargetViewFrom(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FTransform &TurnView,
 											const FVector &TargetFeet, float TargetHeight, int32 TargetCount);
 
+	/** B-587 (D-262): Intel's close-up of the character whose feet are at SubjectFeet, SubjectHeight tall: the target
+	 *  view's front shot (OverTheShoulder), a step nearer, slid so the character sits in the middle of the screen's left
+	 *  two-thirds (the Intel panel covers the right third). Shown by a cut, in every turn-view style. */
+	static FTransform ComputeIntelView(const FCombatCameraFrame &Frame, const FVector &SubjectFeet, float SubjectHeight);
+
 	/** B-400: the move to, between and back from target views: 0 (a cut) for OverTheShoulder (study §12: one cut per
 	 *  press); a very short re-aim blend for the other styles (§9: a setting, not a rule). */
 	static float GetTargetViewBlendSeconds(ETurnViewStyle Style);

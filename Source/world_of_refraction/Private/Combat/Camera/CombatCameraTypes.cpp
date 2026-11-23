@@ -100,6 +100,17 @@ namespace CombatCameraTargetView
 	constexpr float ReaimBlendSeconds = 0.15f;
 }
 
+namespace CombatCameraIntelView
+{
+	// B-587 (D-262 c). TODO: tune in PIE.
+	/** The close-up's distance as a part of the target view's front shot distance. */
+	constexpr float CloserThanTargetView = 0.75f;
+	/** The closest the close-up stands to the character's middle, in cm. */
+	constexpr float MinDistance = 200.0f;
+	/** Where the character sits across the screen (-1 left edge, 1 right edge): the middle of the left two-thirds (D-262 a). */
+	constexpr float SubjectScreenX = -CameraFraming::THIRD_LINE;
+}
+
 namespace CombatCameraWindow
 {
 	constexpr float MinPlayRate = FCombatCameraRules::MinPlayRate;
@@ -255,6 +266,21 @@ FTransform FCombatCameraRules::ComputeTargetViewFrom(ETurnViewStyle Style, const
 	const float Distance = FMath::Max(FramedHeight * 0.5f / (VerticalHalfTan * MediumShotFill), MediumShotMinDistance);
 	const FVector Location = AimPoint + (Facing + Side * MediumShotSide + FVector::UpVector * MediumShotRise) * Distance;
 	return LookFrom(Location, AimPoint);
+}
+
+FTransform FCombatCameraRules::ComputeIntelView(const FCombatCameraFrame &Frame, const FVector &SubjectFeet, float SubjectHeight)
+{
+	using namespace CombatCameraIntelView;
+	const FTransform Front = ComputeTargetViewFrom(ETurnViewStyle::OverTheShoulder, Frame, FTransform::Identity, SubjectFeet, SubjectHeight,
+												   MinTargetsForTargetView);
+	const float FramedHeight = FMath::Max(SubjectHeight, CombatCameraTargetView::MinTargetHeight) * (1.0f + CombatCameraTargetView::HealthBarHeadroom);
+	const FVector AimPoint = SubjectFeet + FVector::UpVector * FramedHeight * 0.5f; // where the front shot aims
+	const FVector FromAim = Front.GetLocation() - AimPoint;
+	const float Distance = FMath::Max(FromAim.Size() * CloserThanTargetView, MinDistance);
+	// The same aim, slid to the camera's right so the character lands at SubjectScreenX.
+	const float HorizontalHalfTan = FMath::Tan(FMath::DegreesToRadians(DefaultFieldOfView * 0.5f));
+	const FVector Slide = Front.GetRotation().GetRightVector() * (-SubjectScreenX * Distance * HorizontalHalfTan);
+	return FTransform(Front.GetRotation(), AimPoint + FromAim.GetSafeNormal() * Distance + Slide);
 }
 
 #define LOCTEXT_NAMESPACE "CombatCameraSettings"
