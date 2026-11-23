@@ -113,3 +113,27 @@ const TCHAR *ReviveVote::ResultName(EReviveVoteResult Result)
 	default: return TEXT("none");
 	}
 }
+
+FText ReviveVote::MakeLine(ELine Line, const FText &OpponentName, const FText &Starter)
+{
+	// The keys stay those the lines had in WoRGameState.cpp / WoRPlayerState.cpp.
+	switch (Line)
+	{
+	case ELine::AlreadyWaits:
+		return FText::Format(NSLOCTEXT("WoRGameState", "ReviveVoteAlreadyWaits", "The {0} already returns when the fight ends."), OpponentName);
+	case ELine::Ask:
+		return FText::Format(NSLOCTEXT("WoRGameState", "ReviveVoteAsk", "{0} wants to revive the {1}: vote in the rest menu, or type wor.Trial.Vote yes / no."),
+							 Starter, OpponentName);
+	case ELine::Failed:
+		return FText::Format(NSLOCTEXT("WoRGameState", "ReviveVoteFailed", "The {0} is not revived (not everyone agreed)."), OpponentName);
+	case ELine::Waits:
+		return FText::Format(NSLOCTEXT("WoRGameState", "ReviveVoteWaits", "Everyone agreed: the {0} returns when the fight ends."), OpponentName);
+	case ELine::Passed:
+		return FText::Format(NSLOCTEXT("WoRGameState", "ReviveVotePassed", "Everyone agreed: the {0} returns."), OpponentName);
+	case ELine::RefusedLate:
+		return FText::Format(NSLOCTEXT("WoRGameState", "ReviveVoteRefusedLate", "Everyone agreed, but the {0} can't be revived now."), OpponentName);
+	case ELine::Refused:
+		return FText::Format(NSLOCTEXT("WoRPlayerState", "ReviveRefused", "The {0} can't be revived from here right now."), OpponentName);
+	}
+	return FText::GetEmpty();
+}

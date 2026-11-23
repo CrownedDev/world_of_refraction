@@ -55,7 +55,10 @@ void UEncounterComponent::BeginPlay()
 		// B-187b (RunStructure §4): a beaten mini-boss leaves a rest spot where it stood; its menu can revive it.
 		if (TrialRun->IsBeatenMiniBoss(GetEncounterId()) && Owner->HasAuthority())
 		{
-			ATrialRestSpot::SpawnForMiniBoss(GetWorld(), Owner->GetActorTransform(), GetEncounterId());
+			// B-589 (Q-450): its revive names the team's leader (a mini-boss form leads, GetEnemyRoster).
+			const TArray<UCharacterData *> Team = GetOwnTeam();
+			const FText Leader = Team.IsEmpty() || !Team[0] ? FText::GetEmpty() : FText::FromString(Team[0]->Name);
+			ATrialRestSpot::SpawnForMiniBoss(GetWorld(), Owner->GetActorTransform(), GetEncounterId(), Leader);
 		}
 		Owner->Destroy();
 		return;

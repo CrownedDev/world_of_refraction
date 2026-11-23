@@ -2,7 +2,7 @@
 // B-187b part 1 (RunStructure §4, Q-187b): a beaten mini-boss's place is a rest spot whose menu can revive it, one
 // tier stronger and with one tier better drops per revival, up to MiniBossRevival::MAX_REVIVALS; other beaten
 // encounters can't be revived. B-187c: the marks and revivals survive a save; a revive brings the party back where it
-// rested (the pending return stand, consumed once).
+// rested (the pending return stand, consumed once). B-589 (Q-450 = B): the revive row and vote lines name the opponent.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -16,12 +16,17 @@
 #include "Save/WoRSaveTypes.h"
 #include "Save/WoRSaveGame.h"
 #include "Kismet/GameplayStatics.h"
+#include "Blueprint/UserWidget.h"
+#include "Trial/ReviveVote.h"
+#include "UI/Hub/RestSpotWidget.h"
 
 namespace
 {
 	constexpr int32 REVIVE_TEST_SEED = 11;
 	const FName REVIVE_TEST_MINI_BOSS(TEXT("MiniBossTeam"));
 	const FName REVIVE_TEST_ELITE(TEXT("EliteTeam"));
+	constexpr const TCHAR *REVIVE_TEST_OPPONENT = TEXT("Ash Warden");
+	constexpr const TCHAR *REVIVE_TEST_STARTER = TEXT("Seras");
 }
 
 BEGIN_DEFINE_SPEC(FMiniBossReviveSpec, "WoR.Trial.MiniBossRevive", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -88,6 +93,42 @@ void FMiniBossReviveSpec::Define()
 		TestFalse(TEXT("elsewhere: no revive"), WoRRestSpot::CanReviveHere(TestWorld->GetWorld()));
 		WoRRestSpot::Rest(TestWorld->GetWorld(), REVIVE_TEST_MINI_BOSS);
 		TestTrue(TEXT("at its spot"), WoRRestSpot::CanReviveHere(TestWorld->GetWorld()));
+	});
+
+	It("names the opponent, never its rank, on the revive row and every vote line (B-589, Q-450)", [this]()
+	{
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		UWorld *World = TestWorld->GetWorld();
+		const FText Starter = FText::FromString(REVIVE_TEST_STARTER);
+		const ATrialRestSpot *Spot = ATrialRestSpot::SpawnForMiniBoss(World, FTransform::Identity, REVIVE_TEST_MINI_BOSS,
+																	  FText::FromString(REVIVE_TEST_OPPONENT));
+		if (!TestNotNull(TEXT("its rest spot"), Spot)) return;
+		Run->MarkEncounterBeaten(REVIVE_TEST_MINI_BOSS, EEncounterRank::MiniBoss);
+		WoRRestSpot::Rest(World, REVIVE_TEST_MINI_BOSS);
+		const FText Opponent = WoRRestSpot::GetReviveOpponentName(World);
+		TestEqual(TEXT("the spot's opponent"), Opponent.ToString(), FString(REVIVE_TEST_OPPONENT));
+		TestEqual(TEXT("the row"), WoRRestSpot::MakeReviveRowText(Opponent, 1).ToString(), FString(TEXT("Revive the Ash Warden (1 of 3)")));
+
+		URestSpotWidget *Menu = CreateWidget<URestSpotWidget>(World, URestSpotWidget::StaticClass());
+		if (!TestNotNull(TEXT("rest menu"), Menu)) return;
+		const TSharedRef<SWidget> Built = Menu->TakeWidget(); // builds it (NativeConstruct, Refresh); held, or it destructs
+		TestEqual(TEXT("the menu's row"), Menu->GetReviveRowText().ToString(), FString(TEXT("Revive the Ash Warden (1 of 3)")));
+
+		using ReviveVote::ELine;
+		for (const ELine Line : {ELine::AlreadyWaits, ELine::Ask, ELine::Failed, ELine::Waits, ELine::Passed, ELine::RefusedLate, ELine::Refused})
+		{
+			const FString Said = ReviveVote::MakeLine(Line, Opponent, Starter).ToString();
+			TestTrue(FString::Printf(TEXT("names it: %s"), *Said), Said.Contains(TEXT("the Ash Warden"), ESearchCase::IgnoreCase));
+			TestFalse(FString::Printf(TEXT("no rank: %s"), *Said), Said.Contains(TEXT("boss"), ESearchCase::IgnoreCase));
+		}
+		TestTrue(TEXT("the ask names who started it"), ReviveVote::MakeLine(ELine::Ask, Opponent, Starter).ToString().StartsWith(TEXT("Seras wants")));
+	});
+
+	It("says opponent for a rest spot with no name (B-589)", [this]()
+	{
+		if (!TestNotNull(TEXT("Run"), Run)) return;
+		WoRRestSpot::Rest(TestWorld->GetWorld(), TEXT("SomeOtherSpot"));
+		TestEqual(TEXT("no spot's name"), WoRRestSpot::GetReviveOpponentName(TestWorld->GetWorld()).ToString(), FString(TEXT("opponent")));
 	});
 
 	It("a revival steps the fight's tier, at most S", [this]()

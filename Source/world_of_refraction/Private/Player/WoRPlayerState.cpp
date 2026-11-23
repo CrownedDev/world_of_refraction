@@ -716,12 +716,12 @@ void AWoRPlayerState::Client_ShowFeatureMessage_Implementation(const FText &Mess
 	ATrialMapFeature::ShowMessage(Message); // B-235b
 }
 
-void AWoRPlayerState::Client_OpenRestMenu_Implementation(bool bCanRevive, int32 RevivalNumber)
+void AWoRPlayerState::Client_OpenRestMenu_Implementation(bool bCanRevive, int32 RevivalNumber, const FText &OpponentName)
 {
 	APlayerController *PC = Cast<APlayerController>(GetOwner());
 	if (URestSpotWidget *Menu = PC && PC->IsLocalController() ? URestSpotWidget::Open(PC) : nullptr)
 	{
-		Menu->SetHostRevive(bCanRevive, RevivalNumber);
+		Menu->SetHostRevive(bCanRevive, RevivalNumber, OpponentName);
 	}
 }
 
@@ -729,7 +729,8 @@ void AWoRPlayerState::ServerReviveMiniBoss_Implementation()
 {
 	UWorld *World = GetWorld();
 	// B-187e review: the client's menu has closed, so a refusal says why on its screen.
-	const FText Refused = NSLOCTEXT("WoRPlayerState", "ReviveRefused", "The mini-boss can't be revived from here right now.");
+	// B-589 (Q-450 = B): the opponent's name, never its rank.
+	const FText Refused = ReviveVote::MakeLine(ReviveVote::ELine::Refused, WoRRestSpot::GetReviveOpponentName(World));
 	if (!WoRRestSpot::CanReviveHere(World))
 	{
 		UE_LOG(LogWoR, Log, TEXT("[RestSpot] %s's revive refused: no revivable mini-boss at the last rest spot"), *GetPlayerName());

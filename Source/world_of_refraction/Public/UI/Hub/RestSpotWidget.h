@@ -27,11 +27,14 @@ public:
 	static URestSpotWidget *Open(APlayerController *PC);
 
 	/** B-187e: on a client, what the host said about this spot's mini-boss (the run lives on the host): Revive shows
-	 *  when bCanRevive, labelled with RevivalNumber of MAX_REVIVALS. */
-	void SetHostRevive(bool bCanRevive, int32 RevivalNumber);
+	 *  when bCanRevive, labelled with RevivalNumber of MAX_REVIVALS. B-589: and the opponent's name (Q-450). */
+	void SetHostRevive(bool bCanRevive, int32 RevivalNumber, const FText &OpponentName);
 
 	/** Debug: what the menu shows. */
 	FString GetRestSpotWidgetString() const;
+
+	/** B-589: the revive row's words as shown ("Revive the Ash Warden (1 of 3)"), empty while it is hidden. */
+	FText GetReviveRowText() const;
 
 	/** B-187e (Q-187e changed): PC's player answers the open revive vote (a client through ServerCastReviveVote, the host
 	 *  directly). The menu's buttons and the wor.Trial.Vote console placeholder use it. */
@@ -104,6 +107,7 @@ private:
 	/** B-187e: the host's answer for a client's menu (SetHostRevive). */
 	bool bHostCanRevive = false;
 	int32 HostRevivalNumber = 0;
+	FText HostOpponentName; // B-589
 
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> PayoutText;

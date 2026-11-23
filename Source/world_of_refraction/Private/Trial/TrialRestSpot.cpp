@@ -301,7 +301,8 @@ void ATrialRestSpot::Interact(APawn *Pawn)
 	else if (AWoRPlayerState *Player = PC ? PC->GetPlayerState<AWoRPlayerState>() : nullptr)
 	{
 		// B-187d: a client's press (ServerInteractFeature) opens its own menu; B-187e: with the host's revive answer.
-		Player->Client_OpenRestMenu(WoRRestSpot::CanReviveHere(GetWorld()), WoRRestSpot::GetNextRevivalNumber(GetWorld()));
+		Player->Client_OpenRestMenu(WoRRestSpot::CanReviveHere(GetWorld()), WoRRestSpot::GetNextRevivalNumber(GetWorld()),
+									WoRRestSpot::GetReviveOpponentName(GetWorld()));
 	}
 	RefreshHint();
 }
@@ -313,7 +314,19 @@ int32 WoRRestSpot::GetNextRevivalNumber(const UWorld *World)
 	return Run ? Run->GetEncounterRevivals(Run->GetLastRestSpot()) + 1 : 0;
 }
 
-ATrialRestSpot *ATrialRestSpot::SpawnForMiniBoss(UWorld *World, const FTransform &Where, FName EncounterId)
+FText WoRRestSpot::GetReviveOpponentName(const UWorld *World)
+{
+	const ATrialRestSpot *Spot = FindLastRestSpot(World);
+	return Spot && !Spot->GetOpponentName().IsEmpty() ? Spot->GetOpponentName() : LOCTEXT("ReviveOpponentUnnamed", "opponent");
+}
+
+FText WoRRestSpot::MakeReviveRowText(const FText &OpponentName, int32 RevivalNumber)
+{
+	return FText::Format(LOCTEXT("ReviveRow", "Revive the {0} ({1} of {2})"), OpponentName, FText::AsNumber(RevivalNumber),
+						 FText::AsNumber(MiniBossRevival::MAX_REVIVALS));
+}
+
+ATrialRestSpot *ATrialRestSpot::SpawnForMiniBoss(UWorld *World, const FTransform &Where, FName EncounterId, const FText &InOpponentName)
 {
 	if (!World || EncounterId.IsNone())
 	{
@@ -326,8 +339,9 @@ ATrialRestSpot *ATrialRestSpot::SpawnForMiniBoss(UWorld *World, const FTransform
 		return nullptr;
 	}
 	Spot->MiniBossEncounterId = EncounterId; // before BeginPlay, so the hint and id are right from the start
+	Spot->OpponentName = InOpponentName;
 	Spot->FinishSpawning(Where);
-	UE_LOG(LogWoR, Log, TEXT("[RestSpot] A rest spot where mini-boss %s fell"), *EncounterId.ToString());
+	UE_LOG(LogWoR, Log, TEXT("[RestSpot] A rest spot where mini-boss %s (%s) fell"), *EncounterId.ToString(), *InOpponentName.ToString());
 	return Spot;
 }
 
