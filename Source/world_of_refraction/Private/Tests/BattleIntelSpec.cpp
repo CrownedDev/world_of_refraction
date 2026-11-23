@@ -361,7 +361,7 @@ void FBattleIntelSpec::Define()
 			HUD->SetCommandMenu(CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass()));
 			HUD->TakeWidget(); // builds the tree
 		}
-		const UWidget *TurnOrder = HUD ? HUD->GetWidgetFromName(TEXT("TurnOrder")) : nullptr;
+		const UWidget *TurnOrder = HUD ? HUD->GetWidgetFromName(TEXT("TurnOrderRow")) : nullptr; // B-590: the hexagon row, the default layout
 		TArray<const UWidget *> Hidden;
 		for (const TCHAR *Name : {TEXT("TargetMarkers"), TEXT("CommandMenuHolder"), TEXT("CornerHints")})
 		{

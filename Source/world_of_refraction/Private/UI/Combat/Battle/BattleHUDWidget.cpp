@@ -103,8 +103,9 @@ namespace BattleHUDBuild
 		return Box;
 	}
 
-	/** B-590: Hexes into Strip's hexagons in order (the rest collapse), and Strip shown or collapsed. */
-	void PushTurnHexes(UPanelWidget *Strip, const TArray<FBattleTurnHex> &Hexes, bool bShown)
+	/** B-590: Hexes into Strip's hexagons in order, and Strip shown or collapsed. A slot below KeptSlots with no turn
+	 *  known keeps its space (Hidden: the column, so Intel under it doesn't jump); the rest collapse. */
+	void PushTurnHexes(UPanelWidget *Strip, const TArray<FBattleTurnHex> &Hexes, int32 KeptSlots, bool bShown)
 	{
 		if (!Strip)
 		{
@@ -121,7 +122,10 @@ namespace BattleHUDBuild
 			}
 			if (!Hexes.IsValidIndex(Index))
 			{
-				Box->SetVisibility(ESlateVisibility::Collapsed);
+				const float Size = Index == 0 ? BattleHUDView::CURRENT_TURN_HEX_SIZE : BattleHUDView::NEXT_TURN_HEX_SIZE;
+				Box->SetWidthOverride(Size);
+				Box->SetHeightOverride(Size);
+				Box->SetVisibility(Index < KeptSlots ? ESlateVisibility::Hidden : ESlateVisibility::Collapsed);
 				continue;
 			}
 			const FBattleTurnHex &Data = Hexes[Index];
@@ -988,7 +992,7 @@ void UBattleHUDWidget::RefreshTurnStrip()
 	// B-590: the settings are read on every refresh, so a change in the menu shows on the next turn.
 	const UWorld *World = GetWorld();
 	const USaveSubsystem *Save = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
-	const int32 TurnsShown = Save ? Save->GetTurnsShown() : BattleHUDView::DEFAULT_TURNS_SHOWN;
+	TurnsShown = Save ? Save->GetTurnsShown() : BattleHUDView::DEFAULT_TURNS_SHOWN;
 	bTurnOrderColumn = Save && Save->IsTurnOrderColumn();
 	const TArray<FBattleTurnSlot> Strip = BattleHUDView::ReadTurnStrip(this, CurrentTurnNumber, TurnsShown - 1); // the current turn counts
 	const AActor *Acting = Strip.IsEmpty() ? nullptr : Strip[0].Actor.Get();
@@ -1144,8 +1148,8 @@ void UBattleHUDWidget::PushToWidgets()
 		BattleHUDCard::Push(Card);
 	}
 	LayoutPartyCards(); // B-436a: after Push, so a compact card's hidden lines stay hidden
-	BattleHUDBuild::PushTurnHexes(TurnRow, TurnHexes, !bTurnOrderColumn);
-	BattleHUDBuild::PushTurnHexes(TurnColumn, TurnHexes, bTurnOrderColumn);
+	BattleHUDBuild::PushTurnHexes(TurnRow, TurnHexes, 0, !bTurnOrderColumn); // the row keeps to the right edge; its height never changes
+	BattleHUDBuild::PushTurnHexes(TurnColumn, TurnHexes, TurnsShown, bTurnOrderColumn);
 	BattleHUDBuild::SetTextSafe(StatusPanelBody, StatusPanelText);
 	if (StatusPanel)
 	{

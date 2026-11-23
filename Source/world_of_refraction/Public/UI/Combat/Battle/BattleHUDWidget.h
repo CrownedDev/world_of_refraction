@@ -282,6 +282,7 @@ private:
 	TArray<FText> TurnLines;
 	/** B-590: the turn order's hexagons and the layout setting, from RefreshTurnStrip. */
 	TArray<FBattleTurnHex> TurnHexes;
+	int32 TurnsShown = BattleHUDView::DEFAULT_TURNS_SHOWN;
 	bool bTurnOrderColumn = false;
 	FText StatusPanelText;
 	bool bStatusPanelOpen = false;
