@@ -1160,6 +1160,13 @@ void FBattleHUDSpec::Define()
 				TestEqual(TEXT("in the hero's selector colour"), Frame.Color.GetSpecifiedColor(), Outline);
 			}
 			TestEqual(TEXT("the enemy card has no frame"), Cards[FoeCard].Frame->Background.OutlineSettings.Width, 0.0f);
+			// B-582c QA: the dark fill is drawn once and nothing tints the frame (the border's colour multiplier stays white).
+			for (const int32 Card : {HeroCard, FoeCard})
+			{
+				const UBorder *Frame = Cards.IsValidIndex(Card) ? Cards[Card].Frame.Get() : nullptr;
+				TestTrue(TEXT("the card's fill is the card colour"), Frame && Frame->Background.TintColor.GetSpecifiedColor().Equals(BattleCardStyle::CardColor));
+				TestTrue(TEXT("and no multiplier on top"), Frame && Frame->GetBrushColor().Equals(FLinearColor::White));
+			}
 
 			FPieMenuButtonData Attack;
 			Attack.Category = EPieMenuCategory::Attack;

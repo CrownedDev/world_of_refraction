@@ -246,7 +246,8 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 
 	const FBattleCardParts Parts = GetParts(Level, Card.bParty);
 	Card.Frame = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Card.Frame->SetBrushColor(CardColor);
+	// B-582c QA: the fill is the brush's own (Push swaps it), not SetBrushColor, which would also tint the acting frame.
+	Card.Frame->SetBrush(FSlateColorBrush(CardColor));
 	Card.Frame->SetPadding(FMargin(CardPadding));
 	// B-391c: a card with gear is hit-testable so its gear tooltip shows on hover; the others let clicks through.
 	Card.Frame->SetVisibility(Parts.bGear ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);

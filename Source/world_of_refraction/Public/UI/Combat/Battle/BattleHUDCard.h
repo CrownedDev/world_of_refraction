@@ -69,7 +69,7 @@ namespace BattleCardStyle
 	inline const FLinearColor TextColor = FLinearColor::White;
 	// B-582c (Crown, 2026-11-23): whose turn it is shows as a frame on the acting party card, in its selector colour
 	// (UBattleCommandMenuWidget::GetSelectorColoursFor); the "> " name marker and the gold name are gone.
-	inline constexpr float ActingFrameWidth = 2.0f;
+	inline constexpr float ActingFrameWidth = 3.0f; // Slate units: 3 px at 1080p, scaled with the HUD's DPI
 	// B-436b (Crown, 2026-11-14): darker HP red and EP blue so the white numbers read; low HP a hotter pink-red, apart from
 	// Burn's orange.
 	inline const FLinearColor PartyHPColor(0.45f, 0.04f, 0.06f);
