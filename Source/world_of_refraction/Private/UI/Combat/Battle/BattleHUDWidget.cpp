@@ -17,6 +17,7 @@
 #include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Tier/CombatTier.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
+#include "Combat/Actions/ActionExecutor.h" // FInfusionCostPreview (B-592b)
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/StatusBarStateComponent.h"
 #include "Combat/Actions/ActionPipsText.h"
@@ -241,6 +242,7 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 		BoundMenu = Menu;
 		Menu->OnTargetHighlighted.AddDynamic(this, &UBattleHUDWidget::HandleTargetHighlighted);
 		Menu->OnCommandMenuClosed.AddDynamic(this, &UBattleHUDWidget::HandleCommandMenuClosed);
+		Menu->OnCommandMenuReady.AddDynamic(this, &UBattleHUDWidget::HandleCommandMenuReady); // B-592b
 		MarkedTarget = Menu->GetHighlightedTarget();
 	}
 	else
@@ -436,6 +438,7 @@ void UBattleHUDWidget::Teardown()
 	{
 		Menu->OnTargetHighlighted.RemoveDynamic(this, &UBattleHUDWidget::HandleTargetHighlighted);
 		Menu->OnCommandMenuClosed.RemoveDynamic(this, &UBattleHUDWidget::HandleCommandMenuClosed);
+		Menu->OnCommandMenuReady.RemoveDynamic(this, &UBattleHUDWidget::HandleCommandMenuReady);
 	}
 	BoundMenu.Reset();
 	MarkedTarget.Reset();
@@ -455,6 +458,35 @@ void UBattleHUDWidget::HandleTargetHighlighted(AActor *Actor, AActor *Target, in
 void UBattleHUDWidget::HandleCommandMenuClosed()
 {
 	SetMarkedTarget(nullptr);
+	RefreshHPGhost(); // the menu is closed now (a commit closes it too): the ghost clears
+}
+
+void UBattleHUDWidget::HandleCommandMenuReady(const TArray<FPieMenuButtonData> &Buttons)
+{
+	RefreshHPGhost();
+}
+
+void UBattleHUDWidget::RefreshHPGhost()
+{
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	const FInfusionCostPreview Cost = Menu ? Menu->GetTargetStepCostPreview() : FInfusionCostPreview();
+	const AActor *Caster = Menu ? Menu->GetCurrentActor() : nullptr;
+	bool bChanged = false;
+	for (FBattleHUDCard &Card : Cards)
+	{
+		const UCharacterDataComponent *CharData = Card.CharData.Get();
+		const bool bShows = Card.bParty && Caster && Card.Actor.Get() == Caster && CharData && Cost.HP > 0;
+		const float Fraction = bShows ? BattleHUDView::PoolFraction(Cost.HP, CharData->MaxHP) : 0.0f;
+		const bool bKills = bShows && Cost.bWouldKill;
+		bChanged |= Fraction != Card.HPGhostFraction || bKills != Card.bHPGhostKills;
+		Card.HPGhostFraction = Fraction;
+		Card.bHPGhostKills = bKills;
+	}
+	if (bChanged)
+	{
+		PushToWidgets();
+		UpdateLowHPPulse();
+	}
 }
 
 int32 UBattleHUDWidget::GetMarkedCardIndex() const
@@ -764,7 +796,8 @@ void UBattleHUDWidget::UpdateLowHPPulse()
 		return;
 	}
 	FTimerManager &Timers = World->GetTimerManager();
-	const bool bAnyLow = Cards.ContainsByPredicate([](const FBattleHUDCard &Card) { return Card.bLowHP; });
+	// B-592b: the HP-cost ghost pulses on the same beat.
+	const bool bAnyLow = Cards.ContainsByPredicate([](const FBattleHUDCard &Card) { return Card.bLowHP || Card.HPGhostFraction > 0.0f; });
 	if (!bAnyLow)
 	{
 		Timers.ClearTimer(LowHPPulseTimer); // Push already put every bar back to full opacity
@@ -1582,6 +1615,10 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 		{
 			Out += FString::Printf(TEXT(" | gear: %s"), Card.GearLine.IsEmpty() ? TEXT("none") : *Card.GearLine.ToString());
 			Out += &Card == FeaturedCard ? TEXT(" | featured (full card)") : TEXT(" | compact"); // B-436a
+			if (Card.HPGhostFraction > 0.0f) // B-592b
+			{
+				Out += FString::Printf(TEXT(" | HP ghost %.0f%%%s"), Card.HPGhostFraction * 100.0f, Card.bHPGhostKills ? TEXT(" (would kill)") : TEXT(""));
+			}
 		}
 		if (Card.bParty)
 		{

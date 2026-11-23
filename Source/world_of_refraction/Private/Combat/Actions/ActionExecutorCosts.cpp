@@ -373,41 +373,7 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		return;
 	}
 
-	// D-126 (B-334): the HP-paying sources (Raw, Innate spell, Evolution) pay HP only at level 2.
-	const bool bLevelPaysHP = InfusionConstants::LevelPaysHP(Level);
-
-	// HP basis (rework 6-2-3c): the PRE-Efficiency infused EP cost (base x charge level, D-126).
-	// Source-independent — it's what this infused action's EP costs before the
-	// Efficiency reduction. The HP-paying branches (Raw/Innate/Evolution) feed this
-	// to CalculateHPCost, which converts it to HP (% of MaxEP -> % of MaxHP) and
-	// applies Resistance. Crystal sources pay durability, not HP, so they ignore it.
-	const bool bIsSpellAction = (Action.ActionType == EActionType::Spell);
-	UCharacterData *CommitCharData = GetCharacterData(Actor);
-	const UCharacterDataComponent *CommitComp = GetCharacterDataComponent(Actor);
-	int32 PreEffInfusedEP = 0;
-	{
-		int32 BaseCost = 0;
-		float PowerMult = 1.0f;
-		if (bIsSpellAction)
-		{
-			if (Action.SpellData)
-			{
-				BaseCost = Action.SpellData->CalculateEnergyCost(CommitCharData);
-				PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData));
-			}
-		}
-		else if (USkillDataBase *Skill = ResolveActionSkill(Action))
-		{
-			const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
-			BaseCost = Skill->CalculateEnergyCost(CommitCharData, bIsInfused);
-			PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveAbilityTier(Actor, Skill));
-		}
-		// Own-tier power mirrors the cost multiplier so the HP-infusion penalty basis tracks the
-		// now-tier-scaled EP cost (this block recomputes cost; it does NOT read CalculateActionEnergyCost).
-		// Tier-gap cost (Cluster 3a): the HP-infusion basis tracks the now-gap-scaled
-		// EP cost, so the reciprocal gap flows through to the HP penalty too.
-		PreEffInfusedEP = FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult * GetTierGapCostMultiplier(Actor, Action));
-	}
+	const int32 PreEffInfusedEP = ComputePreEffInfusedEP(Actor, Action, Level);
 
 	// B-435 (D-174): the picked source and every stacked same-element source each pay their own cost; the HP
 	// backlashes add up and are deferred to finalize together. The stack is resolved before any wear and kept on the
@@ -418,10 +384,10 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 		CurrentExecutionContext->InfusionStack = Stack;
 		CurrentExecutionContext->bInfusionStackResolved = true;
 	}
-	int32 PendingHP = ApplySourceCommitCost(Actor, Action, Action.SelectedSource, Level, PreEffInfusedEP, bLevelPaysHP);
+	int32 PendingHP = ApplySourceCommitCost(Actor, Action, Action.SelectedSource, Level, PreEffInfusedEP);
 	for (int32 Index = 1; Index < Stack.Num(); ++Index)
 	{
-		PendingHP += ApplySourceCommitCost(Actor, Action, Stack[Index], Level, PreEffInfusedEP, bLevelPaysHP);
+		PendingHP += ApplySourceCommitCost(Actor, Action, Stack[Index], Level, PreEffInfusedEP);
 	}
 	if (CurrentExecutionContext.IsSet() && PendingHP > 0)
 	{
@@ -429,8 +395,100 @@ void UActionExecutor::ApplyCommitCosts(AActor *Actor, const FAction &Action)
 	}
 }
 
+int32 UActionExecutor::ComputePreEffInfusedEP(AActor *Actor, const FAction &Action, int32 Level) const
+{
+	// HP basis (rework 6-2-3c): the PRE-Efficiency infused EP cost (base x charge level, D-126).
+	// Source-independent — it's what this infused action's EP costs before the
+	// Efficiency reduction. The HP-paying sources (Raw/Innate/Evolution) feed this
+	// to CalculateHPCost, which converts it to HP (% of MaxEP -> % of MaxHP) and
+	// applies Resistance. Crystal sources pay durability, not HP, so they ignore it.
+	const bool bIsSpellAction = (Action.ActionType == EActionType::Spell);
+	UCharacterData *CommitCharData = GetCharacterData(Actor);
+	const UCharacterDataComponent *CommitComp = GetCharacterDataComponent(Actor);
+	int32 BaseCost = 0;
+	float PowerMult = 1.0f;
+	if (bIsSpellAction)
+	{
+		if (Action.SpellData)
+		{
+			BaseCost = Action.SpellData->CalculateEnergyCost(CommitCharData);
+			PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData));
+		}
+	}
+	else if (USkillDataBase *Skill = ResolveActionSkill(Action))
+	{
+		const bool bIsInfused = (Action.SelectedSource != EInfusionSourceOption::None);
+		BaseCost = Skill->CalculateEnergyCost(CommitCharData, bIsInfused);
+		PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveAbilityTier(Actor, Skill));
+	}
+	// Own-tier power mirrors the cost multiplier so the HP-infusion penalty basis tracks the
+	// now-tier-scaled EP cost (this recomputes cost; it does NOT read CalculateActionEnergyCost).
+	// Tier-gap cost (Cluster 3a): the HP-infusion basis tracks the now-gap-scaled
+	// EP cost, so the reciprocal gap flows through to the HP penalty too.
+	return FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult * GetTierGapCostMultiplier(Actor, Action));
+}
+
+int32 UActionExecutor::ComputeSourceHPCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,
+										   int32 PreEffInfusedEP) const
+{
+	// D-126 (B-334): the HP-paying sources pay HP only at level 2. Raw always; Innate only on a SPELL (an innate-element
+	// ability is "oiling the sword", EP only); Evolution only with an evolution in the character seat (B-357e, B-435).
+	// Ring and weapon-crystal sources pay durability wear instead (ApplySourceCommitCost).
+	if (!InfusionConstants::LevelPaysHP(Level))
+	{
+		return 0;
+	}
+	const bool bIsSpellAction = (Action.ActionType == EActionType::Spell);
+	bool bPaysHP = false;
+	switch (Source)
+	{
+	case EInfusionSourceOption::Raw:
+		bPaysHP = true;
+		break;
+	case EInfusionSourceOption::Innate:
+		bPaysHP = bIsSpellAction;
+		break;
+	case EInfusionSourceOption::Evolution:
+	{
+		const ULoadoutComponent *LC = GetLoadoutComponent(Actor);
+		bPaysHP = LC && LC->GetCharacterSlotEvolution().Item != nullptr;
+		break;
+	}
+	default:
+		break;
+	}
+	return bPaysHP ? UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP) : 0;
+}
+
+FInfusionCostPreview UActionExecutor::PreviewActionCost(AActor *Actor, const FAction &Action) const
+{
+	FInfusionCostPreview Preview;
+	if (!Actor)
+	{
+		return Preview;
+	}
+	Preview.EP = CalculateActionEnergyCost(Actor, Action);
+	const int32 Level = Action.GetChargeLevel();
+	if (Level <= 0 || Action.bIsDeferredFire)
+	{
+		return Preview;
+	}
+	// The same sum ApplyCommitCosts defers: the picked source, then each stacked same-element source after it.
+	const int32 PreEffInfusedEP = ComputePreEffInfusedEP(Actor, Action, Level);
+	const TArray<EInfusionSourceOption> Stack = GetSameElementInfusionSources(Actor, Action);
+	Preview.HP = ComputeSourceHPCost(Actor, Action, Action.SelectedSource, Level, PreEffInfusedEP);
+	for (int32 Index = 1; Index < Stack.Num(); ++Index)
+	{
+		Preview.HP += ComputeSourceHPCost(Actor, Action, Stack[Index], Level, PreEffInfusedEP);
+	}
+	// The deferred cost lands through ServerTakeDamage, which kills at 0 HP (ApplyPendingInfusionHPCost).
+	const UCharacterDataComponent *CharComp = GetCharacterDataComponent(Actor);
+	Preview.bWouldKill = CharComp && Preview.HP > 0 && Preview.HP >= CharComp->CurrentHP;
+	return Preview;
+}
+
 int32 UActionExecutor::ApplySourceCommitCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,
-											 int32 PreEffInfusedEP, bool bLevelPaysHP)
+											 int32 PreEffInfusedEP)
 {
 	const bool bIsSpellAction = (Action.ActionType == EActionType::Spell);
 	int32 HPCost = 0;
@@ -453,13 +511,7 @@ int32 UActionExecutor::ApplySourceCommitCost(AActor *Actor, const FAction &Actio
 		// dropped, the EP surcharge (6-2-2) still applies. Cost is DEFERRED to
 		// FinalizeAsyncAction via PendingInfusionHPCost so a lethal cost lands after
 		// the infused effect resolves.
-		{
-			const bool bInnateAbilityNoHP = (Source == EInfusionSourceOption::Innate) && !bIsSpellAction;
-			if (!bInnateAbilityNoHP && bLevelPaysHP)
-			{
-				HPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
-			}
-		}
+		HPCost = ComputeSourceHPCost(Actor, Action, Source, Level, PreEffInfusedEP);
 		break;
 
 	case EInfusionSourceOption::ActiveRing:
@@ -572,10 +624,7 @@ int32 UActionExecutor::ApplySourceCommitCost(AActor *Actor, const FAction &Actio
 		// 2. HP cost — same EP-based formula as Innate/Raw. Computed now
 		//    (commit-time HP) but DEFERRED to FinalizeAsyncAction via
 		//    PendingInfusionHPCost so a lethal backlash lands after the action.
-		if (bLevelPaysHP)
-		{
-			HPCost = UInfusionCostHelper::CalculateHPCost(Actor, PreEffInfusedEP);
-		}
+		HPCost = ComputeSourceHPCost(Actor, Action, Source, Level, PreEffInfusedEP);
 
 		// 3. Self-status build (logged intent, not yet applied — pending element-to-status mapping)
 		const float SelfStatusAmount = (Level == 1)

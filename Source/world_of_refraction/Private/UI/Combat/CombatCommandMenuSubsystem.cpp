@@ -2180,6 +2180,19 @@ bool UCombatCommandMenuSubsystem::CanChooseInfusionElement() const
     return CanInfusePendingAction() && bChoosableKind && VFX && VFX->GetCachedSources().Num() > 1;
 }
 
+FInfusionCostPreview UCombatCommandMenuSubsystem::GetTargetStepCostPreview() const
+{
+    const UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
+    if (!bIsOpen || CurrentDepth != ECombatMenuDepth::TargetSelection || !CurrentActor.IsValid() || !Exec)
+    {
+        return FInfusionCostPreview();
+    }
+    // The action the confirm would submit (the cost doesn't depend on the target), costed without committing it.
+    FPieMenuButtonData Pending;
+    Pending.Category = EPieMenuCategory::Target;
+    return Exec->PreviewActionCost(CurrentActor.Get(), BuildActionFromButton(Pending));
+}
+
 FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
 {
     FTargetPanelView View;

@@ -85,6 +85,61 @@ namespace
 		return BarSize;
 	}
 
+	/** B-592b: the HP-cost ghost, laid over the card's HP bar under its number: a lead spacer, the chunk, a tail
+	 *  spacer, weighted by Push so the chunk ends where the fill ends. Hidden until a cost shows. */
+	void BuildHPGhost(UWidgetTree *Tree, FBattleHUDCard &Card)
+	{
+		UOverlay *Layers = Card.HPBar ? Cast<UOverlay>(Card.HPBar->GetParent()) : nullptr;
+		if (!Layers)
+		{
+			return;
+		}
+		Card.HPGhostRow = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		Card.HPGhostRow->SetVisibility(ESlateVisibility::Collapsed);
+		Card.HPGhost = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		UWidget *const Parts[] = {Tree->ConstructWidget<USpacer>(USpacer::StaticClass()), Card.HPGhost.Get(),
+								  Tree->ConstructWidget<USpacer>(USpacer::StaticClass())};
+		for (UWidget *Part : Parts)
+		{
+			if (UHorizontalBoxSlot *PartSlot = Card.HPGhostRow->AddChildToHorizontalBox(Part))
+			{
+				PartSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+				PartSlot->SetVerticalAlignment(VAlign_Fill);
+			}
+		}
+		if (UOverlaySlot *RowSlot = Cast<UOverlaySlot>(Layers->InsertChildAt(1, Card.HPGhostRow))) // over the bar, under the number
+		{
+			RowSlot->SetHorizontalAlignment(HAlign_Fill);
+			RowSlot->SetVerticalAlignment(VAlign_Fill);
+		}
+	}
+
+	/** B-592b: weights the ghost row so the chunk is the last HPGhostFraction of the fill, in its colour. */
+	void PushHPGhost(const FBattleHUDCard &Card)
+	{
+		using namespace BattleCardStyle;
+
+		if (!Card.HPGhostRow || !Card.HPGhost)
+		{
+			return;
+		}
+		const float Fill = FMath::Clamp(Card.HPFraction, 0.0f, 1.0f);
+		const float Ghost = FMath::Clamp(Card.HPGhostFraction, 0.0f, Fill); // a lethal cost covers what is left
+		Card.HPGhostRow->SetVisibility(Ghost > 0.0f ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		const float Weights[] = {Fill - Ghost, Ghost, 1.0f - Fill};
+		for (int32 Index = 0; Index < static_cast<int32>(UE_ARRAY_COUNT(Weights)); ++Index)
+		{
+			const UWidget *Part = Card.HPGhostRow->GetChildAt(Index);
+			if (UHorizontalBoxSlot *PartSlot = Part ? Cast<UHorizontalBoxSlot>(Part->Slot) : nullptr)
+			{
+				FSlateChildSize Size(ESlateSizeRule::Fill);
+				Size.Value = Weights[Index];
+				PartSlot->SetSize(Size);
+			}
+		}
+		Card.HPGhost->SetBrushColor(Card.bHPGhostKills ? HPGhostKillColor : HPGhostColor);
+	}
+
 	/** The buildup bar, with a row of crack marks laid over it: spacers weighted by the gaps between
 	 *  BattleHUDView::GetCrackPositions, a thin mark at each. Marks are Hidden (not Collapsed) so the row keeps its spacing.
 	 *  B-585 (D-257): as tall as the card's HP bar, with no label; with bNumber its number on it, over the cracks. */
@@ -213,6 +268,7 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 	if (Parts.bHPBar && Parts.bHPLine)
 	{
 		BuildNumberBar(Tree, Rows, PartyHPColor, Card.HPBar, Card.HPText);
+		BuildHPGhost(Tree, Card);
 	}
 	else if (Parts.bHPBar)
 	{
@@ -279,6 +335,7 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 		SetHPPulse(Card, 1.0f); // a healed card stops dimming at once
 	}
 	SetTextSafe(Card.HPText, Card.HPLine);
+	PushHPGhost(Card);
 	if (Card.EPBar)
 	{
 		Card.EPBar->SetPercent(Card.EPFraction);
@@ -336,6 +393,10 @@ void BattleHUDCard::SetHPPulse(const FBattleHUDCard &Card, float Opacity)
 	if (Card.HPBar)
 	{
 		Card.HPBar->SetRenderOpacity(Card.bLowHP ? Opacity : 1.0f);
+	}
+	if (Card.HPGhost)
+	{
+		Card.HPGhost->SetRenderOpacity(Card.HPGhostFraction > 0.0f ? Opacity : 1.0f);
 	}
 }
 
