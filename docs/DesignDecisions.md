@@ -1297,6 +1297,7 @@ The queue of questions only Crown can answer.
 - **D**, Enter / Space and 1 again (Attack) confirm the marked target (D-266, D-267).
 - **Mouse:** the pointer over a fighter marks it; a left click on the fighter, or on its card (the marked enemy's floating card, an ally's own card in an ally pick), picks it. Outside a pick a card click inspects, as before.
 - A group pick (all foes, self) keeps its one confirm row and wording.
+- **The floating enemy card loses its tier line** (Crown chose this over also dropping its HP bar, which is the only place an enemy's HP shows). It keeps the HP bar, buildup bar and status line.
 **Build defaults (reference-backed, Crown may change):** before this, neither mouse route existed: the floating card showed only on the marked enemy and a click on it opened Intel, and the fighters took no pointer events. Only the marked enemy has a floating card (D-263), so other enemies are hovered or clicked on their bodies. Honkai: Star Rail and Expedition 33 pick targets on the field with left / right or up / down and no list.
 
 ### D-269 — WASD moves through the battle menu
