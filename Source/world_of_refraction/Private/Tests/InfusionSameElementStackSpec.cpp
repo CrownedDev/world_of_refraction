@@ -342,6 +342,57 @@ void FInfusionSameElementStackSpec::Define()
 		TestEqual(TEXT("Gem ability L2 + innate ability: no HP"),
 				  CommitHPCost(AbilityAction(EInfusionSourceOption::WeaponCrystal, STACK_TEST_L2)), 0);
 	});
+
+	It("previews the HP the commit defers at L0 / L1 / L2 and for a stacked source, with no side effects (B-592b)", [this]()
+	{
+		if (!Executor) return;
+		UCharacterDataComponent *Stats = Caster->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestNotNull(TEXT("Stats"), Stats)) return;
+		Stats->MaxEP = STACK_TEST_MAX_EP;
+		Stats->CurrentEP = STACK_TEST_MAX_EP;
+		Stats->MaxHP = STACK_TEST_MAX_HP;
+		Stats->CurrentHP = STACK_TEST_MAX_HP;
+		USpellData *Spell = FireSpell();
+		Active().InnateSpells.Add(Spell);
+		SetWeaponGem(STACK_TEST_FIRE_GEM, STACK_TEST_INTACT);
+		for (int32 Level = 0; Level <= STACK_TEST_L2; ++Level)
+		{
+			const FAction Cast = SpellAction(Spell, ESpellSource::Innate, EInfusionSourceOption::Innate, Level);
+			const FInfusionCostPreview Preview = Executor->PreviewActionCost(Caster, Cast);
+			TestEqual(FString::Printf(TEXT("innate spell L%d: the preview's HP is the commit's"), Level), Preview.HP, CommitHPCost(Cast));
+			TestEqual(FString::Printf(TEXT("innate spell L%d: its EP is the spend"), Level), Preview.EP, Executor->CalculateActionEnergyCost(Caster, Cast));
+			TestEqual(FString::Printf(TEXT("innate spell L%d: HP only at L2 (D-126)"), Level), Preview.HP > 0, Level == STACK_TEST_L2);
+		}
+		const FAction Raw = AbilityAction(EInfusionSourceOption::Raw, STACK_TEST_L2);
+		const int32 RawHP = Executor->PreviewActionCost(Caster, Raw).HP;
+		TestTrue(TEXT("a Raw ability pays HP at L2"), RawHP > 0);
+		TestEqual(TEXT("as the commit"), RawHP, CommitHPCost(Raw));
+
+		// Side effects: a gem-sourced L2 ability would wear the gem at commit; a preview of it changes nothing.
+		const FAction Gem = AbilityAction(EInfusionSourceOption::WeaponCrystal, STACK_TEST_L2);
+		SetWeaponGem(STACK_TEST_FIRE_GEM, STACK_TEST_INTACT); // the commits above may have worn it
+		Stats->CurrentHP = STACK_TEST_MAX_HP;
+		Stats->CurrentEP = STACK_TEST_MAX_EP;
+		const FInfusionCostPreview GemPreview = Executor->PreviewActionCost(Caster, Gem);
+		TestEqual(TEXT("the gem kept its durability"), Active().PrimaryWeapon.WeaponEntry.AttachedItem.Crystal.CurrentDurability, STACK_TEST_INTACT);
+		TestEqual(TEXT("HP unchanged"), Stats->CurrentHP, STACK_TEST_MAX_HP);
+		TestEqual(TEXT("EP unchanged"), Stats->CurrentEP, STACK_TEST_MAX_EP);
+		TestFalse(TEXT("no execution context made"), Executor->CurrentExecutionContext.IsSet());
+		TestEqual(TEXT("the gem's L2 preview: no HP"), GemPreview.HP, 0);
+
+		const FAction Cast = SpellAction(Spell, ESpellSource::Innate, EInfusionSourceOption::Innate, STACK_TEST_L2);
+		const int32 OneSource = Executor->PreviewActionCost(Caster, Cast).HP;
+		SeatEvolution(ECrystalType::Garnet); // Fire: joins the innate spell and pays its own HP
+		const int32 Stacked = Executor->PreviewActionCost(Caster, Cast).HP;
+		TestEqual(TEXT("the evolution kept its durability"), Active().PrimaryEvolution.CurrentDurability, STACK_TEST_INTACT);
+		TestEqual(TEXT("stacked: the preview sums both sources"), Stacked, 2 * OneSource);
+		TestEqual(TEXT("as the commit"), Stacked, CommitHPCost(Cast));
+
+		Stats->CurrentHP = Stacked;
+		TestTrue(TEXT("a cost equal to current HP would kill"), Executor->PreviewActionCost(Caster, Cast).bWouldKill);
+		Stats->CurrentHP = Stacked + 1;
+		TestFalse(TEXT("one HP more survives"), Executor->PreviewActionCost(Caster, Cast).bWouldKill);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

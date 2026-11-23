@@ -182,6 +182,17 @@ struct FActionDamagePreview
 	int32 HitCount = 1;
 };
 
+/** B-592b: an action's cost before it commits (UActionExecutor::PreviewActionCost), for the target step's HP ghost. */
+struct FInfusionCostPreview
+{
+	/** The EP the action spends (CalculateActionEnergyCost). */
+	int32 EP = 0;
+	/** The L2 HP backlash summed over the picked and stacked sources, as ApplyCommitCosts defers it. */
+	int32 HP = 0;
+	/** The HP backlash would take the caster to 0 HP. */
+	bool bWouldKill = false;
+};
+
 /**
  * UActionExecutor
  *
@@ -219,6 +230,10 @@ public:
 	/** Calculate action's energy cost (including infusion multipliers) */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Validation")
 	int32 CalculateActionEnergyCost(AActor *Actor, const FAction &Action) const;
+
+	/** B-592b: what Action would cost Actor if committed now (EP spend, the L2 HP backlash summed over the picked and
+	 *  stacked sources), with no side effects: no wear, no spend, no context change. Same helpers as ApplyCommitCosts. */
+	FInfusionCostPreview PreviewActionCost(AActor *Actor, const FAction &Action) const;
 
 	/** Check if actor can perform any action (not stunned/dead) */
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Validation")
@@ -598,7 +613,14 @@ private:
 
 	/** One source's commit cost (wear, or the L2 HP backlash returned for the caller to defer). */
 	int32 ApplySourceCommitCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,
-								int32 PreEffInfusedEP, bool bLevelPaysHP);
+								int32 PreEffInfusedEP);
+
+	/** The HP backlash basis: the pre-Efficiency infused EP at Level (shared by the commit and PreviewActionCost). */
+	int32 ComputePreEffInfusedEP(AActor *Actor, const FAction &Action, int32 Level) const;
+
+	/** One source's L2 HP backlash, 0 for a source that pays wear or nothing (shared by the commit and the preview). */
+	int32 ComputeSourceHPCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,
+							  int32 PreEffInfusedEP) const;
 
 	// ==================== TIER-GAP RESOLUTION (D9) ====================
 
