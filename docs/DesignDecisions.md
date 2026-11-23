@@ -1288,6 +1288,17 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-270 — Single targets are picked on the field, not from a list
+**Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, B-582c QA) · **Blocks:** B-582c
+**Crown:** no need to show the target's name row in the panel while targeting; the marker and the enemy's card above it already show it.
+**Ruled (new battle HUD):**
+- A single-target pick (Attack, a skill, an item, on one foe or one ally) draws no target name rows or their section headers. The panel keeps its heading and summary, and the weapon / infusion lines on 2 / 3 (D-268).
+- **W / S** move the marker to the previous / next target, wrapping, the camera following as hover; on a pad **D-pad Up / Down** do the same, in a target pick only (on the main menu they stay Position / Flee).
+- **D**, Enter / Space and 1 again (Attack) confirm the marked target (D-266, D-267).
+- **Mouse:** the pointer over a fighter marks it; a left click on the fighter, or on its card (the marked enemy's floating card, an ally's own card in an ally pick), picks it. Outside a pick a card click inspects, as before.
+- A group pick (all foes, self) keeps its one confirm row and wording.
+**Build defaults (reference-backed, Crown may change):** before this, neither mouse route existed: the floating card showed only on the marked enemy and a click on it opened Intel, and the fighters took no pointer events. Only the marked enemy has a floating card (D-263), so other enemies are hovered or clicked on their bodies. Honkai: Star Rail and Expedition 33 pick targets on the field with left / right or up / down and no list.
+
 ### D-269 — WASD moves through the battle menu
 **Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, after D-267's hold) · **Blocks:** B-582c
 **Crown:** said yes to WASD navigation in the battle menu.
