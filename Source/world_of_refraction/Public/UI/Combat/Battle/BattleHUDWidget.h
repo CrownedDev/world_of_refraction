@@ -261,6 +261,16 @@ private:
 	UFUNCTION()
 	FEventReply HandleCardMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent);
 
+	/** B-582c (D-270): the pointer over a fighter marks it in an open single-target picker (the picker ignores one it
+	 *  doesn't offer). Bound to each card's actor (AActor::OnBeginCursorOver; the fight controller enables the events). */
+	UFUNCTION()
+	void HandleFighterCursorOver(AActor *Fighter);
+	/** B-582c (D-270): a left click on a fighter marks and confirms it in an open single-target picker. */
+	UFUNCTION()
+	void HandleFighterClicked(AActor *Fighter, FKey ButtonPressed);
+	/** B-582c (D-270): mark Fighter and confirm it, when the open single-target picker offers it. False: nothing picked. */
+	bool PickFighter(AActor *Fighter);
+
 	/** What the status panel shows for one inspected card. OBSOLETE (B-586, D-261): Intel replaced the inspect; kept
 	 *  until PIE (docs/PIE/Sweep.md). */
 	FText BuildInspectText(const FBattleHUDCard &Card) const;

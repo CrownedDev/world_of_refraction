@@ -25,6 +25,7 @@
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
+#include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "Save/SaveSubsystem.h"
@@ -687,12 +688,16 @@ void FCommandMenuKeysSpec::Define()
 		}
 		View->Initialise();
 		ON_SCOPE_EXIT { View->Teardown(); };
+		const TSharedRef<SWidget> Built = View->TakeWidget(); // builds the Act tag; held, or its release tears it down
 		Menu->RefreshMenu();
 		FLinearColor Fill, Outline;
 		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Water, Fill, Outline);
 		TestEqual(TEXT("the Caster's selector is its element, Water"), View->GetSelectorFill(), Fill);
 		TestEqual(TEXT("outlined in Water"), View->GetSelectorOutline(), ElementColors::Water);
 		const FLinearColor HeroFill = View->GetSelectorFill();
+		constexpr float MIN_WHITE_TEXT_LUMINANCE = 0.8f;
+		TestEqual(TEXT("the Act tag is the selector's colour"), View->GetActTabFill(), HeroFill);
+		TestTrue(TEXT("with white text and dots"), UBattleCommandMenuWidget::GetRelativeLuminance(View->GetActTabTextColour()) >= MIN_WHITE_TEXT_LUMINANCE);
 
 		TestTrue(TEXT("the hero defends"), Menu->PressMenuKey(EPieMenuCategory::Defend));
 		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
@@ -700,6 +705,7 @@ void FCommandMenuKeysSpec::Define()
 		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Generic, Fill, Outline);
 		TestEqual(TEXT("a Generic has no element: its class colour, the brown"), View->GetSelectorFill(), Fill);
 		TestNotEqual(TEXT("the colour changed with the turn"), View->GetSelectorFill(), HeroFill);
+		TestEqual(TEXT("and the Act tag with it"), View->GetActTabFill(), Fill);
 		TestTrue(TEXT("wor.UI.Print shows it"), View->GetCommandMenuString().Contains(TEXT("selector=")));
 
 		// Every element and class colour: white text on the fill at >= 4.5:1, and an outline that shows on the dark panel.
@@ -721,6 +727,104 @@ void FCommandMenuKeysSpec::Define()
 		}
 		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Darkness, Fill, Outline);
 		TestEqual(TEXT("Darkness keeps its black fill with the pale outline"), Outline, ElementColors::TextOutline);
+	});
+
+	It("picks a single target on the field: no name rows, W / S cycle, D confirms, the pointer marks and picks (B-582c, D-270)", [this]()
+	{
+		if (!Orchestrator || !Menu)
+		{
+			return;
+		}
+		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("combatants spawned"), Hero && Foe && SecondFoe))
+		{
+			return;
+		}
+		MenuKeysAddLoadout(Hero);
+		MenuKeysAddLoadout(Foe);
+		MenuKeysAddLoadout(SecondFoe);
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero}, {Foe, SecondFoe});
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		if (!TestTrue(TEXT("the hero's menu"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero))
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View) || !TestNotNull(TEXT("battle HUD"), HUD))
+		{
+			return;
+		}
+		View->Initialise();
+		HUD->Initialise({Hero}, {Foe, SecondFoe});
+		ON_SCOPE_EXIT
+		{
+			View->Teardown();
+			HUD->Teardown();
+		};
+		const auto FieldRows = [View]()
+		{
+			TArray<FString> Lines;
+			View->GetCommandMenuString().ParseIntoArrayLines(Lines);
+			return Lines.FilterByPredicate([](const FString &Line) { return Line.Contains(TEXT("] field ")); }).Num();
+		};
+
+		// The pointer events as the engine sends them (UPrimitiveComponent broadcasts the owner's delegates).
+		TestTrue(TEXT("the HUD binds the foes' pointer events"), Foe->OnBeginCursorOver.IsBound() && SecondFoe->OnClicked.IsBound());
+		// The pointer does nothing on the main menu.
+		Foe->OnClicked.Broadcast(Foe, EKeys::LeftMouseButton);
+		TestTrue(TEXT("a click on a foe on the main menu picks nothing"), Menu->IsAtMainMenu());
+
+		FPieMenuButtonData Attack;
+		Attack.Category = EPieMenuCategory::Attack;
+		Attack.DisplayName = FText::FromString(TEXT("Attack"));
+		Menu->HandleSelection(Attack);
+		TestTrue(TEXT("a single-target pick"), Menu->IsSingleTargetPickerOpen());
+		TestEqual(TEXT("it opens on the first foe"), Menu->GetHighlightedTarget(), Foe);
+		TestEqual(TEXT("no name rows: both foes are picked on the field"), FieldRows(), 2);
+		TestTrue(TEXT("the heading stays"), !View->GetTitle().IsEmpty());
+
+		View->MoveLitRow(1);
+		TestEqual(TEXT("S marks the next foe"), Menu->GetHighlightedTarget(), SecondFoe);
+		View->MoveLitRow(1);
+		TestEqual(TEXT("S wraps to the first"), Menu->GetHighlightedTarget(), Foe);
+		View->MoveLitRow(-1);
+		TestEqual(TEXT("W wraps back to the last"), Menu->GetHighlightedTarget(), SecondFoe);
+		TestFalse(TEXT("D-pad Up (Position) does nothing in a target pick"), Menu->PressMenuKey(EPieMenuCategory::MoveRow));
+		TestEqual(TEXT("the mark stays"), Menu->GetHighlightedTarget(), SecondFoe);
+
+		Foe->OnBeginCursorOver.Broadcast(Foe);
+		TestEqual(TEXT("the pointer over a foe marks it"), Menu->GetHighlightedTarget(), Foe);
+		SecondFoe->OnClicked.Broadcast(SecondFoe, EKeys::RightMouseButton);
+		TestTrue(TEXT("a right click picks nothing"), Menu->IsSingleTargetPickerOpen() && Menu->GetHighlightedTarget() == Foe);
+		SecondFoe->OnClicked.Broadcast(SecondFoe, EKeys::LeftMouseButton);
+		TestFalse(TEXT("a left click on a foe picks it"), Menu->IsSingleTargetPickerOpen());
+		TestEqual(TEXT("the one clicked"), Menu->GetLastAttackTarget(Hero), SecondFoe);
+
+		const FString Keys = ACombatPlayerController::GetMenuKeysString();
+		TestTrue(TEXT("the pad's target keys are listed"), Keys.Contains(TEXT("IA_Combat_MenuTargetPrevPad")) && Keys.Contains(TEXT("IA_Combat_MenuTargetNextPad")));
+	});
+
+	It("confirms a single target with D, the marked one (B-582c, D-270)", [this]()
+	{
+		if (!StartSkilledDuel(false))
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
+		TestTrue(TEXT("D opens Attack"), View->PressLitRow() && Menu->IsSingleTargetPickerOpen());
+		TestTrue(TEXT("D picks the marked foe"), View->PressLitRow());
+		TestEqual(TEXT("the foe"), Menu->GetLastAttackTarget(Hero), Foe);
 	});
 
 	It("never moves the possessed fighter on move input in a fight (B-582c, D-269)", [this]()

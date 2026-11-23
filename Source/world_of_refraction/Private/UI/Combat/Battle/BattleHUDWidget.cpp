@@ -192,6 +192,11 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		FindFace(Card.Actor.Get());
+		if (AActor *Fighter = Card.Actor.Get()) // B-582c (D-270): the pointer marks and picks on the field
+		{
+			Fighter->OnBeginCursorOver.AddUniqueDynamic(this, &UBattleHUDWidget::HandleFighterCursorOver);
+			Fighter->OnClicked.AddUniqueDynamic(this, &UBattleHUDWidget::HandleFighterClicked);
+		}
 	}
 
 	if (USkillEffectManager *Effects = WoRFight::Get<USkillEffectManager>(this))
@@ -354,6 +359,11 @@ void UBattleHUDWidget::Teardown()
 	FaceTargets.Reset();
 	for (const FBattleHUDCard &Card : Cards)
 	{
+		if (AActor *Fighter = Card.Actor.Get())
+		{
+			Fighter->OnBeginCursorOver.RemoveDynamic(this, &UBattleHUDWidget::HandleFighterCursorOver);
+			Fighter->OnClicked.RemoveDynamic(this, &UBattleHUDWidget::HandleFighterClicked);
+		}
 		if (UCharacterDataComponent *CharData = Card.CharData.Get())
 		{
 			CharData->OnHPChanged.RemoveDynamic(this, &UBattleHUDWidget::HandlePoolChanged);
@@ -1048,8 +1058,41 @@ FEventReply UBattleHUDWidget::HandleCardMouseDown(FGeometry MyGeometry, const FP
 	{
 		return FEventReply(false);
 	}
+	// B-582c (D-270): in a target picker the marked enemy's floating card picks that enemy; elsewhere a click inspects.
+	if (!Cards[Clicked].bParty && PickFighter(Cards[Clicked].Actor.Get()))
+	{
+		return FEventReply(true);
+	}
 	InspectCard(Clicked);
 	return FEventReply(true);
+}
+
+bool UBattleHUDWidget::PickFighter(AActor *Fighter)
+{
+	UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this);
+	if (!Fighter || !Menu || !Menu->IsSingleTargetPickerOpen() || bIntelOpen)
+	{
+		return false;
+	}
+	Menu->HighlightTarget(Fighter);
+	return Menu->GetHighlightedTarget() == Fighter && Menu->ConfirmHighlightedTarget();
+}
+
+void UBattleHUDWidget::HandleFighterCursorOver(AActor *Fighter)
+{
+	UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this);
+	if (Menu && !bIntelOpen)
+	{
+		Menu->HighlightTarget(Fighter); // ignored unless the open single-target picker offers it
+	}
+}
+
+void UBattleHUDWidget::HandleFighterClicked(AActor *Fighter, FKey ButtonPressed)
+{
+	if (ButtonPressed == EKeys::LeftMouseButton)
+	{
+		PickFighter(Fighter);
+	}
 }
 
 void UBattleHUDWidget::RefreshTurnStrip()
