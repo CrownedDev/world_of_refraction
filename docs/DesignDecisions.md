@@ -1288,6 +1288,13 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-267 — Enter and Space confirm in the battle target pickers
+**Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, on B-582) · **Blocks:** B-582b
+**Crown:** "enter should be confirmation also space bar".
+**Ruled:** In the new battle HUD, Enter and Space pick the highlighted target in any single-target picker (Attack, a skill, an item), the same as clicking its row or the Attack picker's second 1. They do nothing on the main menu, in the Position picker, on a group pick (Self / All), while Intel is open, or while a Guard / Dodge window is open on this machine. No gamepad change (A is already the Attack picker's second press). This replaces D-266's note that Enter doesn't confirm. Tab gets no battle-menu binding (Crown, 2026-11-23: "Q/E, no Tab"); it stays the boss-cinematic skip.
+**Build defaults (reference-backed, Crown may change):** a group pick (one labelled confirm row for Self / All) isn't on Enter / Space yet; it is still a click. Expedition 33 and most PC turn-based games (Divinity: Original Sin 2, Baldur's Gate 3) confirm with Enter and Space alike.
+**Held (Crown is redesigning, 2026-11-23):** keyboard row movement (W / S), value change (A / D) and Q / E target cycling. A first build is parked on `feature/B-582c-menu-nav-hold`, not for merge.
+
 ### D-266 — Quick attack: 1 twice
 **Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-22 (Crown, B-582's idea) · **Blocks:** B-582
 **Crown:** chose the quick attack as pressing 1 twice in the battle menu.
