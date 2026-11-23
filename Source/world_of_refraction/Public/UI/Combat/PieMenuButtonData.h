@@ -69,7 +69,7 @@ enum class EPieMenuCategory : uint8
 	// Main menu action, appended last so existing values keep their numbers
 	Defend UMETA(DisplayName = "Defend"), // Brace this turn (all a stunned actor gets besides Attack, D-001)
 	Flee UMETA(DisplayName = "Flee"),	  // Leave a normal fight (D-091)
-	MoveRow UMETA(DisplayName = "Move Row"), // Free one-row step, once per turn (D-096); DataIndex 1 = forward
+	MoveRow UMETA(DisplayName = "Move Row"), // B-588 (D-263): Position (DataIndex -1) opens the row picker; a picker row's DataIndex is its ECombatRow
 	HandToAI UMETA(DisplayName = "Let AI Play"), // Hand this party member to the AI (D-026, B-071)
 	EndTurn UMETA(DisplayName = "End Turn"), // B-170e: end the turn, the actions left stay banked
 	Skills UMETA(DisplayName = "Skills")	 // B-436g (D-258a): the main menu's Skills, straight in with one kind, else the kinds

@@ -92,6 +92,7 @@ namespace BattleCommandMenuBuild
 		if (Key == EKeys::Gamepad_LeftThumbstick) return INVTEXT("L3");
 		if (Key == EKeys::Gamepad_DPad_Down) return LOCTEXT("DPadDown", "D-pad down");
 		if (Key == EKeys::Gamepad_DPad_Right) return LOCTEXT("DPadRight", "D-pad right");
+		if (Key == EKeys::Gamepad_DPad_Up) return LOCTEXT("DPadUp", "D-pad up"); // B-588: Position
 		if (Key == EKeys::BackSpace) return LOCTEXT("Backspace", "Backspace"); // as the other menus' hints (WoRKeyHintText)
 		return Key.GetDisplayName(/*bLongDisplayName=*/false);
 	}
@@ -541,7 +542,9 @@ void UBattleCommandMenuWidget::RefreshKeys()
 		Categories.Add(Row.Category);
 		Enabled.Add(Row.bEnabled && Row.Category != EPieMenuCategory::SectionHeader);
 	}
-	const TArray<int32> KeyForRow = BattleHUDView::AssignMenuKeys(Categories, Enabled, bAtMainMenu);
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	const TArray<int32> KeyForRow = BattleHUDView::AssignMenuKeys(Categories, Enabled, bAtMainMenu,
+																  Menu && Menu->IsPositionPickerOpen()); // B-588
 	const TArray<FCombatMenuKey> &Keys = ACombatPlayerController::GetMenuKeys();
 	const bool bGamepad = WoRKeyHints::IsGamepad(this); // the device in use only (D-258)
 

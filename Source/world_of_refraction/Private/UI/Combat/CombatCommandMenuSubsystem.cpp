@@ -54,6 +54,10 @@ namespace
     /** EPieMenuCategory::MoveRow's DataIndex: which way the step goes. */
     constexpr int32 MOVE_ROW_BACK_INDEX = 0;
     constexpr int32 MOVE_ROW_FORWARD_INDEX = 1;
+    /** B-588: the Position button's DataIndex (it opens the picker); the picker's rows carry their row's index. */
+    constexpr int32 POSITION_OPEN_INDEX = INDEX_NONE;
+    /** B-588: the picker's rows, top to bottom. */
+    constexpr ECombatRow POSITION_PICKER_ROWS[] = {ECombatRow::Front, ECombatRow::Middle, ECombatRow::Back};
 
     bool ResolveImmuneFlag(UObject *ActionData, AActor *Actor)
     {
@@ -386,8 +390,16 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
     }
 
     case EPieMenuCategory::MoveRow:
-        // Free, like a weapon switch: the turn goes on (D-096).
-        ExecuteMoveRow(ButtonData.DataIndex == MOVE_ROW_FORWARD_INDEX);
+        // B-588 (D-263): Position opens the picker; a picked row moves there. Free, like a weapon switch: the turn goes
+        // on (D-096).
+        if (ButtonData.DataIndex == POSITION_OPEN_INDEX)
+        {
+            OpenPositionPicker();
+        }
+        else
+        {
+            ExecuteMoveToRow(CombatRowHelpers::GetRowFromIndex(ButtonData.DataIndex));
+        }
         break;
 
     case EPieMenuCategory::Defend:
@@ -767,8 +779,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
         Buttons.Add(CreateSwitchWeaponButton());
     if (CurrentCapabilities.bCanSwitchRing)
         Buttons.Add(CreateSwitchRingButton());
-    Buttons.Add(CreateMoveRowButton(/*bForward*/ true));
-    Buttons.Add(CreateMoveRowButton(/*bForward*/ false));
+    Buttons.Add(CreatePositionButton()); // B-588 (D-263): replaces Step Forward and Step Back
     // B-170e; a stunned actor's menu stays Attack + Defend (D-001). The player's setting can hide it (Crown, 2026-11-12).
     if (ActionPipsText::ShouldShowEndTurnButton(this))
         Buttons.Add(CreateEndTurnButton());
@@ -847,6 +858,9 @@ bool UCombatCommandMenuSubsystem::BroadcastCurrentSubmenu()
     case EPieMenuCategory::Items:
         OnCommandMenuReady.Broadcast(BuildItemsSubmenu());
         return true;
+    case EPieMenuCategory::MoveRow:
+        OnCommandMenuReady.Broadcast(BuildPositionButtons()); // B-588
+        return true;
     case EPieMenuCategory::Refractions:
     case EPieMenuCategory::Breakthrough:
     case EPieMenuCategory::ResonateWeapon:
@@ -871,6 +885,10 @@ FText UCombatCommandMenuSubsystem::GetViewTitle() const
     if (ActiveSubmenuType == EPieMenuCategory::Items)
     {
         return NSLOCTEXT("CombatCommandMenu", "TitleItems", "Items");
+    }
+    if (ActiveSubmenuType == EPieMenuCategory::MoveRow)
+    {
+        return NSLOCTEXT("CombatCommandMenu", "Position", "Position"); // B-588
     }
     const FText Skills = NSLOCTEXT("CombatCommandMenu", "Skills", "Skills");
     const EPieMenuCategory KindShown = ActiveSubmenuType == EPieMenuCategory::School ? ActiveSubmenuSource : ActiveSubmenuType;
@@ -1120,6 +1138,65 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateMoveRowButton(bool bForwar
         Button.bEnabled = false;
     }
     return Button;
+}
+
+FPieMenuButtonData UCombatCommandMenuSubsystem::CreatePositionButton() const
+{
+    FPieMenuButtonData Button(TEXT("Position"), NSLOCTEXT("CombatCommandMenu", "Position", "Position"), EPieMenuCategory::MoveRow);
+    Button.DataIndex = POSITION_OPEN_INDEX;
+    // Greyed when no row can be taken (the move used, a stun), with the first refused row's reason.
+    FText Reason;
+    for (const FPieMenuButtonData &Row : BuildPositionButtons())
+    {
+        if (Row.Category != EPieMenuCategory::MoveRow)
+        {
+            continue;
+        }
+        if (Row.bEnabled)
+        {
+            return Button;
+        }
+        if (Reason.IsEmpty() && Row.ButtonID != TEXT("PositionHere"))
+        {
+            Reason = Row.Description;
+        }
+    }
+    FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason, EPieMenuCategory::MoveRow);
+    Greyed.DataIndex = POSITION_OPEN_INDEX;
+    return Greyed;
+}
+
+TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildPositionButtons() const
+{
+    const ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+    const UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this);
+    FCombatGridPosition Position;
+    const bool bOnGrid = Grid && Grid->GetActorPosition(CurrentActor.Get(), Position); // a client's is replicated (B-230b)
+
+    TArray<FPieMenuButtonData> Buttons;
+    for (const ECombatRow Row : POSITION_PICKER_ROWS)
+    {
+        const FText Name = WoRGameNames::GetCombatRowName(Row);
+        FPieMenuButtonData Button(TEXT("PositionRow"), Name, EPieMenuCategory::MoveRow);
+        FText Reason;
+        if (bOnGrid && Position.Row == Row)
+        {
+            Button.ButtonID = TEXT("PositionHere"); // the current row, marked (D-263)
+            Reason = NSLOCTEXT("CombatCommandMenu", "PositionHere", "You are here.");
+        }
+        else if (Orchestrator)
+        {
+            Reason = Orchestrator->GetMoveToRowRefusedReason(CurrentActor.Get(), Row);
+        }
+        if (!Reason.IsEmpty())
+        {
+            Button = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Name, Reason, EPieMenuCategory::MoveRow);
+        }
+        Button.DataIndex = CombatRowHelpers::GetRowIndex(Row);
+        Buttons.Add(Button);
+    }
+    Buttons.Add(FPieMenuButtonData::MakeBackButton());
+    return Buttons;
 }
 
 FPieMenuButtonData UCombatCommandMenuSubsystem::CreateSwitchRingButton() const
@@ -1431,6 +1508,36 @@ void UCombatCommandMenuSubsystem::ExecuteMoveRow(bool bForward)
         return;
     }
     // The new row greys the step that is no longer possible.
+    OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+}
+
+void UCombatCommandMenuSubsystem::OpenPositionPicker()
+{
+    CurrentDepth = ECombatMenuDepth::Submenu;
+    ActiveSubmenuType = EPieMenuCategory::MoveRow;
+    ActiveSubmenuSource = EPieMenuCategory::None;
+    BroadcastCurrentSubmenu();
+}
+
+void UCombatCommandMenuSubsystem::ExecuteMoveToRow(ECombatRow Row)
+{
+    // B-232c: a client's move runs on the server (HandleFreeCommandApplied redraws); the host and solo run it here.
+    // TODO: B-232d: a client's refused move gives no feedback (as the old step), and its Position stays lit.
+    if (!SendFreeCommandToServer(CombatFreeCommands::MoveTo(Row)))
+    {
+        ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
+        FText RefusedReason;
+        if (!Orchestrator || !Orchestrator->TryMoveToRow(CurrentActor.Get(), Row, RefusedReason))
+        {
+            UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Move to the %s row refused: %s"), *CombatRowHelpers::GetRowName(Row),
+                   Orchestrator ? *RefusedReason.ToString() : TEXT("no orchestrator"));
+            BroadcastCurrentSubmenu(); // the picker again, with the reason on the row
+            return;
+        }
+    }
+    // The move is spent (or on its way): the main menu, Position greyed.
+    CurrentDepth = ECombatMenuDepth::Main;
+    ActiveSubmenuType = EPieMenuCategory::None;
     OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
 }
 
@@ -2445,6 +2552,18 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
     else if (CommandMenuRules::IsMainMenuKey(Category) && CurrentDepth == ECombatMenuDepth::Main) // B-391
     {
         View = BuildMainMenuButtons();
+    }
+    else if (const int32 Slot = CommandMenuRules::PositionPickerRowForKey(Category); Slot != INDEX_NONE && IsPositionPickerOpen())
+    {
+        // B-588: 1 / A, 2 / X, 3 / Y pick the picker's rows, top to bottom (as BattleHUDView::AssignMenuKeys shows them).
+        TArray<FPieMenuButtonData> Rows = BuildPositionButtons();
+        Rows.RemoveAll([](const FPieMenuButtonData &Row) { return Row.Category != EPieMenuCategory::MoveRow; });
+        if (Rows.IsValidIndex(Slot) && Rows[Slot].bEnabled)
+        {
+            HandleSelection(Rows[Slot]);
+            return true;
+        }
+        return false;
     }
     const FPieMenuButtonData *Button = View.FindByPredicate([Category](const FPieMenuButtonData &Candidate)
                                                             { return CommandMenuRules::KeyPressesButton(Category, Candidate.Category) && Candidate.bEnabled; });

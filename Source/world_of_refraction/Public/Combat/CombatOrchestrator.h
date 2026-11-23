@@ -17,6 +17,7 @@
 #include "CombatOrchestrator.generated.h"
 
 class UTurnManager;
+struct FCombatGridPosition;
 class UCharacterDataComponent;
 class USkillEffectManager;
 class UActionExecutor;
@@ -281,8 +282,17 @@ public:
 
 	/** D-096: free, once per turn: step one row, into any free slot of that row (B-342, D-134: an ally
 	 *  never blocks; only a full row refuses). Row bonuses apply from the new row at once (the grid is
-	 *  read per hit). */
+	 *  read per hit). OBSOLETE (B-588): the menu's Step Forward / Back became Position (TryMoveToRow); kept until
+	 *  PIE, with the MoveRowForward / MoveRowBack free commands. */
 	bool TryMoveRow(AActor *Actor, bool bForward, FText &OutRefusedReason);
+
+	/** B-588 (D-263): why Actor can't move to Row now (no fight, not its turn, stunned, already moved this turn,
+	 *  already in that row, that row full); empty when it can. The Position picker's rows read this. */
+	FText GetMoveToRowRefusedReason(AActor *Actor, ECombatRow Row) const;
+
+	/** B-588 (D-263, PA-32): free, once per turn: move to any row (Front to Back in one move), into a free slot
+	 *  there. Shares the turn's one move with TryMoveRow. */
+	bool TryMoveToRow(AActor *Actor, ECombatRow Row, FText &OutRefusedReason);
 
 	// ========================================
 	// EVENTS
@@ -347,6 +357,9 @@ public:
 
 	/** D-096: the current actor's free row move is spent; reset at each turn start. */
 	bool bRowMoveUsedThisTurn = false;
+
+	/** The refusals every row move shares (no fight, not the turn, stunned, used, off the grid); fills OutPosition. */
+	FText GetRowMoveTurnRefusal(AActor *Actor, FCombatGridPosition &OutPosition) const;
 
 	// ========================================
 	// ACTION PIPS (B-170c, ActionPips.md §3.3)

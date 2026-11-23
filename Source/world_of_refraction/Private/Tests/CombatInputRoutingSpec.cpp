@@ -127,6 +127,7 @@ void FCombatInputRoutingSpec::Define()
 			return;
 		}
 		TestTrue(TEXT("no combat: row step"), Controller->HandleFreeCommand(Hero, ECombatFreeCommand::MoveRowForward) == ECombatInputVerdict::NoCombat);
+		TestTrue(TEXT("no combat: Position move (B-588)"), Controller->HandleFreeCommand(Hero, ECombatFreeCommand::MoveToBack) == ECombatInputVerdict::NoCombat);
 		TestTrue(TEXT("no combat: hand to AI"), Controller->HandleFreeCommand(Hero, ECombatFreeCommand::HandToAI) == ECombatInputVerdict::NoCombat);
 		TestTrue(TEXT("no actor"), Controller->HandleFreeCommand(nullptr, ECombatFreeCommand::SwitchAdapter) == ECombatInputVerdict::NoActor);
 	});

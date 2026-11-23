@@ -20,6 +20,7 @@
 #include "Combat/Actions/CombatPickRequest.h"
 #include "Combat/Defense/EDefenseType.h"
 #include "Combat/Defense/EDefenseDirection.h"
+#include "Combat/Grid/ECombatRow.h"
 #include "CombatPlayerController.generated.h"
 
 class UInputMappingContext;
@@ -54,12 +55,46 @@ enum class ECombatFreeCommand : uint8
 {
 	SwitchWeapon,
 	SwitchAdapter,
-	MoveRowForward,
-	MoveRowBack,
+	MoveRowForward, // OBSOLETE (B-588): the menu sends MoveTo* now; kept until PIE
+	MoveRowBack,	// OBSOLETE (B-588)
 	/** D-026: the member goes to the AI for the rest of the fight. */
 	HandToAI,
+	/** B-588 (D-263): Position: move to that row. */
+	MoveToFront,
+	MoveToMiddle,
+	MoveToBack,
 	MAX UMETA(Hidden)
 };
+
+namespace CombatFreeCommands
+{
+	/** B-588: the Position command that moves to Row. */
+	inline ECombatFreeCommand MoveTo(ECombatRow Row)
+	{
+		return Row == ECombatRow::Front ? ECombatFreeCommand::MoveToFront
+			   : Row == ECombatRow::Back ? ECombatFreeCommand::MoveToBack
+										 : ECombatFreeCommand::MoveToMiddle;
+	}
+
+	/** B-588: the row a Position command moves to; false for any other command. */
+	inline bool GetMoveToRow(ECombatFreeCommand Command, ECombatRow &OutRow)
+	{
+		switch (Command)
+		{
+		case ECombatFreeCommand::MoveToFront:
+			OutRow = ECombatRow::Front;
+			return true;
+		case ECombatFreeCommand::MoveToMiddle:
+			OutRow = ECombatRow::Middle;
+			return true;
+		case ECombatFreeCommand::MoveToBack:
+			OutRow = ECombatRow::Back;
+			return true;
+		default:
+			return false;
+		}
+	}
+}
 
 /** B-229: one input the server handled, for the debug log. */
 struct FCombatInputRecord
