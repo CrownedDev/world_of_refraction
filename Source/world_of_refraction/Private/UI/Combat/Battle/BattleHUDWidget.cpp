@@ -1053,7 +1053,36 @@ UTexture *UBattleHUDWidget::FindFace(const AActor *Actor)
 	{
 		return *Known;
 	}
-	UTextureRenderTarget2D *Face = TurnHexFace::Capture(const_cast<AActor *>(Actor), this);
+	// Q-590 QA 3: from where Intel's camera would stand for this fighter, else from the other side's middle (the front
+	// of a fighter in its line); every other fighter is left out of the picture.
+	const FBattleHUDCard *Own = Cards.FindByPredicate([Actor](const FBattleHUDCard &Card) { return Card.Actor.Get() == Actor; });
+	TArray<AActor *> Others;
+	FVector OtherSide = FVector::ZeroVector;
+	int32 OtherSideCount = 0;
+	for (const FBattleHUDCard &Card : Cards)
+	{
+		AActor *Other = Card.Actor.Get();
+		if (!Other || Other == Actor)
+		{
+			continue;
+		}
+		Others.Add(Other);
+		if (Own && Card.bParty != Own->bParty)
+		{
+			OtherSide += Other->GetActorLocation();
+			++OtherSideCount;
+		}
+	}
+	FVector ViewFrom = OtherSideCount > 0 ? OtherSide / OtherSideCount : FVector::ZeroVector;
+	for (TActorIterator<ACombatOrchestrator> It(GetWorld()); It; ++It)
+	{
+		if (UCombatCameraDirector *Director = It->GetCameraDirector())
+		{
+			Director->GetIntelViewLocation(const_cast<AActor *>(Actor), ViewFrom);
+		}
+		break;
+	}
+	UTextureRenderTarget2D *Face = TurnHexFace::Capture(const_cast<AActor *>(Actor), this, ViewFrom, Others);
 	FaceCaptures.Add(Actor, Face);
 	if (Face)
 	{

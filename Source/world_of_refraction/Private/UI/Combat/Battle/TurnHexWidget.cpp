@@ -2,6 +2,7 @@
 
 #include "UI/Combat/Battle/TurnHexWidget.h"
 
+#include "Combat/Camera/CombatCameraDirector.h"
 #include "Components/SceneCaptureComponent2D.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/Texture.h"
@@ -13,21 +14,26 @@
 #include "Rendering/DrawElements.h"
 #include "Rendering/SlateRenderer.h"
 #include "Styling/CoreStyle.h"
+#include "TimerManager.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "WoRLog.h"
 
 namespace TurnHexFaceShot
 {
-	// TODO: tune in PIE (B-590 QA). The UE mannequin's head bone, then VRoid's.
+	// TODO: tune in PIE (B-590 QA 3, judged against the mockup I_hex_row_small.png). The UE mannequin's head bone, then VRoid's.
 	const FName HeadBones[] = {TEXT("head"), TEXT("J_Bip_C_Head")};
-	constexpr float FaceAboveHeadBone = 8.0f; // cm: the head bone sits at the skull's base
-	constexpr float FaceBelowMeshTop = 0.08f; // of the mesh's height, when there is no head bone
-	constexpr float FramedHeightOfBody = 0.17f; // the picture's height, of the mesh's height: the head and a little neck
-	constexpr float MinFramedHeight = 28.0f;  // cm
-	constexpr float FieldOfView = 30.0f;	  // degrees
+	constexpr float FaceAboveHeadBone = 8.0f;	  // cm: the head bone sits at the skull's base
+	constexpr float FaceBelowTop = 0.08f;		  // of the body's height, when there is no head bone
+	constexpr float FramedHeightOfBody = 0.32f;	  // the picture's height, of the body's: the head, shoulders and upper chest
+	constexpr float MinFramedHeight = 50.0f;	  // cm
+	constexpr float AimBelowFace = 0.2f;		  // of the framed height: the face sits in the picture's upper half
+	constexpr float FieldOfView = 30.0f;		  // degrees: a portrait lens, little distortion
+	/** The capture renders every frame this long, so the scene's lighting and exposure settle (a single frame of a new
+	 *  view comes out dark), then stops for good. */
+	constexpr float SettleSeconds = 1.0f;
 }
 
-UTextureRenderTarget2D *TurnHexFace::Capture(AActor *Fighter, UObject *Outer)
+UTextureRenderTarget2D *TurnHexFace::Capture(AActor *Fighter, UObject *Outer, const FVector &ViewFrom, const TArray<AActor *> &OthersHidden)
 {
 	using namespace TurnHexFaceShot;
 	UWorld *World = Fighter ? Fighter->GetWorld() : nullptr;
@@ -36,43 +42,60 @@ UTextureRenderTarget2D *TurnHexFace::Capture(AActor *Fighter, UObject *Outer)
 	{
 		return nullptr;
 	}
-	const FBoxSphereBounds Bounds = Mesh->Bounds;
-	const float Height = static_cast<float>(Bounds.BoxExtent.Z) * 2.0f;
-	FVector Face = Bounds.Origin + FVector::UpVector * (Bounds.BoxExtent.Z - Height * FaceBelowMeshTop);
+	FVector Feet;
+	float Height = 0.0f;
+	UCombatCameraDirector::GetTargetShape(Fighter, Feet, Height); // the body Intel frames
+	FVector Face = Feet + FVector::UpVector * Height * (1.0f - FaceBelowTop);
+	bool bHeadBone = false;
 	for (const FName &Bone : HeadBones)
 	{
 		if (Mesh->DoesSocketExist(Bone))
 		{
 			Face = Mesh->GetSocketLocation(Bone) + FVector::UpVector * FaceAboveHeadBone;
+			bHeadBone = true;
 			break;
 		}
 	}
 	const float Framed = FMath::Max(Height * FramedHeightOfBody, MinFramedHeight);
+	const FVector Aim = Face - FVector::UpVector * Framed * AimBelowFace;
 	const float Distance = Framed * 0.5f / FMath::Tan(FMath::DegreesToRadians(FieldOfView * 0.5f));
-	const FVector Forward = Fighter->GetActorForwardVector().GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	// Along the line from Intel's camera to the face: the same side and height Intel shows the character from.
+	const FVector Fallback = Fighter->GetActorForwardVector().GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	const FVector Back = (ViewFrom - Aim).GetSafeNormal(UE_SMALL_NUMBER, Fallback);
 
 	UTextureRenderTarget2D *Target = NewObject<UTextureRenderTarget2D>(Outer, MakeUniqueObjectName(Outer, UTextureRenderTarget2D::StaticClass(),
 																								   *FString::Printf(TEXT("FaceCapture_%s"), *Fighter->GetName())));
 	Target->InitCustomFormat(CAPTURE_SIZE, CAPTURE_SIZE, PF_B8G8R8A8, /*bInForceLinearGamma=*/false);
 	Target->UpdateResourceImmediate(true);
 
+	// The whole lit scene, as Intel's view shows it (the arena behind), with only the other fighters left out so none
+	// stands in front of the face.
 	USceneCaptureComponent2D *Camera = NewObject<USceneCaptureComponent2D>(Fighter);
-	Camera->bCaptureEveryFrame = false;
+	Camera->bCaptureEveryFrame = true; // until SettleSeconds
 	Camera->bCaptureOnMovement = false;
+	Camera->bAlwaysPersistRenderingState = true; // exposure and lighting carry from frame to frame while it settles
 	Camera->FOVAngle = FieldOfView;
 	Camera->TextureTarget = Target;
 	Camera->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
-	Camera->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
-	Camera->ShowOnlyActorComponents(Fighter);
+	for (AActor *Other : OthersHidden)
+	{
+		if (Other && Other != Fighter)
+		{
+			Camera->HiddenActors.Add(Other);
+		}
+	}
 	Camera->ShowFlags.SetMotionBlur(false);
-	Camera->ShowFlags.SetFog(false);
-	Camera->ShowFlags.SetAtmosphere(false);
-	Camera->SetWorldLocationAndRotation(Face + Forward * Distance, (-Forward).Rotation());
+	Camera->SetWorldLocationAndRotation(Aim + Back * Distance, (-Back).Rotation());
 	Camera->RegisterComponentWithWorld(World);
 	Camera->CaptureScene();
-	Camera->DestroyComponent();
-	UE_LOG(LogWoRUI, Log, TEXT("[TurnHex] Face captured: %s (%s, %.0f cm framed)"), *Fighter->GetName(),
-		   Mesh->DoesSocketExist(HeadBones[0]) || Mesh->DoesSocketExist(HeadBones[1]) ? TEXT("head bone") : TEXT("mesh top"), Framed);
+	FTimerHandle Settle;
+	World->GetTimerManager().SetTimer(Settle, FTimerDelegate::CreateWeakLambda(Camera, [Camera]()
+	{
+		Camera->bCaptureEveryFrame = false; // the last settled frame stays in the target
+		Camera->DestroyComponent();
+	}), SettleSeconds, false);
+	UE_LOG(LogWoRUI, Log, TEXT("[TurnHex] Face captured: %s (%s, %s, %.0f cm framed, %.0f cm away)"), *Fighter->GetName(),
+		   bHeadBone ? TEXT("head bone") : TEXT("body top"), ViewFrom.IsZero() ? TEXT("facing") : TEXT("from Intel's side"), Framed, Distance);
 	return Target;
 }
 

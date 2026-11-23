@@ -21,10 +21,12 @@ namespace TurnHexFace
 	/** The capture's square size, pixels: twice the current hexagon at 1080p, so it stays sharp. */
 	constexpr int32 CAPTURE_SIZE = 168;
 
-	/** One picture of Fighter's face from in front (its head bone, else the top of its mesh), the fighter alone
-	 *  (no other actor in front of it, no sky), into a new render target owned by Outer. Null when it can't be
-	 *  taken: no world, no skeletal mesh, or no renderer (headless specs). Call once per fighter per fight. */
-	WORLD_OF_REFRACTION_API UTextureRenderTarget2D *Capture(AActor *Fighter, UObject *Outer);
+	/** One picture of Fighter's head, shoulders and upper chest, looking from ViewFrom's side (where Intel's camera
+	 *  stands for it), in the lit scene as Intel shows it, with OthersHidden left out, into a new render target owned
+	 *  by Outer. It renders for a moment so the light settles, then stops. Null when it can't be taken: no world, no
+	 *  skeletal mesh, or no renderer (headless specs). Call once per fighter per fight. */
+	WORLD_OF_REFRACTION_API UTextureRenderTarget2D *Capture(AActor *Fighter, UObject *Outer, const FVector &ViewFrom,
+															const TArray<AActor *> &OthersHidden);
 }
 
 UCLASS()
