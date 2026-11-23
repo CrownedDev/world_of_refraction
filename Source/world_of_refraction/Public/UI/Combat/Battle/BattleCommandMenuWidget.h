@@ -222,7 +222,7 @@ private:
 	TArray<FPieMenuButtonData> Rows;
 	/** B-582c: the row W / S or a target highlight last lit; kept through a rebuild of the same view (an infusion pick). */
 	int32 LitRow = INDEX_NONE;
-	/** B-582c QA: each list's lit row when it was left, by title, so Back re-lights the row you came from. Target rows
+	/** B-582c QA: each list's lit row when it was left, by title and row count, so Back re-lights the row you came from. Target rows
 	 *  aren't kept (the picker opens on its own target, B-582). Cleared when the menu closes (a new turn starts fresh). */
 	TMap<FString, int32> LitRowByTitle;
 	TArray<FText> RowLabels;

@@ -547,11 +547,14 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 	const FText NewTitle = Menu ? Menu->GetViewTitle() : FText::GetEmpty();
 	if (!NewTitle.EqualTo(Title) || Buttons.Num() != Rows.Num() || !bShowing)
 	{
-		if (bShowing && Rows.IsValidIndex(LitRow) && !GetRowTarget(LitRow))
+		const auto ViewKey = [](const FText &ViewTitle, int32 RowCount)
+		{ return FString::Printf(TEXT("%s#%d"), *ViewTitle.ToString(), FMath::Min(RowCount, MAX_ROWS)); };
+		const int32 Leaving = bShowing ? GetLitRow() : INDEX_NONE;
+		if (Leaving != INDEX_NONE && !GetRowTarget(Leaving))
 		{
-			LitRowByTitle.Add(Title.ToString(), LitRow);
+			LitRowByTitle.Add(ViewKey(Title, Rows.Num()), Leaving);
 		}
-		const int32 *Left = LitRowByTitle.Find(NewTitle.ToString());
+		const int32 *Left = LitRowByTitle.Find(ViewKey(NewTitle, Buttons.Num()));
 		LitRow = Left ? *Left : INDEX_NONE;
 	}
 	Rows = Buttons;
