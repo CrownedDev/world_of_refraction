@@ -434,7 +434,10 @@ bool ACombatPlayerController::ApplyFreeCommand(ACombatOrchestrator *Orchestrator
 	case ECombatFreeCommand::HandToAI:
 		return Orchestrator && Orchestrator->SwitchMemberControl(Actor);
 	default:
-		return false;
+	{
+		ECombatRow Row;
+		return CombatFreeCommands::GetMoveToRow(Command, Row) && Orchestrator && Orchestrator->TryMoveToRow(Actor, Row, Refusal);
+	}
 	}
 }
 
@@ -828,6 +831,8 @@ const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 		// B-474 (D-207): Switch Weapon moved from D-pad Left to L3 (D-pad Left is free).
 		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_LeftThumbstick},
 		{TEXT("IA_Combat_MenuChangeRing"), EPieMenuCategory::ChangeRing, EKeys::Seven, EKeys::Gamepad_DPad_Right},
+		// B-588 (D-263): Position opens the row picker; 4 and D-pad Up were free (B-436g, D-258).
+		{TEXT("IA_Combat_MenuPosition"), EPieMenuCategory::MoveRow, EKeys::Four, EKeys::Gamepad_DPad_Up},
 		// B-170e (Crown, 2026-11-12): End Turn has no key yet; it comes later, with its InputMap.md row. The menu already
 		// takes it as a main-menu key (CommandMenuRules::IsMainMenuKey, PressMenuKey(EPieMenuCategory::EndTurn)).
 	};
