@@ -1058,8 +1058,9 @@ FEventReply UBattleHUDWidget::HandleCardMouseDown(FGeometry MyGeometry, const FP
 	{
 		return FEventReply(false);
 	}
-	// B-582c (D-270): in a target picker the marked enemy's floating card picks that enemy; elsewhere a click inspects.
-	if (!Cards[Clicked].bParty && PickFighter(Cards[Clicked].Actor.Get()))
+	// B-582c (D-270): in a target picker a card the picker offers (the marked enemy's, an ally's in an ally pick) picks
+	// that fighter; elsewhere a click inspects.
+	if (PickFighter(Cards[Clicked].Actor.Get()))
 	{
 		return FEventReply(true);
 	}
