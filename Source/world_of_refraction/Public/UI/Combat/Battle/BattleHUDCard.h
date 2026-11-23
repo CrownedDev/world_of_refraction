@@ -67,7 +67,10 @@ namespace BattleCardStyle
 	inline const FLinearColor CardColor(0.0f, 0.0f, 0.0f, 0.55f);
 	inline const FLinearColor TextColor = FLinearColor::White;
 	inline const FLinearColor ActingColor(1.0f, 0.78f, 0.25f); // warm gold: whose turn it is
-	inline const FLinearColor PartyHPColor(0.75f, 0.1f, 0.1f);
+	// B-436b (Crown, 2026-11-14): darker HP red and EP blue so the white numbers read; low HP a hotter pink-red, apart from
+	// Burn's orange.
+	inline const FLinearColor PartyHPColor(0.45f, 0.04f, 0.06f);
+	inline const FLinearColor LowHPColor(0.95f, 0.12f, 0.38f);
 	inline const FLinearColor EnemyHPColor(0.55f, 0.1f, 0.1f);
 
 	// B-391c: the status buildup bar under the HP bar, and its cracks (Q-111 A).
@@ -78,9 +81,11 @@ namespace BattleCardStyle
 	// B-503m: the HP and EP numbers on their bars, the bars' quiet empty part, the build-up bar's label.
 	inline constexpr float NumberBarHeight = 18.0f;
 	inline constexpr int32 BarFontSize = 11;
-	inline const FLinearColor BarTextShadowColor(0.0f, 0.0f, 0.0f, 0.9f);
+	// B-436b (Crown, 2026-11-14): a bar's number is plain white with a thin dark outline, no backing box and no shadow.
+	inline constexpr int32 BarTextOutlineSize = 1;
+	inline const FLinearColor BarTextOutlineColor(0.0f, 0.0f, 0.0f, 0.9f);
 	inline const FLinearColor EmptyBarColor(1.0f, 1.0f, 1.0f, 0.15f);
-	inline const FLinearColor EPBarColor(0.15f, 0.4f, 0.85f);
+	inline const FLinearColor EPBarColor(0.06f, 0.18f, 0.5f);
 	// OBSOLETE (B-585, D-257): the build-up bar's label; delete the three after checkpoint 6.
 	inline constexpr int32 BuildupLabelFontSize = 10;
 	inline constexpr float BuildupLabelGap = 4.0f;
@@ -103,6 +108,10 @@ struct FBattleHUDCard
 	bool bBrokenDarkness = false;
 	FLinearColor EPColour = FLinearColor::White;
 	float HPFraction = 0.0f;
+	/** B-436b: a party card under BattleHUDView::LOW_HP_FRACTION: LowHPColor, and the HUD pulses it (SetHPPulse). */
+	bool bLowHP = false;
+	/** B-436b: the Combat Tier's letter, shown beside the name ("Garrick (C)"); empty: the name alone (hub, trial, enemies). */
+	FText TierLetter;
 	/** B-503m: the EP bar (a Broken Darkness pool past max reads full; its line says the overload). */
 	float EPFraction = 0.0f;
 	FText Name;
@@ -194,6 +203,9 @@ namespace BattleHUDCard
 	/** B-436a: a fight's party row. Compact: the name, the HP and build-up bars with their numbers at CompactCardWidth; full: every
 	 *  part the card built, at CardWidth. Shows and hides only; call it after Push. The hub and trial HUDs never call it. */
 	WORLD_OF_REFRACTION_API void SetCompact(const FBattleHUDCard &Card, bool bCompact);
+
+	/** B-436b: the HP bar's opacity, Opacity while the card is low (bLowHP), else full. */
+	WORLD_OF_REFRACTION_API void SetHPPulse(const FBattleHUDCard &Card, float Opacity);
 
 	/** A line of text in the card's font and colour, added to Box. */
 	WORLD_OF_REFRACTION_API UTextBlock *AddText(UWidgetTree *Tree, UVerticalBox *Box, int32 FontSize);

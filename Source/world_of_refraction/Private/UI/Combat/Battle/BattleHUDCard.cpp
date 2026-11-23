@@ -49,10 +49,10 @@ namespace
 		UTextBlock *Number = Tree->ConstructWidget<UTextBlock>(UTextBlock::StaticClass());
 		FSlateFontInfo Font = Number->GetFont();
 		Font.Size = BarFontSize;
+		Font.OutlineSettings.OutlineSize = BarTextOutlineSize; // B-436b: readable on the fill and on the empty part
+		Font.OutlineSettings.OutlineColor = BarTextOutlineColor;
 		Number->SetFont(Font);
 		Number->SetColorAndOpacity(FSlateColor(TextColor));
-		Number->SetShadowOffset(FVector2D(1.0f, 1.0f)); // readable on the fill and on the empty part
-		Number->SetShadowColorAndOpacity(BarTextShadowColor);
 		if (UOverlaySlot *TextSlot = Layers->AddChildToOverlay(Number))
 		{
 			TextSlot->SetHorizontalAlignment(HAlign_Center);
@@ -255,7 +255,8 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 {
 	using namespace BattleCardStyle;
 
-	const FText Name = Card.bActing ? FText::Format(LOCTEXT("ActingName", "> {0}"), Card.Name) : Card.Name;
+	const FText Shown = BattleHUDView::FormatCardName(Card.Name, Card.TierLetter); // B-436b: "Garrick (C)"
+	const FText Name = Card.bActing ? FText::Format(LOCTEXT("ActingName", "> {0}"), Shown) : Shown;
 	SetTextSafe(Card.NameText, Name);
 	if (Card.NameText)
 	{
@@ -269,6 +270,14 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 	if (Card.HPBar)
 	{
 		Card.HPBar->SetPercent(Card.HPFraction);
+		if (Card.bParty) // B-436b
+		{
+			Card.HPBar->SetFillColorAndOpacity(Card.bLowHP ? LowHPColor : PartyHPColor);
+		}
+	}
+	if (!Card.bLowHP)
+	{
+		SetHPPulse(Card, 1.0f); // a healed card stops dimming at once
 	}
 	SetTextSafe(Card.HPText, Card.HPLine);
 	if (Card.EPBar)
@@ -321,6 +330,14 @@ void BattleHUDCard::SetCompact(const FBattleHUDCard &Card, bool bCompact)
 	ShowIf(Card.EPRow, !bCompact && Card.bShowEP);
 	ShowIf(Card.ActionsText, !bCompact);
 	ShowIf(Card.StatusText, !bCompact);
+}
+
+void BattleHUDCard::SetHPPulse(const FBattleHUDCard &Card, float Opacity)
+{
+	if (Card.HPBar)
+	{
+		Card.HPBar->SetRenderOpacity(Card.bLowHP ? Opacity : 1.0f);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
