@@ -67,7 +67,8 @@ int32 UTurnHexWidget::NativePaint(const FPaintArgs &Args, const FGeometry &Allot
 	{
 		Edge.Add(Middle + (Corner - Middle) * ((Size * 0.5f - Half) / (Size * 0.5f)));
 	}
-	Edge.Add(Edge[0]);
+	const FVector2f First = Edge[0]; // a copy: adding an element of the array being grown asserts
+	Edge.Add(First);
 	FSlateDrawElement::MakeLines(OutDrawElements, LayerId + 1, AllottedGeometry.ToPaintGeometry(), MoveTemp(Edge), ESlateDrawEffect::None,
 								 Border * Tint, /*bAntialias=*/true, BorderThickness);
 	return Super::NativePaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId + 1, InWidgetStyle, bParentEnabled);
