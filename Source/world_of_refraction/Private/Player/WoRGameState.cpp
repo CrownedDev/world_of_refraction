@@ -197,7 +197,7 @@ EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
 		// B-589 (Q-450 = B): every vote line names the opponent, never its rank (D-187).
 		Starter->Client_ShowFeatureMessage(bReviveWaitsForFight
 			? ReviveVote::MakeLine(ReviveVote::ELine::AlreadyWaits, WoRRestSpot::GetReviveOpponentName(GetWorld()))
-			:NSLOCTEXT("WoRGameState", "ReviveVoteNothing", "There is no one to revive here."));
+			: NSLOCTEXT("WoRGameState", "ReviveVoteNothing", "There is no one to revive here."));
 		return EReviveVoteResult::Failed;
 	}
 	TArray<int32> PlayerIds;
