@@ -22,6 +22,7 @@
 #include "Camera/CameraComponent.h"
 #include "Camera/CameraShakeBase.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Components/ShapeComponent.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
@@ -535,7 +536,19 @@ void UCombatCameraDirector::SetIntelSubject(AActor *Subject)
 		FVector Feet;
 		float Height = 0.0f;
 		GetTargetShape(Subject, Feet, Height);
-		if (MoveTurnCamera(FCombatCameraRules::ComputeIntelView(Frame, Feet, Height), 0.0f)) // a cut (D-262 b)
+		TArray<FVector> OtherBodies; // B-587 QA: the fighters the close-up keeps out of its foreground
+		for (const UCombatCameraComponent *Camera : Cameras)
+		{
+			const AActor *Other = Camera ? Camera->GetOwner() : nullptr;
+			if (Other && Other != Subject)
+			{
+				FVector OtherFeet;
+				float OtherHeight = 0.0f;
+				GetTargetShape(Other, OtherFeet, OtherHeight);
+				OtherBodies.Add(OtherFeet + FVector::UpVector * OtherHeight * 0.5f);
+			}
+		}
+		if (MoveTurnCamera(FCombatCameraRules::ComputeIntelView(Frame, Feet, Height, OtherBodies), 0.0f)) // a cut (D-262 b)
 		{
 			bIntelViewShowing = true;
 			bTargetViewShowing = false;
@@ -565,13 +578,22 @@ void UCombatCameraDirector::GetTargetShape(const AActor *Target, FVector &OutFee
 	{
 		return;
 	}
-	FVector Origin;
-	FVector Extent;
-	Target->GetActorBounds(true, Origin, Extent); // colliding only: a character's capsule
-	if (Extent.Z > UE_KINDA_SMALL_NUMBER)
+	// The colliding body (capsule, mesh), as GetActorBounds(true), but not a trigger shape attached to it: a recruit's
+	// talk sphere (UPartyInteractionComponent) made an ally's shot back far away (B-587 QA).
+	FBox Body(ForceInit);
+	Target->ForEachComponent<UPrimitiveComponent>(false, [Target, &Body](const UPrimitiveComponent *Primitive)
 	{
-		OutFeet = FVector(Origin.X, Origin.Y, Origin.Z - Extent.Z);
-		OutHeight = static_cast<float>(Extent.Z * 2.0);
+		const bool bTrigger = Primitive->IsA<UShapeComponent>() && Primitive != Target->GetRootComponent();
+		if (Primitive->IsRegistered() && Primitive->IsCollisionEnabled() && !bTrigger)
+		{
+			Body += Primitive->Bounds.GetBox();
+		}
+	});
+	if (Body.IsValid && Body.GetExtent().Z > UE_KINDA_SMALL_NUMBER)
+	{
+		const FVector Centre = Body.GetCenter();
+		OutFeet = FVector(Centre.X, Centre.Y, Body.Min.Z);
+		OutHeight = static_cast<float>(Body.GetSize().Z);
 	}
 }
 

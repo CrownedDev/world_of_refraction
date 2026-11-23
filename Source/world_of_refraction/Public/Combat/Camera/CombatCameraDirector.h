@@ -90,6 +90,10 @@ public:
 	/** B-587 (debug, specs): the Intel camera moves this fight (to a close-up, between tabs and back). */
 	int32 GetIntelMoveCount() const { return IntelMoveCount; }
 
+	/** B-400: the target's feet and height from its colliding body (a default height without one). B-587 QA: a trigger
+	 *  shape attached to it (a recruit's talk sphere) isn't the body. Public for specs. */
+	static void GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight);
+
 	bool IsInCombat() const { return bInCombat; }
 	ETurnViewStyle GetTurnViewStyle() const { return TurnViewStyle; }
 	bool IsCameraMovementOff() const { return bCameraMovementOff; }
@@ -273,9 +277,6 @@ private:
 	/** B-400: the turn view at MenuDepth, by a cut, when a target view shows (confirm: the action's shots start from
 	 *  the turn view, as before B-400). */
 	void CutBackFromTargetView();
-
-	/** B-400: the target's feet and height from its collision bounds (a default height without any). */
-	static void GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight);
 
 	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). False when it
 	 *  could not (no camera or no viewer): nothing is left playing. */
