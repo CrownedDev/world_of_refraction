@@ -399,6 +399,35 @@ void FCommandMenuKeysSpec::Define()
 		TestNull(TEXT("forgotten with the fight"), Menu->GetLastAttackTarget(Hero));
 	});
 
+	It("confirms the highlighted target on Enter / Space in a target picker, and nowhere else (B-582b, D-267)", [this]()
+	{
+		const FString Keys = ACombatPlayerController::GetMenuKeysString();
+		TestTrue(TEXT("Enter, its own action"), Keys.Contains(TEXT("IA_Combat_MenuConfirm (")) && Keys.Contains(EKeys::Enter.GetDisplayName().ToString()));
+		TestTrue(TEXT("Space, its own action"), Keys.Contains(TEXT("IA_Combat_MenuConfirmSpace (")) && Keys.Contains(EKeys::SpaceBar.GetDisplayName().ToString()));
+		if (!StartSkilledDuel(/*bTwoKinds=*/false))
+		{
+			return;
+		}
+		TestFalse(TEXT("nothing on the main menu"), Menu->PressMenuKey(EPieMenuCategory::Target));
+		TestTrue(TEXT("still the main menu"), Menu->IsAtMainMenu());
+
+		FPieMenuButtonData Position;
+		Position.Category = EPieMenuCategory::MoveRow;
+		Menu->HandleSelection(Position);
+		TestFalse(TEXT("nothing in the Position picker"), Menu->PressMenuKey(EPieMenuCategory::Target));
+		TestTrue(TEXT("still in it"), Menu->IsPositionPickerOpen());
+		Menu->HandleBack();
+
+		FPieMenuButtonData Ability;
+		Ability.Category = EPieMenuCategory::Ability;
+		Ability.DataReference = NewObject<UAbilityData>(GetTransientPackage());
+		Menu->HandleSelection(Ability);
+		TestTrue(TEXT("an ability's target picker, on the foe"), Menu->GetHighlightedTarget() == Foe);
+		TestFalse(TEXT("1 is the Attack picker's only"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestTrue(TEXT("Enter / Space picks the highlighted foe there too"), Menu->PressMenuKey(EPieMenuCategory::Target));
+		TestNull(TEXT("and leaves the picker"), Menu->GetHighlightedTarget());
+	});
+
 	It("steps back out of the Position picker without moving (B-588)", [this]()
 	{
 		if (!StartDuel())
