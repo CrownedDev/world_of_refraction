@@ -36,6 +36,7 @@
 #include "WoRGameNames.h"
 #include "Combat/Actions/ActionPipsText.h"
 #include "UI/WoRIconTable.h"
+#include "UI/Combat/CombatHUD.h"
 
 namespace
 {
@@ -459,6 +460,24 @@ void UCombatCommandMenuSubsystem::HandleSelection(const FPieMenuButtonData &Butt
         break;
     }
 
+    // === B-592 (D-268): THE TARGET PANEL'S LINES ===
+    case EPieMenuCategory::TargetPanelWeapon:
+        // X opens the weapon line; X again switches to the next weapon (the line stays open).
+        if (OpenTargetPanelLine == ETargetPanelLine::Weapon)
+        {
+            ExecuteSwitchWeapon();
+            break;
+        }
+        OpenTargetPanelLine = ETargetPanelLine::Weapon;
+        OnCommandMenuReady.Broadcast(RebuildCurrentPicker());
+        break;
+
+    case EPieMenuCategory::TargetPanelInfusion:
+        // Y opens the infusion lines (closing the weapon line); Y again closes them, back to the small panel.
+        OpenTargetPanelLine = OpenTargetPanelLine == ETargetPanelLine::Infusion ? ETargetPanelLine::None : ETargetPanelLine::Infusion;
+        OnCommandMenuReady.Broadcast(RebuildCurrentPicker());
+        break;
+
     // === NAVIGATION ===
     case EPieMenuCategory::Back:
         HandleBack();
@@ -483,7 +502,13 @@ void UCombatCommandMenuSubsystem::HandleBack()
     switch (CurrentDepth)
     {
     case ECombatMenuDepth::TargetSelection:
-        if (ResolvedTargetType != PendingTargetType)
+        if (OpenTargetPanelLine != ETargetPanelLine::None)
+        {
+            // B-592 (D-268): Back closes the panel's open line first, back to the small panel.
+            OpenTargetPanelLine = ETargetPanelLine::None;
+            OnCommandMenuReady.Broadcast(RebuildCurrentPicker());
+        }
+        else if (ResolvedTargetType != PendingTargetType)
         {
             // Entered the per-actor list via the Allies/Enemies category step —
             // Back steps out to that category view; the pending action stays alive.
@@ -906,7 +931,17 @@ FText UCombatCommandMenuSubsystem::GetViewTitle() const
 {
     if (CurrentDepth == ECombatMenuDepth::TargetSelection || CurrentDepth == ECombatMenuDepth::TargetCategory)
     {
-        return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleTargets", "{0} > choose a target"), PendingActionLabel);
+        // B-592 (D-268): the panel's open line names the step (refine_v4).
+        const bool bTargets = CurrentDepth == ECombatMenuDepth::TargetSelection;
+        if (bTargets && OpenTargetPanelLine == ETargetPanelLine::Weapon)
+        {
+            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleWeapon", "{0} · weapon"), PendingActionLabel);
+        }
+        if (bTargets && OpenTargetPanelLine == ETargetPanelLine::Infusion)
+        {
+            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleInfusion", "{0} · infusion"), PendingActionLabel);
+        }
+        return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleTargets", "{0} · choose a target"), PendingActionLabel);
     }
     if (CurrentDepth != ECombatMenuDepth::Submenu)
     {
@@ -1517,10 +1552,9 @@ void UCombatCommandMenuSubsystem::ExecuteSwitchWeapon()
         return;
     }
 
-    // Rebuild capabilities with the new active weapon and refresh main menu
+    // Rebuild capabilities with the new active weapon and refresh the menu (B-592: the Attack step stays open)
     RebuildCapabilities();
-
-    OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+    BroadcastAfterWeaponSwitch();
 }
 
 void UCombatCommandMenuSubsystem::ExecuteMoveRow(bool bForward)
@@ -1615,6 +1649,11 @@ void UCombatCommandMenuSubsystem::HandleFreeCommandApplied(AActor *Actor, EComba
     {
         RebuildCapabilities();
     }
+    if (Command == ECombatFreeCommand::SwitchWeapon)
+    {
+        BroadcastAfterWeaponSwitch(); // B-592: a client's X in the Attack step stays there too
+        return;
+    }
     // TODO: B-232d: the row lives on the server's orchestrator; the client's greyed row step can lag until then.
     OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
 }
@@ -1646,6 +1685,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
     ResolvedTargetType = TargetType;
     ResolvedTargetCount = TargetCount;
     DepthBeforeTargetSelection = CurrentDepth;
+    OpenTargetPanelLine = ETargetPanelLine::None; // B-592: every target step opens small
 
     // Log target type
     const UEnum *TargetEnum = StaticEnum<ETargetType>();
@@ -2033,8 +2073,7 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
     //     Pressing it cycles 0 -> 1 -> 2 -> 0.
     //   - Cycle Source is a separate button, only for Attack / Ability.
     //   - Spells show their intrinsic source in the label (not cyclable).
-    if (PendingActionCategory != EPieMenuCategory::Item &&
-        !IsInfusionLockedForPendingAction())
+    if (CanInfusePendingAction())
     {
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
@@ -2082,14 +2121,7 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
             // (so BD can pick Innate for Darkness-conversion). Other spell
             // submenus stay element-locked. Suppressed when the filtered cache
             // has ≤1 entry (cycling would be a no-op).
-            const bool bShowCycleSource =
-                ((PendingActionCategory == EPieMenuCategory::Attack) ||
-                 (PendingActionCategory == EPieMenuCategory::Ability) ||
-                 (PendingActionCategory == EPieMenuCategory::Spell &&
-                  ActiveSubmenuSource == EPieMenuCategory::Breakthrough)) &&
-                VFX->GetCachedSources().Num() > 1;
-
-            if (bShowCycleSource)
+            if (CanChooseInfusionElement())
             {
                 FPieMenuButtonData CycleSrc;
                 CycleSrc.ButtonID = TEXT("CycleSource");
@@ -2100,6 +2132,184 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
             }
         }
     }
+
+    // B-592 (D-268): the new battle HUD's panel lines, opened by X / 2 and Y / 3 (corner hints there). The old HUD
+    // keeps its rows as they were.
+    if (!UCombatHUD::WantsNewHUD() || CurrentDepth != ECombatMenuDepth::TargetSelection)
+    {
+        return;
+    }
+    if (PendingActionCategory == EPieMenuCategory::Attack && CurrentCapabilities.bCanSwitchWeapon)
+    {
+        FPieMenuButtonData Weapon;
+        Weapon.ButtonID = TEXT("TargetPanelWeapon");
+        Weapon.DisplayName = OpenTargetPanelLine == ETargetPanelLine::Weapon ? LOCTEXT("PanelNextWeapon", "Next weapon")
+                                                                             : LOCTEXT("PanelWeapon", "Weapon");
+        Weapon.Category = EPieMenuCategory::TargetPanelWeapon;
+        if (OpenTargetPanelLine == ETargetPanelLine::Weapon)
+        {
+            GreyIfTurnSwitchUsed(Weapon); // the same switch rule as 6 / L3 (free today, B-170c); a greyed hint says why
+        }
+        Buttons.Add(Weapon);
+    }
+    if (CanInfusePendingAction())
+    {
+        FPieMenuButtonData Infusion;
+        Infusion.ButtonID = TEXT("TargetPanelInfusion");
+        Infusion.DisplayName = OpenTargetPanelLine == ETargetPanelLine::Infusion ? LOCTEXT("PanelClose", "Close")
+                               : CanChooseInfusionElement()                     ? LOCTEXT("PanelInfusion", "Infusion")
+                                                                                : LOCTEXT("PanelInfusionLevel", "Infusion level");
+        Infusion.Category = EPieMenuCategory::TargetPanelInfusion;
+        Buttons.Add(Infusion);
+    }
+}
+
+bool UCombatCommandMenuSubsystem::CanInfusePendingAction() const
+{
+    // Items skip infusion; so does an action immune to it (bImmuneToInfusion, or the wielder's equipment).
+    return PendingActionCategory != EPieMenuCategory::Item && !IsInfusionLockedForPendingAction() && GetInfusionVFXComponent();
+}
+
+bool UCombatCommandMenuSubsystem::CanChooseInfusionElement() const
+{
+    // Attack / Ability always; Breakthrough spells too (BD can pick Innate for Darkness-conversion). Other spells are
+    // origin-bound (one fixed element). One cached source leaves nothing to choose (a plain Caster evolution spell).
+    const UInfusionVFXComponent *VFX = GetInfusionVFXComponent();
+    const bool bChoosableKind = PendingActionCategory == EPieMenuCategory::Attack || PendingActionCategory == EPieMenuCategory::Ability ||
+                                (PendingActionCategory == EPieMenuCategory::Spell && ActiveSubmenuSource == EPieMenuCategory::Breakthrough);
+    return CanInfusePendingAction() && bChoosableKind && VFX && VFX->GetCachedSources().Num() > 1;
+}
+
+FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
+{
+    FTargetPanelView View;
+    if (!bIsOpen || CurrentDepth != ECombatMenuDepth::TargetSelection)
+    {
+        return View;
+    }
+    View.bShown = true;
+    View.Open = OpenTargetPanelLine;
+
+    TArray<FText> Parts;
+    const ULoadoutComponent *LC = GetLoadoutComponent();
+    const bool bWeaponLine = PendingActionCategory == EPieMenuCategory::Attack;
+    if (bWeaponLine && !CurrentCapabilities.ActiveWeaponName.IsEmpty())
+    {
+        Parts.Add(FText::FromString(CurrentCapabilities.ActiveWeaponName)); // a data name (WeaponData::Name)
+    }
+    if (bWeaponLine && LC && CurrentCapabilities.bCanSwitchWeapon && OpenTargetPanelLine == ETargetPanelLine::Weapon)
+    {
+        const FCombatLoadout &Loadout = LC->GetActiveLoadout();
+        for (const FWeaponLoadoutEntry *Entry : {&Loadout.PrimaryWeapon, &Loadout.SecondaryWeapon})
+        {
+            View.Weapons.Add(Entry->WeaponEntry.Weapon ? FText::FromString(Entry->WeaponEntry.Weapon->Name) : FText::GetEmpty());
+        }
+        View.ActiveWeapon = Loadout.bShowPrimary ? 0 : 1;
+    }
+
+    const UInfusionVFXComponent *VFX = GetInfusionVFXComponent();
+    if (CanInfusePendingAction() && VFX)
+    {
+        static const FText LevelNames[] = {LOCTEXT("PanelLevel0", "—"), LOCTEXT("PanelLevel1", "I"), LOCTEXT("PanelLevel2", "II")};
+        const auto LevelName = [](int32 Level) { return Level >= 0 && Level < static_cast<int32>(UE_ARRAY_COUNT(LevelNames)) ? LevelNames[Level] : FText::AsNumber(Level); };
+        const bool bElement = CanChooseInfusionElement();
+        const TArray<EInfusionSourceOption> &Sources = VFX->GetCachedSources();
+        const UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
+        const auto SourceName = [this, Exec](EInfusionSourceOption Source)
+        {
+            if (Source == EInfusionSourceOption::None)
+            {
+                return LOCTEXT("PanelSourceNone", "None");
+            }
+            if (Source == EInfusionSourceOption::Raw)
+            {
+                return LOCTEXT("PanelSourceRaw", "Raw");
+            }
+            return Exec ? WoRGameNames::GetElementName(Exec->GetElementForSourceOption(CurrentActor.Get(), Source))
+                        : FText::FromString(InfusionSourceOptionHelpers::GetDisplayName(Source));
+        };
+        if (PendingInfusionLevel <= 0)
+        {
+            Parts.Add(LOCTEXT("PanelNoInfusion", "No infusion"));
+        }
+        else
+        {
+            if (bElement && Sources.IsValidIndex(VFX->GetCurrentSourceIndex()))
+            {
+                Parts.Add(SourceName(Sources[VFX->GetCurrentSourceIndex()]));
+            }
+            Parts.Add(FText::Format(LOCTEXT("PanelLevel", "Lv {0}"), LevelName(PendingInfusionLevel)));
+        }
+        if (OpenTargetPanelLine == ETargetPanelLine::Infusion)
+        {
+            for (int32 Index = 0; bElement && Index < Sources.Num(); ++Index)
+            {
+                View.Elements.Add(SourceName(Sources[Index]));
+            }
+            View.ActiveElement = bElement ? VFX->GetCurrentSourceIndex() : INDEX_NONE;
+            for (int32 Level = 0; Level <= InfusionConstants::MAX_INFUSION_LEVEL; ++Level)
+            {
+                View.Levels.Add(LevelName(Level));
+            }
+            View.ActiveLevel = PendingInfusionLevel;
+        }
+    }
+    View.Summary = FText::Join(LOCTEXT("PanelSummarySeparator", " · "), Parts);
+    return View;
+}
+
+void UCombatCommandMenuSubsystem::PickTargetPanelChoice(ETargetPanelChoice Line, int32 Index)
+{
+    if (!bIsOpen || CurrentDepth != ECombatMenuDepth::TargetSelection)
+    {
+        return;
+    }
+    const FTargetPanelView View = GetTargetPanel();
+    switch (Line)
+    {
+    case ETargetPanelChoice::Weapon:
+        if (View.Weapons.IsValidIndex(Index) && Index != View.ActiveWeapon)
+        {
+            ExecuteSwitchWeapon(); // two weapons: the other one
+        }
+        return;
+    case ETargetPanelChoice::Element:
+        if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent(); VFX && View.Elements.IsValidIndex(Index))
+        {
+            VFX->SetSourceIndex(Index);
+            if (PendingInfusionLevel > 0)
+            {
+                VFX->ActivateCurrentSource();
+            }
+        }
+        break;
+    case ETargetPanelChoice::Level:
+        if (View.Levels.IsValidIndex(Index))
+        {
+            SetPendingInfusionLevel(Index);
+        }
+        break;
+    }
+    OnCommandMenuReady.Broadcast(RebuildCurrentPicker());
+}
+
+void UCombatCommandMenuSubsystem::BroadcastAfterWeaponSwitch()
+{
+    if (CurrentDepth != ECombatMenuDepth::TargetSelection)
+    {
+        OnCommandMenuReady.Broadcast(BuildMainMenuButtons());
+        return;
+    }
+    // B-592: X in the Attack step switches the weapon and stays; the new weapon's crystal is a new source.
+    if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
+    {
+        VFX->CacheAvailableSources();
+        if (PendingInfusionLevel > 0)
+        {
+            VFX->ActivateCurrentSource();
+        }
+    }
+    OnCommandMenuReady.Broadcast(RebuildCurrentPicker());
 }
 
 #undef LOCTEXT_NAMESPACE
@@ -2560,6 +2770,9 @@ void UCombatCommandMenuSubsystem::DebugLogCapabilities() const
     UE_LOG(LogTemp, Log, TEXT("ActiveRing:     %s"), *CurrentCapabilities.ActiveRingName);
     UE_LOG(LogTemp, Log, TEXT("BreakChance:    %s"), CurrentCapabilities.bRingHasBreakChance ? TEXT("YES") : TEXT("NO"));
     UE_LOG(LogTemp, Log, TEXT("LastAttackOn:   %s"), *GetNameSafe(GetLastAttackTarget(CurrentActor.Get()))); // B-582
+    const FTargetPanelView Panel = GetTargetPanel(); // B-592
+    UE_LOG(LogTemp, Log, TEXT("TargetPanel:    %s line=%d \"%s\" weapons=%d elements=%d levels=%d"), Panel.bShown ? TEXT("shown") : TEXT("none"),
+           static_cast<int32>(Panel.Open), *Panel.Summary.ToString(), Panel.Weapons.Num(), Panel.Elements.Num(), Panel.Levels.Num());
 }
 
 bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
@@ -2590,7 +2803,14 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
     }
     TArray<FPieMenuButtonData> View;
     const bool bInfusionKey = Category == EPieMenuCategory::CycleSource || Category == EPieMenuCategory::CycleLevel;
-    if (bInfusionKey && CurrentDepth == ECombatMenuDepth::TargetSelection)
+    // B-592 (D-268): in a target step 2 / X is the weapon line and 3 / Y the infusion lines, never Skills / Items.
+    const EPieMenuCategory PanelButton = CommandMenuRules::TargetPanelButtonForKey(Category);
+    if (PanelButton != EPieMenuCategory::None && CurrentDepth == ECombatMenuDepth::TargetSelection)
+    {
+        Category = PanelButton;
+        View = RebuildCurrentPicker();
+    }
+    else if (bInfusionKey && CurrentDepth == ECombatMenuDepth::TargetSelection)
     {
         View = RebuildCurrentPicker();
     }

@@ -305,14 +305,17 @@ TArray<int32> BattleHUDView::AssignMenuKeys(const TArray<EPieMenuCategory> &Cate
 			}
 			continue;
 		}
-		if (CommandMenuRules::IsMainMenuKey(KeyCategory) && !bAtMainMenu)
+		// B-592 (D-268): past the main menu the Skills / Items keys are the target panel's lines (rows only a target step has).
+		const EPieMenuCategory PanelButton = bAtMainMenu ? EPieMenuCategory::None : CommandMenuRules::TargetPanelButtonForKey(KeyCategory);
+		if (CommandMenuRules::IsMainMenuKey(KeyCategory) && !bAtMainMenu && PanelButton == EPieMenuCategory::None)
 		{
 			continue;
 		}
+		const EPieMenuCategory Presses = PanelButton == EPieMenuCategory::None ? KeyCategory : PanelButton;
 		for (int32 Row = 0; Row < Categories.Num(); ++Row)
 		{
 			const bool bRowEnabled = Enabled.IsValidIndex(Row) && Enabled[Row];
-			if (bRowEnabled && CommandMenuRules::KeyPressesButton(KeyCategory, Categories[Row]))
+			if (bRowEnabled && CommandMenuRules::KeyPressesButton(Presses, Categories[Row]))
 			{
 				if (KeyForRow[Row] == INDEX_NONE) // B-436g: two keys for one row (Back: Backspace, Esc): the first one shows
 				{

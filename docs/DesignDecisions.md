@@ -1288,6 +1288,19 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-268 — A compact target panel with X / Y toggles
+**Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, mockups `docs/Design/screen_mockups/combat/hud/refine_v4/`) · **Blocks:** B-592
+**Crown:** the target step (Attack, a skill, an item) starts small; X shows the weapon, Y the infusion. Later notes: no "Size x…" line and no backlash text in the target panel; the HP cost shows only as a ghost on the caster's HP bar.
+**Ruled (new battle HUD):**
+- The panel starts small: the heading ("Attack · choose a target") and one dim summary of the current choice ("Hammer · Lightning · Lv I"; "No infusion" at level 0). No weapon, element or level lines by default. The target rows stay under it (the only way to pick a target until a target-cycle key exists).
+- **X / 2** shows only the weapon line (Attack with two weapons); X again switches to the next weapon and stays in the step. It follows the switch rule of 6 / L3 (a switch is free any number of times, B-170c), so X keeps cycling.
+- **Y / 3** hides the weapon line and shows the infusion lines (element, then level); R / T (LB / RB) change them as before; Y again closes them. Back closes an open line first.
+- A spell bound to one element (any spell but a breakthrough one, or a breakthrough with one source) shows no element line and no element in the summary: Y opens the level line only. Attack, weapon skills and breakthrough spells with a choice keep the element line.
+- Corner hints: "2 Weapon / 3 Infusion" (keys), "X Weapon / Y Infusion" (pad), "Next weapon" / "Close" while open, "Level" / "Element" for the infusion keys only while the infusion line is open. Only what applies shows: no Weapon with one weapon, nothing for an item.
+- In a target step 2 / 3 / X / Y never open Skills / Items (B-588's Position picker pattern).
+- No "Size x…" or backlash line in the panel. The HP-cost ghost on the caster's HP bar is its own job (B-592b): nothing predicts a cost before commit yet.
+**Build defaults (reference-backed, Crown may change):** the summary leaves out the element when it can't be chosen (one source); a chip click picks that weapon, element or level, as the keys do; Back closes an open line before leaving the step. Expedition 33's skill screen keeps the extra choices folded behind one button each, and Persona 5's target step shows only the action and target.
+
 ### D-267 — Enter and Space confirm in the battle target pickers
 **Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, on B-582) · **Blocks:** B-582b
 **Crown:** "enter should be confirmation also space bar".

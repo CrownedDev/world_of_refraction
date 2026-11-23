@@ -15,8 +15,10 @@
 // pips left the card; GetActionsLine), a header past the main menu (UCombatCommandMenuSubsystem::GetViewTitle), then big
 // rows: the key of the device in use, an icon, the name, an item's "x2", the cost as pips (not on the main menu), and a
 // greyed row's reason under its name. The main menu's rows are Attack, Skills and Items; its other buttons and Back
-// elsewhere are clickable corner hints (UBattleMenuHintsWidget, bottom right). Infusion rows stay clickable rows at the
-// foot of the target list. No "Your turn" title (D-260).
+// elsewhere are clickable corner hints (UBattleMenuHintsWidget, bottom right). No "Your turn" title (D-260).
+// B-592 (D-268, refine_v4): a target step's panel is small, the heading and a dim summary ("Hammer · Lightning · Lv I");
+// X / 2 opens the weapon chips, Y / 3 the element and level chips (UCombatCommandMenuSubsystem::GetTargetPanel). The
+// infusion and panel buttons are corner hints there (the infusion keys' only while the infusion line is open).
 
 #pragma once
 
@@ -24,6 +26,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Equipment/Crystals/FBrokenCrystalPayload.h" // UFUNCTION handler parameter type
 #include "InputCoreTypes.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h" // FTargetPanelView (B-592)
 #include "UI/Combat/PieMenuButtonData.h"
 #include "BattleCommandMenuWidget.generated.h"
 
@@ -46,6 +49,8 @@ class WORLD_OF_REFRACTION_API UBattleMenuRowRelay : public UObject
 
 public:
 	int32 RowIndex = INDEX_NONE;
+	/** B-592: a target panel chip's line (ETargetPanelChoice); RowIndex is then the chip's index. INDEX_NONE: a row. */
+	int32 ChipLine = INDEX_NONE;
 	TWeakObjectPtr<UBattleCommandMenuWidget> Menu;
 
 	UFUNCTION()
@@ -125,7 +130,8 @@ public:
 	void RefreshActionsLine();
 
 	/** B-436g (D-258): whether a row of this view is a corner hint, not a frame row: on the main menu anything but
-	 *  Attack, Skills and Items; past it, Back. */
+	 *  Attack, Skills and Items; past it, Back, and B-592's target panel buttons (Weapon, Infusion, its Source and
+	 *  Level keys). */
 	static bool IsCornerHint(EPieMenuCategory Category, bool bAtMainMenu);
 
 	/** Bind to the command menu subsystem; shows the menu at once if it is already open (turn 1 fires inside
@@ -146,6 +152,12 @@ public:
 
 	/** B-400b (debug, specs): the actor a per-actor target row picks; null for any other row. */
 	AActor *GetRowTarget(int32 RowIndex) const;
+
+	/** B-592 (D-268): a click on a target panel chip (Line: ETargetPanelChoice). */
+	void PressChip(int32 Line, int32 Index);
+
+	/** B-592 (D-268): the target panel as last shown (UCombatCommandMenuSubsystem::GetTargetPanel). Debug, specs. */
+	const FTargetPanelView &GetPanel() const { return Panel; }
 
 	/** Debug (wor.UI.Print): showing or not, the tab, the header, every row as shown and the corner hints. */
 	FString GetCommandMenuString() const;
@@ -211,6 +223,27 @@ private:
 	TWeakObjectPtr<UCommonInputSubsystem> BoundInput;
 	FDelegateHandle InputChangedHandle;
 	TArray<FText> DurabilityLines;
+	/** B-592 (D-268): the target step's panel, re-read on every broadcast. */
+	FTargetPanelView Panel;
+	/** B-592: chips per panel line (the most infusion sources a fighter can have, plus room). */
+	static constexpr int32 MAX_CHIPS = 6;
+	static constexpr int32 CHIP_LINES = 3; // ETargetPanelChoice: Weapon, Element, Level
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> SummaryText;
+
+	/** B-592: one line of chips per ETargetPanelChoice; CHIP_LINES x MAX_CHIPS buttons, line by line. */
+	UPROPERTY()
+	TArray<TObjectPtr<UWidget>> ChipLines;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UButton>> ChipButtons;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UTextBlock>> ChipTexts;
+
+	UPROPERTY()
+	TArray<TObjectPtr<UBattleMenuRowRelay>> ChipRelays;
 
 	UPROPERTY()
 	TObjectPtr<UBattleMenuHintsWidget> HintsWidget;

@@ -158,7 +158,55 @@ namespace CommandMenuRules
 		const int32 Step = FMath::Sign(Direction);
 		return (Current + Step + Count) % Count;
 	}
+
+	/** B-592 (D-268): in a target step the Skills key (2 / X) is the weapon line and the Items key (3 / Y) the
+	 *  infusion lines, as B-588's Position picker reuses 1-3; None for other keys. */
+	inline EPieMenuCategory TargetPanelButtonForKey(EPieMenuCategory Key)
+	{
+		switch (Key)
+		{
+		case EPieMenuCategory::Skills:
+			return EPieMenuCategory::TargetPanelWeapon;
+		case EPieMenuCategory::Items:
+			return EPieMenuCategory::TargetPanelInfusion;
+		default:
+			return EPieMenuCategory::None;
+		}
+	}
 }
+
+/** B-592 (D-268): the extra line the target step's panel shows; None is the small panel (heading and summary). */
+enum class ETargetPanelLine : uint8
+{
+	None,
+	Weapon,
+	Infusion,
+};
+
+/** B-592 (D-268): a choice line of the target panel, for a click on one of its chips. */
+enum class ETargetPanelChoice : uint8
+{
+	Weapon,
+	Element,
+	Level,
+};
+
+/** B-592 (D-268): what the target step's panel shows. A line's choices are empty when the line is not shown. */
+struct FTargetPanelView
+{
+	/** A target step is open. */
+	bool bShown = false;
+	ETargetPanelLine Open = ETargetPanelLine::None;
+	/** "Hammer · Lightning · Lv I": the weapon (Attack only), the element (when it can be chosen), the level. */
+	FText Summary;
+	TArray<FText> Weapons;
+	int32 ActiveWeapon = INDEX_NONE;
+	/** Empty for an origin-bound skill or spell (one fixed element): only the level line shows. */
+	TArray<FText> Elements;
+	int32 ActiveElement = INDEX_NONE;
+	TArray<FText> Levels;
+	int32 ActiveLevel = INDEX_NONE;
+};
 
 // ==================== SUBSYSTEM ====================
 
@@ -289,6 +337,13 @@ public:
      *  target". Empty on the main menu and when closed. */
     FText GetViewTitle() const;
 
+    /** B-592 (D-268): the target step's panel: small (heading and summary) until X / 2 opens the weapon line or Y / 3
+     *  the infusion lines. bShown false outside a target step. */
+    FTargetPanelView GetTargetPanel() const;
+
+    /** B-592 (D-268): a click on a chip of the open line: that weapon, element or level (the keys step them). */
+    void PickTargetPanelChoice(ETargetPanelChoice Line, int32 Index);
+
     // ==================== DEBUG ====================
 
     UFUNCTION(BlueprintCallable, Category = "Combat Command Menu|Debug",
@@ -353,6 +408,14 @@ private:
     ETargetCount ResolvedTargetCount = ETargetCount::Single;
     /** B-034: the pending action's infusion level. Reset to 0 on every picker entry and exit. */
     int32 PendingInfusionLevel = 0;
+    /** B-592 (D-268): the target panel's open line; None on every picker entry. */
+    ETargetPanelLine OpenTargetPanelLine = ETargetPanelLine::None;
+    /** B-592: the infusion element can be chosen here (AppendInfusionControls' Source row: more than one source). */
+    bool CanChooseInfusionElement() const;
+    /** B-592: infusion applies to the pending action (AppendInfusionControls shows its rows). */
+    bool CanInfusePendingAction() const;
+    /** B-592: the target step's rows again, or the main menu when no target step is open (after a weapon switch). */
+    void BroadcastAfterWeaponSwitch();
     ECombatMenuDepth DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     TWeakObjectPtr<AActor> CurrentActor;
 

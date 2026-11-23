@@ -56,6 +56,10 @@ namespace BattleCommandMenuStyle
 	 *  item; 600 holds 16 one-line rows and still clears the top-left at 720p (the turn order is top right). */
 	constexpr float MaxListHeight = 600.0f;
 	constexpr float HintGap = 6.0f;
+	// B-592 (refine_v4): the target panel's summary and chip lines.
+	constexpr float PanelLineGap = 6.0f;
+	constexpr float ChipPaddingY = 2.5f;
+	constexpr float ChipLineIndent = 4.0f;
 	/** B-436g QA: the corner hints sit on a dark plate in the frame's style, so they read on a bright floor. */
 	constexpr float HintPlatePadding = 8.0f;
 	constexpr int32 TabFontSize = 20; // B-436g QA: the drawing's tab is as tall as a row; 14 read small
@@ -168,6 +172,11 @@ void UBattleMenuRowRelay::HandleClicked()
 {
 	if (UBattleCommandMenuWidget *Owner = Menu.Get())
 	{
+		if (ChipLine != INDEX_NONE)
+		{
+			Owner->PressChip(ChipLine, RowIndex); // B-592
+			return;
+		}
 		Owner->PressRow(RowIndex);
 	}
 }
@@ -409,6 +418,37 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 		WoRMenuStyle::AddToColumn(Body, Header);
 		HeaderBlock = Header;
 
+		// B-592 (D-268, refine_v4): the target panel, the summary line or one line of chips per open choice.
+		SummaryText = MakeText(WidgetTree, HeaderFontSize, WoRMenuStyle::DimColor, /*bBold=*/true);
+		WoRMenuStyle::AddToColumn(Body, SummaryText, FMargin(RowPaddingX, 0.0f, RowPaddingX, PanelLineGap));
+		for (int32 Line = 0; Line < CHIP_LINES; ++Line)
+		{
+			UHorizontalBox *Chips = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+			Chips->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			for (int32 Index = 0; Index < MAX_CHIPS; ++Index)
+			{
+				UButton *Chip = WidgetTree->ConstructWidget<UBattleHUDButton>(UBattleHUDButton::StaticClass());
+				Chip->SetStyle(BattleCommandMenuBuild::RowStyle(false, false));
+				UTextBlock *Word = MakeText(WidgetTree, HeaderFontSize, WoRMenuStyle::TextColor, /*bBold=*/true);
+				Chip->AddChild(Word);
+				if (UButtonSlot *Inner = Cast<UButtonSlot>(Word->Slot))
+				{
+					Inner->SetPadding(FMargin(RowPaddingX, ChipPaddingY));
+				}
+				WoRMenuStyle::AddToRow(Chips, Chip, FMargin(0.0f, 0.0f, RowGap, 0.0f));
+				UBattleMenuRowRelay *Relay = NewObject<UBattleMenuRowRelay>(this);
+				Relay->Menu = this;
+				Relay->ChipLine = Line;
+				Relay->RowIndex = Index;
+				Chip->OnClicked.AddDynamic(Relay, &UBattleMenuRowRelay::HandleClicked);
+				ChipButtons.Add(Chip);
+				ChipTexts.Add(Word);
+				ChipRelays.Add(Relay);
+			}
+			WoRMenuStyle::AddToColumn(Body, Chips, FMargin(ChipLineIndent, 0.0f, 0.0f, PanelLineGap));
+			ChipLines.Add(Chips);
+		}
+
 		// B-391c: the durability line (the old header), small, above the rows.
 		DurabilityText = MakeText(WidgetTree, SmallFontSize, DurabilityColor);
 		WoRMenuStyle::AddToColumn(Body, DurabilityText, FMargin(RowPaddingX, 0.0f, RowPaddingX, RowGap));
@@ -497,6 +537,11 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 {
 	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
 	bAtMainMenu = Menu && Menu->IsAtMainMenu();
+	Panel = Menu ? Menu->GetTargetPanel() : FTargetPanelView(); // B-592: before RefreshKeys (the infusion hints follow it)
+	if (Panel.Elements.Num() > MAX_CHIPS)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[BattleCommandMenu] %d infusion sources but %d chips: the rest are not shown"), Panel.Elements.Num(), MAX_CHIPS);
+	}
 	Rows = Buttons;
 	if (Rows.Num() > MAX_ROWS)
 	{
@@ -520,6 +565,7 @@ void UBattleCommandMenuWidget::HandleMenuClosed()
 	Hints.Reset();
 	Title = FText::GetEmpty();
 	DurabilityLines.Reset();
+	Panel = FTargetPanelView();
 	bShowing = false;
 	PushToWidgets();
 }
@@ -530,7 +576,10 @@ bool UBattleCommandMenuWidget::IsCornerHint(EPieMenuCategory Category, bool bAtM
 	{
 		return Category != EPieMenuCategory::Attack && Category != EPieMenuCategory::Skills && Category != EPieMenuCategory::Items;
 	}
-	return Category == EPieMenuCategory::Back;
+	// B-592 (D-268): the target panel's buttons and the infusion keys are hints; the chips show the choices.
+	return Category == EPieMenuCategory::Back || Category == EPieMenuCategory::TargetPanelWeapon ||
+		   Category == EPieMenuCategory::TargetPanelInfusion || Category == EPieMenuCategory::CycleLevel ||
+		   Category == EPieMenuCategory::CycleSource;
 }
 
 void UBattleCommandMenuWidget::RefreshKeys()
@@ -562,12 +611,16 @@ void UBattleCommandMenuWidget::RefreshKeys()
 		const FText Named = Reason.IsEmpty() ? Name : FText::Format(LOCTEXT("RowWithReason", "{0}  ({1})"), Name, Reason);
 		RowKeys.Add(Shown);
 		RowLabels.Add(KeyName.IsEmpty() ? Named : FText::Format(LOCTEXT("RowWithKey", "[{0}] {1}"), KeyName, Named));
-		if (IsCornerHint(Row.Category, bAtMainMenu))
+		// B-592 (D-268): the infusion keys' hints only while the infusion line is open (refine_v4/3, 5).
+		const bool bInfusionKey = Row.Category == EPieMenuCategory::CycleLevel || Row.Category == EPieMenuCategory::CycleSource;
+		if (IsCornerHint(Row.Category, bAtMainMenu) && (!bInfusionKey || Panel.Open == ETargetPanelLine::Infusion))
 		{
 			FBattleMenuHint &Hint = Hints.AddDefaulted_GetRef();
 			Hint.Key = KeyName;
 			Hint.KeyId = Shown;
-			Hint.Label = Name;
+			Hint.Label = Row.Category == EPieMenuCategory::CycleLevel	 ? LOCTEXT("HintLevel", "Level")
+						 : Row.Category == EPieMenuCategory::CycleSource ? LOCTEXT("HintElement", "Element")
+																		 : Name;
 			Hint.Reason = Reason;
 			Hint.RowIndex = Index;
 			Hint.bEnabled = Row.bEnabled;
@@ -664,6 +717,14 @@ void UBattleCommandMenuWidget::PressRow(int32 RowIndex)
 	}
 }
 
+void UBattleCommandMenuWidget::PressChip(int32 Line, int32 Index)
+{
+	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get(); Menu && Line >= 0 && Line < CHIP_LINES)
+	{
+		Menu->PickTargetPanelChoice(static_cast<ETargetPanelChoice>(Line), Index);
+	}
+}
+
 void UBattleCommandMenuWidget::HoverRow(int32 RowIndex)
 {
 	AActor *Target = GetRowTarget(RowIndex);
@@ -701,6 +762,36 @@ void UBattleCommandMenuWidget::PushToWidgets()
 	if (HeaderBlock)
 	{
 		HeaderBlock->SetVisibility(Title.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
+	// B-592 (D-268): the small panel's summary, else the open line's chips (the chosen one violet).
+	const bool bPanel = bShowing && Panel.bShown;
+	if (SummaryText)
+	{
+		SummaryText->SetText(Panel.Summary);
+		WoRMenuStyle::SetShown(SummaryText, bPanel && Panel.Open == ETargetPanelLine::None && !Panel.Summary.IsEmpty());
+	}
+	const TArray<FText> *LineChoices[CHIP_LINES] = {&Panel.Weapons, &Panel.Elements, &Panel.Levels};
+	const int32 LineActive[CHIP_LINES] = {Panel.ActiveWeapon, Panel.ActiveElement, Panel.ActiveLevel};
+	for (int32 Line = 0; Line < CHIP_LINES && Line < ChipLines.Num(); ++Line)
+	{
+		const TArray<FText> &Choices = *LineChoices[Line];
+		WoRMenuStyle::SetShown(ChipLines[Line], bPanel && !Choices.IsEmpty());
+		for (int32 Index = 0; Index < MAX_CHIPS; ++Index)
+		{
+			const int32 Chip = Line * MAX_CHIPS + Index;
+			UButton *Button = ChipButtons.IsValidIndex(Chip) ? ChipButtons[Chip].Get() : nullptr;
+			UTextBlock *Word = ChipTexts.IsValidIndex(Chip) ? ChipTexts[Chip].Get() : nullptr;
+			if (!Button || !Word)
+			{
+				continue;
+			}
+			WoRMenuStyle::SetShown(Button, Choices.IsValidIndex(Index));
+			if (Choices.IsValidIndex(Index))
+			{
+				Button->SetStyle(BattleCommandMenuBuild::RowStyle(Index == LineActive[Line], false));
+				Word->SetText(Choices[Index]);
+			}
+		}
 	}
 	if (DurabilityText)
 	{
@@ -790,6 +881,14 @@ FString UBattleCommandMenuWidget::GetCommandMenuString() const
 								  Rows.Num(), *ActionsLine.ToString(), *Title.ToString(),
 								  DurabilityLines.IsEmpty() ? TEXT("none")
 															: *FText::Join(FText::FromString(TEXT(", ")), DurabilityLines).ToString());
+	if (Panel.bShown) // B-592
+	{
+		const FText Comma = FText::FromString(TEXT(", "));
+		Out += FString::Printf(TEXT("\n  panel line=%d summary=\"%s\" weapons=[%s]@%d elements=[%s]@%d levels=[%s]@%d"), static_cast<int32>(Panel.Open),
+							   *Panel.Summary.ToString(), *FText::Join(Comma, Panel.Weapons).ToString(), Panel.ActiveWeapon,
+							   *FText::Join(Comma, Panel.Elements).ToString(), Panel.ActiveElement, *FText::Join(Comma, Panel.Levels).ToString(),
+							   Panel.ActiveLevel);
+	}
 	for (int32 Index = 0; Index < RowLabels.Num(); ++Index)
 	{
 		const bool bHint = Rows.IsValidIndex(Index) && IsCornerHint(Rows[Index].Category, bAtMainMenu);
