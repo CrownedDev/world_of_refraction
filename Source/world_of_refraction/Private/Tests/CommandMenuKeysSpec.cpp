@@ -844,6 +844,18 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("no movement queued"), Pawn->GetPendingMovementInputVector().IsNearlyZero());
 	});
 
+	It("picks the nearest fighter whose screen box holds the pointer (B-582c QA, D-270)", [this]()
+	{
+		FBox2D Unbuilt(FVector2D(0, 0), FVector2D(400, 400)); // covers every point but is not valid: never picked
+		Unbuilt.bIsValid = false;
+		const TArray<FBox2D> Boxes = {FBox2D(FVector2D(100, 100), FVector2D(200, 300)), FBox2D(FVector2D(150, 150), FVector2D(250, 350)), Unbuilt};
+		const TArray<double> Distances = {900.0, 600.0, 10.0};
+		TestEqual(TEXT("inside one box: that fighter"), UBattleHUDWidget::PickNearestBoxAt(Boxes, Distances, FVector2D(120, 120)), 0);
+		TestEqual(TEXT("inside both: the nearer"), UBattleHUDWidget::PickNearestBoxAt(Boxes, Distances, FVector2D(175, 200)), 1);
+		TestEqual(TEXT("outside every valid box: none (the invalid one, the nearest, is skipped)"),
+				  UBattleHUDWidget::PickNearestBoxAt(Boxes, Distances, FVector2D(10, 10)), INDEX_NONE);
+	});
+
 	It("traces the pointer on the channel a fighter's capsule blocks (B-582c QA, D-270)", [this]()
 	{
 		ACombatPlayerController *Controller = TestWorld->GetWorld()->SpawnActor<ACombatPlayerController>();

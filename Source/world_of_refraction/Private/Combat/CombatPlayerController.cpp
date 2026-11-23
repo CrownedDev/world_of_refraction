@@ -145,6 +145,21 @@ namespace CombatInputRouting
 			Defend.ActionType = EActionType::Defend;
 			Controller->RequestMenuPick(FCombatPickRequest::FromAction(CurrentActor, Defend));
 		}));
+
+	FAutoConsoleCommandWithWorldAndArgs GHitUnderCursorCmd(
+		TEXT("wor.Debug.HitUnderCursor"),
+		TEXT("DEBUG (B-582c): what the pointer, or the viewport-pixel point X Y, hits: the engine's hover / click trace and the battle HUD's screen pick, with each offered fighter's screen box."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+		{
+			const ACombatPlayerController *Controller = ACombatPlayerController::FindLocal(World);
+			if (!Controller)
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[CombatInput] wor.Debug.HitUnderCursor: no combat controller"));
+				return;
+			}
+			const FVector2D Point(Args.Num() >= 2 ? FCString::Atof(*Args[0]) : 0.0, Args.Num() >= 2 ? FCString::Atof(*Args[1]) : 0.0);
+			UE_LOG(LogWoR, Log, TEXT("[CombatInput] wor.Debug.HitUnderCursor\n%s"), *Controller->GetPointerHitString(Args.Num() >= 2 ? &Point : nullptr));
+		}));
 }
 
 void ACombatPlayerController::BeginPlay()
@@ -775,6 +790,52 @@ void ACombatPlayerController::OnConfirmKey(const FInputActionValue &Value)
 		return;
 	}
 	PressMenuKey(EPieMenuCategory::Target);
+}
+
+bool ACombatPlayerController::InputKey(const FInputKeyEventArgs &Params)
+{
+	const bool bHandled = Super::InputKey(Params); // the engine's click on a fighter (OnClicked) goes first
+	// B-582c QA (D-270): a left click that reaches the game view (not a menu row or card) picks the fighter whose body
+	// is under the pointer, by its screen box: the engine's click needs the trace to hit and the view to be the topmost
+	// widget, which failed on the battle field.
+	if (Params.Key == EKeys::LeftMouseButton && Params.Event == IE_Pressed)
+	{
+		if (UBattleHUDWidget *HUD = FindBattleHUD())
+		{
+			HUD->PickFighterUnderPointer();
+		}
+	}
+	return bHandled;
+}
+
+FString ACombatPlayerController::GetPointerHitString(const FVector2D *Point) const
+{
+	float MouseX = 0.0f;
+	float MouseY = 0.0f;
+	const bool bPointer = GetMousePosition(MouseX, MouseY);
+	const FVector2D At = Point ? *Point : FVector2D(MouseX, MouseY);
+	FString Out = FString::Printf(TEXT("pointer (viewport pixels): %s; checking %.0f,%.0f\n"),
+								  bPointer ? *FString::Printf(TEXT("%.0f,%.0f"), MouseX, MouseY) : TEXT("none"), At.X, At.Y);
+	const ULocalPlayer *LocalPlayer = GetLocalPlayer();
+	Out += FString::Printf(TEXT("engine: mouse-over %s, click events %s, trace channel %d (Pawn %d), game view topmost under the pointer: %s\n"),
+						   bEnableMouseOverEvents ? TEXT("on") : TEXT("off"), bEnableClickEvents ? TEXT("on") : TEXT("off"),
+						   static_cast<int32>(CurrentClickTraceChannel.GetValue()), static_cast<int32>(ECC_Pawn),
+						   LocalPlayer && IsInViewportClient(LocalPlayer->ViewportClient) ? TEXT("yes") : TEXT("no"));
+	FHitResult Hit;
+	const bool bHit = GetHitResultAtScreenPosition(At, CurrentClickTraceChannel, true, Hit);
+	Out += FString::Printf(TEXT("engine trace at the point: %s; hovered now: %s\n"),
+						   bHit ? *FString::Printf(TEXT("%s (%s)"), *GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent())) : TEXT("nothing"),
+						   *GetNameSafe(CurrentClickablePrimitive.IsValid() ? CurrentClickablePrimitive->GetOwner() : nullptr));
+	if (const UBattleHUDWidget *HUD = FindBattleHUD())
+	{
+		Out += FString::Printf(TEXT("screen pick (what a click picks): %s\n%s"), *GetNameSafe(HUD->GetOfferedFighterAt(At)),
+							   *HUD->GetOfferedFighterBoxesString());
+	}
+	else
+	{
+		Out += TEXT("screen pick: no new battle HUD\n");
+	}
+	return Out;
 }
 
 UBattleHUDWidget *ACombatPlayerController::FindBattleHUD() const

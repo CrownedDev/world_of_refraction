@@ -137,6 +137,14 @@ public:
 	 *  camera, whatever its pawn Blueprint maps. An override, as possession resets the ignore counter (ClientRestart). */
 	virtual bool IsMoveInputIgnored() const override { return true; }
 
+	/** B-582c QA (D-270): after the engine's handling, a left click on the game view picks the fighter under the
+	 *  pointer (UBattleHUDWidget::PickFighterUnderPointer). */
+	virtual bool InputKey(const FInputKeyEventArgs &Params) override;
+
+	/** Debug (wor.Debug.HitUnderCursor): what Point (viewport pixels; null: the pointer) hits, by the engine's trace and
+	 *  by the battle HUD's screen pick. */
+	FString GetPointerHitString(const FVector2D *Point) const;
+
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
