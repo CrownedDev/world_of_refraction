@@ -161,7 +161,13 @@ protected:
 	/** Creates the menu-key actions (and the cinematic skip) and their mapping context once. */
 	void BuildMenuKeys();
 
-	void OnIntelDetails(const FInputActionValue &Value);
+	void OnIntelDetailsPressed(const FInputActionValue &Value);
+	void OnIntelDetailsReleased(const FInputActionValue &Value);
+	void OnIntelDetailsHeld();
+
+	/** B-587 (D-262): tells a tap of V / R3 from a hold, which closes Intel. */
+	FTimerHandle IntelHoldTimer;
+	bool bIntelHoldFired = false;
 	void OnIntelTabPrev(const FInputActionValue &Value);
 	void OnIntelTabNext(const FInputActionValue &Value);
 

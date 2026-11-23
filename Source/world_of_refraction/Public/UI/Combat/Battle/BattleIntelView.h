@@ -45,6 +45,8 @@ struct FBattleIntelPage
 {
 	TWeakObjectPtr<AActor> Actor;
 	bool bEnemy = false;
+	/** This machine's own character (D-261: its tab read "You"; B-587: its title line's side label does). */
+	bool bYou = false;
 	FText Tab;
 	FText Heading;
 	FText Subline;

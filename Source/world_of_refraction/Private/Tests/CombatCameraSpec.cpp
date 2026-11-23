@@ -5,6 +5,7 @@
 // B-406b: the skip key's action (ACombatPlayerController::SkipBossCinematic) ends one and the fight goes on.
 // B-398: the turn-view setting's layouts and its save. B-399: the menu-depth step and the menu driving it.
 // B-400: the target view (target cut with several enemies), the highlight's cycling, and the director following it.
+// B-587: Intel's close-up rule, and the HUD's Intel driving the director (cuts, back on close, still with movement off).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -32,6 +33,11 @@
 #include "Combat/Boss/BossPhaseComponent.h"
 #include "BossCinematicRecorder.h"
 #include "Combat/CombatPlayerController.h"
+#include "Blueprint/UserWidget.h"
+#include "Camera/CameraActor.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SphereComponent.h"
+#include "UI/Combat/Battle/BattleHUDWidget.h"
 
 namespace
 {
@@ -98,6 +104,16 @@ namespace
 	constexpr int32 TARGET_TEST_ONE = 1;
 	/** B-400: an ally beside the acting character (a heal's target). */
 	const FVector TARGET_TEST_ALLY(0.0f, 250.0f, 0.0f);
+
+	// B-587 QA: a fighter this far across the screen from the character (-1..1 units) is off it; a point this far below
+	// the floor (cm) is off screen.
+	constexpr float INTEL_TEST_OFF_SUBJECT = CameraFraming::THIRD_LINE * 0.5f;
+	constexpr float INTEL_TEST_FAR_BELOW = 10000.0f;
+	/** B-587 QA: a recruit's body and the talk sphere around it (UPartyInteractionComponent's), in cm. */
+	constexpr float INTEL_TEST_CAPSULE_RADIUS = 40.0f;
+	constexpr float INTEL_TEST_CAPSULE_HALF_HEIGHT = 90.0f;
+	constexpr float INTEL_TEST_TALK_RADIUS = 300.0f;
+	constexpr float INTEL_TEST_SHAPE_TOLERANCE = 1.0f;
 
 	FVector2D ProjectInTurnView(const FTransform &View, const FVector &Point)
 	{
@@ -450,6 +466,61 @@ void FCombatCameraSpec::Define()
 			TestEqual(TEXT("out of range: the first"), CycleIndex(INDEX_NONE, 1, TARGET_TEST_SEVERAL), 0);
 			TestEqual(TEXT("one target stays"), CycleIndex(0, 1, TARGET_TEST_ONE), 0);
 			TestEqual(TEXT("none"), CycleIndex(0, 1, 0), INDEX_NONE);
+		});
+	});
+
+	Describe("Intel's close-up (B-587, D-262)", [this]()
+	{
+		It("frames each enemy and ally from the front, nearer than the target view, in the screen's left two-thirds", [this]()
+		{
+			const TArray<FVector> Enemies = TurnTestThreeEnemies();
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, Enemies);
+			TArray<FVector> Subjects = Enemies;
+			Subjects.Append({FVector::ZeroVector, TARGET_TEST_ALLY}); // the acting character and an ally
+			for (const FVector &Feet : Subjects)
+			{
+				for (const float Height : {TARGET_TEST_PERSON_HEIGHT, TARGET_TEST_GOLEM_HEIGHT})
+				{
+					const FTransform View = FCombatCameraRules::ComputeIntelView(Frame, Feet, Height);
+					const FTransform Target = FCombatCameraRules::ComputeTargetView(ETurnViewStyle::OverTheShoulder, Frame, Feet, Height,
+																					CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
+					const FVector Head = Feet + FVector::UpVector * Height;
+					const FString Name = FString::Printf(TEXT("%s, %.0f cm"), *Feet.ToString(), Height);
+					for (const FVector &Point : {Feet, Head})
+					{
+						TestTrue(FString::Printf(TEXT("%s: on screen"), *Name),
+								 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Point));
+						TestTrue(FString::Printf(TEXT("%s: left of the panel (D-262 a)"), *Name), ProjectInTurnView(View, Point).X < CameraFraming::THIRD_LINE);
+					}
+					TestTrue(FString::Printf(TEXT("%s: left of centre"), *Name), ProjectInTurnView(View, Feet).X < 0.0f);
+					const float CloseHeight = ProjectInTurnView(View, Head).Y - ProjectInTurnView(View, Feet).Y;
+					const float TargetHeight = ProjectInTurnView(Target, Head).Y - ProjectInTurnView(Target, Feet).Y;
+					TestTrue(FString::Printf(TEXT("%s: nearer than the target view (D-262 c)"), *Name), CloseHeight > TargetHeight);
+					const bool bEnemy = Feet.X > Frame.ArenaCentre.X;
+					TestTrue(FString::Printf(TEXT("%s: from the side it faces (front)"), *Name), bEnemy ? View.GetLocation().X < Feet.X : View.GetLocation().X > Feet.X);
+				}
+			}
+		});
+
+		It("moves to a clear angle when another fighter stands in front of the character (B-587 QA)", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, TurnTestThreeEnemies());
+			const FVector Feet = TARGET_TEST_ALLY;
+			const FVector Middle = Feet + FVector::UpVector * TARGET_TEST_PERSON_HEIGHT * 0.5f;
+			const FTransform Clear = FCombatCameraRules::ComputeIntelView(Frame, Feet, TARGET_TEST_PERSON_HEIGHT);
+			// Another party member halfway between that camera and the ally, on the line of sight.
+			const FVector InFront = (Clear.GetLocation() + Middle) * 0.5f;
+			const FTransform View = FCombatCameraRules::ComputeIntelView(Frame, Feet, TARGET_TEST_PERSON_HEIGHT, {InFront});
+			TestFalse(TEXT("another angle"), View.Equals(Clear));
+			const float BlockerDepth = FVector::DotProduct(InFront - View.GetLocation(), View.GetRotation().GetForwardVector());
+			const float AllyDepth = FVector::DotProduct(Middle - View.GetLocation(), View.GetRotation().GetForwardVector());
+			const bool bOffTheAlly = BlockerDepth >= AllyDepth
+				|| FMath::Abs(ProjectInTurnView(View, InFront).X - ProjectInTurnView(View, Middle).X) > INTEL_TEST_OFF_SUBJECT;
+			TestTrue(TEXT("the fighter in front is off the ally"), bOffTheAlly);
+			TestTrue(TEXT("the ally still in frame, left of the panel"), CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Feet)
+				&& ProjectInTurnView(View, Middle).X < CameraFraming::THIRD_LINE);
+			const FVector FarBelow = Middle - FVector::UpVector * INTEL_TEST_FAR_BELOW;
+			TestTrue(TEXT("nobody in front: the first angle"), FCombatCameraRules::ComputeIntelView(Frame, Feet, TARGET_TEST_PERSON_HEIGHT, {FarBelow}).Equals(Clear));
 		});
 	});
 
@@ -1255,6 +1326,121 @@ void FCombatCameraDirectorSpec::Define()
 		TestEqual(TEXT("movement off: the static view holds (R15)"), Director->GetTargetMoveCount(), 4);
 		Menu->HandleBack();
 		Director->SetCameraMovementOff(false);
+	});
+
+	It("cuts to Intel's close-up on open and each tab change, back on close, and holds with movement off (B-587, D-262)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UCombatCommandMenuSubsystem *Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *Ally = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Menu && Viewer && Hero && Ally && Foe && SecondFoe))
+		{
+			return;
+		}
+		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
+		for (AActor *Actor : {Hero, Ally, Foe, SecondFoe})
+		{
+			MenuCameraTestAddLoadout(Actor);
+		}
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero, Ally}, {Foe, SecondFoe});
+		TestWorld->Tick(MENU_CAMERA_TEST_SETTLE_FRAMES);
+		UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+		ON_SCOPE_EXIT
+		{
+			if (HUD)
+			{
+				HUD->Teardown();
+			}
+			Menu->ClearCombatOrchestrator();
+			Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
+			if (Orchestrator->GetCombatState() != ECombatState::Idle)
+			{
+				Orchestrator->ForceEndCombat(ECombatState::Victory);
+			}
+		};
+		const UCombatCameraComponent *TurnCamera = Director->GetViewedActor() ? Director->GetViewedActor()->FindComponentByClass<UCombatCameraComponent>() : nullptr;
+		const ACameraActor *CameraActor = TurnCamera ? TurnCamera->GetCameraActor() : nullptr;
+		if (!TestTrue(TEXT("a party member's turn view, and the HUD"), HUD && CameraActor && Director->GetCurrentMode() == ECombatCameraMode::Turn))
+		{
+			return;
+		}
+		HUD->Initialise({Hero, Ally}, {Foe, SecondFoe});
+		const FTransform Turn = CameraActor->GetActorTransform();
+
+		HUD->OpenIntel(0);
+		TestTrue(TEXT("open: the close-up"), Director->IsIntelViewShowing());
+		TestEqual(TEXT("open: one move"), Director->GetIntelMoveCount(), 1);
+		TestFalse(TEXT("a cut: there at once, with no tick (D-262 b)"), CameraActor->GetActorTransform().Equals(Turn));
+		const int32 TabCount = HUD->GetIntelCardOrder().Num();
+		for (int32 Step = 1; Step < TabCount; ++Step) // the ally's tab, then both enemies'
+		{
+			HUD->StepIntelTab(1);
+			TestEqual(FString::Printf(TEXT("tab %d: one move per tab"), HUD->GetIntelTab() + 1), Director->GetIntelMoveCount(), Step + 1);
+			TestTrue(FString::Printf(TEXT("tab %d: the close-up"), HUD->GetIntelTab() + 1), Director->IsIntelViewShowing());
+		}
+		const int32 MovesOpen = Director->GetIntelMoveCount();
+		HUD->SelectIntelTab(HUD->GetIntelTab());
+		TestEqual(TEXT("a push on the same tab: no new cut"), Director->GetIntelMoveCount(), MovesOpen);
+
+		HUD->CloseIntel();
+		TestFalse(TEXT("close: the close-up is gone"), Director->IsIntelViewShowing());
+		TestEqual(TEXT("close: one move back"), Director->GetIntelMoveCount(), MovesOpen + 1);
+		TestTrue(TEXT("close: the turn view again, by a cut"), CameraActor->GetActorTransform().Equals(Turn, TURN_TEST_LOCATION_TOLERANCE));
+
+		HUD->OpenIntel(0);
+		HUD->SetStatusPanelOpen(true);
+		TestFalse(TEXT("the status panel replacing Intel cuts back too"), Director->IsIntelViewShowing());
+		TestTrue(TEXT("to the turn view"), CameraActor->GetActorTransform().Equals(Turn, TURN_TEST_LOCATION_TOLERANCE));
+		HUD->SetStatusPanelOpen(false);
+
+		Director->SetCameraMovementOff(true);
+		const int32 MovesBeforeOff = Director->GetIntelMoveCount();
+		const FTransform Still = CameraActor->GetActorTransform();
+		HUD->OpenIntel(0);
+		HUD->StepIntelTab(1);
+		TestTrue(TEXT("movement off: Intel still opens"), HUD->IsIntelOpen());
+		TestFalse(TEXT("movement off: no close-up (D-262 d)"), Director->IsIntelViewShowing());
+		TestEqual(TEXT("movement off: no move"), Director->GetIntelMoveCount(), MovesBeforeOff);
+		TestTrue(TEXT("movement off: the camera stays still"), CameraActor->GetActorTransform().Equals(Still));
+		Director->SetCameraMovementOff(false);
+		TestTrue(TEXT("movement back on with Intel open: the close-up again"), Director->IsIntelViewShowing());
+
+		// Review: a new turn with Intel open shows that turn's view, then the open tab's close-up again.
+		AActor *NextActor = Director->GetViewedActor() == Hero ? Ally : Hero;
+		const int32 MovesBeforeTurn = Director->GetIntelMoveCount();
+		Orchestrator->OnActorTurnStarted.Broadcast(NextActor, 2);
+		TestTrue(TEXT("the next party member's turn"), Director->GetViewedActor() == NextActor);
+		TestTrue(TEXT("a new turn with Intel open: the close-up again"), Director->IsIntelViewShowing());
+		TestEqual(TEXT("one move for it"), Director->GetIntelMoveCount(), MovesBeforeTurn + 1);
+		HUD->CloseIntel();
+		TestFalse(TEXT("closed: the turn view"), Director->IsIntelViewShowing());
+	});
+
+	It("sizes a recruit by its body, not the talk sphere around it (B-587 QA)", [this]()
+	{
+		AActor *Recruit = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<AActor>() : nullptr;
+		if (!TestNotNull(TEXT("setup"), Recruit))
+		{
+			return;
+		}
+		UCapsuleComponent *Capsule = NewObject<UCapsuleComponent>(Recruit);
+		Capsule->InitCapsuleSize(INTEL_TEST_CAPSULE_RADIUS, INTEL_TEST_CAPSULE_HALF_HEIGHT);
+		Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Recruit->SetRootComponent(Capsule);
+		Capsule->RegisterComponent();
+		USphereComponent *Talk = NewObject<USphereComponent>(Recruit);
+		Talk->SetSphereRadius(INTEL_TEST_TALK_RADIUS);
+		Talk->SetCollisionEnabled(ECollisionEnabled::QueryOnly); // as UPartyInteractionComponent's trigger
+		Talk->SetupAttachment(Capsule);
+		Talk->RegisterComponent();
+		FVector Feet;
+		float Height = 0.0f;
+		UCombatCameraDirector::GetTargetShape(Recruit, Feet, Height);
+		TestEqual(TEXT("the capsule's height"), Height, INTEL_TEST_CAPSULE_HALF_HEIGHT * 2.0f, INTEL_TEST_SHAPE_TOLERANCE);
+		TestEqual(TEXT("its feet"), static_cast<float>(Feet.Z), static_cast<float>(Capsule->GetComponentLocation().Z) - INTEL_TEST_CAPSULE_HALF_HEIGHT, INTEL_TEST_SHAPE_TOLERANCE);
 	});
 
 	Describe("boss cinematics (B-406)", [this]()

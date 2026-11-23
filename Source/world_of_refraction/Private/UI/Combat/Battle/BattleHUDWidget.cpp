@@ -10,7 +10,11 @@
 #include "Blueprint/WidgetTree.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/CombatOrchestrator.h"
+#include "Combat/Camera/CombatCameraDirector.h"
+#include "EngineUtils.h"
 #include "Combat/CombatPresentationComponent.h"
+#include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/StatusBarStateComponent.h"
 #include "Combat/Actions/ActionPipsText.h"
@@ -168,6 +172,20 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 	}
 	CurrentTurnNumber = BattleHUDView::ReadTurnNumber(this);
 
+	// B-587 QA: Intel closes by itself when the fight moves on without the player (a guard prompt, the fight's end).
+	if (UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(this))
+	{
+		BoundDefense = Defense;
+		Defense->OnDefenseCueTriggered.AddDynamic(this, &UBattleHUDWidget::HandleDefenseCue);
+		Defense->OnDefenseWindowOpened.AddDynamic(this, &UBattleHUDWidget::HandleDefenseWindowOpened);
+	}
+	for (TActorIterator<ACombatOrchestrator> It(GetWorld()); It; ++It)
+	{
+		BoundOrchestrator = *It;
+		It->OnCombatStateChanged.AddDynamic(this, &UBattleHUDWidget::HandleCombatStateChanged);
+		break; // one fight at a time, as FindBattleHUD
+	}
+
 	bBound = true;
 	RefreshPools();
 	RefreshStatuses();
@@ -263,6 +281,7 @@ void UBattleHUDWidget::Teardown()
 	{
 		return;
 	}
+	IntelCameraSubject.Reset(); // B-587: the next fight's director starts with no subject
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		if (UCharacterDataComponent *CharData = Card.CharData.Get())
@@ -334,7 +353,49 @@ void UBattleHUDWidget::Teardown()
 		TurnManager->OnTurnStarted.RemoveDynamic(this, &UBattleHUDWidget::HandleTurnStarted);
 	}
 	BoundTurnManager.Reset();
+	if (UDefenseSystem *Defense = BoundDefense.Get())
+	{
+		Defense->OnDefenseCueTriggered.RemoveDynamic(this, &UBattleHUDWidget::HandleDefenseCue);
+		Defense->OnDefenseWindowOpened.RemoveDynamic(this, &UBattleHUDWidget::HandleDefenseWindowOpened);
+	}
+	BoundDefense.Reset();
+	if (ACombatOrchestrator *Orchestrator = BoundOrchestrator.Get())
+	{
+		Orchestrator->OnCombatStateChanged.RemoveDynamic(this, &UBattleHUDWidget::HandleCombatStateChanged);
+	}
+	BoundOrchestrator.Reset();
 	bBound = false;
+}
+
+void UBattleHUDWidget::CloseIntelForFight(const TCHAR *Why)
+{
+	if (!bIntelOpen)
+	{
+		return;
+	}
+	UE_LOG(LogWoRUI, Log, TEXT("[BattleHUD] Intel closes: %s"), Why);
+	CloseIntel(); // the camera and the hidden pieces come back with it
+}
+
+void UBattleHUDWidget::HandleDefenseCue(AActor *Defender, float TimeUntilWindow)
+{
+	if (Cards.ContainsByPredicate([Defender](const FBattleHUDCard &Card) { return Card.bParty && Card.Actor.Get() == Defender; }))
+	{
+		CloseIntelForFight(TEXT("a guard prompt"));
+	}
+}
+
+void UBattleHUDWidget::HandleDefenseWindowOpened(AActor *Defender, float AttackSize, float WindowDuration)
+{
+	HandleDefenseCue(Defender, 0.0f);
+}
+
+void UBattleHUDWidget::HandleCombatStateChanged(ECombatState NewState)
+{
+	if (NewState != ECombatState::InProgress && NewState != ECombatState::Initializing)
+	{
+		CloseIntelForFight(TEXT("the fight ended"));
+	}
 }
 
 void UBattleHUDWidget::NativeConstruct()
@@ -373,14 +434,15 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		{
 			TurnTexts.Add(BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::TurnFontSize));
 		}
-		UVerticalBox *EnemyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Enemies"));
-		EnemyColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		UVerticalBox *Enemies = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Enemies"));
+		Enemies->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		EnemyColumn = Enemies;
 		if (UVerticalBoxSlot *TurnSlot = RightColumn->AddChildToVerticalBox(TurnColumn))
 		{
 			TurnSlot->SetHorizontalAlignment(HAlign_Right);
 			TurnSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::RightColumnGap));
 		}
-		if (UVerticalBoxSlot *EnemySlot = RightColumn->AddChildToVerticalBox(EnemyColumn))
+		if (UVerticalBoxSlot *EnemySlot = RightColumn->AddChildToVerticalBox(Enemies))
 		{
 			EnemySlot->SetHorizontalAlignment(HAlign_Right);
 		}
@@ -393,7 +455,12 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		PartyColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		if (CommandMenu)
 		{
-			if (UVerticalBoxSlot *MenuSlot = PartyColumn->AddChildToVerticalBox(CommandMenu))
+			// B-587: in a holder the HUD hides under Intel; the menu keeps its own visibility.
+			UOverlay *Holder = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("CommandMenuHolder"));
+			Holder->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			Holder->AddChild(CommandMenu);
+			MenuHolder = Holder;
+			if (UVerticalBoxSlot *MenuSlot = PartyColumn->AddChildToVerticalBox(Holder))
 			{
 				MenuSlot->SetHorizontalAlignment(HAlign_Left);
 				MenuSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::MenuCardGap));
@@ -408,7 +475,12 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		BattleHUDBuild::Place(Canvas, PartyColumn, BattleHUDStyle::PartyAnchor, BattleHUDBuild::Inset(BattleHUDStyle::PartyAnchor));
 		if (UWidget *Hints = CommandMenu ? CommandMenu->GetHintsWidget() : nullptr)
 		{
-			BattleHUDBuild::Place(Canvas, Hints, BattleHUDStyle::MenuHintsAnchor, BattleHUDBuild::Inset(BattleHUDStyle::MenuHintsAnchor));
+			// B-587 QA: in a holder the HUD can hide under Intel; the hints widget keeps its own visibility.
+			UOverlay *Holder = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("CornerHints"));
+			Holder->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			Holder->AddChild(Hints);
+			BattleHUDBuild::Place(Canvas, Holder, BattleHUDStyle::MenuHintsAnchor, BattleHUDBuild::Inset(BattleHUDStyle::MenuHintsAnchor));
+			CornerHints = Holder;
 		}
 
 		// One card per combatant, made here once. A party card sits in the overlay (B-391c: it takes a hover, its
@@ -426,7 +498,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 					CardSlot->SetVerticalAlignment(VAlign_Bottom);
 				}
 			}
-			else if (UVerticalBoxSlot *ColumnSlot = EnemyColumn->AddChildToVerticalBox(Frame))
+			else if (UVerticalBoxSlot *ColumnSlot = Enemies->AddChildToVerticalBox(Frame))
 			{
 				ColumnSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
 			}
@@ -451,11 +523,15 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		StatusPanelBody = BattleHUDBuild::AddText(WidgetTree, PanelRows, BattleHUDStyle::LineFontSize);
 		BattleHUDBuild::Place(Canvas, StatusPanel, BattleHUDStyle::StatusPanelAnchor, FVector2D::ZeroVector);
 
-		// B-586 (D-261): the Intel panel, centred like the status panel; the two never show together.
+		// B-586 (D-261): the Intel panel; the status panel and it never show together. B-587 (Crown, Expedition 33): on
+		// the right under the turn order, in the enemy cards' place (they hide while it is open), so nothing is covered.
 		IntelPanel = WidgetTree->ConstructWidget<UBattleIntelWidget>(UBattleIntelWidget::StaticClass(), TEXT("Intel"));
 		IntelPanel->SetVisibility(ESlateVisibility::Collapsed); // closed until the first push says otherwise
-		IntelPanel->OnTabClicked.BindUObject(this, &UBattleHUDWidget::HandleIntelTabClicked);
-		BattleHUDBuild::Place(Canvas, IntelPanel, BattleHUDStyle::StatusPanelAnchor, FVector2D::ZeroVector);
+		IntelPanel->OnStepClicked.BindUObject(this, &UBattleHUDWidget::HandleIntelStepClicked);
+		if (UVerticalBoxSlot *IntelSlot = RightColumn->AddChildToVerticalBox(IntelPanel))
+		{
+			IntelSlot->SetHorizontalAlignment(HAlign_Right);
+		}
 
 		BuildDamageNumberWidgets(Canvas); // last, so the numbers draw over the cards
 	}
@@ -653,9 +729,44 @@ void UBattleHUDWidget::CloseIntel()
 	PushToWidgets();
 }
 
-void UBattleHUDWidget::HandleIntelTabClicked(int32 Tab)
+void UBattleHUDWidget::CycleIntel()
 {
-	SelectIntelTab(Tab);
+	if (!bIntelOpen)
+	{
+		ToggleIntel(); // the featured party card
+		return;
+	}
+	const TArray<int32> Order = GetIntelCardOrder();
+	const bool bOnParty = Order.IsValidIndex(IntelTab) && Cards[Order[IntelTab]].bParty;
+	const int32 FirstEnemy = Order.IndexOfByPredicate([this](int32 CardIndex) { return !Cards[CardIndex].bParty; });
+	if (bOnParty && FirstEnemy != INDEX_NONE)
+	{
+		SelectIntelTab(FirstEnemy);
+		return;
+	}
+	CloseIntel();
+}
+
+void UBattleHUDWidget::PressIntelKey()
+{
+	if (IsIntelKeyCycle())
+	{
+		CycleIntel();
+		return;
+	}
+	ToggleIntel();
+}
+
+bool UBattleHUDWidget::IsIntelKeyCycle() const
+{
+	const UWorld *World = GetWorld();
+	const USaveSubsystem *Save = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	return !Save || Save->IsIntelKeyCycle();
+}
+
+void UBattleHUDWidget::HandleIntelStepClicked(int32 Delta)
+{
+	StepIntelTab(Delta);
 }
 
 void UBattleHUDWidget::RefreshIntelPages()
@@ -677,7 +788,8 @@ void UBattleHUDWidget::RefreshIntelPages()
 		Page.Actor = Card.Actor;
 		Page.bEnemy = !Card.bParty;
 		Page.Heading = Card.Name;
-		Page.Tab = Card.bParty && BattleIntelView::IsYou(Card.Actor.Get()) ? LOCTEXT("IntelYouTab", "You") : Card.Name;
+		Page.bYou = Card.bParty && BattleIntelView::IsYou(Card.Actor.Get());
+		Page.Tab = Page.bYou ? LOCTEXT("IntelYouTab", "You") : Card.Name;
 	}
 }
 
@@ -881,7 +993,37 @@ void UBattleHUDWidget::PushToWidgets()
 	if (IntelPanel)
 	{
 		IntelPanel->SetVisibility(bIntelOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-		IntelPanel->Push(IntelPages, IntelTab);
+		IntelPanel->Push(IntelPages, IntelTab, IsIntelKeyCycle());
+	}
+	// B-587 (Crown, as Expedition 33's close-up hides its action UI): while Intel is open the enemy cards (Intel takes
+	// their place under the turn order), the command menu and the corner hints step aside; no menu key acts meanwhile.
+	const ESlateVisibility UnderIntel = bIntelOpen ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible;
+	for (UWidget *Piece : {EnemyColumn.Get(), MenuHolder.Get(), CornerHints.Get()})
+	{
+		if (Piece)
+		{
+			Piece->SetVisibility(UnderIntel);
+		}
+	}
+	UpdateIntelCamera();
+}
+
+void UBattleHUDWidget::UpdateIntelCamera()
+{
+	const TArray<int32> Order = GetIntelCardOrder();
+	AActor *Subject = bIntelOpen && Order.IsValidIndex(IntelTab) ? Cards[Order[IntelTab]].Actor.Get() : nullptr;
+	if (Subject == IntelCameraSubject.Get())
+	{
+		return;
+	}
+	IntelCameraSubject = Subject;
+	for (TActorIterator<ACombatOrchestrator> It(GetWorld()); It; ++It)
+	{
+		if (UCombatCameraDirector *Director = It->GetCameraDirector())
+		{
+			Director->SetIntelSubject(Subject); // a cut, or nothing with movement off (D-262 b, d)
+			return;
+		}
 	}
 }
 
@@ -942,7 +1084,13 @@ void UBattleHUDWidget::ToggleAllStatuses()
 
 void UBattleHUDWidget::HandleStatusButtonClicked()
 {
-	ToggleAllStatuses();
+	// B-587 QA (D-261: Intel replaced the status list): open Intel on the party, or close it.
+	if (bIntelOpen)
+	{
+		CloseIntel();
+		return;
+	}
+	ToggleIntel();
 }
 
 void UBattleHUDWidget::HandleHitShown(AActor *Target, const FCombatHitShown &Hit)

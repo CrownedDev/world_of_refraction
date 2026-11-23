@@ -118,6 +118,12 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		Rows.Add(Idle);
 		Rows.Add(NotBuilt(ESettingId::TutorialTips, LOCTEXT("TutorialTips", "Tutorial tips"),
 						  LOCTEXT("TutorialTipsExplain", "Short tips the first time something new comes up.")));
+		FSettingsRow Intel; // B-587 (D-262)
+		Intel.Id = ESettingId::IntelKey;
+		Intel.Label = LOCTEXT("IntelKey", "Intel key");
+		Intel.Value = !Save || Save->IsIntelKeyCycle() ? LOCTEXT("IntelKeyCycle", "Cycle") : LOCTEXT("IntelKeyOpenClose", "Open and close");
+		Intel.Explanation = LOCTEXT("IntelKeyExplain", "V / R3 in a fight. Cycle: the first press shows your party, the second the enemies, the third closes it. Open and close: each press opens or closes it. Holding it always closes.");
+		Rows.Add(Intel);
 	}
 	else if (Page == ESettingsPage::Accessibility)
 	{
@@ -196,6 +202,8 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Key(LOCTEXT("KeyDefend", "Defend"), LOCTEXT("KeyDefendKB", "G"), LOCTEXT("KeyDefendPad", "Y")));
 	Rows.Add(Key(LOCTEXT("KeyInfusionSource", "Infusion source"), LOCTEXT("KeyInfusionSourceKB", "R"), LOCTEXT("KeyInfusionSourcePad", "LB")));
 	Rows.Add(Key(LOCTEXT("KeyInfusionLevel", "Infusion level"), LOCTEXT("KeyInfusionLevelKB", "T"), LOCTEXT("KeyInfusionLevelPad", "RB")));
+	Rows.Add(Key(LOCTEXT("KeyIntel", "Intel (tap: party, enemies, close; hold: close)"), LOCTEXT("KeyIntelKB", "V"), LOCTEXT("KeyIntelPad", "R3")));
+	Rows.Add(Key(LOCTEXT("KeyIntelStep", "Intel previous / next"), LOCTEXT("KeyIntelStepKB", "Q / E"), LOCTEXT("KeyIntelStepPad", "LB / RB")));
 	Rows.Add(Key(LOCTEXT("KeySkipCinematic", "Skip a cinematic"), LOCTEXT("KeySkipCinematicKB", "Tab"), LOCTEXT("KeySkipCinematicPad", "Menu")));
 
 	Rows.Add(Heading(LOCTEXT("SectionMenus", "Menus")));
@@ -245,6 +253,9 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 		Save->SetTextSizeLevel(static_cast<ETextSizeLevel>(((Current + Step) % LevelCount + LevelCount) % LevelCount));
 		return true;
 	}
+	case ESettingId::IntelKey: // B-587: the next press reads it (UBattleHUDWidget::PressIntelKey)
+		Save->SetIntelKeyCycle(!Save->IsIntelKeyCycle());
+		return true;
 	case ESettingId::HoldToConfirm: // B-453c
 		Save->SetHoldToConfirmOn(!Save->IsHoldToConfirmOn());
 		return true;

@@ -1062,6 +1062,11 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	UPROPERTY()
 	bool bFightCameraStill = false;
 
+	/** B-587 (Crown, D-262): the fight's Intel key (V / R3) opens and closes; false = Cycle (party, then enemies, then
+	 *  close), the default. An older save reads false: no bump. */
+	UPROPERTY()
+	bool bIntelKeyOpenClose = false;
+
 	/** B-453c (D-190): a press confirms what can't be undone (quit, start over) instead of a hold; false = hold, the
 	 *  default. An older save reads false: no bump. */
 	UPROPERTY()

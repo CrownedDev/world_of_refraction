@@ -81,6 +81,20 @@ public:
 	/** B-400 (wor.Camera): e.g. "target view: Goblin_2 of 3 (cut, 4 moves)" or "target view: none". */
 	FString GetTargetViewString() const;
 
+	/** B-587 (D-262): Intel's open tab. A character on the viewer's own turn view: a cut to its close-up
+	 *  (ComputeIntelView). Null (Intel closed) while the close-up shows: a cut back to the turn view, then the target
+	 *  view again if the picker still highlights one. Static (movement off), a cinematic, a held shot or another's turn:
+	 *  nothing moves. The subject is kept: the next turn view (ShowTurnView) cuts to it again while Intel is open. */
+	void SetIntelSubject(AActor *Subject);
+	bool IsIntelViewShowing() const { return bIntelViewShowing; }
+	/** B-587 (debug, specs): the Intel camera moves this fight (to a close-up, between tabs and back). */
+	int32 GetIntelMoveCount() const { return IntelMoveCount; }
+
+	/** B-400: the target's feet and height from its colliding body (a default height without one). B-587 QA: a query-only
+	 *  shape attached to it (a recruit's talk sphere) isn't the body; this also tightens the B-400 target view on such
+	 *  a fighter. Public for specs. */
+	static void GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight);
+
 	bool IsInCombat() const { return bInCombat; }
 	ETurnViewStyle GetTurnViewStyle() const { return TurnViewStyle; }
 	bool IsCameraMovementOff() const { return bCameraMovementOff; }
@@ -265,9 +279,6 @@ private:
 	 *  the turn view, as before B-400). */
 	void CutBackFromTargetView();
 
-	/** B-400: the target's feet and height from its collision bounds (a default height without any). */
-	static void GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight);
-
 	/** B-371: starts the code-built shots for Action (the wind-up shot on the caster's camera). False when it
 	 *  could not (no camera or no viewer): nothing is left playing. */
 	bool StartShotPattern(AActor *Caster, const FAction &Action, const USkillDataBase *Skill);
@@ -429,6 +440,10 @@ private:
 	int32 HighlightTargetCount = 0;
 	bool bTargetViewShowing = false;
 	int32 TargetMoveCount = 0;
+	// B-587: Intel's close-up. The subject is kept so a new turn view (a turn change, movement back on) shows it again.
+	TWeakObjectPtr<AActor> IntelSubject;
+	bool bIntelViewShowing = false;
+	int32 IntelMoveCount = 0;
 
 	// B-401: an action started since the orchestrator last asked for one (or since the turn start).
 	bool bActedSinceAsked = false;

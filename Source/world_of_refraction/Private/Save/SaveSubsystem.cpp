@@ -1392,6 +1392,16 @@ void USaveSubsystem::SetFightCameraMovementOff(bool bOff)
 	SaveGame->Data.Settings.bFightCameraStill = bOff;
 }
 
+bool USaveSubsystem::IsIntelKeyCycle() const
+{
+	return !SaveGame->Data.Settings.bIntelKeyOpenClose;
+}
+
+void USaveSubsystem::SetIntelKeyCycle(bool bCycle)
+{
+	SaveGame->Data.Settings.bIntelKeyOpenClose = !bCycle;
+}
+
 bool USaveSubsystem::IsHoldToConfirmOn() const
 {
 	return !SaveGame->Data.Settings.bPressToConfirm;

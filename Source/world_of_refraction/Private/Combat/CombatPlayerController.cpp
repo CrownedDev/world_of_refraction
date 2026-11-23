@@ -51,6 +51,8 @@ namespace CombatMenuKeys
 	FKey GetIntelTabNextGamepad() { return EKeys::Gamepad_RightShoulder; }
 	constexpr int32 INTEL_TAB_PREV = -1;
 	constexpr int32 INTEL_TAB_NEXT = 1;
+	/** B-587 (D-262): holding V / R3 this long closes Intel; a shorter press is a tap. */
+	constexpr float INTEL_HOLD_SECONDS = 0.5f; // TODO: tune in PIE
 
 	FAutoConsoleCommand GPrintMenuKeysCmd(
 		TEXT("wor.Input.MenuKeys"),
@@ -187,7 +189,8 @@ void ACombatPlayerController::SetupInputComponent()
 		EnhancedInput->BindAction(CategoryAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnCategoryKey);
 	}
 	EnhancedInput->BindAction(SkipCinematicAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnSkipCinematic);
-	EnhancedInput->BindAction(IntelDetailsAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelDetails); // B-586
+	EnhancedInput->BindAction(IntelDetailsAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelDetailsPressed); // B-586
+	EnhancedInput->BindAction(IntelDetailsAction, ETriggerEvent::Completed, this, &ACombatPlayerController::OnIntelDetailsReleased); // B-587
 	EnhancedInput->BindAction(IntelTabPrevAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelTabPrev);
 	EnhancedInput->BindAction(IntelTabNextAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelTabNext);
 
@@ -659,11 +662,32 @@ UBattleHUDWidget *ACombatPlayerController::FindBattleHUD() const
 	return nullptr;
 }
 
-void ACombatPlayerController::OnIntelDetails(const FInputActionValue &Value)
+void ACombatPlayerController::OnIntelDetailsPressed(const FInputActionValue &Value)
 {
+	// B-587 (D-262): a tap acts on release; a hold closes Intel once the hold time passes.
+	bIntelHoldFired = false;
+	GetWorldTimerManager().SetTimer(IntelHoldTimer, this, &ACombatPlayerController::OnIntelDetailsHeld, CombatMenuKeys::INTEL_HOLD_SECONDS, false);
+}
+
+void ACombatPlayerController::OnIntelDetailsReleased(const FInputActionValue &Value)
+{
+	GetWorldTimerManager().ClearTimer(IntelHoldTimer);
+	if (bIntelHoldFired)
+	{
+		return;
+	}
 	if (UBattleHUDWidget *HUD = IsLocalController() ? FindBattleHUD() : nullptr)
 	{
-		HUD->ToggleIntel();
+		HUD->PressIntelKey();
+	}
+}
+
+void ACombatPlayerController::OnIntelDetailsHeld()
+{
+	bIntelHoldFired = true;
+	if (UBattleHUDWidget *HUD = IsLocalController() ? FindBattleHUD() : nullptr)
+	{
+		HUD->CloseIntel();
 	}
 }
 
@@ -775,7 +799,7 @@ FString ACombatPlayerController::GetMenuKeysString()
 		Out += FString::Printf(TEXT("\n  %s (%s, B-586): %s / %s"), Name, What, *Keyboard.GetDisplayName().ToString(),
 							   *Gamepad.GetDisplayName().ToString());
 	};
-	AddIntelKey(CombatMenuKeys::INTEL_DETAILS_ACTION_NAME, TEXT("Intel open / close"), CombatMenuKeys::GetIntelDetailsKeyboard(),
+	AddIntelKey(CombatMenuKeys::INTEL_DETAILS_ACTION_NAME, TEXT("Intel: tap cycles party, enemies, close (or opens / closes, per the setting); hold closes"), CombatMenuKeys::GetIntelDetailsKeyboard(),
 				CombatMenuKeys::GetIntelDetailsGamepad());
 	AddIntelKey(CombatMenuKeys::INTEL_TAB_PREV_ACTION_NAME, TEXT("Intel previous tab"), CombatMenuKeys::GetIntelTabPrevKeyboard(),
 				CombatMenuKeys::GetIntelTabPrevGamepad());

@@ -41,8 +41,11 @@
 #include "UI/Combat/Battle/DamageNumberView.h" // FCombatHitShown: UFUNCTION handler parameter type
 #include "BattleHUDWidget.generated.h"
 
+class ACombatOrchestrator;
 class UBattleCommandMenuWidget;
 class UBattleIntelWidget;
+class UDefenseSystem;
+enum class ECombatState : uint8;
 class UBorder;
 class UCombatPresentationComponent;
 class UButton;
@@ -111,8 +114,15 @@ public:
 	// and Intel never show together.
 	/** Open on CardIndex's tab; the same tab again closes it. */
 	void OpenIntel(int32 CardIndex);
-	/** V / R3: open on the featured card's tab, or close. */
+	/** V / R3 with the Intel key's Open and close setting: open on the featured card's tab, or close. */
 	void ToggleIntel();
+	/** B-587 (Crown, D-262): V / R3 with the Cycle setting, the default: open on the featured party card, then the
+	 *  first enemy, then close. */
+	void CycleIntel();
+	/** A tap of V / R3: CycleIntel or ToggleIntel, by the saved Intel key setting (a hold closes: CloseIntel). */
+	void PressIntelKey();
+	/** The saved Intel key setting is Cycle (true without a save). */
+	bool IsIntelKeyCycle() const;
 	/** Q / E, LB / RB while open: the previous or next tab, wrapping. */
 	void StepIntelTab(int32 Delta);
 	void SelectIntelTab(int32 Tab);
@@ -124,9 +134,13 @@ public:
 	/** Card index of each tab: party cards, then enemies. */
 	TArray<int32> GetIntelCardOrder() const;
 
-	/** The Status button: the view of everyone. From an inspected character it switches to that view, else it opens
-	 *  or closes the panel. */
+	/** The old view-all status list. OBSOLETE (B-587 QA, D-261): the Status button opens Intel on the party now
+	 *  (HandleStatusButtonClicked); nothing calls this. Kept until Crown's PIE pass (docs/PIE/B-587.md check 6). */
 	void ToggleAllStatuses();
+
+	/** B-587 QA: the Status button's click: Intel on the party, or closed. Public for specs. */
+	UFUNCTION()
+	void HandleStatusButtonClicked();
 
 	/** OBSOLETE (B-586, D-261): inspect moved to Intel; always INDEX_NONE now. Kept until PIE (docs/PIE/Sweep.md). */
 	int32 GetInspectedCardIndex() const { return InspectedCard; }
@@ -203,8 +217,19 @@ private:
 	UFUNCTION()
 	void HandleTurnStateChanged();
 
+	/** B-587 QA: close Intel when the fight moves on without the player; Why goes to the log. */
+	void CloseIntelForFight(const TCHAR *Why);
+
+	/** A guard / dodge prompt for a party member (the cue, then the window). */
 	UFUNCTION()
-	void HandleStatusButtonClicked();
+	void HandleDefenseCue(AActor *Defender, float TimeUntilWindow);
+
+	UFUNCTION()
+	void HandleDefenseWindowOpened(AActor *Defender, float AttackSize, float WindowDuration);
+
+	/** Victory, defeat, a draw or a flight. */
+	UFUNCTION()
+	void HandleCombatStateChanged(ECombatState NewState);
 
 	/** D-254: a left click on a party card (UBorder::OnMouseButtonDownEvent, one handler for all of them). */
 	UFUNCTION()
@@ -217,7 +242,7 @@ private:
 	/** B-586: rebuild IntelPages from the cards (only while open). */
 	void RefreshIntelPages();
 
-	void HandleIntelTabClicked(int32 Tab);
+	void HandleIntelStepClicked(int32 Delta);
 
 	UFUNCTION()
 	void HandleBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source);
@@ -249,6 +274,8 @@ private:
 	TArray<TWeakObjectPtr<UCombatPresentationComponent>> BoundPresentations;
 	TWeakObjectPtr<UStatusBuildupManager> BoundBuildup;
 	TArray<TWeakObjectPtr<UStatusBarStateComponent>> BoundBarStates;
+	TWeakObjectPtr<UDefenseSystem> BoundDefense;
+	TWeakObjectPtr<ACombatOrchestrator> BoundOrchestrator;
 
 	UPROPERTY(Transient)
 	TArray<FBattleDamageNumber> DamageNumbers;
@@ -276,4 +303,18 @@ private:
 	bool bIntelOpen = false;
 	int32 IntelTab = 0;
 	TArray<FBattleIntelPage> IntelPages;
+
+	/** B-587 (Crown, Expedition 33's close-up): hidden while Intel is open, which takes the enemy cards' place under the
+	 *  turn order: the enemy cards, the command menu's holder and the corner hints' holder. */
+	UPROPERTY()
+	TObjectPtr<UWidget> EnemyColumn;
+	UPROPERTY()
+	TObjectPtr<UWidget> MenuHolder;
+	UPROPERTY()
+	TObjectPtr<UWidget> CornerHints;
+
+	/** B-587 (D-262): asks the fight camera for the open tab's close-up (null: Intel closed) when it changes. */
+	void UpdateIntelCamera();
+	/** The character last asked for, so a push for any other reason doesn't cut again. */
+	TWeakObjectPtr<AActor> IntelCameraSubject;
 };

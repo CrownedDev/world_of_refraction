@@ -18,7 +18,9 @@
 
 namespace
 {
-	constexpr int32 SETTINGS_TEST_GAMEPLAY_ROWS = 7;
+	constexpr int32 SETTINGS_TEST_GAMEPLAY_ROWS = 8;
+	/** B-587: Gameplay's Intel key, the last row. */
+	constexpr int32 SETTINGS_TEST_INTEL_KEY_ROW = 7;
 	constexpr int32 SETTINGS_TEST_ACCESSIBILITY_ROWS = 7;
 	constexpr int32 SETTINGS_TEST_KEY_SECTIONS = 3;
 	constexpr int32 SETTINGS_TEST_TURN_VIEW_ROW = 1;
@@ -221,6 +223,27 @@ void FSettingsScreenSpec::Define()
 		TestTrue(TEXT("on"), Save->IsAIFinishesIdleTurnOn());
 		WoRSettingsScreen::ChangeSetting(World, ESettingId::AIFinishesTurn, 1);
 		TestFalse(TEXT("off again"), Save->IsAIFinishesIdleTurnOn());
+	});
+
+	It("switches the Intel key between Cycle and Open and close; Cycle is the default (B-587)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Rows = Gameplay();
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Rows.IsValidIndex(SETTINGS_TEST_INTEL_KEY_ROW)))
+		{
+			return;
+		}
+		TestTrue(TEXT("the Intel key row"), Rows[SETTINGS_TEST_INTEL_KEY_ROW].Id == ESettingId::IntelKey);
+		TestTrue(TEXT("it can change"), Rows[SETTINGS_TEST_INTEL_KEY_ROW].CanChange());
+		TestFalse(TEXT("Cycle by default"), FSavedSettings().bIntelKeyOpenClose);
+		Save->SetIntelKeyCycle(true);
+		const FString Cycle = Gameplay()[SETTINGS_TEST_INTEL_KEY_ROW].Value.ToString();
+		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::IntelKey, 1));
+		TestFalse(TEXT("open and close"), Save->IsIntelKeyCycle());
+		TestNotEqual(TEXT("the row reads it"), Gameplay()[SETTINGS_TEST_INTEL_KEY_ROW].Value.ToString(), Cycle);
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::IntelKey, 1);
+		TestTrue(TEXT("cycle again"), Save->IsIntelKeyCycle());
 	});
 
 	It("turns element letters on and off; off is the default (B-453f)", [this]()

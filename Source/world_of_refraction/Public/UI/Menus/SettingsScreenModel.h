@@ -39,7 +39,8 @@ enum class ESettingId : uint8
 	ScreenShake,
 	HoldToConfirm,
 	ElementLetters,
-	Subtitles
+	Subtitles,
+	IntelKey
 };
 
 struct FSettingsRow
