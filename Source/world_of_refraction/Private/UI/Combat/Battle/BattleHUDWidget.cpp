@@ -10,6 +10,9 @@
 #include "Blueprint/WidgetTree.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/CombatOrchestrator.h"
+#include "Combat/Camera/CombatCameraDirector.h"
+#include "EngineUtils.h"
 #include "Combat/CombatPresentationComponent.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/StatusBarStateComponent.h"
@@ -66,6 +69,7 @@ namespace BattleHUDStyle
 	const FVector2D PartyAnchor(0.0f, 1.0f);        // bottom-left: the featured card, the compact cards in a row to its right
 	const FVector2D StatusButtonAnchor(0.5f, 0.0f); // top centre
 	const FVector2D StatusPanelAnchor(0.5f, 0.5f);  // centre
+	const FVector2D IntelPanelAnchor(1.0f, 0.5f);   // B-587 (D-262 a): right side, the close-up in the left two-thirds
 	constexpr float CardGap = 8.0f;
 	constexpr float RightColumnGap = 16.0f; // between the turn order and the enemy cards
 	// shortcut: the command menu sits a fixed height above the bottom margin, not the featured card's real height,
@@ -451,11 +455,11 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		StatusPanelBody = BattleHUDBuild::AddText(WidgetTree, PanelRows, BattleHUDStyle::LineFontSize);
 		BattleHUDBuild::Place(Canvas, StatusPanel, BattleHUDStyle::StatusPanelAnchor, FVector2D::ZeroVector);
 
-		// B-586 (D-261): the Intel panel, centred like the status panel; the two never show together.
+		// B-586 (D-261): the Intel panel; the status panel and it never show together. B-587: on the right side.
 		IntelPanel = WidgetTree->ConstructWidget<UBattleIntelWidget>(UBattleIntelWidget::StaticClass(), TEXT("Intel"));
 		IntelPanel->SetVisibility(ESlateVisibility::Collapsed); // closed until the first push says otherwise
 		IntelPanel->OnTabClicked.BindUObject(this, &UBattleHUDWidget::HandleIntelTabClicked);
-		BattleHUDBuild::Place(Canvas, IntelPanel, BattleHUDStyle::StatusPanelAnchor, FVector2D::ZeroVector);
+		BattleHUDBuild::Place(Canvas, IntelPanel, BattleHUDStyle::IntelPanelAnchor, BattleHUDBuild::Inset(BattleHUDStyle::IntelPanelAnchor));
 
 		BuildDamageNumberWidgets(Canvas); // last, so the numbers draw over the cards
 	}
@@ -882,6 +886,26 @@ void UBattleHUDWidget::PushToWidgets()
 	{
 		IntelPanel->SetVisibility(bIntelOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
 		IntelPanel->Push(IntelPages, IntelTab);
+	}
+	UpdateIntelCamera();
+}
+
+void UBattleHUDWidget::UpdateIntelCamera()
+{
+	const TArray<int32> Order = GetIntelCardOrder();
+	AActor *Subject = bIntelOpen && Order.IsValidIndex(IntelTab) ? Cards[Order[IntelTab]].Actor.Get() : nullptr;
+	if (Subject == IntelCameraSubject.Get())
+	{
+		return;
+	}
+	IntelCameraSubject = Subject;
+	for (TActorIterator<ACombatOrchestrator> It(GetWorld()); It; ++It)
+	{
+		if (UCombatCameraDirector *Director = It->GetCameraDirector())
+		{
+			Director->SetIntelSubject(Subject); // a cut, or nothing with movement off (D-262 b, d)
+			return;
+		}
 	}
 }
 

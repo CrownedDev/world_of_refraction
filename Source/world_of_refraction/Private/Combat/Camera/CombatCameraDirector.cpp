@@ -150,6 +150,8 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	HighlightTargetCount = 0;
 	bTargetViewShowing = false;
 	TargetMoveCount = 0;
+	bIntelViewShowing = false; // B-587
+	IntelMoveCount = 0;
 	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
 	{
 		Menu->OnMenuDepthChanged.AddUniqueDynamic(this, &UCombatCameraDirector::HandleMenuDepthChanged);
@@ -231,6 +233,7 @@ void UCombatCameraDirector::EndCombat()
 	HighlightedTarget.Reset(); // B-400
 	HighlightTargetCount = 0;
 	bTargetViewShowing = false;
+	bIntelViewShowing = false; // B-587
 
 	if (APlayerController *Viewer = GetViewer())
 	{
@@ -395,6 +398,7 @@ void UCombatCameraDirector::StepTurnViewForMenu()
 		return;
 	}
 	bTargetViewShowing = false; // B-400: a depth step (wor.Camera.MenuDepth) lands on the turn view
+	bIntelViewShowing = false; // B-587
 	++MenuStepCount;
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Menu depth %d: %s (%.2f s, move %d)"), MenuDepth,
 		   MenuDepth > CommandMenuRules::MAIN_MENU_DEPTH ? TEXT("one step closer") : TEXT("back to the turn view"),
@@ -479,6 +483,7 @@ void UCombatCameraDirector::SetHighlightedTarget(AActor *Target, int32 TargetCou
 		if (MoveTurnCamera(FCombatCameraRules::ComputeTargetViewFrom(TurnViewStyle, Frame, GetTurnViewWithHeight(Frame), Feet, Height, TargetCount), Seconds))
 		{
 			bTargetViewShowing = true;
+			bIntelViewShowing = false; // B-587: the picker's view replaces the close-up
 			++TargetMoveCount;
 			UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Target view: %s of %d (%s, move %d)"), *Target->GetName(), TargetCount,
 				   Seconds > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount);
@@ -510,6 +515,45 @@ void UCombatCameraDirector::CutBackFromTargetView()
 	}
 }
 
+void UCombatCameraDirector::SetIntelSubject(AActor *Subject)
+{
+	AActor *Actor = ViewedActor.Get();
+	// Movement off (Static, D-262 d), a cinematic, a held shot or someone else's turn: nothing moves.
+	const bool bTurnViewShowing = bInCombat && Actor && CurrentMode == ECombatCameraMode::Turn && !PlayingSequence && !IsShotPlaying();
+	if (!bTurnViewShowing)
+	{
+		bIntelViewShowing = false;
+		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Intel %s: camera holds (mode %s)"), *GetNameSafe(Subject), *UEnum::GetValueAsString(CurrentMode));
+		return;
+	}
+	const FCombatCameraFrame Frame = BuildFrame(Actor);
+	if (Subject)
+	{
+		FVector Feet;
+		float Height = 0.0f;
+		GetTargetShape(Subject, Feet, Height);
+		if (MoveTurnCamera(FCombatCameraRules::ComputeIntelView(Frame, Feet, Height), 0.0f)) // a cut (D-262 b)
+		{
+			bIntelViewShowing = true;
+			bTargetViewShowing = false;
+			++IntelMoveCount;
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Intel close-up: %s (move %d)"), *Subject->GetName(), IntelMoveCount);
+		}
+		return;
+	}
+	if (!bIntelViewShowing)
+	{
+		return;
+	}
+	bIntelViewShowing = false;
+	if (MoveTurnCamera(GetTurnViewWithHeight(Frame), 0.0f))
+	{
+		++IntelMoveCount;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Intel closed: back to the turn view (move %d)"), IntelMoveCount);
+	}
+	ReapplyHighlightedTarget(); // Intel opened over the target picker: its view again
+}
+
 void UCombatCameraDirector::GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight)
 {
 	OutFeet = Target ? Target->GetActorLocation() : FVector::ZeroVector;
@@ -531,13 +575,14 @@ void UCombatCameraDirector::GetTargetShape(const AActor *Target, FVector &OutFee
 FString UCombatCameraDirector::GetTargetViewString() const
 {
 	const AActor *Target = HighlightedTarget.Get();
+	const FString Intel = FString::Printf(TEXT("intel close-up %s (%d moves)"), bIntelViewShowing ? TEXT("showing") : TEXT("off"), IntelMoveCount); // B-587
 	if (!Target)
 	{
-		return FString::Printf(TEXT("target view: none (%d moves)"), TargetMoveCount);
+		return FString::Printf(TEXT("target view: none (%d moves), %s"), TargetMoveCount, *Intel);
 	}
-	return FString::Printf(TEXT("target view: %s of %d (%s, %s, %d moves)"), *Target->GetName(), HighlightTargetCount,
+	return FString::Printf(TEXT("target view: %s of %d (%s, %s, %d moves), %s"), *Target->GetName(), HighlightTargetCount,
 						   bTargetViewShowing ? TEXT("showing") : TEXT("held"),
-						   FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle) > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount);
+						   FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle) > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount, *Intel);
 }
 
 void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost)
@@ -703,6 +748,7 @@ void UCombatCameraDirector::ShowTurnView()
 	}
 	StopShotPattern(); // B-371: the end of a pattern blends back to the turn view
 	bTargetViewShowing = false; // B-400
+	bIntelViewShowing = false; // B-587
 	AActor *Actor = ViewedActor.Get();
 	APlayerController *Viewer = GetViewer();
 	UCombatCameraComponent *Camera = Actor ? Actor->FindComponentByClass<UCombatCameraComponent>() : nullptr;

@@ -276,4 +276,9 @@ private:
 	bool bIntelOpen = false;
 	int32 IntelTab = 0;
 	TArray<FBattleIntelPage> IntelPages;
+
+	/** B-587 (D-262): asks the fight camera for the open tab's close-up (null: Intel closed) when it changes. */
+	void UpdateIntelCamera();
+	/** The character last asked for, so a push for any other reason doesn't cut again. */
+	TWeakObjectPtr<AActor> IntelCameraSubject;
 };
