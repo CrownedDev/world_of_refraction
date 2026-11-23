@@ -1250,6 +1250,12 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### Q-436c — The target marker's small points
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-23 (B-436c, from D-263 point 3) · **Blocks:** nothing
+**Question:** D-263 puts the enemy's HP on the target only. Which highlights show it, where, and what does the marker look like until the style pass?
+**Answer (defaults):** (1) **Only a highlighted enemy** gets the marker; an ally the picker highlights keeps its own card, and a group attack (no single highlight) shows none until piece 8b's preview on every marked target. (2) **Above the head,** 40 cm over the body's top (`TODO: tune`), following the camera. (3) **The enemy's own card** at card size (name, HP bar without a number per Q-391, build-up bar, effects, "Tier C" at the bottom) until the CommonUI style pass. (4) **Gone** on Back, when the action starts, and under Intel.
+**Reference:** Expedition 33 shows the targeted enemy's name and HP above it only while it is targeted; Final Fantasy X's target window names only the current target. The deckbuilder has no target marker.
+
 ### Q-586 — Intel: how enemy details are learned, and its keys
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-22 (B-586, from D-261) · **Blocks:** nothing
 **Question:** D-261 shows "?" for what isn't learned and names no key. What fills a "?", and what opens Intel?
