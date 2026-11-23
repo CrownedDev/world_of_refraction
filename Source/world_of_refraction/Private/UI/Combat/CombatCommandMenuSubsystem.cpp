@@ -2146,6 +2146,10 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
         Weapon.DisplayName = OpenTargetPanelLine == ETargetPanelLine::Weapon ? LOCTEXT("PanelNextWeapon", "Next weapon")
                                                                              : LOCTEXT("PanelWeapon", "Weapon");
         Weapon.Category = EPieMenuCategory::TargetPanelWeapon;
+        if (OpenTargetPanelLine == ETargetPanelLine::Weapon)
+        {
+            GreyIfTurnSwitchUsed(Weapon); // one weapon switch a turn, as 6 / L3; the hint says why
+        }
         Buttons.Add(Weapon);
     }
     if (CanInfusePendingAction())
@@ -2207,7 +2211,7 @@ FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
     if (CanInfusePendingAction() && VFX)
     {
         static const FText LevelNames[] = {LOCTEXT("PanelLevel0", "—"), LOCTEXT("PanelLevel1", "I"), LOCTEXT("PanelLevel2", "II")};
-        const auto LevelName = [](int32 Level) { return Level >= 0 && Level < UE_ARRAY_COUNT(LevelNames) ? LevelNames[Level] : FText::AsNumber(Level); };
+        const auto LevelName = [](int32 Level) { return Level >= 0 && Level < static_cast<int32>(UE_ARRAY_COUNT(LevelNames)) ? LevelNames[Level] : FText::AsNumber(Level); };
         const bool bElement = CanChooseInfusionElement();
         const TArray<EInfusionSourceOption> &Sources = VFX->GetCachedSources();
         const UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);

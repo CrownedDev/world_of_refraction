@@ -526,6 +526,11 @@ void FCommandMenuKeysSpec::Define()
 		Panel = View->GetPanel();
 		TestTrue(TEXT("the Hammer in hand, the line still open"), Panel.Open == ETargetPanelLine::Weapon && Panel.ActiveWeapon == 1);
 		TestTrue(TEXT("the summary follows"), Panel.Summary.ToString().StartsWith(TEXT("Hammer")));
+		const FBattleMenuHint *NextWeapon = View->GetHints().FindByPredicate([](const FBattleMenuHint &Hint)
+																			 { return Hint.Label.ToString() == TEXT("Next weapon"); });
+		TestTrue(TEXT("the turn's switch is spent: Next weapon greyed, with why"), NextWeapon && !NextWeapon->bEnabled && !NextWeapon->Reason.IsEmpty());
+		TestFalse(TEXT("so 2 / X does nothing now"), Menu->PressMenuKey(EPieMenuCategory::Skills));
+		TestEqual(TEXT("the Hammer stays in hand"), View->GetPanel().ActiveWeapon, 1);
 
 		TestTrue(TEXT("3 / Y: the infusion lines"), Menu->PressMenuKey(EPieMenuCategory::Items));
 		Panel = View->GetPanel();

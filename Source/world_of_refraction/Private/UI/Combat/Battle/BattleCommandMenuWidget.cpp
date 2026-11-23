@@ -56,6 +56,10 @@ namespace BattleCommandMenuStyle
 	 *  item; 600 holds 16 one-line rows and still clears the top-left at 720p (the turn order is top right). */
 	constexpr float MaxListHeight = 600.0f;
 	constexpr float HintGap = 6.0f;
+	// B-592 (refine_v4): the target panel's summary and chip lines.
+	constexpr float PanelLineGap = 6.0f;
+	constexpr float ChipPaddingY = 2.5f;
+	constexpr float ChipLineIndent = 4.0f;
 	/** B-436g QA: the corner hints sit on a dark plate in the frame's style, so they read on a bright floor. */
 	constexpr float HintPlatePadding = 8.0f;
 	constexpr int32 TabFontSize = 20; // B-436g QA: the drawing's tab is as tall as a row; 14 read small
@@ -416,7 +420,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 
 		// B-592 (D-268, refine_v4): the target panel, the summary line or one line of chips per open choice.
 		SummaryText = MakeText(WidgetTree, HeaderFontSize, WoRMenuStyle::DimColor, /*bBold=*/true);
-		WoRMenuStyle::AddToColumn(Body, SummaryText, FMargin(RowPaddingX, 0.0f, RowPaddingX, RowGap * 2.0f));
+		WoRMenuStyle::AddToColumn(Body, SummaryText, FMargin(RowPaddingX, 0.0f, RowPaddingX, PanelLineGap));
 		for (int32 Line = 0; Line < CHIP_LINES; ++Line)
 		{
 			UHorizontalBox *Chips = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
@@ -429,7 +433,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 				Chip->AddChild(Word);
 				if (UButtonSlot *Inner = Cast<UButtonSlot>(Word->Slot))
 				{
-					Inner->SetPadding(FMargin(RowPaddingX, RowPaddingY * 0.5f));
+					Inner->SetPadding(FMargin(RowPaddingX, ChipPaddingY));
 				}
 				WoRMenuStyle::AddToRow(Chips, Chip, FMargin(0.0f, 0.0f, RowGap, 0.0f));
 				UBattleMenuRowRelay *Relay = NewObject<UBattleMenuRowRelay>(this);
@@ -441,7 +445,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 				ChipTexts.Add(Word);
 				ChipRelays.Add(Relay);
 			}
-			WoRMenuStyle::AddToColumn(Body, Chips, FMargin(RowPaddingX * 0.5f, 0.0f, 0.0f, RowGap * 2.0f));
+			WoRMenuStyle::AddToColumn(Body, Chips, FMargin(ChipLineIndent, 0.0f, 0.0f, PanelLineGap));
 			ChipLines.Add(Chips);
 		}
 
