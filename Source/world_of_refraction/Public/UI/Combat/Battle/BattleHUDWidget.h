@@ -38,6 +38,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Skills/Effects/ActiveSkillEffect.h" // UFUNCTION handler parameter type
 #include "UI/Combat/Battle/BattleHUDCard.h"
+#include "UI/Combat/PieMenuButtonData.h" // UFUNCTION handler parameter type
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Combat/Battle/BattleIntelView.h"
 #include "UI/Combat/Battle/DamageNumberView.h" // FCombatHitShown: UFUNCTION handler parameter type
@@ -226,6 +227,13 @@ private:
 
 	UFUNCTION()
 	void HandleCommandMenuClosed();
+
+	/** B-592b: any menu view change (a level or element pick in the target step too): the ghost follows. */
+	UFUNCTION()
+	void HandleCommandMenuReady(const TArray<FPieMenuButtonData> &Buttons);
+
+	/** B-592b: the acting card's HP ghost from the menu's target-step cost preview; cleared outside a target step. */
+	void RefreshHPGhost();
 
 	/** B-436c: show Target's enemy card as the marker (hide the others) and follow it while shown. */
 	void SetMarkedTarget(AActor *Target);
