@@ -1288,6 +1288,17 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-269 — WASD moves through the battle menu
+**Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, after D-267's hold) · **Blocks:** B-582c
+**Crown:** said yes to WASD navigation in the battle menu.
+**Ruled (new battle HUD):**
+- **W / S** move the highlight up and down the rows of whatever list is open (main menu, skill kinds, a skill list, items, the target rows, the Position picker), wrapping at the ends. On target rows the highlight moves the target marker and camera, as hover does.
+- **D** goes forward: it presses the highlighted row, the same as its number key or a click. On a target row that attacks or uses the skill, the same as Enter / Space.
+- **A** goes back one step, the same as Backspace. On the main menu it does nothing.
+- **Q / E** stay off the target step (B-592's X / Y = 2 / 3 panel and R / T cover weapon and infusion there). They would step a list's tab row, but the new HUD has none (skill kinds open as their own list), so nothing is bound yet.
+- WASD never moves a fighter or the camera in a fight. While Intel is open the menu keys stand down as before (Intel keeps Q / E; A closes it, as Backspace does).
+**Build defaults (reference-backed, Crown may change):** a list opens with nothing lit; the first W / S lights its first / last row, except a target step, which opens lit on its highlighted target. Disabled rows and section headers are skipped. Expedition 33 and Persona 5 move a menu cursor up and down with wrap and confirm / back on two face buttons; WASD as arrows is the PC norm (Baldur's Gate 3's controller-style menus, Divinity: Original Sin 2).
+
 ### D-268 — A compact target panel with X / Y toggles
 **Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, mockups `docs/Design/screen_mockups/combat/hud/refine_v4/`) · **Blocks:** B-592
 **Crown:** the target step (Attack, a skill, an item) starts small; X shows the weapon, Y the infusion. Later notes: no "Size x…" line and no backlash text in the target panel; the HP cost shows only as a ghost on the caster's HP bar.
@@ -1306,7 +1317,7 @@ The queue of questions only Crown can answer.
 **Crown:** "enter should be confirmation also space bar".
 **Ruled:** In the new battle HUD, Enter and Space pick the highlighted target in any single-target picker (Attack, a skill, an item), the same as clicking its row or the Attack picker's second 1. They do nothing on the main menu, in the Position picker, on a group pick (Self / All), while Intel is open, or while a Guard / Dodge window is open on this machine. No gamepad change (A is already the Attack picker's second press). This replaces D-266's note that Enter doesn't confirm. Tab gets no battle-menu binding (Crown, 2026-11-23: "Q/E, no Tab"); it stays the boss-cinematic skip.
 **Build defaults (reference-backed, Crown may change):** a group pick (one labelled confirm row for Self / All) isn't on Enter / Space yet; it is still a click. Expedition 33 and most PC turn-based games (Divinity: Original Sin 2, Baldur's Gate 3) confirm with Enter and Space alike.
-**Held (Crown is redesigning, 2026-11-23):** keyboard row movement (W / S), value change (A / D) and Q / E target cycling. A first build is parked on `feature/B-582c-menu-nav-hold`, not for merge.
+**Held (Crown is redesigning, 2026-11-23):** keyboard row movement (W / S), value change (A / D) and Q / E target cycling. A first build is parked on `feature/B-582c-menu-nav-hold`, not for merge. Redesigned as D-269 (B-582c).
 
 ### D-266 — Quick attack: 1 twice
 **Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-22 (Crown, B-582's idea) · **Blocks:** B-582
