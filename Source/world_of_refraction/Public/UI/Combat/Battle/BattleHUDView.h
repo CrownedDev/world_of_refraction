@@ -92,6 +92,27 @@ namespace BattleHUDView
 	/** The character's name from its data asset, else the actor's name; empty for null. */
 	WORLD_OF_REFRACTION_API FText GetCombatantName(const AActor *Actor);
 
+	// ---- B-436b (BattleHUDRefinePlan decision 2): the party card's name and low HP ----
+
+	/** Below this share of max HP a living party member's HP bar turns LowHPColor and pulses. */
+	constexpr float LOW_HP_FRACTION = 0.3f;
+	// TODO: tune in PIE.
+	/** One pulse (full, dim, full) per this many seconds. */
+	constexpr double LOW_HP_PULSE_PERIOD_SECONDS = 1.0;
+	/** The HP bar's opacity at the pulse's dimmest. */
+	constexpr float LOW_HP_PULSE_MIN_OPACITY = 0.45f;
+	/** How often the pulse steps while a card is low (a timer, no Tick). */
+	constexpr float LOW_HP_PULSE_STEP_SECONDS = 0.05f;
+
+	/** "Garrick (C)": the Combat Tier beside the name; Name alone when TierLetter is empty. */
+	WORLD_OF_REFRACTION_API FText FormatCardName(const FText &Name, const FText &TierLetter);
+
+	/** Alive and under LOW_HP_FRACTION (a downed card never pulses). */
+	WORLD_OF_REFRACTION_API bool IsLowHP(bool bAlive, float HPFraction);
+
+	/** The low HP bar's opacity Seconds into the pulse: 1 at each whole period, LOW_HP_PULSE_MIN_OPACITY half-way. */
+	WORLD_OF_REFRACTION_API float GetLowHPPulseOpacity(double Seconds);
+
 	/** One status as a short chip (FeelGuide 5: small, on the character): its shared name (D-062), the turns left
 	 *  unless permanent, and "xN" for two or more stacks. "Fire DoT 2", "Haste x3", "Regen". */
 	WORLD_OF_REFRACTION_API FText MakeStatusChip(const FActiveSkillEffect &Effect);
