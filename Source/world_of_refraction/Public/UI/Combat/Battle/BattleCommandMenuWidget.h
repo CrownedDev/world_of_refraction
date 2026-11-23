@@ -153,6 +153,15 @@ public:
 	/** B-400b (debug, specs): the actor a per-actor target row picks; null for any other row. */
 	AActor *GetRowTarget(int32 RowIndex) const;
 
+	/** B-582c (D-269): the lit row: the one W / S last moved to, else the highlighted target's row; INDEX_NONE when
+	 *  none (the main menu until W / S is pressed). It draws violet, as the highlighted target's row did. */
+	int32 GetLitRow() const;
+	/** B-582c: W (Direction < 0) / S (> 0): light the previous / next frame row (not a header, a greyed row or a corner
+	 *  hint), wrapping; the first press lights the first / last. A target row also highlights its target, as hover. */
+	void MoveLitRow(int32 Direction);
+	/** B-582c: D, forward: press the lit row as a click (a target row picks its target). False: nothing lit. */
+	bool PressLitRow();
+
 	/** B-592 (D-268): a click on a target panel chip (Line: ETargetPanelChoice). */
 	void PressChip(int32 Line, int32 Index);
 
@@ -207,7 +216,12 @@ private:
 
 	void PushToWidgets();
 
+	/** B-582c: a row W / S can light. */
+	bool IsNavigableRow(int32 RowIndex) const;
+
 	TArray<FPieMenuButtonData> Rows;
+	/** B-582c: the row W / S or a target highlight last lit; kept through a rebuild of the same view (an infusion pick). */
+	int32 LitRow = INDEX_NONE;
 	TArray<FText> RowLabels;
 	/** B-436g: each row's key for the device in use (invalid: none). */
 	TArray<FKey> RowKeys;

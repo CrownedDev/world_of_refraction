@@ -136,6 +136,8 @@ public:
 	void SelectIntelTab(int32 Tab);
 	void CloseIntel();
 	bool IsIntelOpen() const { return bIntelOpen; }
+	/** B-582c: the command menu SetCommandMenu placed (the W / S / D keys drive it); null before. */
+	UBattleCommandMenuWidget *GetCommandMenu() const { return CommandMenu; }
 	int32 GetIntelTab() const { return IntelTab; }
 	/** The pages as last built (rebuilt on every push while open): the open tab's in full, the others only their tab. */
 	const TArray<FBattleIntelPage> &GetIntelPages() const { return IntelPages; }

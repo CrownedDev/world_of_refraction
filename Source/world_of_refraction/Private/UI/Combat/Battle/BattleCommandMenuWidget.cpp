@@ -542,6 +542,12 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 	{
 		UE_LOG(LogWoRUI, Warning, TEXT("[BattleCommandMenu] %d infusion sources but %d chips: the rest are not shown"), Panel.Elements.Num(), MAX_CHIPS);
 	}
+	// B-582c: the same view rebuilt (an infusion pick, the main menu refreshed) keeps its lit row; a new one starts unlit.
+	const FText NewTitle = Menu ? Menu->GetViewTitle() : FText::GetEmpty();
+	if (!NewTitle.EqualTo(Title) || Buttons.Num() != Rows.Num() || !bShowing)
+	{
+		LitRow = INDEX_NONE;
+	}
 	Rows = Buttons;
 	if (Rows.Num() > MAX_ROWS)
 	{
@@ -560,6 +566,7 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 void UBattleCommandMenuWidget::HandleMenuClosed()
 {
 	Rows.Reset();
+	LitRow = INDEX_NONE;
 	RowLabels.Reset();
 	RowKeys.Reset();
 	Hints.Reset();
@@ -664,8 +671,74 @@ void UBattleCommandMenuWidget::HandleTargetHighlighted(AActor *Actor, AActor *Ta
 {
 	if (bShowing)
 	{
-		PushToWidgets(); // the highlighted target's row turns violet
+		// B-582c: a new highlight (hover, W / S, the picker's default) lights its row.
+		const int32 TargetRow = Target ? Rows.IndexOfByPredicate([Target](const FPieMenuButtonData &Row)
+															   { return Row.Category == EPieMenuCategory::Target && Row.Targets.IsEmpty() && Row.DataReference == Target; })
+									   : INDEX_NONE;
+		if (TargetRow != INDEX_NONE)
+		{
+			LitRow = TargetRow;
+		}
+		PushToWidgets(); // the lit row turns violet
 	}
+}
+
+bool UBattleCommandMenuWidget::IsNavigableRow(int32 RowIndex) const
+{
+	return Rows.IsValidIndex(RowIndex) && Rows[RowIndex].bEnabled && Rows[RowIndex].Category != EPieMenuCategory::SectionHeader &&
+		   !IsCornerHint(Rows[RowIndex].Category, bAtMainMenu);
+}
+
+int32 UBattleCommandMenuWidget::GetLitRow() const
+{
+	if (IsNavigableRow(LitRow))
+	{
+		return LitRow;
+	}
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	const AActor *Highlighted = Menu ? Menu->GetHighlightedTarget() : nullptr;
+	for (int32 Index = 0; Highlighted && Index < Rows.Num(); ++Index)
+	{
+		if (GetRowTarget(Index) == Highlighted)
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+void UBattleCommandMenuWidget::MoveLitRow(int32 Direction)
+{
+	const int32 Count = Rows.Num();
+	if (!bShowing || Count == 0 || Direction == 0)
+	{
+		return;
+	}
+	const int32 Step = Direction > 0 ? 1 : -1;
+	const int32 From = GetLitRow();
+	int32 Index = From != INDEX_NONE ? From : (Step > 0 ? Count - 1 : 0); // unlit: the first step lands on the first / last
+	for (int32 Tried = 0; Tried < Count; ++Tried)
+	{
+		Index = (Index + Step + Count) % Count;
+		if (IsNavigableRow(Index))
+		{
+			LitRow = Index;
+			HoverRow(Index); // a target row highlights its target: the marker and camera follow, as hover
+			PushToWidgets();
+			return;
+		}
+	}
+}
+
+bool UBattleCommandMenuWidget::PressLitRow()
+{
+	const int32 Lit = bShowing ? GetLitRow() : INDEX_NONE;
+	if (Lit == INDEX_NONE)
+	{
+		return false;
+	}
+	PressRow(Lit); // a target row picks its target, as Enter / Space (D-267)
+	return true;
 }
 
 void UBattleCommandMenuWidget::HandleInputMethodChanged(ECommonInputType InputType)
@@ -799,8 +872,7 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		DurabilityText->SetVisibility(bShowing && !DurabilityLines.IsEmpty() ? ESlateVisibility::HitTestInvisible
 																			  : ESlateVisibility::Collapsed);
 	}
-	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
-	const AActor *Highlighted = Menu ? Menu->GetHighlightedTarget() : nullptr;
+	const int32 Lit = GetLitRow(); // B-582c: W / S's row, else the highlighted target's
 	for (int32 Index = 0; Index < RowButtons.Num(); ++Index)
 	{
 		UButton *Button = RowButtons[Index];
@@ -822,7 +894,7 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		}
 		const FPieMenuButtonData &Row = Rows[Index];
 		const bool bFooter = BattleCommandMenuBuild::IsFooterRow(Row.Category);
-		const bool bHighlighted = Highlighted && GetRowTarget(Index) == Highlighted;
+		const bool bHighlighted = Index == Lit;
 		Button->SetStyle(BattleCommandMenuBuild::RowStyle(bHighlighted, bFooter));
 
 		const FKey Key = RowKeys.IsValidIndex(Index) ? RowKeys[Index] : FKey();
@@ -881,6 +953,7 @@ FString UBattleCommandMenuWidget::GetCommandMenuString() const
 								  Rows.Num(), *ActionsLine.ToString(), *Title.ToString(),
 								  DurabilityLines.IsEmpty() ? TEXT("none")
 															: *FText::Join(FText::FromString(TEXT(", ")), DurabilityLines).ToString());
+	Out += FString::Printf(TEXT(" lit=%d"), GetLitRow()); // B-582c: W / S's row (-1: none)
 	if (Panel.bShown) // B-592
 	{
 		const FText Comma = FText::FromString(TEXT(", "));
