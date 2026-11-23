@@ -812,9 +812,8 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildMainMenuButtons() c
     const FText SkillsName = NSLOCTEXT("CombatCommandMenu", "Skills", "Skills");
     if (BuildSkillKindButtons().IsEmpty())
     {
-        Buttons.Add(FPieMenuButtonData::MakeDisabledButton(TEXT("Skills"), SkillsName,
-                                                           NSLOCTEXT("CombatCommandMenu", "NoSkills", "No skills to use."),
-                                                           EPieMenuCategory::Skills));
+        // B-582c (Crown, 2026-11-23): the greyed row says enough; no reason line under it.
+        Buttons.Add(FPieMenuButtonData::MakeDisabledButton(TEXT("Skills"), SkillsName, FText::GetEmpty(), EPieMenuCategory::Skills));
     }
     else
     {

@@ -80,6 +80,8 @@ namespace BattleCommandMenuStyle
 	constexpr float MaxSelectorFillLuminance = 0.08f;
 	/** B-582c: an accent darker than this vanishes as an outline on the dark panel (Darkness): the pale outline instead. */
 	constexpr float MinSelectorOutlineLuminance = 0.05f;
+	/** B-582c: a greyed main-menu row's key chip, dimmed with the row. TODO: tune in PIE */
+	constexpr float GreyedKeyCapOpacity = 0.45f;
 }
 
 namespace BattleCommandMenuBuild
@@ -612,8 +614,11 @@ void UBattleCommandMenuWidget::RefreshKeys()
 	TArray<bool> Enabled;
 	for (const FPieMenuButtonData &Row : Rows)
 	{
+		// B-582c (Crown): Attack, Skills and Items keep their key chip when greyed (greyed with the row), so 1 / 2 / 3 stay put.
+		const bool bMainRow = bAtMainMenu && (Row.Category == EPieMenuCategory::Attack || Row.Category == EPieMenuCategory::Skills ||
+											  Row.Category == EPieMenuCategory::Items);
 		Categories.Add(Row.Category);
-		Enabled.Add(Row.bEnabled && Row.Category != EPieMenuCategory::SectionHeader);
+		Enabled.Add((Row.bEnabled || bMainRow) && Row.Category != EPieMenuCategory::SectionHeader);
 	}
 	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
 	const TArray<int32> KeyForRow = BattleHUDView::AssignMenuKeys(Categories, Enabled, bAtMainMenu,
@@ -991,8 +996,9 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		{
 			Cap->SetBrush(BattleCommandMenuBuild::KeyCapBrush(Key));
 			KeyText->SetText(BattleCommandMenuBuild::ShortKeyName(Key));
-			KeyText->SetColorAndOpacity(FSlateColor(BattleCommandMenuBuild::KeyTextColor(Key)));
+			KeyText->SetColorAndOpacity(FSlateColor(Row.bEnabled ? BattleCommandMenuBuild::KeyTextColor(Key) : WoRMenuStyle::OffColor));
 		}
+		Cap->SetRenderOpacity(Row.bEnabled ? 1.0f : GreyedKeyCapOpacity); // a greyed row's chip greys with it
 
 		Icon->SetVisibility(Row.Icon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		if (Row.Icon)

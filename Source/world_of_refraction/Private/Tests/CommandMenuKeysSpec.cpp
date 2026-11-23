@@ -595,6 +595,30 @@ void FCommandMenuKeysSpec::Define()
 		TestEqual(TEXT("the summary is the level alone"), View->GetPanel().Summary.ToString(), FString(TEXT("Lv II")));
 	});
 
+	It("keeps a greyed main-menu row's key chip and gives greyed Skills no reason line (B-582c, Crown)", [this]()
+	{
+		if (!StartDuel()) // no weapon, no skills: Attack, Skills and Items all greyed
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
+		const FText *Skills = View->GetRowLabels().FindByPredicate([](const FText &Label) { return Label.ToString().Contains(TEXT("Skills")); });
+		if (TestNotNull(TEXT("a Skills row"), Skills))
+		{
+			TestTrue(TEXT("greyed Skills keeps its key chip"), Skills->ToString().StartsWith(TEXT("[")));
+			TestFalse(TEXT("and has no reason line"), Skills->ToString().Contains(TEXT("(")));
+		}
+		const FText *Attack = View->GetRowLabels().FindByPredicate([](const FText &Label) { return Label.ToString().Contains(TEXT("Attack")); });
+		TestTrue(TEXT("greyed Attack keeps its key chip too"), Attack && Attack->ToString().StartsWith(TEXT("[")));
+	});
+
 	It("moves the lit row with W / S (wrapping), opens it with D, picks a target with D, backs out with A (B-582c, D-269)", [this]()
 	{
 		if (!StartSkilledDuel(true)) // Attack and Skills open; Items greyed (W / S skip it)
