@@ -156,6 +156,7 @@ void ACombatPlayerController::BeginPlay()
 	bEnableMouseOverEvents = true;
 	bEnableClickEvents = true;
 	DefaultClickTraceChannel = ECC_Pawn;
+	CurrentClickTraceChannel = ECC_Pawn; // the traces read this one, copied from the default before BeginPlay (InitInputSystem)
 
 	// The combat input mapping context, then the code-built menu keys above it (WoRInputPriority, B-129).
 	if (UEnhancedInputLocalPlayerSubsystem *Subsystem =

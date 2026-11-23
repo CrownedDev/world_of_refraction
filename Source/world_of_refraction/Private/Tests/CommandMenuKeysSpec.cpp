@@ -19,6 +19,8 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
 #include "Infusion/ClassColors.h"
 #include "InputCoreTypes.h"
@@ -840,6 +842,20 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("move input is ignored"), Controller->IsMoveInputIgnored());
 		Pawn->AddMovementInput(FVector::ForwardVector, 1.0f); // what a W mapped to walking would do
 		TestTrue(TEXT("no movement queued"), Pawn->GetPendingMovementInputVector().IsNearlyZero());
+	});
+
+	It("traces the pointer on the channel a fighter's capsule blocks (B-582c QA, D-270)", [this]()
+	{
+		ACombatPlayerController *Controller = TestWorld->GetWorld()->SpawnActor<ACombatPlayerController>();
+		ACharacter *Fighter = TestWorld->GetWorld()->SpawnActor<ACharacter>();
+		if (!TestNotNull(TEXT("the fight's player controller"), Controller) || !TestNotNull(TEXT("a fighter"), Fighter))
+		{
+			return;
+		}
+		TestEqual(TEXT("hover and click trace the Pawn channel"), Controller->CurrentClickTraceChannel.GetValue(), ECC_Pawn);
+		TestEqual(TEXT("the fighter's capsule blocks that channel"),
+				  Fighter->GetCapsuleComponent()->GetCollisionResponseToChannel(Controller->CurrentClickTraceChannel), ECR_Block);
+		TestTrue(TEXT("mouse-over and click events are on"), Controller->bEnableMouseOverEvents && Controller->bEnableClickEvents);
 	});
 
 	It("steps back out of the Position picker without moving (B-588)", [this]()
