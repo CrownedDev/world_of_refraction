@@ -1372,8 +1372,18 @@ void FCombatCameraDirectorSpec::Define()
 		TestFalse(TEXT("movement off: no close-up (D-262 d)"), Director->IsIntelViewShowing());
 		TestEqual(TEXT("movement off: no move"), Director->GetIntelMoveCount(), MovesBeforeOff);
 		TestTrue(TEXT("movement off: the camera stays still"), CameraActor->GetActorTransform().Equals(Still));
-		HUD->CloseIntel();
 		Director->SetCameraMovementOff(false);
+		TestTrue(TEXT("movement back on with Intel open: the close-up again"), Director->IsIntelViewShowing());
+
+		// Review: a new turn with Intel open shows that turn's view, then the open tab's close-up again.
+		AActor *NextActor = Director->GetViewedActor() == Hero ? Ally : Hero;
+		const int32 MovesBeforeTurn = Director->GetIntelMoveCount();
+		Orchestrator->OnActorTurnStarted.Broadcast(NextActor, 2);
+		TestTrue(TEXT("the next party member's turn"), Director->GetViewedActor() == NextActor);
+		TestTrue(TEXT("a new turn with Intel open: the close-up again"), Director->IsIntelViewShowing());
+		TestEqual(TEXT("one move for it"), Director->GetIntelMoveCount(), MovesBeforeTurn + 1);
+		HUD->CloseIntel();
+		TestFalse(TEXT("closed: the turn view"), Director->IsIntelViewShowing());
 	});
 
 	Describe("boss cinematics (B-406)", [this]()
