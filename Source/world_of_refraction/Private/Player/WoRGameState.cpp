@@ -194,9 +194,10 @@ EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
 	if (bReviveWaitsForFight || !WoRRestSpot::CanReviveHere(GetWorld()))
 	{
 		// Review: the client's menu has closed, so it hears why (a passed revive is waiting, or nothing to revive).
+		// B-589 (Q-450 = B): every vote line names the opponent, never its rank (D-187).
 		Starter->Client_ShowFeatureMessage(bReviveWaitsForFight
-			? NSLOCTEXT("WoRGameState", "ReviveVoteAlreadyWaits", "The mini-boss already returns when the fight ends.")
-			: NSLOCTEXT("WoRGameState", "ReviveVoteNothing", "There is no mini-boss to revive here."));
+			? ReviveVote::MakeLine(ReviveVote::ELine::AlreadyWaits, WoRRestSpot::GetReviveOpponentName(GetWorld()))
+			:NSLOCTEXT("WoRGameState", "ReviveVoteNothing", "There is no one to revive here."));
 		return EReviveVoteResult::Failed;
 	}
 	TArray<int32> PlayerIds;
@@ -225,9 +226,8 @@ EReviveVoteResult AWoRGameState::StartReviveVote(AWoRPlayerState *Starter)
 	{
 		GetWorldTimerManager().SetTimer(ReviveVoteTimer, this, &AWoRGameState::TickReviveVote, REVIVE_VOTE_TICK_SECONDS, true);
 		// Placeholder until the real screen (D-024): every other voter is told how to answer.
-		const FText Ask = FText::Format(NSLOCTEXT("WoRGameState", "ReviveVoteAsk",
-												  "{0} wants to revive the mini-boss: vote in the rest menu, or type wor.Trial.Vote yes / no."),
-										FText::FromString(Starter->GetPlayerName()));
+		const FText Ask = ReviveVote::MakeLine(ReviveVote::ELine::Ask, WoRRestSpot::GetReviveOpponentName(GetWorld()),
+											   FText::FromString(Starter->GetPlayerName()));
 		for (APlayerState *Player : PlayerArray)
 		{
 			AWoRPlayerState *Voter = Cast<AWoRPlayerState>(Player);
@@ -317,7 +317,7 @@ void AWoRGameState::CloseReviveVote(EReviveVoteResult Result)
 	UE_LOG(LogWoR, Log, TEXT("[ReviveVote] closed: %s"), ReviveVote::ResultName(Result));
 	if (Result != EReviveVoteResult::Passed)
 	{
-		TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVoteFailed", "The mini-boss is not revived (not everyone agreed)."));
+		TellEveryone(ReviveVote::MakeLine(ReviveVote::ELine::Failed, WoRRestSpot::GetReviveOpponentName(GetWorld())));
 		return;
 	}
 	if (IsAnyFightActive())
@@ -327,7 +327,7 @@ void AWoRGameState::CloseReviveVote(EReviveVoteResult Result)
 		// reload doesn't cut off the victory / level-drop screens (it fires within a tick of the fight ending).
 		bReviveWaitsForFight = true;
 		GetWorldTimerManager().SetTimer(ReviveVoteTimer, this, &AWoRGameState::TickReviveVote, REVIVE_VOTE_TICK_SECONDS, true);
-		TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVoteWaits", "Everyone agreed: the mini-boss returns when the fight ends."));
+		TellEveryone(ReviveVote::MakeLine(ReviveVote::ELine::Waits, WoRRestSpot::GetReviveOpponentName(GetWorld())));
 		return;
 	}
 	ReviveAfterVote();
@@ -336,13 +336,14 @@ void AWoRGameState::CloseReviveVote(EReviveVoteResult Result)
 void AWoRGameState::ReviveAfterVote()
 {
 	// Review: checked again when it happens (revivals may be used up by now); everyone hears only what really happened.
+	const FText Opponent = WoRRestSpot::GetReviveOpponentName(GetWorld()); // read before the reload removes its rest spot
 	if (WoRRestSpot::CanReviveHere(GetWorld()) && WoRRestSpot::ReviveMiniBoss(GetWorld())) // the level reloads after this
 	{
-		TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVotePassed", "Everyone agreed: the mini-boss returns."));
+		TellEveryone(ReviveVote::MakeLine(ReviveVote::ELine::Passed, Opponent));
 		return;
 	}
 	UE_LOG(LogWoR, Warning, TEXT("[ReviveVote] passed, but the revive was refused"));
-	TellEveryone(NSLOCTEXT("WoRGameState", "ReviveVoteRefusedLate", "Everyone agreed, but the mini-boss can't be revived now."));
+	TellEveryone(ReviveVote::MakeLine(ReviveVote::ELine::RefusedLate, Opponent));
 }
 
 void AWoRGameState::TellEveryone(const FText &Message)

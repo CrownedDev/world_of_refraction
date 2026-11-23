@@ -75,4 +75,20 @@ namespace ReviveVote
 
 	/** Debug: "open: 2 of 3 yes, 12 s left" / "closed: passed". */
 	WORLD_OF_REFRACTION_API FString GetVoteString(const FReviveVote &Vote, double Now);
+
+	/** B-589: the vote's messages to the players. */
+	enum class ELine : uint8
+	{
+		AlreadyWaits, // a passed revive waits for a fight to end
+		Ask,		  // another voter is asked (Starter starts it)
+		Failed,		  // not everyone agreed
+		Waits,		  // passed, waits for the fight to end
+		Passed,		  // passed, the level reloads
+		RefusedLate,  // passed, but it can't be revived now
+		Refused		  // a client's Revive press refused (AWoRPlayerState::ServerReviveMiniBoss)
+	};
+
+	/** B-589 (Q-450 = B, D-187): Line's words, naming the opponent ("the Ash Warden", WoRRestSpot::GetReviveOpponentName),
+	 *  never its rank. Starter is used by Ask only. */
+	WORLD_OF_REFRACTION_API FText MakeLine(ELine Line, const FText &OpponentName, const FText &Starter = FText::GetEmpty());
 }
