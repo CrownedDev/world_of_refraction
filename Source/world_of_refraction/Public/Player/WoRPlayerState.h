@@ -106,9 +106,9 @@ public:
 
 	/** B-187d: this player's rest press reached the host (ServerInteractFeature), which rested the party; their own
 	 *  rest menu opens on their screen. B-187e: with what the host knows of the spot's mini-boss (Revive shows when
-	 *  bCanRevive, labelled RevivalNumber). */
+	 *  bCanRevive, labelled RevivalNumber). B-589: and the mini-boss's name, which the row says (Q-450). */
 	UFUNCTION(Client, Reliable)
-	void Client_OpenRestMenu(bool bCanRevive, int32 RevivalNumber);
+	void Client_OpenRestMenu(bool bCanRevive, int32 RevivalNumber, const FText &OpponentName);
 
 	/** B-187e: a client pressed Revive in its rest menu. Q-187e (Crown, 2026-11-08): it starts the revive vote
 	 *  (AWoRGameState::StartReviveVote) if the mini-boss of the run's last rest spot can be revived and this player stands
