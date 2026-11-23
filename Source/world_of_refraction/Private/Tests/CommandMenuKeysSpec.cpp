@@ -111,6 +111,60 @@ BEGIN_DEFINE_SPEC(FCommandMenuKeysSpec, "WoR.UI.CommandMenu.Keys",
 		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
 		return TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero);
 	}
+
+	/** B-592: a Generic with a Sword and a Hammer (the Sword in hand), owned, with an infusion VFX component. */
+	bool StartTwoWeaponDuel()
+	{
+		if (!Orchestrator || !Menu)
+		{
+			return false;
+		}
+		UCharacterData *Data = FWoRTestWorld::NewCharacterData();
+		Data->CharacterClass = ECharacterClass::Generic;
+		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
+		Sword->Name = TEXT("Sword");
+		UWeaponData *Hammer = NewObject<UWeaponData>(GetTransientPackage());
+		Hammer->Name = TEXT("Hammer");
+		ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(Data, Sword);
+		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("Combatants spawned"), Loadout && Foe))
+		{
+			return false;
+		}
+		Hero = Loadout->GetOwner();
+		MenuKeysAddLoadout(Foe);
+		UInventoryComponent *Inventory = Hero->FindComponentByClass<UInventoryComponent>();
+		if (!TestTrue(TEXT("a saved loadout"), Inventory && Inventory->SavedLoadouts.IsValidIndex(Inventory->ActiveLoadoutIndex)))
+		{
+			return false;
+		}
+		FCombatLoadout &Active = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
+		Active.PrimarySlotType = EPrimarySlotType::Weapon;
+		Active.bShowPrimary = true;
+		Active.PrimaryWeapon.WeaponEntry.PersistentID = FGuid::NewGuid();
+		Active.SecondarySlotType = ESecondarySlotType::Weapon;
+		Active.SecondaryWeapon.WeaponEntry.Weapon = Hammer;
+		Active.SecondaryWeapon.WeaponEntry.PersistentID = FGuid::NewGuid();
+		Inventory->Weapons.Add(Active.PrimaryWeapon.WeaponEntry); // the fight keeps only owned gear
+		Inventory->Weapons.Add(Active.SecondaryWeapon.WeaponEntry);
+		if (!Hero->FindComponentByClass<UInfusionVFXComponent>())
+		{
+			UInfusionVFXComponent *VFX = NewObject<UInfusionVFXComponent>(Hero);
+			Hero->AddInstanceComponent(VFX);
+			VFX->RegisterComponent();
+		}
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero}, {Foe});
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		return TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero);
+	}
+
+	/** B-592: whether the view's corner hints hold Label on Key (the keyboard's, headless). */
+	static bool HasHint(const UBattleCommandMenuWidget *View, const TCHAR *Label, const FKey &Key)
+	{
+		return View->GetHints().ContainsByPredicate([Label, &Key](const FBattleMenuHint &Hint)
+													{ return Hint.Label.ToString() == Label && Hint.KeyId == Key; });
+	}
 END_DEFINE_SPEC(FCommandMenuKeysSpec)
 
 void FCommandMenuKeysSpec::Define()
@@ -270,7 +324,7 @@ void FCommandMenuKeysSpec::Define()
 			return;
 		}
 		TestTrue(TEXT("Attack key"), Menu->PressMenuKey(EPieMenuCategory::Attack));
-		TestEqual(TEXT("the header"), Menu->GetViewTitle().ToString(), FString(TEXT("Attack > choose a target")));
+		TestEqual(TEXT("the header"), Menu->GetViewTitle().ToString(), FString(TEXT("Attack · choose a target"))); // B-592: refine_v4's heading
 		TestTrue(TEXT("Back key"), Menu->PressMenuKey(EPieMenuCategory::Back));
 		TestTrue(TEXT("the main menu"), Menu->IsAtMainMenu());
 	});
@@ -426,6 +480,109 @@ void FCommandMenuKeysSpec::Define()
 		TestFalse(TEXT("1 is the Attack picker's only"), Menu->PressMenuKey(EPieMenuCategory::Attack));
 		TestTrue(TEXT("Enter / Space picks the highlighted foe there too"), Menu->PressMenuKey(EPieMenuCategory::Target));
 		TestNull(TEXT("and leaves the picker"), Menu->GetHighlightedTarget());
+	});
+
+	It("opens the Attack step small, and 2 / 3 open the weapon and infusion lines, not Skills / Items (B-592, D-268)", [this]()
+	{
+		if (!StartTwoWeaponDuel())
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		TestTrue(TEXT("two weapons"), Menu->GetCurrentCapabilities().bCanSwitchWeapon);
+		FPieMenuButtonData Attack;
+		Attack.Category = EPieMenuCategory::Attack;
+		Attack.DisplayName = FText::FromString(TEXT("Attack"));
+		Menu->HandleSelection(Attack);
+
+		FTargetPanelView Panel = View->GetPanel();
+		TestTrue(TEXT("the panel shows"), Panel.bShown && Panel.Open == ETargetPanelLine::None);
+		TestTrue(TEXT("small: no weapon, element or level chips"), Panel.Weapons.IsEmpty() && Panel.Elements.IsEmpty() && Panel.Levels.IsEmpty());
+		TestTrue(TEXT("the summary names the weapon"), Panel.Summary.ToString().StartsWith(TEXT("Sword")));
+		TestTrue(TEXT("and the level"), Panel.Summary.ToString().Contains(TEXT("No infusion")));
+		TestTrue(TEXT("hint 2 Weapon"), HasHint(View, TEXT("Weapon"), EKeys::Two));
+		TestTrue(TEXT("hint 3 Infusion"), HasHint(View, TEXT("Infusion"), EKeys::Three) || HasHint(View, TEXT("Infusion level"), EKeys::Three));
+		TestFalse(TEXT("no infusion key hints while it is closed"), HasHint(View, TEXT("Level"), EKeys::T));
+
+		TestTrue(TEXT("2 / X: the weapon line"), Menu->PressMenuKey(EPieMenuCategory::Skills));
+		Panel = View->GetPanel();
+		TestTrue(TEXT("not Skills: still the Attack step"), Panel.bShown && Menu->GetHighlightedTarget() == Foe);
+		TestEqual(TEXT("its heading"), View->GetTitle().ToString(), FString(TEXT("Attack · weapon")));
+		if (TestEqual(TEXT("both weapons"), Panel.Weapons.Num(), 2))
+		{
+			TestEqual(TEXT("Sword first"), Panel.Weapons[0].ToString(), FString(TEXT("Sword")));
+			TestEqual(TEXT("in hand"), Panel.ActiveWeapon, 0);
+		}
+		TestTrue(TEXT("only the weapon line"), Panel.Elements.IsEmpty() && Panel.Levels.IsEmpty());
+		TestTrue(TEXT("hint 2 Next weapon"), HasHint(View, TEXT("Next weapon"), EKeys::Two));
+
+		TestTrue(TEXT("2 / X again: the next weapon"), Menu->PressMenuKey(EPieMenuCategory::Skills));
+		Panel = View->GetPanel();
+		TestTrue(TEXT("the Hammer in hand, the line still open"), Panel.Open == ETargetPanelLine::Weapon && Panel.ActiveWeapon == 1);
+		TestTrue(TEXT("the summary follows"), Panel.Summary.ToString().StartsWith(TEXT("Hammer")));
+
+		TestTrue(TEXT("3 / Y: the infusion lines"), Menu->PressMenuKey(EPieMenuCategory::Items));
+		Panel = View->GetPanel();
+		TestTrue(TEXT("not Items: the infusion line, the weapon line hidden"), Panel.Open == ETargetPanelLine::Infusion && Panel.Weapons.IsEmpty());
+		TestEqual(TEXT("its heading"), View->GetTitle().ToString(), FString(TEXT("Attack · infusion")));
+		TestEqual(TEXT("levels none, I, II"), Panel.Levels.Num(), MENU_KEYS_INFUSION_LEVELS);
+		TestTrue(TEXT("hint T Level while it is open"), HasHint(View, TEXT("Level"), EKeys::T));
+		TestTrue(TEXT("T steps the level, as now"), Menu->PressMenuKey(EPieMenuCategory::CycleLevel));
+		TestEqual(TEXT("the level chip follows"), View->GetPanel().ActiveLevel, 1);
+
+		TestTrue(TEXT("3 / Y again closes it"), Menu->PressMenuKey(EPieMenuCategory::Items));
+		Panel = View->GetPanel();
+		TestTrue(TEXT("back to the small panel"), Panel.Open == ETargetPanelLine::None && Panel.Levels.IsEmpty());
+		TestTrue(TEXT("its summary has the level"), Panel.Summary.ToString().Contains(TEXT("Lv I")));
+		Menu->PressMenuKey(EPieMenuCategory::Skills);
+		Menu->PressMenuKey(EPieMenuCategory::Back);
+		TestTrue(TEXT("Back closes an open line first"), View->GetPanel().bShown && View->GetPanel().Open == ETargetPanelLine::None);
+		for (const FText &Label : View->GetRowLabels())
+		{
+			TestFalse(TEXT("no size line"), Label.ToString().Contains(TEXT("Size")));
+			TestFalse(TEXT("no backlash line"), Label.ToString().Contains(TEXT("backlash")));
+		}
+	});
+
+	It("shows no element for a spell of one fixed element, only its level (B-592, D-268)", [this]()
+	{
+		if (!StartTwoWeaponDuel())
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		FPieMenuButtonData Spell;
+		Spell.Category = EPieMenuCategory::Spell;
+		Spell.DisplayName = FText::FromString(TEXT("Shade Lance"));
+		Spell.DataReference = NewObject<USpellData>(GetTransientPackage());
+		Menu->HandleSelection(Spell);
+		if (!TestTrue(TEXT("the spell's target step"), View->GetPanel().bShown))
+		{
+			return;
+		}
+		TestFalse(TEXT("no weapon hint for a spell"), HasHint(View, TEXT("Weapon"), EKeys::Two));
+		TestTrue(TEXT("hint 3 Infusion level"), HasHint(View, TEXT("Infusion level"), EKeys::Three));
+		TestTrue(TEXT("3 / Y"), Menu->PressMenuKey(EPieMenuCategory::Items));
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 2);
+		const FTargetPanelView Panel = View->GetPanel();
+		TestTrue(TEXT("no element line"), Panel.Elements.IsEmpty());
+		TestEqual(TEXT("only the level line"), Panel.Levels.Num(), MENU_KEYS_INFUSION_LEVELS);
+		TestEqual(TEXT("a level chip click picks it"), Panel.ActiveLevel, 2);
+		TestFalse(TEXT("no element key hint"), HasHint(View, TEXT("Element"), EKeys::R));
+		Menu->PressMenuKey(EPieMenuCategory::Items);
+		TestEqual(TEXT("the summary is the level alone"), View->GetPanel().Summary.ToString(), FString(TEXT("Lv II")));
 	});
 
 	It("steps back out of the Position picker without moving (B-588)", [this]()
