@@ -67,7 +67,9 @@ namespace BattleCardStyle
 
 	inline const FLinearColor CardColor(0.0f, 0.0f, 0.0f, 0.55f);
 	inline const FLinearColor TextColor = FLinearColor::White;
-	inline const FLinearColor ActingColor(1.0f, 0.78f, 0.25f); // warm gold: whose turn it is
+	// B-582c (Crown, 2026-11-23): whose turn it is shows as a frame on the acting party card, in its selector colour
+	// (UBattleCommandMenuWidget::GetSelectorColoursFor); the "> " name marker and the gold name are gone.
+	inline constexpr float ActingFrameWidth = 2.0f;
 	// B-436b (Crown, 2026-11-14): darker HP red and EP blue so the white numbers read; low HP a hotter pink-red, apart from
 	// Burn's orange.
 	inline const FLinearColor PartyHPColor(0.45f, 0.04f, 0.06f);
@@ -107,6 +109,8 @@ struct FBattleHUDCard
 	TWeakObjectPtr<UCharacterDataComponent> CharData;
 	bool bParty = false;
 	bool bActing = false;
+	/** B-582c: the acting party card's frame colour (the fighter's selector outline); set with bActing. */
+	FLinearColor ActingOutline = FLinearColor::Transparent;
 	bool bAlive = true;
 	bool bShowEP = true;
 	/** B-391b: the EP line is the absorption pool. */

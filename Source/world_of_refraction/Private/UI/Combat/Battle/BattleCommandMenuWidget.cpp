@@ -729,15 +729,19 @@ void UBattleCommandMenuWidget::RefreshSelectorColours()
 {
 	// B-582c (Crown, 2026-11-23): the selector is the acting character's colour; overrides UI_Theme §3's violet here only.
 	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
-	const AActor *Acting = Menu ? Menu->GetCurrentActor() : nullptr;
-	const UCharacterDataComponent *Data = Acting ? Acting->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	GetSelectorColoursFor(Menu ? Menu->GetCurrentActor() : nullptr, SelectorFill, SelectorOutline);
+}
+
+void UBattleCommandMenuWidget::GetSelectorColoursFor(const AActor *Fighter, FLinearColor &OutFill, FLinearColor &OutOutline)
+{
+	const UCharacterDataComponent *Data = Fighter ? Fighter->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	if (Data && Data->CharacterData)
 	{
-		MakeSelectorColours(ClassColors::GetColorForCharacter(Data->CharacterData), SelectorFill, SelectorOutline);
+		MakeSelectorColours(ClassColors::GetColorForCharacter(Data->CharacterData), OutFill, OutOutline);
 		return;
 	}
-	SelectorFill = WoRMenuStyle::FocusColor;
-	SelectorOutline = WoRMenuStyle::CyanColor;
+	OutFill = WoRMenuStyle::FocusColor;
+	OutOutline = WoRMenuStyle::CyanColor;
 }
 
 bool UBattleCommandMenuWidget::IsPickedOnField(int32 RowIndex) const

@@ -189,6 +189,9 @@ public:
 	/** B-582c: Accent darkened until white text on it reads well (about the old violet's contrast), and an outline that
 	 *  shows on the dark panel (the pale crystal outline for a near-black colour such as Darkness). */
 	static void MakeSelectorColours(const FLinearColor &Accent, FLinearColor &OutFill, FLinearColor &OutOutline);
+	/** B-582c: Fighter's selector colours (its class / element colour through MakeSelectorColours); violet / cyan
+	 *  without character data. The menu's lit row and Act tag, and the acting party card's frame. */
+	static void GetSelectorColoursFor(const AActor *Fighter, FLinearColor &OutFill, FLinearColor &OutOutline);
 	/** WCAG relative luminance of a linear colour (debug, specs: contrast checks). */
 	static float GetRelativeLuminance(const FLinearColor &Colour);
 	/** B-436g: the corner hints of this view, in row order. */
