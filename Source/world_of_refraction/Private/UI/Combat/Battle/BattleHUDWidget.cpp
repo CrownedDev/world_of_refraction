@@ -397,6 +397,7 @@ void UBattleHUDWidget::Teardown()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(TargetMarkerTimer);
+		World->GetTimerManager().ClearTimer(LowHPPulseTimer); // B-436b
 	}
 	bBound = false;
 }
@@ -672,6 +673,7 @@ void UBattleHUDWidget::RefreshPools()
 		}
 		Card.bAlive = CharData->bIsAlive;
 		Card.HPFraction = BattleHUDView::PoolFraction(CharData->CurrentHP, CharData->MaxHP);
+		Card.bLowHP = Card.bParty && BattleHUDView::IsLowHP(Card.bAlive, Card.HPFraction); // B-436b
 		Card.HPLine = BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), CharData->CurrentHP, CharData->MaxHP);
 		// B-391b: a Broken Darkness character's EP is its absorption pool, which can overload past max (the old "Abs").
 		Card.bBrokenDarkness = CharData->IsBrokenDarkness();
@@ -696,6 +698,37 @@ void UBattleHUDWidget::RefreshPools()
 		CommandMenu->RefreshActionsLine(); // B-436g (D-260): the pips are on the menu's tab, live from the same events
 	}
 	PushToWidgets();
+	UpdateLowHPPulse();
+}
+
+void UBattleHUDWidget::UpdateLowHPPulse()
+{
+	UWorld *World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	FTimerManager &Timers = World->GetTimerManager();
+	const bool bAnyLow = Cards.ContainsByPredicate([](const FBattleHUDCard &Card) { return Card.bLowHP; });
+	if (!bAnyLow)
+	{
+		Timers.ClearTimer(LowHPPulseTimer); // Push already put every bar back to full opacity
+		return;
+	}
+	if (!Timers.IsTimerActive(LowHPPulseTimer))
+	{
+		Timers.SetTimer(LowHPPulseTimer, this, &UBattleHUDWidget::StepLowHPPulse, BattleHUDView::LOW_HP_PULSE_STEP_SECONDS, /*bLoop=*/true);
+	}
+}
+
+void UBattleHUDWidget::StepLowHPPulse()
+{
+	const UWorld *World = GetWorld();
+	const float Opacity = BattleHUDView::GetLowHPPulseOpacity(World ? World->GetTimeSeconds() : 0.0);
+	for (const FBattleHUDCard &Card : Cards)
+	{
+		BattleHUDCard::SetHPPulse(Card, Opacity);
+	}
 }
 
 TArray<FActiveSkillEffect> UBattleHUDWidget::GetStatusesOf(AActor *Actor) const
@@ -1033,6 +1066,8 @@ void UBattleHUDWidget::RefreshGear()
 		}
 		const FBattleGearNames Gear = BattleHUDView::ReadGearNames(Card.Actor.Get());
 		Card.GearLine = BattleHUDView::FormatGearLine(Gear);
+		// B-436b: the Combat Tier beside the name ("Garrick (C)"); it follows the gear, so it is read with it.
+		Card.TierLetter = Card.Actor.IsValid() ? WoRGameNames::GetTierLetter(WoRCombatTier::GetCombatTier(Card.Actor.Get())) : FText::GetEmpty();
 		const FText Tooltip = BattleHUDView::FormatGearTooltip(Gear);
 		// Review fix: the tooltip is set only when it changes (setting it rebuilds the Slate tooltip and can close an
 		// open one), not on every push.
@@ -1457,8 +1492,9 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 	const FBattleHUDCard *FeaturedCard = Cards.IsValidIndex(Featured) ? &Cards[Featured] : nullptr;
 	for (const FBattleHUDCard &Card : Cards)
 	{
-		Out += FString::Printf(TEXT("\n  %s %s%s%s | %s | %s | %s | %s, %d crack(s)"), Card.bParty ? TEXT("party") : TEXT("enemy"),
-							   *Card.Name.ToString(), Card.bActing ? TEXT(" (acting)") : TEXT(""), Card.bAlive ? TEXT("") : TEXT(" (down)"),
+		Out += FString::Printf(TEXT("\n  %s %s%s%s%s | %s | %s | %s | %s, %d crack(s)"), Card.bParty ? TEXT("party") : TEXT("enemy"),
+							   *BattleHUDView::FormatCardName(Card.Name, Card.TierLetter).ToString(), Card.bActing ? TEXT(" (acting)") : TEXT(""),
+							   Card.bAlive ? TEXT("") : TEXT(" (down)"), Card.bLowHP ? TEXT(" (low HP, pulsing)") : TEXT(""),
 							   *Card.HPLine.ToString(), Card.bShowEP ? *Card.EPLine.ToString() : TEXT("no EP"),
 							   Card.StatusLine.IsEmpty() ? TEXT("no statuses") : *Card.StatusLine.ToString(), *Card.BuildupLine.ToString(),
 							   Card.CracksShown);
