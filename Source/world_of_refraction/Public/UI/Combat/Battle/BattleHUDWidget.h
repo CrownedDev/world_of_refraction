@@ -299,6 +299,11 @@ private:
 	TWeakObjectPtr<AActor> MarkedTarget;
 	FTimerHandle TargetMarkerTimer;
 
+	/** B-436b: runs while a party card is low on HP (StepLowHPPulse dims and brightens its HP bar). */
+	FTimerHandle LowHPPulseTimer;
+	void UpdateLowHPPulse();
+	void StepLowHPPulse();
+
 	UPROPERTY(Transient)
 	TArray<FBattleDamageNumber> DamageNumbers;
 

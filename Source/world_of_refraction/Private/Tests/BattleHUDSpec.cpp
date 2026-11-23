@@ -273,6 +273,20 @@ void FBattleHUDSpec::Define()
 			TestEqual(TEXT("over max"), BattleHUDView::PoolFraction(50, 40), 1.0f);
 		});
 
+		It("pulses only a living card under 30% HP (B-436b)", [this]()
+		{
+			TestTrue(TEXT("under 30%: low"), BattleHUDView::IsLowHP(true, BattleHUDView::LOW_HP_FRACTION - KINDA_SMALL_NUMBER));
+			TestFalse(TEXT("at 30%: not low"), BattleHUDView::IsLowHP(true, BattleHUDView::LOW_HP_FRACTION));
+			TestFalse(TEXT("downed: never low"), BattleHUDView::IsLowHP(false, 0.0f));
+
+			const double Period = BattleHUDView::LOW_HP_PULSE_PERIOD_SECONDS;
+			TestEqual(TEXT("full at the start"), BattleHUDView::GetLowHPPulseOpacity(0.0), 1.0f, KINDA_SMALL_NUMBER);
+			TestEqual(TEXT("dimmest half-way"), BattleHUDView::GetLowHPPulseOpacity(Period * 0.5), BattleHUDView::LOW_HP_PULSE_MIN_OPACITY, KINDA_SMALL_NUMBER);
+			TestEqual(TEXT("full again each period"), BattleHUDView::GetLowHPPulseOpacity(Period * 3.0), 1.0f, KINDA_SMALL_NUMBER);
+			const float Between = BattleHUDView::GetLowHPPulseOpacity(Period * 0.25);
+			TestTrue(TEXT("in between, between"), Between > BattleHUDView::LOW_HP_PULSE_MIN_OPACITY && Between < 1.0f);
+		});
+
 		It("shows a Broken Darkness absorb line and its overload (B-391b)", [this]()
 		{
 			TestEqual(TEXT("absorb line"), BattleHUDView::FormatAbsorbLine(80, 100).ToString(), FString(TEXT("Barrier 80 / 100")));
@@ -427,6 +441,50 @@ void FBattleHUDSpec::Define()
 
 	Describe("the widgets on a duel", [this]()
 	{
+		It("names a party card without its tier and marks it low under 30% HP (B-436b)", [this]()
+		{
+			if (!StartDuel())
+			{
+				return;
+			}
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+			if (!TestTrue(TEXT("battle HUD widget and the hero's data"), HUD && HeroData))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe});
+			if (!TestTrue(TEXT("two cards, the party's first"), HUD->GetCards().Num() == 2 && HUD->GetCards()[0].bParty))
+			{
+				HUD->Teardown();
+				return;
+			}
+			// Crown, 2026-11-23: "We don't need the tier on names".
+			const FString Name = HUD->GetCards()[0].Name.ToString();
+			const FString WithTier = FString::Printf(TEXT("%s (%s)"), *Name, *WoRGameNames::GetTierLetter(WoRCombatTier::GetCombatTier(Hero)).ToString());
+			TestTrue(TEXT("wor.UI.Print names the hero"), HUD->GetBattleHUDString().Contains(TEXT("party ") + Name));
+			TestFalse(TEXT("no tier letter beside the name"), HUD->GetBattleHUDString().Contains(WithTier));
+			TestFalse(TEXT("full HP: not low"), HUD->GetCards()[0].bLowHP);
+
+			int32 LowHP = FMath::FloorToInt(HeroData->MaxHP * BattleHUDView::LOW_HP_FRACTION); // the most HP the HUD's own rule calls low
+			while (LowHP > 0 && !BattleHUDView::IsLowHP(true, BattleHUDView::PoolFraction(LowHP, HeroData->MaxHP)))
+			{
+				--LowHP;
+			}
+			if (TestTrue(TEXT("the hero has HP to be under 30% and alive"), LowHP >= 1))
+			{
+				HeroData->ServerSetHP(LowHP);
+				TestTrue(TEXT("the card is low"), HeroData->bIsAlive && HUD->GetCards()[0].bLowHP);
+				TestTrue(TEXT("wor.UI.Print says it pulses"), HUD->GetBattleHUDString().Contains(TEXT("low HP, pulsing")));
+				HeroData->ServerSetHP(HeroData->MaxHP);
+				TestFalse(TEXT("healed: not low"), HUD->GetCards()[0].bLowHP);
+				HeroData->ServerSetHP(0);
+				TestFalse(TEXT("downed: dimmed, never low"), !HeroData->bIsAlive && HUD->GetCards()[0].bLowHP);
+				TestFalse(TEXT("downed: no pulse in wor.UI.Print"), HUD->GetBattleHUDString().Contains(TEXT("low HP, pulsing")));
+			}
+			HUD->Teardown();
+		});
+
 		It("updates a card's HP line when its character is hit", [this]()
 		{
 			if (!StartDuel())

@@ -167,6 +167,18 @@ FText BattleHUDView::GetCombatantName(const AActor *Actor)
 	return FText::FromString(Actor->GetName());
 }
 
+bool BattleHUDView::IsLowHP(bool bAlive, float HPFraction)
+{
+	return bAlive && HPFraction < LOW_HP_FRACTION;
+}
+
+float BattleHUDView::GetLowHPPulseOpacity(double Seconds)
+{
+	const double Phase = FMath::Fmod(Seconds, LOW_HP_PULSE_PERIOD_SECONDS) / LOW_HP_PULSE_PERIOD_SECONDS;
+	const float Brightness = 0.5f + 0.5f * FMath::Cos(static_cast<float>(Phase) * UE_TWO_PI); // 1 at 0, 0 half-way
+	return FMath::Lerp(LOW_HP_PULSE_MIN_OPACITY, 1.0f, Brightness);
+}
+
 FText BattleHUDView::MakeStatusChip(const FActiveSkillEffect &Effect)
 {
 	const FText Name = WoRGameNames::GetSkillEffectTypeName(Effect.EffectType);
