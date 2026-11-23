@@ -41,8 +41,11 @@
 #include "UI/Combat/Battle/DamageNumberView.h" // FCombatHitShown: UFUNCTION handler parameter type
 #include "BattleHUDWidget.generated.h"
 
+class ACombatOrchestrator;
 class UBattleCommandMenuWidget;
 class UBattleIntelWidget;
+class UDefenseSystem;
+enum class ECombatState : uint8;
 class UBorder;
 class UCombatPresentationComponent;
 class UButton;
@@ -131,9 +134,13 @@ public:
 	/** Card index of each tab: party cards, then enemies. */
 	TArray<int32> GetIntelCardOrder() const;
 
-	/** The Status button: the view of everyone. From an inspected character it switches to that view, else it opens
-	 *  or closes the panel. */
+	/** The old view-all status list. OBSOLETE (B-587 QA, D-261): the Status button opens Intel on the party now
+	 *  (HandleStatusButtonClicked); nothing calls this. Kept until Crown's PIE pass (docs/PIE/B-587.md check 6). */
 	void ToggleAllStatuses();
+
+	/** B-587 QA: the Status button's click: Intel on the party, or closed. Public for specs. */
+	UFUNCTION()
+	void HandleStatusButtonClicked();
 
 	/** OBSOLETE (B-586, D-261): inspect moved to Intel; always INDEX_NONE now. Kept until PIE (docs/PIE/Sweep.md). */
 	int32 GetInspectedCardIndex() const { return InspectedCard; }
@@ -210,8 +217,19 @@ private:
 	UFUNCTION()
 	void HandleTurnStateChanged();
 
+	/** B-587 QA: close Intel when the fight moves on without the player; Why goes to the log. */
+	void CloseIntelForFight(const TCHAR *Why);
+
+	/** A guard / dodge prompt for a party member (the cue, then the window). */
 	UFUNCTION()
-	void HandleStatusButtonClicked();
+	void HandleDefenseCue(AActor *Defender, float TimeUntilWindow);
+
+	UFUNCTION()
+	void HandleDefenseWindowOpened(AActor *Defender, float AttackSize, float WindowDuration);
+
+	/** Victory, defeat, a draw or a flight. */
+	UFUNCTION()
+	void HandleCombatStateChanged(ECombatState NewState);
 
 	/** D-254: a left click on a party card (UBorder::OnMouseButtonDownEvent, one handler for all of them). */
 	UFUNCTION()
@@ -256,6 +274,8 @@ private:
 	TArray<TWeakObjectPtr<UCombatPresentationComponent>> BoundPresentations;
 	TWeakObjectPtr<UStatusBuildupManager> BoundBuildup;
 	TArray<TWeakObjectPtr<UStatusBarStateComponent>> BoundBarStates;
+	TWeakObjectPtr<UDefenseSystem> BoundDefense;
+	TWeakObjectPtr<ACombatOrchestrator> BoundOrchestrator;
 
 	UPROPERTY(Transient)
 	TArray<FBattleDamageNumber> DamageNumbers;

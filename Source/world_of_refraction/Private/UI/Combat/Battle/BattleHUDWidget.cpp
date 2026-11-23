@@ -14,6 +14,7 @@
 #include "Combat/Camera/CombatCameraDirector.h"
 #include "EngineUtils.h"
 #include "Combat/CombatPresentationComponent.h"
+#include "Combat/Defense/DefenseSystem.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/StatusBarStateComponent.h"
 #include "Combat/Actions/ActionPipsText.h"
@@ -170,6 +171,20 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 		TurnManager->OnTurnStarted.AddDynamic(this, &UBattleHUDWidget::HandleTurnStarted);
 	}
 	CurrentTurnNumber = BattleHUDView::ReadTurnNumber(this);
+
+	// B-587 QA: Intel closes by itself when the fight moves on without the player (a guard prompt, the fight's end).
+	if (UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(this))
+	{
+		BoundDefense = Defense;
+		Defense->OnDefenseCueTriggered.AddDynamic(this, &UBattleHUDWidget::HandleDefenseCue);
+		Defense->OnDefenseWindowOpened.AddDynamic(this, &UBattleHUDWidget::HandleDefenseWindowOpened);
+	}
+	for (TActorIterator<ACombatOrchestrator> It(GetWorld()); It; ++It)
+	{
+		BoundOrchestrator = *It;
+		It->OnCombatStateChanged.AddDynamic(this, &UBattleHUDWidget::HandleCombatStateChanged);
+		break; // one fight at a time, as FindBattleHUD
+	}
 
 	bBound = true;
 	RefreshPools();
@@ -338,7 +353,49 @@ void UBattleHUDWidget::Teardown()
 		TurnManager->OnTurnStarted.RemoveDynamic(this, &UBattleHUDWidget::HandleTurnStarted);
 	}
 	BoundTurnManager.Reset();
+	if (UDefenseSystem *Defense = BoundDefense.Get())
+	{
+		Defense->OnDefenseCueTriggered.RemoveDynamic(this, &UBattleHUDWidget::HandleDefenseCue);
+		Defense->OnDefenseWindowOpened.RemoveDynamic(this, &UBattleHUDWidget::HandleDefenseWindowOpened);
+	}
+	BoundDefense.Reset();
+	if (ACombatOrchestrator *Orchestrator = BoundOrchestrator.Get())
+	{
+		Orchestrator->OnCombatStateChanged.RemoveDynamic(this, &UBattleHUDWidget::HandleCombatStateChanged);
+	}
+	BoundOrchestrator.Reset();
 	bBound = false;
+}
+
+void UBattleHUDWidget::CloseIntelForFight(const TCHAR *Why)
+{
+	if (!bIntelOpen)
+	{
+		return;
+	}
+	UE_LOG(LogWoRUI, Log, TEXT("[BattleHUD] Intel closes: %s"), Why);
+	CloseIntel(); // the camera and the hidden pieces come back with it
+}
+
+void UBattleHUDWidget::HandleDefenseCue(AActor *Defender, float TimeUntilWindow)
+{
+	if (Cards.ContainsByPredicate([Defender](const FBattleHUDCard &Card) { return Card.bParty && Card.Actor.Get() == Defender; }))
+	{
+		CloseIntelForFight(TEXT("a guard prompt"));
+	}
+}
+
+void UBattleHUDWidget::HandleDefenseWindowOpened(AActor *Defender, float AttackSize, float WindowDuration)
+{
+	HandleDefenseCue(Defender, 0.0f);
+}
+
+void UBattleHUDWidget::HandleCombatStateChanged(ECombatState NewState)
+{
+	if (NewState != ECombatState::InProgress && NewState != ECombatState::Initializing)
+	{
+		CloseIntelForFight(TEXT("the fight ended"));
+	}
 }
 
 void UBattleHUDWidget::NativeConstruct()
@@ -1027,7 +1084,13 @@ void UBattleHUDWidget::ToggleAllStatuses()
 
 void UBattleHUDWidget::HandleStatusButtonClicked()
 {
-	ToggleAllStatuses();
+	// B-587 QA (D-261: Intel replaced the status list): open Intel on the party, or close it.
+	if (bIntelOpen)
+	{
+		CloseIntel();
+		return;
+	}
+	ToggleIntel();
 }
 
 void UBattleHUDWidget::HandleHitShown(AActor *Target, const FCombatHitShown &Hit)

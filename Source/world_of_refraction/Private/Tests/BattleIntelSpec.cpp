@@ -12,7 +12,10 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Character/PlayerBuild.h"
+#include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPresentationComponent.h"
+#include "Combat/Defense/DefenseSystem.h"
+#include "Combat/WoRFightSubsystem.h"
 #include "Combat/Resistance/EWoRDamageType.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -44,6 +47,7 @@ namespace
 	constexpr int32 INTEL_HIT_AMOUNT = 12;
 	constexpr int32 INTEL_PILLAR_COUNT = 3; // Mind, Body, Spirit
 	constexpr int32 INTEL_YOU_SPEC_TABS = 3; // you, a party member, an enemy
+	constexpr float INTEL_CUE_SECONDS = 0.5f; // any time: the HUD only reads who the prompt is for
 	constexpr int32 HERO_CARD = 0;
 	constexpr int32 FOE_CARD = 1;
 
@@ -380,6 +384,56 @@ void FBattleIntelSpec::Define()
 		{
 			TestEqual(*FString::Printf(TEXT("closed: %s back"), *Piece->GetName()), Piece->GetVisibility(), ESlateVisibility::SelfHitTestInvisible);
 		}
+		HUD->Teardown();
+	});
+
+	It("closes by itself on a party member's guard prompt and when the fight ends (B-587 QA)", [this]()
+	{
+		ACombatOrchestrator *Fight = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+		AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UBattleHUDWidget *HUD = Fight && Hero && Foe ? MakeHUD({Hero}, {Foe}) : nullptr;
+		UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(TestWorld->GetWorld());
+		if (!TestNotNull(TEXT("battle HUD"), HUD) || !TestNotNull(TEXT("defense system"), Defense))
+		{
+			return;
+		}
+		HUD->OpenIntel(HERO_CARD);
+		Defense->OnDefenseCueTriggered.Broadcast(Foe, INTEL_CUE_SECONDS);
+		TestTrue(TEXT("an enemy's cue leaves it open"), HUD->IsIntelOpen());
+		Defense->OnDefenseCueTriggered.Broadcast(Hero, INTEL_CUE_SECONDS);
+		TestFalse(TEXT("the party's guard cue closes it"), HUD->IsIntelOpen());
+		HUD->OpenIntel(HERO_CARD);
+		Defense->OnDefenseWindowOpened.Broadcast(Hero, INTEL_CUE_SECONDS, INTEL_CUE_SECONDS);
+		TestFalse(TEXT("the guard window closes it"), HUD->IsIntelOpen());
+		for (const ECombatState End : {ECombatState::Victory, ECombatState::Defeat, ECombatState::Fled})
+		{
+			HUD->OpenIntel(HERO_CARD);
+			Fight->OnCombatStateChanged.Broadcast(End);
+			TestFalse(*FString::Printf(TEXT("%s closes it"), *UEnum::GetValueAsString(End)), HUD->IsIntelOpen());
+		}
+		HUD->OpenIntel(HERO_CARD);
+		Fight->OnCombatStateChanged.Broadcast(ECombatState::InProgress);
+		TestTrue(TEXT("a fight still going leaves it open"), HUD->IsIntelOpen());
+		HUD->Teardown();
+	});
+
+	It("opens on the party from the Status button, and a second click closes it (B-587 QA)", [this]()
+	{
+		AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UBattleHUDWidget *HUD = Hero && Foe ? MakeHUD({Hero}, {Foe}) : nullptr;
+		if (!TestNotNull(TEXT("battle HUD"), HUD))
+		{
+			return;
+		}
+		HUD->HandleStatusButtonClicked();
+		TestTrue(TEXT("Intel on the party, not the old list"), HUD->IsIntelOpen() && HUD->GetIntelTab() == HERO_CARD && !HUD->IsStatusPanelOpen());
+		HUD->HandleStatusButtonClicked();
+		TestFalse(TEXT("closed"), HUD->IsIntelOpen() || HUD->IsStatusPanelOpen());
+		HUD->InspectCard(FOE_CARD);
+		HUD->HandleStatusButtonClicked();
+		TestFalse(TEXT("from an enemy's page it closes too"), HUD->IsIntelOpen());
 		HUD->Teardown();
 	});
 
