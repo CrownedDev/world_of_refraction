@@ -59,21 +59,24 @@ namespace CombatMenuKeys
 	FKey GetConfirmKeyboard() { return EKeys::Enter; }
 	FKey GetConfirmSpaceKeyboard() { return EKeys::SpaceBar; }
 
-	/** B-582c (D-269): W / S / D in the battle menu, the new HUD only; one action per key (D-063). No pad buttons: the
-	 *  D-pad and face buttons are the menu's own keys already. A is the Back row in GetMenuKeys. */
+	/** B-582c (D-269): W / S / D in the battle menu, the new HUD only; one action per key (D-063). A is the Back row in
+	 *  GetMenuKeys. D-270: the D-pad Up / Down move the target marker in a single-target pick only (elsewhere they are
+	 *  Position / Flee on the main menu). */
 	struct FMenuNavKey
 	{
 		const TCHAR *ActionName;
-		FKey Keyboard;
+		FKey Key;
 		EBattleMenuNav Nav;
 		const TCHAR *What;
 	};
 	const TArray<FMenuNavKey> &GetMenuNavKeys()
 	{
 		static const TArray<FMenuNavKey> Keys = {
-			{TEXT("IA_Combat_MenuRowUp"), EKeys::W, EBattleMenuNav::RowUp, TEXT("light the row above, wrapping")},
-			{TEXT("IA_Combat_MenuRowDown"), EKeys::S, EBattleMenuNav::RowDown, TEXT("light the row below, wrapping")},
-			{TEXT("IA_Combat_MenuForward"), EKeys::D, EBattleMenuNav::Forward, TEXT("open the lit row; on a target row, pick it")},
+			{TEXT("IA_Combat_MenuRowUp"), EKeys::W, EBattleMenuNav::RowUp, TEXT("light the row above, wrapping; in a target pick, the previous target")},
+			{TEXT("IA_Combat_MenuRowDown"), EKeys::S, EBattleMenuNav::RowDown, TEXT("light the row below, wrapping; in a target pick, the next target")},
+			{TEXT("IA_Combat_MenuForward"), EKeys::D, EBattleMenuNav::Forward, TEXT("open the lit row; in a target pick, pick the marked target")},
+			{TEXT("IA_Combat_MenuTargetPrevPad"), EKeys::Gamepad_DPad_Up, EBattleMenuNav::TargetPrevious, TEXT("the previous target, in a target pick only")},
+			{TEXT("IA_Combat_MenuTargetNextPad"), EKeys::Gamepad_DPad_Down, EBattleMenuNav::TargetNext, TEXT("the next target, in a target pick only")},
 		};
 		return Keys;
 	}
@@ -147,6 +150,12 @@ namespace CombatInputRouting
 void ACombatPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// B-582c (D-270): the pointer over / a click on a fighter marks / picks it (UBattleHUDWidget binds the actor events).
+	// The Pawn channel: a fighter's capsule blocks it where the Pawn profile ignores Visibility, the default click trace.
+	bEnableMouseOverEvents = true;
+	bEnableClickEvents = true;
+	DefaultClickTraceChannel = ECC_Pawn;
 
 	// The combat input mapping context, then the code-built menu keys above it (WoRInputPriority, B-129).
 	if (UEnhancedInputLocalPlayerSubsystem *Subsystem =
@@ -700,7 +709,7 @@ void ACombatPlayerController::BuildMenuKeys()
 		UInputAction *Action = NewObject<UInputAction>(this, Nav.ActionName);
 		Action->ValueType = EInputActionValueType::Boolean;
 		Action->bConsumeInput = false;
-		MenuKeysContext->MapKey(Action, Nav.Keyboard);
+		MenuKeysContext->MapKey(Action, Nav.Key);
 		MenuNavActions.Add(Action);
 		MenuNavKinds.Add(Nav.Nav);
 	}
@@ -740,6 +749,14 @@ void ACombatPlayerController::OnMenuNavKey(const FInputActionInstance &Instance)
 		break;
 	case EBattleMenuNav::Forward:
 		MenuView->PressLitRow();
+		break;
+	case EBattleMenuNav::TargetPrevious:
+	case EBattleMenuNav::TargetNext:
+		// D-270: the pad's target cycle; nothing outside a single-target pick (the D-pad is Position / Flee there).
+		if (const UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GetGameInstance()); Menu && Menu->IsSingleTargetPickerOpen())
+		{
+			MenuView->MoveLitRow(MenuNavKinds[Index] == EBattleMenuNav::TargetNext ? CombatMenuKeys::ROW_NEXT : CombatMenuKeys::ROW_PREVIOUS);
+		}
 		break;
 	}
 }
@@ -929,7 +946,7 @@ FString ACombatPlayerController::GetMenuKeysString()
 	}
 	for (const CombatMenuKeys::FMenuNavKey &Nav : CombatMenuKeys::GetMenuNavKeys())
 	{
-		Out += FString::Printf(TEXT("\n  %s (%s, B-582c): %s / -"), Nav.ActionName, Nav.What, *Nav.Keyboard.GetDisplayName().ToString());
+		Out += FString::Printf(TEXT("\n  %s (%s, B-582c): %s"), Nav.ActionName, Nav.What, *Nav.Key.GetDisplayName().ToString());
 	}
 	return Out;
 }

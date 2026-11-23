@@ -123,6 +123,8 @@ enum class EBattleMenuNav : uint8
 	RowUp,
 	RowDown,
 	Forward,
+	TargetPrevious, // D-270: the pad's D-pad Up / Down, in a single-target pick only
+	TargetNext,
 };
 
 UCLASS()
