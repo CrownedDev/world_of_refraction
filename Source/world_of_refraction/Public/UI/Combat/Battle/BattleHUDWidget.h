@@ -166,6 +166,8 @@ public:
 	/** B-436g (D-260): stack Menu just above the featured card, its frame as wide as the card, with its corner hints at
 	 *  the bottom right. Call before AddToViewport (the column is built once in RebuildWidget). */
 	void SetCommandMenu(UBattleCommandMenuWidget *Menu);
+	/** B-582b: the command menu SetCommandMenu placed (the keyboard navigation drives it); null before. */
+	UBattleCommandMenuWidget *GetCommandMenu() const { return CommandMenu; }
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
