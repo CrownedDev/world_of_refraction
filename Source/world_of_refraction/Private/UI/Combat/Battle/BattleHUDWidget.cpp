@@ -49,6 +49,7 @@
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDButton.h"
 #include "UI/Combat/Battle/BattleIntelWidget.h"
+#include "UI/Combat/Battle/TurnHexWidget.h"
 #include "Trial/TrialRunSubsystem.h"
 #include "Widgets/Layout/Anchors.h"
 #include "WoRLog.h"
@@ -61,11 +62,8 @@ namespace BattleHUDStyle
 	using namespace BattleCardStyle; // B-503j: the card's look is shared with the hub HUD
 	constexpr float ScreenMargin = 24.0f;
 	constexpr float StatusPanelWidth = 640.0f;
-	constexpr int32 TurnFontSize = 14;
 
 	const FLinearColor PanelColor(0.0f, 0.0f, 0.0f, 0.85f);
-	const FLinearColor EnemyColor(0.85f, 0.55f, 0.5f);   // the other side, in the turn strip
-	const FLinearColor BonusColor(0.45f, 0.9f, 0.55f);   // a bonus turn (Emerald), as the old strip's green
 
 	// B-436a layout (docs/Design/BattleHUDRefinePlan.md piece 1, D-254: refine_final/1_main_menu.png).
 	const FVector2D RightColumnAnchor(1.0f, 0.0f);  // top-right: the turn order (Intel under it, B-587)
@@ -95,6 +93,44 @@ namespace BattleHUDStyle
 namespace BattleHUDBuild
 {
 	using BattleHUDCard::AddText;
+
+	/** B-590: one turn-order hexagon in its size box (PushTurnHexes sets the size). Returns the box. */
+	USizeBox *MakeTurnHex(UWidgetTree *Tree)
+	{
+		USizeBox *Box = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		Box->SetContent(Tree->ConstructWidget<UTurnHexWidget>(UTurnHexWidget::StaticClass()));
+		Box->SetVisibility(ESlateVisibility::Collapsed);
+		return Box;
+	}
+
+	/** B-590: Hexes into Strip's hexagons in order (the rest collapse), and Strip shown or collapsed. */
+	void PushTurnHexes(UPanelWidget *Strip, const TArray<FBattleTurnHex> &Hexes, bool bShown)
+	{
+		if (!Strip)
+		{
+			return;
+		}
+		Strip->SetVisibility(bShown ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
+		for (int32 Index = 0; Index < Strip->GetChildrenCount(); ++Index)
+		{
+			USizeBox *Box = Cast<USizeBox>(Strip->GetChildAt(Index));
+			UTurnHexWidget *Hex = Box ? Cast<UTurnHexWidget>(Box->GetContent()) : nullptr;
+			if (!Hex)
+			{
+				continue;
+			}
+			if (!Hexes.IsValidIndex(Index))
+			{
+				Box->SetVisibility(ESlateVisibility::Collapsed);
+				continue;
+			}
+			const FBattleTurnHex &Data = Hexes[Index];
+			Box->SetWidthOverride(Data.Size);
+			Box->SetHeightOverride(Data.Size);
+			Hex->SetHex(Data.Portrait.Get(), Data.Border, Data.bCurrent ? BattleHUDView::CURRENT_TURN_HEX_BORDER : BattleHUDView::NEXT_TURN_HEX_BORDER);
+			Box->SetVisibility(ESlateVisibility::HitTestInvisible);
+		}
+	}
 
 	UCanvasPanelSlot *Place(UCanvasPanel *Canvas, UWidget *Widget, const FVector2D &Anchor, const FVector2D &Offset)
 	{
@@ -550,18 +586,34 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		// B-436a: the right-hand column, top: the turn order (B-436c: the enemy cards left it; B-587: Intel under it).
 		UVerticalBox *RightColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightColumn"));
 		RightColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		UVerticalBox *TurnColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TurnOrder"));
-		TurnColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
-		BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::NameFontSize)->SetText(LOCTEXT("TurnOrderTitle", "Turn order"));
-		for (int32 Index = 0; Index <= BattleHUDView::UPCOMING_TURNS_SHOWN; ++Index)
+		// B-590 (D-264): the turn order as hexagons, no title, panel or names: a row (the current turn on the left) and a
+		// column (the current turn on top), both built once; PushToWidgets shows the one the setting picks.
+		UHorizontalBox *RowStrip = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("TurnOrderRow"));
+		UVerticalBox *ColumnStrip = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TurnOrderColumn"));
+		for (int32 Index = 0; Index < BattleHUDView::MAX_TURNS_SHOWN; ++Index)
 		{
-			TurnTexts.Add(BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::TurnFontSize));
+			const float Gap = Index == 0 ? 0.0f : BattleHUDView::TURN_HEX_GAP;
+			if (UHorizontalBoxSlot *HexSlot = RowStrip->AddChildToHorizontalBox(BattleHUDBuild::MakeTurnHex(WidgetTree)))
+			{
+				HexSlot->SetVerticalAlignment(VAlign_Center);
+				HexSlot->SetPadding(FMargin(Gap, 0.0f, 0.0f, 0.0f));
+			}
+			if (UVerticalBoxSlot *HexSlot = ColumnStrip->AddChildToVerticalBox(BattleHUDBuild::MakeTurnHex(WidgetTree)))
+			{
+				HexSlot->SetHorizontalAlignment(HAlign_Center);
+				HexSlot->SetPadding(FMargin(0.0f, Gap, 0.0f, 0.0f));
+			}
 		}
-		if (UVerticalBoxSlot *TurnSlot = RightColumn->AddChildToVerticalBox(TurnColumn))
+		for (UPanelWidget *Strip : {static_cast<UPanelWidget *>(RowStrip), static_cast<UPanelWidget *>(ColumnStrip)})
 		{
-			TurnSlot->SetHorizontalAlignment(HAlign_Right);
-			TurnSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::RightColumnGap));
+			if (UVerticalBoxSlot *TurnSlot = RightColumn->AddChildToVerticalBox(Strip))
+			{
+				TurnSlot->SetHorizontalAlignment(HAlign_Right);
+				TurnSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::RightColumnGap));
+			}
 		}
+		TurnRow = RowStrip;
+		TurnColumn = ColumnStrip;
 		BattleHUDBuild::Place(Canvas, RightColumn, BattleHUDStyle::RightColumnAnchor, BattleHUDBuild::Inset(BattleHUDStyle::RightColumnAnchor));
 
 		// B-436g (D-260): one bottom-left column, the command menu just above the party cards, so the menu follows the
@@ -933,7 +985,12 @@ FEventReply UBattleHUDWidget::HandleCardMouseDown(FGeometry MyGeometry, const FP
 
 void UBattleHUDWidget::RefreshTurnStrip()
 {
-	const TArray<FBattleTurnSlot> Strip = BattleHUDView::ReadTurnStrip(this, CurrentTurnNumber, BattleHUDView::UPCOMING_TURNS_SHOWN);
+	// B-590: the settings are read on every refresh, so a change in the menu shows on the next turn.
+	const UWorld *World = GetWorld();
+	const USaveSubsystem *Save = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	const int32 TurnsShown = Save ? Save->GetTurnsShown() : BattleHUDView::DEFAULT_TURNS_SHOWN;
+	bTurnOrderColumn = Save && Save->IsTurnOrderColumn();
+	const TArray<FBattleTurnSlot> Strip = BattleHUDView::ReadTurnStrip(this, CurrentTurnNumber, TurnsShown - 1); // the current turn counts
 	const AActor *Acting = Strip.IsEmpty() ? nullptr : Strip[0].Actor.Get();
 	for (int32 Index = 0; Index < Cards.Num(); ++Index)
 	{
@@ -949,8 +1006,12 @@ void UBattleHUDWidget::RefreshTurnStrip()
 		}
 	}
 
-	TurnLines.Reset();
-	TurnLineColors.Reset();
+	TurnHexes = BattleHUDView::MakeTurnHexes(Strip, TurnsShown, [this](const AActor *Actor)
+	{
+		const FBattleHUDCard *Card = Cards.FindByPredicate([Actor](const FBattleHUDCard &Candidate) { return Candidate.Actor.Get() == Actor; });
+		return Card && Card->bParty;
+	});
+	TurnLines.Reset(); // the strip as text: wor.UI.Print and the specs
 	for (const FBattleTurnSlot &TurnSlot : Strip)
 	{
 		const AActor *Actor = TurnSlot.Actor.Get();
@@ -963,10 +1024,6 @@ void UBattleHUDWidget::RefreshTurnStrip()
 		const FText Bonus = TurnSlot.bBonus ? LOCTEXT("BonusTurn", " (bonus)") : FText::GetEmpty();
 		TurnLines.Add(TurnSlot.bCurrent ? FText::Format(LOCTEXT("TurnNow", "> {0}  {1}{2}"), FText::AsNumber(TurnSlot.TurnNumber), Name, Bonus)
 									: FText::Format(LOCTEXT("TurnNext", "   {0}  {1}{2}"), FText::AsNumber(TurnSlot.TurnNumber), Name, Bonus));
-		TurnLineColors.Add(TurnSlot.bCurrent		  ? BattleHUDStyle::ActingColor
-						   : TurnSlot.bBonus		  ? BattleHUDStyle::BonusColor
-						   : Card && !Card->bParty ? BattleHUDStyle::EnemyColor
-												  : BattleHUDStyle::TextColor);
 	}
 	PushToWidgets();
 }
@@ -1087,19 +1144,8 @@ void UBattleHUDWidget::PushToWidgets()
 		BattleHUDCard::Push(Card);
 	}
 	LayoutPartyCards(); // B-436a: after Push, so a compact card's hidden lines stay hidden
-	for (int32 Index = 0; Index < TurnTexts.Num(); ++Index)
-	{
-		UTextBlock *Text = TurnTexts[Index];
-		if (!Text)
-		{
-			continue;
-		}
-		const bool bUsed = TurnLines.IsValidIndex(Index);
-		Text->SetText(bUsed ? TurnLines[Index] : FText::GetEmpty());
-		Text->SetColorAndOpacity(FSlateColor(bUsed ? TurnLineColors[Index] : BattleHUDStyle::TextColor));
-		// Hidden, not Collapsed: the enemy cards sit under the strip (B-436a) and must not jump as it shortens.
-		Text->SetVisibility(bUsed ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
-	}
+	BattleHUDBuild::PushTurnHexes(TurnRow, TurnHexes, !bTurnOrderColumn);
+	BattleHUDBuild::PushTurnHexes(TurnColumn, TurnHexes, bTurnOrderColumn);
 	BattleHUDBuild::SetTextSafe(StatusPanelBody, StatusPanelText);
 	if (StatusPanel)
 	{
@@ -1475,6 +1521,13 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 	for (const FText &Line : TurnLines)
 	{
 		Out += FString::Printf(TEXT("\n  turn: %s"), *Line.ToString());
+	}
+	Out += FString::Printf(TEXT("\n  turn order: %s, %d hexagons"), bTurnOrderColumn ? TEXT("column") : TEXT("row"), TurnHexes.Num()); // B-590
+	for (const FBattleTurnHex &Hex : TurnHexes)
+	{
+		Out += FString::Printf(TEXT("\n  hex: %s | %s | %s | %.0f | portrait: %s"), *BattleHUDView::GetCombatantName(Hex.Actor.Get()).ToString(),
+							   Hex.bCurrent ? TEXT("current") : TEXT("next"), Hex.bParty ? TEXT("party") : TEXT("enemy"), Hex.Size,
+							   Hex.Portrait.IsValid() ? *Hex.Portrait->GetName() : TEXT("none (placeholder)"));
 	}
 	Out += FString::Printf(TEXT("\n  damage numbers: %d live, %d shown, last %s"), GetLiveDamageNumberCount(), DamageNumbersShown,
 						   LastDamageNumber.IsEmpty() ? TEXT("none") : *LastDamageNumber);

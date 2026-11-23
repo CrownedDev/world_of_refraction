@@ -265,6 +265,56 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("slot 2 keeps its bonus flag"), Strip[2].bBonus && Strip[2].TurnNumber == 6);
 		});
 
+		It("makes the turn order's hexagons: the current one large and violet, party cyan, enemies rose (B-590)", [this]()
+		{
+			TestWorld = MakeUnique<FWoRTestWorld>();
+			if (!TestTrue(TEXT("Test world created"), TestWorld->Create()))
+			{
+				return;
+			}
+			AActor *Ally = TestWorld->GetWorld()->SpawnActor<AActor>();
+			AActor *Enemy = TestWorld->GetWorld()->SpawnActor<AActor>();
+			const TArray<FBattleUpcomingTurn> Upcoming = {{Enemy, false}, {Ally, false}, {nullptr, false}, {Enemy, false}};
+			const TArray<FBattleTurnSlot> Strip = BattleHUDView::MakeTurnStrip(Ally, false, 1, Upcoming, Upcoming.Num());
+			const auto IsParty = [Ally](const AActor *Actor) { return Actor == Ally; };
+
+			const TArray<FBattleTurnHex> All = BattleHUDView::MakeTurnHexes(Strip, BattleHUDView::MAX_TURNS_SHOWN, IsParty);
+			if (!TestEqual(TEXT("the empty slot is skipped"), All.Num(), Strip.Num() - 1))
+			{
+				return;
+			}
+			TestTrue(TEXT("the current turn first"), All[0].bCurrent && All[0].Actor.Get() == Ally);
+			TestEqual(TEXT("the current one is large"), All[0].Size, BattleHUDView::CURRENT_TURN_HEX_SIZE);
+			TestTrue(TEXT("with the violet edge, even for the party"), All[0].Border.Equals(BattleHUDView::CURRENT_TURN_HEX_COLOUR));
+			TestTrue(TEXT("an enemy next: small and rose"), !All[1].bCurrent && !All[1].bParty && All[1].Size == BattleHUDView::NEXT_TURN_HEX_SIZE &&
+															   All[1].Border.Equals(BattleHUDView::ENEMY_TURN_HEX_COLOUR));
+			TestTrue(TEXT("then the ally: cyan"), All[2].bParty && All[2].Border.Equals(BattleHUDView::PARTY_TURN_HEX_COLOUR));
+			TestNull(TEXT("no art: the placeholder"), All[2].Portrait.Get());
+			TestEqual(TEXT("Turns shown cuts the strip, the current turn included"), BattleHUDView::MakeTurnHexes(Strip, 2, IsParty).Num(), 2);
+			TestEqual(TEXT("1: only the current turn"), BattleHUDView::MakeTurnHexes(Strip, BattleHUDView::MIN_TURNS_SHOWN, IsParty).Num(), 1);
+		});
+
+		It("reads a saved Turns shown and draws a flat-topped hexagon in its box (B-590)", [this]()
+		{
+			TestEqual(TEXT("never saved: 6"), BattleHUDView::ReadTurnsShown(0), BattleHUDView::DEFAULT_TURNS_SHOWN);
+			TestEqual(TEXT("3 stays"), BattleHUDView::ReadTurnsShown(3), 3);
+			TestEqual(TEXT("above 6: 6"), BattleHUDView::ReadTurnsShown(BattleHUDView::MAX_TURNS_SHOWN + 1), BattleHUDView::MAX_TURNS_SHOWN);
+			const float Size = BattleHUDView::NEXT_TURN_HEX_SIZE;
+			const TArray<FVector2f> Corners = BattleHUDView::GetTurnHexCorners(Size);
+			if (!TestEqual(TEXT("six corners"), Corners.Num(), 6))
+			{
+				return;
+			}
+			FBox2f Bounds(ForceInit);
+			for (const FVector2f &Corner : Corners)
+			{
+				Bounds += Corner;
+			}
+			TestTrue(TEXT("it fills its box"), Bounds.Min.Equals(FVector2f::ZeroVector) && Bounds.Max.Equals(FVector2f(Size, Size)));
+			TestTrue(TEXT("flat top: two corners on the top edge"), Corners[1].Y == 0.0f && Corners[2].Y == 0.0f);
+			TestTrue(TEXT("points left and right at mid-height"), Corners[0].Equals(FVector2f(0.0f, Size * 0.5f)) && Corners[3].Equals(FVector2f(Size, Size * 0.5f)));
+		});
+
 		It("formats a pool and clamps its fraction", [this]()
 		{
 			TestEqual(TEXT("HP line"), BattleHUDView::FormatPool(BattleHUDView::GetHPLabel(), 12, 40).ToString(), FString(TEXT("HP 12 / 40")));
@@ -459,6 +509,25 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("the turn strip leads with the acting character"),
 					 !HUD->GetTurnLines().IsEmpty() && HUD->GetTurnLines()[0].ToString().Contains(BattleHUDView::GetCombatantName(Acting).ToString()));
 			TestTrue(TEXT("the acting card is marked"), HUD->GetCards()[0].bActing == (Acting == Hero));
+			// B-590: the hexagons follow the turn order and the settings, read on each refresh.
+			TestTrue(TEXT("the hexagons lead with the acting character"),
+					 !HUD->GetTurnHexes().IsEmpty() && HUD->GetTurnHexes()[0].bCurrent && HUD->GetTurnHexes()[0].Actor.Get() == Acting);
+			TestFalse(TEXT("a row by default"), HUD->IsTurnOrderColumn());
+			if (USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>(); TestNotNull(TEXT("save"), Save))
+			{
+				Save->SetTurnsShown(BattleHUDView::MIN_TURNS_SHOWN);
+				Save->SetTurnOrderColumn(true);
+				if (UBattleHUDWidget *Set = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass()); TestNotNull(TEXT("a second HUD"), Set))
+				{
+					Set->Initialise({Hero}, {Foe});
+					TestEqual(TEXT("Turns shown 1: the current turn alone"), Set->GetTurnHexes().Num(), 1);
+					TestTrue(TEXT("the column layout"), Set->IsTurnOrderColumn());
+					TestTrue(TEXT("the print names the layout"), Set->GetBattleHUDString().Contains(TEXT("turn order: column, 1 hexagons")));
+					Set->Teardown();
+				}
+				Save->SetTurnsShown(BattleHUDView::DEFAULT_TURNS_SHOWN);
+				Save->SetTurnOrderColumn(false);
+			}
 
 			HUD->SetStatusPanelOpen(true);
 			TestTrue(TEXT("the status panel names every combatant"),
