@@ -18,6 +18,7 @@
 #include "CombatCommandMenuSubsystem.generated.h"
 
 class ULoadoutComponent;
+struct FInfusionCostPreview;
 enum class ECombatFreeCommand : uint8;
 enum class ECombatRow : uint8;
 class UCharacterData;
@@ -343,6 +344,10 @@ public:
 
     /** B-592 (D-268): a click on a chip of the open line: that weapon, element or level (the keys step them). */
     void PickTargetPanelChoice(ETargetPanelChoice Line, int32 Index);
+
+    /** B-592b: what the pending action would cost the acting character with the current level and source
+     *  (UActionExecutor::PreviewActionCost); zero outside a target step. Read on each OnCommandMenuReady. */
+    FInfusionCostPreview GetTargetStepCostPreview() const;
 
     // ==================== DEBUG ====================
 

@@ -12,6 +12,7 @@
 
 class UBorder;
 class UCharacterDataComponent;
+class UHorizontalBox;
 class ULoadoutComponent;
 class UProgressBar;
 class USizeBox;
@@ -86,6 +87,10 @@ namespace BattleCardStyle
 	inline const FLinearColor BarTextOutlineColor(0.0f, 0.0f, 0.0f, 0.9f);
 	inline const FLinearColor EmptyBarColor(1.0f, 1.0f, 1.0f, 0.15f);
 	inline const FLinearColor EPBarColor(0.06f, 0.18f, 0.5f);
+	// B-592b (mockups refine_final/7, 9): the HP an infusion would cost, a dimmed chunk at the end of the fill that
+	// pulses; KILL red when the cost would kill the caster. shortcut: no stripes yet (a texture), until the style pass.
+	inline const FLinearColor HPGhostColor(0.2f, 0.03f, 0.04f);
+	inline const FLinearColor HPGhostKillColor(1.0f, 0.06f, 0.06f); // the mockups' KILL (255, 70, 70)
 	// OBSOLETE (B-585, D-257): the build-up bar's label; delete the three after checkpoint 6.
 	inline constexpr int32 BuildupLabelFontSize = 10;
 	inline constexpr float BuildupLabelGap = 4.0f;
@@ -112,6 +117,10 @@ struct FBattleHUDCard
 	bool bLowHP = false;
 	/** B-503m: the EP bar (a Broken Darkness pool past max reads full; its line says the overload). */
 	float EPFraction = 0.0f;
+	/** B-592b: the share of max HP the picked infusion would cost (the acting card, in a target step); 0 shows none. */
+	float HPGhostFraction = 0.0f;
+	/** B-592b: that cost would kill: the ghost is KILL red. */
+	bool bHPGhostKills = false;
 	FText Name;
 	/** OBSOLETE (B-581, D-254): the line under the name (D-229, D-241). No HUD fills it any more, so it stays empty
 	 *  and DetailText collapsed; delete both in the sweep (PIE/Sweep.md 53). */
@@ -150,6 +159,13 @@ struct FBattleHUDCard
 	/** B-503m: drawn on HPBar. */
 	UPROPERTY()
 	TObjectPtr<UTextBlock> HPText;
+
+	/** B-592b: over HPBar (party cards): a lead spacer, HPGhost, a tail spacer, weighted by Push. */
+	UPROPERTY()
+	TObjectPtr<UHorizontalBox> HPGhostRow;
+
+	UPROPERTY()
+	TObjectPtr<UBorder> HPGhost;
 
 	UPROPERTY()
 	TObjectPtr<UProgressBar> EPBar;
@@ -202,7 +218,8 @@ namespace BattleHUDCard
 	 *  part the card built, at CardWidth. Shows and hides only; call it after Push. The hub and trial HUDs never call it. */
 	WORLD_OF_REFRACTION_API void SetCompact(const FBattleHUDCard &Card, bool bCompact);
 
-	/** B-436b: the HP bar's opacity, Opacity while the card is low (bLowHP), else full. */
+	/** B-436b: the HP bar's opacity, Opacity while the card is low (bLowHP), else full. B-592b: the HP ghost pulses
+	 *  with it whenever it shows. */
 	WORLD_OF_REFRACTION_API void SetHPPulse(const FBattleHUDCard &Card, float Opacity);
 
 	/** A line of text in the card's font and colour, added to Box. */
