@@ -2148,7 +2148,7 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
         Weapon.Category = EPieMenuCategory::TargetPanelWeapon;
         if (OpenTargetPanelLine == ETargetPanelLine::Weapon)
         {
-            GreyIfTurnSwitchUsed(Weapon); // one weapon switch a turn, as 6 / L3; the hint says why
+            GreyIfTurnSwitchUsed(Weapon); // the same switch rule as 6 / L3 (free today, B-170c); a greyed hint says why
         }
         Buttons.Add(Weapon);
     }
