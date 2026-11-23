@@ -39,6 +39,8 @@
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Combat/Battle/BattleHUDWidget.h"
+#include "UI/Combat/Battle/TurnHexWidget.h"
+#include "Engine/Texture2D.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "WoRGameNames.h"
 #include "Save/SaveSubsystem.h"
@@ -277,8 +279,10 @@ void FBattleHUDSpec::Define()
 			const TArray<FBattleUpcomingTurn> Upcoming = {{Enemy, false}, {Ally, false}, {nullptr, false}, {Enemy, false}};
 			const TArray<FBattleTurnSlot> Strip = BattleHUDView::MakeTurnStrip(Ally, false, 1, Upcoming, Upcoming.Num());
 			const auto IsParty = [Ally](const AActor *Actor) { return Actor == Ally; };
+			UTexture *EnemyFace = NewObject<UTexture2D>(GetTransientPackage()); // stands in for a captured face
+			const auto FindFace = [Enemy, EnemyFace](const AActor *Actor) { return Actor == Enemy ? EnemyFace : nullptr; };
 
-			const TArray<FBattleTurnHex> All = BattleHUDView::MakeTurnHexes(Strip, BattleHUDView::MAX_TURNS_SHOWN, IsParty);
+			const TArray<FBattleTurnHex> All = BattleHUDView::MakeTurnHexes(Strip, BattleHUDView::MAX_TURNS_SHOWN, IsParty, FindFace);
 			if (!TestEqual(TEXT("the empty slot is skipped"), All.Num(), Strip.Num() - 1))
 			{
 				return;
@@ -289,9 +293,11 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("an enemy next: small and rose"), !All[1].bCurrent && !All[1].bParty && All[1].Size == BattleHUDView::NEXT_TURN_HEX_SIZE &&
 															   All[1].Border.Equals(BattleHUDView::ENEMY_TURN_HEX_COLOUR));
 			TestTrue(TEXT("then the ally: cyan"), All[2].bParty && All[2].Border.Equals(BattleHUDView::PARTY_TURN_HEX_COLOUR));
-			TestNull(TEXT("no art: the placeholder"), All[2].Portrait.Get());
-			TestEqual(TEXT("Turns shown cuts the strip, the current turn included"), BattleHUDView::MakeTurnHexes(Strip, 2, IsParty).Num(), 2);
-			TestEqual(TEXT("1: only the current turn"), BattleHUDView::MakeTurnHexes(Strip, BattleHUDView::MIN_TURNS_SHOWN, IsParty).Num(), 1);
+			TestTrue(TEXT("a captured face fills its hexagon"), All[1].Portrait.Get() == EnemyFace);
+			TestNull(TEXT("no capture: the placeholder"), All[2].Portrait.Get());
+			TestEqual(TEXT("Turns shown cuts the strip, the current turn included"), BattleHUDView::MakeTurnHexes(Strip, 2, IsParty, FindFace).Num(), 2);
+			TestEqual(TEXT("1: only the current turn"), BattleHUDView::MakeTurnHexes(Strip, BattleHUDView::MIN_TURNS_SHOWN, IsParty, FindFace).Num(), 1);
+			TestNull(TEXT("no 3D model: no capture, so the placeholder"), TurnHexFace::Capture(Ally, GetTransientPackage()));
 		});
 
 		It("reads a saved Turns shown and draws a flat-topped hexagon in its box (B-590)", [this]()

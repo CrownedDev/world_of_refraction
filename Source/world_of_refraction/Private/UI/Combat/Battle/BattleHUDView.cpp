@@ -8,7 +8,7 @@
 #include "Combat/CombatPlayerController.h"
 #include "Combat/TurnManager.h"
 #include "Combat/WoRFightSubsystem.h"
-#include "Engine/Texture2D.h"
+#include "Engine/Texture.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -87,7 +87,8 @@ int32 BattleHUDView::ReadTurnsShown(int32 Saved)
 }
 
 TArray<FBattleTurnHex> BattleHUDView::MakeTurnHexes(const TArray<FBattleTurnSlot> &Strip, int32 TurnsShown,
-													TFunctionRef<bool(const AActor *)> IsParty)
+													TFunctionRef<bool(const AActor *)> IsParty,
+													TFunctionRef<UTexture *(const AActor *)> FindPortrait)
 {
 	TArray<FBattleTurnHex> Hexes;
 	for (int32 Index = 0; Index < Strip.Num() && Index < TurnsShown; ++Index)
@@ -100,19 +101,13 @@ TArray<FBattleTurnHex> BattleHUDView::MakeTurnHexes(const TArray<FBattleTurnSlot
 		}
 		FBattleTurnHex &Hex = Hexes.AddDefaulted_GetRef();
 		Hex.Actor = TurnSlot.Actor;
-		Hex.Portrait = GetPortrait(Actor);
+		Hex.Portrait = FindPortrait(Actor);
 		Hex.bCurrent = TurnSlot.bCurrent;
 		Hex.bParty = IsParty(Actor);
 		Hex.Size = Hex.bCurrent ? CURRENT_TURN_HEX_SIZE : NEXT_TURN_HEX_SIZE;
 		Hex.Border = Hex.bCurrent ? CURRENT_TURN_HEX_COLOUR : Hex.bParty ? PARTY_TURN_HEX_COLOUR : ENEMY_TURN_HEX_COLOUR;
 	}
 	return Hexes;
-}
-
-UTexture2D *BattleHUDView::GetPortrait(const AActor *Actor)
-{
-	const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-	return CharComp && CharComp->CharacterData ? CharComp->CharacterData->Portrait : nullptr;
 }
 
 TArray<FVector2f> BattleHUDView::GetTurnHexCorners(float Size)

@@ -11,7 +11,7 @@
 #include "UI/Combat/PieMenuButtonData.h"
 
 class AActor;
-class UTexture2D;
+class UTexture;
 struct FActiveSkillEffect;
 
 /** B-391c: what a party card names of its gear (the loadout component's active loadout). Empty = none. */
@@ -55,8 +55,8 @@ struct FBattleUpcomingTurn
 struct FBattleTurnHex
 {
 	TWeakObjectPtr<AActor> Actor;
-	/** The character's portrait (UCharacterData::Portrait); null: the hexagon's plain placeholder. */
-	TWeakObjectPtr<UTexture2D> Portrait;
+	/** The character's face, captured at the fight's start (Q-590, Crown 2026-11-23); null: the plain placeholder. */
+	TWeakObjectPtr<UTexture> Portrait;
 	FLinearColor Border = FLinearColor::White;
 	/** Width and height of the hexagon's box, Slate units. */
 	float Size = 0.0f;
@@ -80,8 +80,8 @@ namespace BattleHUDView
 	constexpr float CURRENT_TURN_HEX_SIZE = 84.0f;
 	constexpr float NEXT_TURN_HEX_SIZE = 60.0f;
 	constexpr float TURN_HEX_GAP = 6.0f;
-	constexpr float CURRENT_TURN_HEX_BORDER = 3.0f;
-	constexpr float NEXT_TURN_HEX_BORDER = 2.0f;
+	constexpr float CURRENT_TURN_HEX_BORDER = 4.0f; // B-590 QA: the next turns' edges were lost on a bright sky
+	constexpr float NEXT_TURN_HEX_BORDER = 3.0f;
 	inline const FLinearColor CURRENT_TURN_HEX_COLOUR(0.72f, 0.55f, 1.0f); // violet
 	inline const FLinearColor PARTY_TURN_HEX_COLOUR(0.3f, 0.85f, 0.95f);   // cyan
 	inline const FLinearColor ENEMY_TURN_HEX_COLOUR(0.92f, 0.3f, 0.5f);    // rose
@@ -91,12 +91,11 @@ namespace BattleHUDView
 	WORLD_OF_REFRACTION_API int32 ReadTurnsShown(int32 Saved);
 
 	/** The hexagons for Strip's first TurnsShown slots (empty slots skipped): the current one CURRENT_TURN_HEX_SIZE with
-	 *  the violet edge, the next ones NEXT_TURN_HEX_SIZE, cyan for the party (IsParty) and rose for the rest. */
+	 *  the violet edge, the next ones NEXT_TURN_HEX_SIZE, cyan for the party (IsParty) and rose for the rest; each one's
+	 *  picture from FindPortrait (null: the placeholder). */
 	WORLD_OF_REFRACTION_API TArray<FBattleTurnHex> MakeTurnHexes(const TArray<FBattleTurnSlot> &Strip, int32 TurnsShown,
-																 TFunctionRef<bool(const AActor *)> IsParty);
-
-	/** The character's portrait from its data asset; null without one. */
-	WORLD_OF_REFRACTION_API UTexture2D *GetPortrait(const AActor *Actor);
+																 TFunctionRef<bool(const AActor *)> IsParty,
+																 TFunctionRef<UTexture *(const AActor *)> FindPortrait);
 
 	/** The six corners of a flat-topped hexagon filling a Size x Size box, clockwise from the left point. */
 	WORLD_OF_REFRACTION_API TArray<FVector2f> GetTurnHexCorners(float Size);
