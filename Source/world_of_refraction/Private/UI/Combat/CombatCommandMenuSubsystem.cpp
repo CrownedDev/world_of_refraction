@@ -153,6 +153,7 @@ void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
     ResolvedTargetCount = PendingTargetCount;
     DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     CurrentCapabilities = FCombatCapabilities();
+    LastAttackTargets.Reset(); // B-582: remembered for one fight
 
     UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Combat orchestrator cleared"));
 }
@@ -591,9 +592,18 @@ void UCombatCommandMenuSubsystem::RefreshTargetHighlight()
     AActor *Keep = HighlightedTarget.Get();
     if (!Keep || IndexOfHighlightTarget(Keep) == INDEX_NONE)
     {
-        Keep = HighlightTargets.IsEmpty() ? nullptr : HighlightTargets[0].Get();
+        // B-582 (D-266): the Attack picker opens on this fighter's last attack target while it's offered (alive);
+        // otherwise the first target, as before.
+        AActor *Last = PendingActionCategory == EPieMenuCategory::Attack ? GetLastAttackTarget(CurrentActor.Get()) : nullptr;
+        Keep = IndexOfHighlightTarget(Last) != INDEX_NONE ? Last : (HighlightTargets.IsEmpty() ? nullptr : HighlightTargets[0].Get());
     }
     SetHighlightedTarget(Keep);
+}
+
+AActor *UCombatCommandMenuSubsystem::GetLastAttackTarget(const AActor *Fighter) const
+{
+    const TWeakObjectPtr<AActor> *Last = Fighter ? LastAttackTargets.Find(Fighter) : nullptr;
+    return Last ? Last->Get() : nullptr;
 }
 
 void UCombatCommandMenuSubsystem::SetHighlightedTarget(AActor *Target)
@@ -2217,6 +2227,10 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Action confirmed: %s on %s"),
            *PendingActionID,
            *TargetName);
+    if (PendingActionCategory == EPieMenuCategory::Attack && SelectedTarget && CurrentActor.IsValid())
+    {
+        LastAttackTargets.Add(CurrentActor.Get(), SelectedTarget); // B-582 (D-266): the next Attack picker opens on it
+    }
 
     // Clear pending state
     PendingActionCategory = EPieMenuCategory::None;
@@ -2525,6 +2539,7 @@ void UCombatCommandMenuSubsystem::DebugLogCapabilities() const
     UE_LOG(LogTemp, Log, TEXT("ActiveWeapon:   %s"), *CurrentCapabilities.ActiveWeaponName);
     UE_LOG(LogTemp, Log, TEXT("ActiveRing:     %s"), *CurrentCapabilities.ActiveRingName);
     UE_LOG(LogTemp, Log, TEXT("BreakChance:    %s"), CurrentCapabilities.bRingHasBreakChance ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Log, TEXT("LastAttackOn:   %s"), *GetNameSafe(GetLastAttackTarget(CurrentActor.Get()))); // B-582
 }
 
 bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
@@ -2541,6 +2556,24 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
             return false;
         }
         HandleBack();
+        return true;
+    }
+    if (Category == EPieMenuCategory::Attack && PendingActionCategory == EPieMenuCategory::Attack && IsSingleTargetPickerOpen())
+    {
+        // B-582 (D-266): 1 / A again in the Attack picker attacks the highlighted target, as a click on its row
+        // (1, 1 is a quick attack). The Position picker's 1 is its own branch below; this needs the Attack picker.
+        const AActor *Highlighted = HighlightedTarget.Get();
+        const TArray<FPieMenuButtonData> Rows = RebuildCurrentPicker();
+        const FPieMenuButtonData *Row = Highlighted ? Rows.FindByPredicate([Highlighted](const FPieMenuButtonData &Candidate)
+                                                                         { return Candidate.Category == EPieMenuCategory::Target && Candidate.DataReference == Highlighted &&
+                                                                                  Candidate.Targets.IsEmpty() && Candidate.bEnabled; })
+                                                    : nullptr;
+        if (!Row)
+        {
+            return false;
+        }
+        const FPieMenuButtonData Pressed = *Row; // HandleSelection rebuilds the menu
+        HandleSelection(Pressed);
         return true;
     }
     TArray<FPieMenuButtonData> View;
