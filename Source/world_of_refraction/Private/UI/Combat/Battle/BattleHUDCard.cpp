@@ -255,8 +255,7 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 {
 	using namespace BattleCardStyle;
 
-	const FText Shown = BattleHUDView::FormatCardName(Card.Name, Card.TierLetter); // B-436b: "Garrick (C)"
-	const FText Name = Card.bActing ? FText::Format(LOCTEXT("ActingName", "> {0}"), Shown) : Shown;
+	const FText Name = Card.bActing ? FText::Format(LOCTEXT("ActingName", "> {0}"), Card.Name) : Card.Name;
 	SetTextSafe(Card.NameText, Name);
 	if (Card.NameText)
 	{

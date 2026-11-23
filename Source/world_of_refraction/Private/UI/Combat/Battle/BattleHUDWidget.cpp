@@ -1066,8 +1066,6 @@ void UBattleHUDWidget::RefreshGear()
 		}
 		const FBattleGearNames Gear = BattleHUDView::ReadGearNames(Card.Actor.Get());
 		Card.GearLine = BattleHUDView::FormatGearLine(Gear);
-		// B-436b: the Combat Tier beside the name ("Garrick (C)"); it follows the gear, so it is read with it.
-		Card.TierLetter = Card.Actor.IsValid() ? WoRGameNames::GetTierLetter(WoRCombatTier::GetCombatTier(Card.Actor.Get())) : FText::GetEmpty();
 		const FText Tooltip = BattleHUDView::FormatGearTooltip(Gear);
 		// Review fix: the tooltip is set only when it changes (setting it rebuilds the Slate tooltip and can close an
 		// open one), not on every push.
@@ -1493,7 +1491,7 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 	for (const FBattleHUDCard &Card : Cards)
 	{
 		Out += FString::Printf(TEXT("\n  %s %s%s%s%s | %s | %s | %s | %s, %d crack(s)"), Card.bParty ? TEXT("party") : TEXT("enemy"),
-							   *BattleHUDView::FormatCardName(Card.Name, Card.TierLetter).ToString(), Card.bActing ? TEXT(" (acting)") : TEXT(""),
+							   *Card.Name.ToString(), Card.bActing ? TEXT(" (acting)") : TEXT(""),
 							   Card.bAlive ? TEXT("") : TEXT(" (down)"), Card.bLowHP ? TEXT(" (low HP, pulsing)") : TEXT(""),
 							   *Card.HPLine.ToString(), Card.bShowEP ? *Card.EPLine.ToString() : TEXT("no EP"),
 							   Card.StatusLine.IsEmpty() ? TEXT("no statuses") : *Card.StatusLine.ToString(), *Card.BuildupLine.ToString(),

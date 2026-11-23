@@ -110,8 +110,6 @@ struct FBattleHUDCard
 	float HPFraction = 0.0f;
 	/** B-436b: a party card under BattleHUDView::LOW_HP_FRACTION: LowHPColor, and the HUD pulses it (SetHPPulse). */
 	bool bLowHP = false;
-	/** B-436b: the Combat Tier's letter, shown beside the name ("Garrick (C)"); empty: the name alone (hub, trial, enemies). */
-	FText TierLetter;
 	/** B-503m: the EP bar (a Broken Darkness pool past max reads full; its line says the overload). */
 	float EPFraction = 0.0f;
 	FText Name;
