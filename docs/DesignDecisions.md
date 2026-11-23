@@ -1250,6 +1250,12 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### Q-588 — Position's keys and the picker's look
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-23 (B-588, from D-263 points 1 and 2) · **Blocks:** nothing
+**Question:** D-263 makes one Position command with a Front / Middle / Back picker. Which key opens it, how are the rows picked by keys and pad, and how is the current row marked?
+**Answer (defaults):** (1) **Position's key: 4 / D-pad Up**, both free since B-436g (D-258); its hint shows the key like Defend's. (2) **The picker is a sub-menu titled "Position"** with three rows, Front Row, Middle Row, Back Row, top to bottom, then Back; as in every sub-menu only Back stays a corner hint, so the other hints hide. (3) **The rows take the main menu's first three keys:** 1 / A Front, 2 / X Middle, 3 / Y Back (the keys that press the first three rows there), and a click. (4) **The current row is greyed "You are here."**; a row the move is refused for is greyed with why. (5) Picking a row moves there at once (no confirm) and returns to the main menu with Position greyed "Already moved this turn."; Back leaves without moving.
+**Reference:** Final Fantasy's Row command is one command on the battle menu (D-263 cites it). The keys follow this menu's own layout (1-3 / A X Y already press its first three rows), so there is nothing new to learn. The deckbuilder has no rows.
+
 ### Q-436c — The target marker's small points
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-23 (B-436c, from D-263 point 3) · **Blocks:** nothing
 **Question:** D-263 puts the enemy's HP on the target only. Which highlights show it, where, and what does the marker look like until the style pass?
