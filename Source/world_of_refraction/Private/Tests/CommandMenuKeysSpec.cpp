@@ -111,6 +111,28 @@ BEGIN_DEFINE_SPEC(FCommandMenuKeysSpec, "WoR.UI.CommandMenu.Keys",
 		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
 		return TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero);
 	}
+	/** B-582b: the hero against two foes, both player-controlled; the second foe, or null if setup failed. */
+	AActor *StartTwoFoes()
+	{
+		if (!Orchestrator || !Menu)
+		{
+			return nullptr;
+		}
+		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("Combatants spawned"), Hero && Foe && SecondFoe))
+		{
+			return nullptr;
+		}
+		MenuKeysAddLoadout(Hero);
+		MenuKeysAddLoadout(Foe);
+		MenuKeysAddLoadout(SecondFoe);
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero}, {Foe, SecondFoe});
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		return TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero) ? SecondFoe : nullptr;
+	}
 END_DEFINE_SPEC(FCommandMenuKeysSpec)
 
 void FCommandMenuKeysSpec::Define()
@@ -399,22 +421,53 @@ void FCommandMenuKeysSpec::Define()
 		TestNull(TEXT("forgotten with the fight"), Menu->GetLastAttackTarget(Hero));
 	});
 
-	It("confirms the highlighted target on Enter / Space in a target picker, and nowhere else (B-582b, D-267)", [this]()
+	It("lights rows with W / S, wrapping, and Enter / Space press the lit row or the highlighted target (B-582b, D-267)", [this]()
 	{
 		const FString Keys = ACombatPlayerController::GetMenuKeysString();
-		TestTrue(TEXT("Enter, its own action"), Keys.Contains(TEXT("IA_Combat_MenuConfirm (")) && Keys.Contains(EKeys::Enter.GetDisplayName().ToString()));
-		TestTrue(TEXT("Space, its own action"), Keys.Contains(TEXT("IA_Combat_MenuConfirmSpace (")) && Keys.Contains(EKeys::SpaceBar.GetDisplayName().ToString()));
+		for (const TCHAR *Action : {TEXT("IA_Combat_MenuConfirm ("), TEXT("IA_Combat_MenuConfirmSpace ("), TEXT("IA_Combat_MenuRowUp ("),
+									TEXT("IA_Combat_MenuRowDown ("), TEXT("IA_Combat_MenuValuePrev ("), TEXT("IA_Combat_MenuValueNext ("),
+									TEXT("IA_Combat_MenuTargetPrev ("), TEXT("IA_Combat_MenuTargetNext (")})
+		{
+			TestTrue(FString::Printf(TEXT("its own action: %s"), Action), Keys.Contains(Action));
+		}
+		TestFalse(TEXT("no Tab in the battle menu (Crown: Q / E, no Tab)"), Keys.Contains(TEXT("Tab, B-582b")));
 		if (!StartSkilledDuel(/*bTwoKinds=*/false))
 		{
 			return;
 		}
-		TestFalse(TEXT("nothing on the main menu"), Menu->PressMenuKey(EPieMenuCategory::Target));
-		TestTrue(TEXT("still the main menu"), Menu->IsAtMainMenu());
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
 
+		TestEqual(TEXT("the main menu starts unlit"), View->GetLitRow(), INDEX_NONE);
+		TestFalse(TEXT("so Enter / Space do nothing there"), View->PressLitRow());
+		TestTrue(TEXT("still the main menu"), Menu->IsAtMainMenu());
+		View->MoveLitRow(1);
+		const int32 First = View->GetLitRow();
+		TestTrue(TEXT("S lights the first row, Attack"), View->GetRowLabels().IsValidIndex(First) && View->GetRowLabels()[First].ToString().Contains(TEXT("Attack")));
+		View->MoveLitRow(-1);
+		const int32 Last = View->GetLitRow();
+		TestTrue(TEXT("W from the first wraps to the last"), Last != INDEX_NONE && Last > First);
+		View->MoveLitRow(1);
+		TestEqual(TEXT("S from the last wraps to the first"), View->GetLitRow(), First);
+
+		TestTrue(TEXT("Enter on lit Attack"), View->PressLitRow());
+		TestTrue(TEXT("opens its picker, the foe's row lit"), Menu->GetHighlightedTarget() == Foe && View->GetRowTarget(View->GetLitRow()) == Foe);
+		TestTrue(TEXT("Enter / Space attack it"), View->PressLitRow());
+		TestTrue(TEXT("the picker is left, the foe attacked"), !Menu->GetHighlightedTarget() && Menu->GetLastAttackTarget(Hero) == Foe);
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+
+		Menu->OpenForActor(Hero);
+		TestTrue(TEXT("the hero's menu"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero);
 		FPieMenuButtonData Position;
 		Position.Category = EPieMenuCategory::MoveRow;
 		Menu->HandleSelection(Position);
-		TestFalse(TEXT("nothing in the Position picker"), Menu->PressMenuKey(EPieMenuCategory::Target));
+		TestFalse(TEXT("an unlit Position picker: Enter does nothing"), View->PressLitRow());
 		TestTrue(TEXT("still in it"), Menu->IsPositionPickerOpen());
 		Menu->HandleBack();
 
@@ -422,10 +475,58 @@ void FCommandMenuKeysSpec::Define()
 		Ability.Category = EPieMenuCategory::Ability;
 		Ability.DataReference = NewObject<UAbilityData>(GetTransientPackage());
 		Menu->HandleSelection(Ability);
-		TestTrue(TEXT("an ability's target picker, on the foe"), Menu->GetHighlightedTarget() == Foe);
+		TestTrue(TEXT("a skill's target picker, on the foe"), Menu->GetHighlightedTarget() == Foe);
 		TestFalse(TEXT("1 is the Attack picker's only"), Menu->PressMenuKey(EPieMenuCategory::Attack));
-		TestTrue(TEXT("Enter / Space picks the highlighted foe there too"), Menu->PressMenuKey(EPieMenuCategory::Target));
-		TestNull(TEXT("and leaves the picker"), Menu->GetHighlightedTarget());
+		TestTrue(TEXT("Enter / Space pick the foe there too"), View->PressLitRow());
+		TestNull(TEXT("and leave the picker"), Menu->GetHighlightedTarget());
+	});
+
+	It("cycles the targets on Q / E and A / D, wrapping, and S onto a target highlights it (B-582b, D-267)", [this]()
+	{
+		AActor *SecondFoe = StartTwoFoes();
+		if (!SecondFoe)
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		FPieMenuButtonData Attack;
+		Attack.Category = EPieMenuCategory::Attack;
+		Menu->HandleSelection(Attack);
+		AActor *First = Menu->GetHighlightedTarget();
+		AActor *Other = First == Foe ? SecondFoe : Foe;
+		const auto LitTarget = [View]() { return View->GetRowTarget(View->GetLitRow()); };
+		if (!TestTrue(TEXT("the picker, on one foe"), First == Foe || First == SecondFoe))
+		{
+			return;
+		}
+		Menu->CycleHighlightedTarget(1);
+		TestTrue(TEXT("E: the next target, its row lit"), Menu->GetHighlightedTarget() == Other && LitTarget() == Other);
+		Menu->CycleHighlightedTarget(1);
+		TestTrue(TEXT("E again wraps to the first"), Menu->GetHighlightedTarget() == First && LitTarget() == First);
+		Menu->CycleHighlightedTarget(-1);
+		TestTrue(TEXT("Q wraps back"), Menu->GetHighlightedTarget() == Other);
+		View->ChangeLitRowValue(1);
+		TestTrue(TEXT("D on a target row: as E"), Menu->GetHighlightedTarget() == First && LitTarget() == First);
+		View->ChangeLitRowValue(-1);
+		TestTrue(TEXT("A on a target row: as Q"), Menu->GetHighlightedTarget() == Other && LitTarget() == Other);
+
+		AActor *Before = Menu->GetHighlightedTarget();
+		for (int32 Step = 0; Step < View->GetRowLabels().Num(); ++Step)
+		{
+			View->MoveLitRow(1);
+			if (LitTarget() && LitTarget() != Before)
+			{
+				break;
+			}
+		}
+		TestTrue(TEXT("S onto the other target's row highlights it, as hover (the marker and camera follow)"),
+				 LitTarget() && LitTarget() != Before && Menu->GetHighlightedTarget() == LitTarget());
 	});
 
 	It("steps back out of the Position picker without moving (B-588)", [this]()

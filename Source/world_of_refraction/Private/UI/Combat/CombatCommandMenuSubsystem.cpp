@@ -2584,10 +2584,6 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
         // Position picker's 1 is its own branch below; this needs the Attack picker.
         return ConfirmHighlightedTarget();
     }
-    if (Category == EPieMenuCategory::Target)
-    {
-        return ConfirmHighlightedTarget(); // B-582b (D-267): Enter / Space, in any single-target picker; nothing elsewhere
-    }
     TArray<FPieMenuButtonData> View;
     const bool bInfusionKey = Category == EPieMenuCategory::CycleSource || Category == EPieMenuCategory::CycleLevel;
     if (bInfusionKey && CurrentDepth == ECombatMenuDepth::TargetSelection)
