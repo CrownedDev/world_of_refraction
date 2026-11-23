@@ -5,6 +5,8 @@
 #include "UI/Combat/Battle/BattleHUDCard.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Brushes/SlateColorBrush.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -264,6 +266,7 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 
 	Card.NameText = AddText(Tree, Rows, NameFontSize);
 	Card.NameText->SetAutoWrapText(Parts.bFixedWidth); // wrapping needs a width: a fitted card keeps the name on one line
+	Card.NameText->SetJustification(ETextJustify::Center); // B-582c (Crown): names centred on every card
 	Card.DetailText = AddText(Tree, Rows, LineFontSize); // D-229: the kind name ("Fire Refractor")
 
 	// B-503m: the numbers sit on the bars (HP on the HP bar, EP on its own bar); an enemy's HP bar has no number (Q-391).
@@ -313,11 +316,17 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 {
 	using namespace BattleCardStyle;
 
-	const FText Name = Card.bActing ? FText::Format(LOCTEXT("ActingName", "> {0}"), Card.Name) : Card.Name;
-	SetTextSafe(Card.NameText, Name);
-	if (Card.NameText)
+	SetTextSafe(Card.NameText, Card.Name);
+	if (Card.Frame) // B-582c (Crown): the acting party card's frame, in its selector colour, says whose turn it is
 	{
-		Card.NameText->SetColorAndOpacity(FSlateColor(Card.bActing ? ActingColor : TextColor));
+		if (Card.bActing && Card.bParty)
+		{
+			Card.Frame->SetBrush(FSlateRoundedBoxBrush(CardColor, 0.0f, Card.ActingOutline, ActingFrameWidth));
+		}
+		else
+		{
+			Card.Frame->SetBrush(FSlateColorBrush(CardColor));
+		}
 	}
 	SetTextSafe(Card.DetailText, Card.DetailLine);
 	if (Card.DetailText)

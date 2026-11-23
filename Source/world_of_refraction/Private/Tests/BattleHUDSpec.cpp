@@ -1140,6 +1140,26 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("the fresh foe has no effects"), Cards[FoeCard].StatusLine.IsEmpty());
 			TestTrue(TEXT("so its status row takes no space"),
 					 Cards[FoeCard].StatusText && Cards[FoeCard].StatusText->GetVisibility() == ESlateVisibility::Collapsed);
+			// B-582c (Crown): names centred with no "> " marker; whose turn it is shows as a frame on the acting party card,
+			// in its selector colour; no other card is framed.
+			const int32 HeroCard = CardOf(Hero);
+			const FByteProperty *Justify = CastField<FByteProperty>(UTextBlock::StaticClass()->FindPropertyByName(TEXT("Justification")));
+			for (const int32 Card : {HeroCard, FoeCard})
+			{
+				const UTextBlock *Name = Cards.IsValidIndex(Card) ? Cards[Card].NameText.Get() : nullptr;
+				TestTrue(TEXT("the name is centred"), Name && Justify && Justify->GetPropertyValue_InContainer(Name) == ETextJustify::Center);
+				TestTrue(TEXT("with no turn marker"), Name && Name->GetText().ToString() == Cards[Card].Name.ToString());
+			}
+			FLinearColor Fill;
+			FLinearColor Outline;
+			UBattleCommandMenuWidget::GetSelectorColoursFor(Hero, Fill, Outline);
+			if (TestTrue(TEXT("the acting hero's card is built"), Cards.IsValidIndex(HeroCard) && Cards[HeroCard].bActing && Cards[HeroCard].Frame))
+			{
+				const FSlateBrushOutlineSettings &Frame = Cards[HeroCard].Frame->Background.OutlineSettings;
+				TestTrue(TEXT("it is framed"), Frame.Width > 0.0f);
+				TestEqual(TEXT("in the hero's selector colour"), Frame.Color.GetSpecifiedColor(), Outline);
+			}
+			TestEqual(TEXT("the enemy card has no frame"), Cards[FoeCard].Frame->Background.OutlineSettings.Width, 0.0f);
 
 			FPieMenuButtonData Attack;
 			Attack.Category = EPieMenuCategory::Attack;
