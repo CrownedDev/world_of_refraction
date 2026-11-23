@@ -1288,6 +1288,12 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-265 — Remove the battle HUD's Status button
+**Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown) · **Blocks:** B-591
+**Crown:** "Remove it" (the top-centre Status button).
+**Ruled:** The button goes. Intel opens from a party card click and with V / R3, which is what the button did since B-587 QA, so nothing is lost. The old all-status list it used to open is no longer reachable in play.
+**Reference:** Expedition 33 opens character details from the character, not a separate HUD button.
+
 ### D-264 — The turn order becomes a row of small hexagon portraits, with two settings
 **Status:** ANSWERED (Crown, 2026-11-23, on the turn-order mockups) · **Raised:** 2026-11-23 (Crown) · **Blocks:** B-590
 **Crown:** asked for a nicer turn visual; kept the hexagons of the approved `refine_final/1_main_menu.png`; "they should be smaller ... they are not huge" (Expedition 33's turn cards); picked the small row (mockup I); "maybe we create options for it"; "make an option for how many turns ahead ... the max 6".
