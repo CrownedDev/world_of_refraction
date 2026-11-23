@@ -1083,6 +1083,16 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	/** B-453f (D-190): "Element letters on colours"; false = off, the default. An older save reads false: no bump. */
 	UPROPERTY()
 	bool bElementLetters = false;
+
+	/** B-590 (D-264): the fight's turn order runs down the right side; false = a row at the top right, the default. An
+	 *  older save reads false: no bump. */
+	UPROPERTY()
+	bool bTurnOrderColumn = false;
+
+	/** B-590 (D-264): how many turns the turn order shows, the current one included (1 to 6); 0 = the default, 6. An
+	 *  older save reads 0: no bump. */
+	UPROPERTY()
+	uint8 TurnsShown = 0;
 };
 
 /** B-214b: the best rank an aura (EFieldAura as a byte) has reached in an element (ESpellElement as a byte). */
