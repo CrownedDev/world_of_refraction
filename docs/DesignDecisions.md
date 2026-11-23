@@ -1288,6 +1288,18 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-267 — Battle menu keys: Enter / Space confirm, W / S rows, A / D values, Q / E targets
+**Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, on B-582) · **Blocks:** B-582b
+**Crown:** "enter should be confirmation also space bar"; "tab should let us cycle through things i.e targets sources etc", "paired with wasd navigation that could be a quick way of navigation"; then chose **"Q/E, no Tab"** (2026-11-23): Q / E already mean previous / next (Intel).
+**Ruled (new battle HUD, keyboard):**
+- **W / S** move a highlight up and down the rows of any list (main menu, skills, items, a target picker, the Position picker), wrapping at the ends. A list opens unlit, except a target picker, whose lit row is the highlighted target.
+- **Enter / Space** press the lit row, the same as a click. With nothing lit, in a single-target picker they pick the highlighted target (as the Attack picker's second 1); elsewhere they do nothing.
+- **Q / E** are the previous / next target in a target picker, wrapping. The highlight moves the target marker and camera as hover does.
+- **A / D** change the lit row's value (infusion Level down / up; Source steps forward). On a target row, or with nothing lit, they act as Q / E.
+- **Tab** gets no battle-menu binding; it stays the boss-cinematic skip only.
+- None of these act while Intel is open or a Guard / Dodge window is open on this machine. No gamepad change. This replaces D-266's note that Enter doesn't confirm.
+**Build defaults (reference-backed, Crown may change):** A on the infusion Source steps forward too (the source list only cycles one way); a group pick (Self / All) is pressed by Enter only once W / S light it. Expedition 33 and most PC turn-based games (Divinity: Original Sin 2, Baldur's Gate 3) confirm with Enter and Space alike; WASD menu movement and Q / E tab-style cycling are the PC standard (Baldur's Gate 3, Persona 5 PC).
+
 ### D-266 — Quick attack: 1 twice
 **Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-22 (Crown, B-582's idea) · **Blocks:** B-582
 **Crown:** chose the quick attack as pressing 1 twice in the battle menu.
