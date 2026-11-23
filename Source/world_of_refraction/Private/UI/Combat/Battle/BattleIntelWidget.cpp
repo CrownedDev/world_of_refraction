@@ -7,6 +7,7 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/ProgressBar.h"
+#include "Components/ScaleBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -20,7 +21,9 @@ namespace BattleIntelStyle
 {
 	using namespace WoRMenuStyle;
 	// TODO: style pass (placeholder until the CommonUI screens, D-024). Slate units at 1080p, DPI-scaled.
-	constexpr float PanelWidth = 960.0f;
+	/** B-587 (D-262 a): the panel's content width. With its padding and the HUD's 24 screen margin the panel fills the
+	 *  right third of 1920 (640), leaving the left two-thirds to the close-up. Was 960, centred (B-586). */
+	constexpr float PanelWidth = 580.0f;
 	constexpr float PanelPadding = 18.0f;
 	constexpr float RowGap = 2.0f;
 	constexpr float LabelIndent = 4.0f;
@@ -91,6 +94,12 @@ TSharedRef<SWidget> UBattleIntelWidget::RebuildWidget()
 			UTextBlock *Label = nullptr;
 			UBorder *Tab = MakeTab(WidgetTree, Label);
 			Label->SetJustification(ETextJustify::Center);
+			// B-587: the narrower panel shrinks a long name to its tab instead of pushing the row wider.
+			UScaleBox *Fit = WidgetTree->ConstructWidget<UScaleBox>(UScaleBox::StaticClass());
+			Fit->SetStretch(EStretch::ScaleToFit);
+			Fit->SetStretchDirection(EStretchDirection::DownOnly);
+			Fit->AddChild(Label);
+			Tab->SetContent(Fit);
 			Tab->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleIntelWidget, HandleTabMouseDown));
 			AddToRow(TabRow, Tab, FMargin(0.0f, 0.0f, TabGap, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 			Tabs.Add(Tab);
