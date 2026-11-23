@@ -2,14 +2,81 @@
 
 #include "UI/Combat/Battle/TurnHexWidget.h"
 
-#include "Engine/Texture2D.h"
+#include "Components/SceneCaptureComponent2D.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Engine/Texture.h"
+#include "Engine/TextureRenderTarget2D.h"
+#include "Engine/World.h"
 #include "Framework/Application/SlateApplication.h"
+#include "GameFramework/Actor.h"
+#include "Misc/App.h"
 #include "Rendering/DrawElements.h"
 #include "Rendering/SlateRenderer.h"
 #include "Styling/CoreStyle.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
+#include "WoRLog.h"
 
-void UTurnHexWidget::SetHex(UTexture2D *InPortrait, const FLinearColor &InBorder, float InBorderThickness)
+namespace TurnHexFaceShot
+{
+	// TODO: tune in PIE (B-590 QA). The UE mannequin's head bone, then VRoid's.
+	const FName HeadBones[] = {TEXT("head"), TEXT("J_Bip_C_Head")};
+	constexpr float FaceAboveHeadBone = 8.0f; // cm: the head bone sits at the skull's base
+	constexpr float FaceBelowMeshTop = 0.08f; // of the mesh's height, when there is no head bone
+	constexpr float FramedHeightOfBody = 0.17f; // the picture's height, of the mesh's height: the head and a little neck
+	constexpr float MinFramedHeight = 28.0f;  // cm
+	constexpr float FieldOfView = 30.0f;	  // degrees
+}
+
+UTextureRenderTarget2D *TurnHexFace::Capture(AActor *Fighter, UObject *Outer)
+{
+	using namespace TurnHexFaceShot;
+	UWorld *World = Fighter ? Fighter->GetWorld() : nullptr;
+	USkeletalMeshComponent *Mesh = Fighter ? Fighter->FindComponentByClass<USkeletalMeshComponent>() : nullptr;
+	if (!World || !World->Scene || !Mesh || !Mesh->GetSkeletalMeshAsset() || !FApp::CanEverRender() || !Outer)
+	{
+		return nullptr;
+	}
+	const FBoxSphereBounds Bounds = Mesh->Bounds;
+	const float Height = static_cast<float>(Bounds.BoxExtent.Z) * 2.0f;
+	FVector Face = Bounds.Origin + FVector::UpVector * (Bounds.BoxExtent.Z - Height * FaceBelowMeshTop);
+	for (const FName &Bone : HeadBones)
+	{
+		if (Mesh->DoesSocketExist(Bone))
+		{
+			Face = Mesh->GetSocketLocation(Bone) + FVector::UpVector * FaceAboveHeadBone;
+			break;
+		}
+	}
+	const float Framed = FMath::Max(Height * FramedHeightOfBody, MinFramedHeight);
+	const float Distance = Framed * 0.5f / FMath::Tan(FMath::DegreesToRadians(FieldOfView * 0.5f));
+	const FVector Forward = Fighter->GetActorForwardVector().GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+
+	UTextureRenderTarget2D *Target = NewObject<UTextureRenderTarget2D>(Outer, MakeUniqueObjectName(Outer, UTextureRenderTarget2D::StaticClass(),
+																								   *FString::Printf(TEXT("FaceCapture_%s"), *Fighter->GetName())));
+	Target->InitCustomFormat(CAPTURE_SIZE, CAPTURE_SIZE, PF_B8G8R8A8, /*bInForceLinearGamma=*/false);
+	Target->UpdateResourceImmediate(true);
+
+	USceneCaptureComponent2D *Camera = NewObject<USceneCaptureComponent2D>(Fighter);
+	Camera->bCaptureEveryFrame = false;
+	Camera->bCaptureOnMovement = false;
+	Camera->FOVAngle = FieldOfView;
+	Camera->TextureTarget = Target;
+	Camera->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
+	Camera->PrimitiveRenderMode = ESceneCapturePrimitiveRenderMode::PRM_UseShowOnlyList;
+	Camera->ShowOnlyActorComponents(Fighter);
+	Camera->ShowFlags.SetMotionBlur(false);
+	Camera->ShowFlags.SetFog(false);
+	Camera->ShowFlags.SetAtmosphere(false);
+	Camera->SetWorldLocationAndRotation(Face + Forward * Distance, (-Forward).Rotation());
+	Camera->RegisterComponentWithWorld(World);
+	Camera->CaptureScene();
+	Camera->DestroyComponent();
+	UE_LOG(LogWoRUI, Log, TEXT("[TurnHex] Face captured: %s (%s, %.0f cm framed)"), *Fighter->GetName(),
+		   Mesh->DoesSocketExist(HeadBones[0]) || Mesh->DoesSocketExist(HeadBones[1]) ? TEXT("head bone") : TEXT("mesh top"), Framed);
+	return Target;
+}
+
+void UTurnHexWidget::SetHex(UTexture *InPortrait, const FLinearColor &InBorder, float InBorderThickness)
 {
 	if (Portrait != InPortrait)
 	{
@@ -57,8 +124,9 @@ int32 UTurnHexWidget::NativePaint(const FPaintArgs &Args, const FGeometry &Allot
 	{
 		Indices.Append({0, static_cast<SlateIndex>(Index + 1), static_cast<SlateIndex>((Index + 1) % Corners.Num() + 1)});
 	}
+	// A scene capture's alpha isn't the picture's opacity (its background can read 0): the face is drawn opaque.
 	FSlateDrawElement::MakeCustomVerts(OutDrawElements, LayerId, FSlateApplication::Get().GetRenderer()->GetResourceHandle(*Fill), Verts, Indices,
-									   nullptr, 0, 0);
+									   nullptr, 0, 0, bPortrait ? ESlateDrawEffect::IgnoreTextureAlpha : ESlateDrawEffect::None);
 
 	// The edge, inset by half its thickness so it stays inside the box, closed back to the first corner.
 	const float Half = BorderThickness * 0.5f;
