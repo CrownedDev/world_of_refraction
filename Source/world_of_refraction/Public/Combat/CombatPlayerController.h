@@ -193,6 +193,11 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> IntelTabNextAction;
 
+	/** B-582b (D-267): Enter and Space, confirming the highlighted target in a target picker. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInputAction>> ConfirmActions;
+	void OnConfirmKey(const FInputActionValue &Value);
+
 	/** Creates the menu-key actions (and the cinematic skip) and their mapping context once. */
 	void BuildMenuKeys();
 

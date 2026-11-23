@@ -51,6 +51,13 @@ namespace CombatMenuKeys
 	FKey GetIntelTabNextGamepad() { return EKeys::Gamepad_RightShoulder; }
 	constexpr int32 INTEL_TAB_PREV = -1;
 	constexpr int32 INTEL_TAB_NEXT = 1;
+	/** B-582b (D-267): Enter and Space confirm the highlighted target in a target picker (the new HUD only). Two actions,
+	 *  one key each, so each stays rebindable (D-063). No pad button: A is already the Attack picker's second press. */
+	constexpr const TCHAR *CONFIRM_ACTION_NAME = TEXT("IA_Combat_MenuConfirm");
+	constexpr const TCHAR *CONFIRM_SPACE_ACTION_NAME = TEXT("IA_Combat_MenuConfirmSpace");
+	FKey GetConfirmKeyboard() { return EKeys::Enter; }
+	FKey GetConfirmSpaceKeyboard() { return EKeys::SpaceBar; }
+
 	/** B-587 (D-262): holding V / R3 this long closes Intel; a shorter press is a tap. */
 	constexpr float INTEL_HOLD_SECONDS = 0.5f; // TODO: tune in PIE
 
@@ -193,6 +200,10 @@ void ACombatPlayerController::SetupInputComponent()
 	EnhancedInput->BindAction(IntelDetailsAction, ETriggerEvent::Completed, this, &ACombatPlayerController::OnIntelDetailsReleased); // B-587
 	EnhancedInput->BindAction(IntelTabPrevAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelTabPrev);
 	EnhancedInput->BindAction(IntelTabNextAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelTabNext);
+	for (const TObjectPtr<UInputAction> &ConfirmAction : ConfirmActions) // B-582b
+	{
+		EnhancedInput->BindAction(ConfirmAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnConfirmKey);
+	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
 }
@@ -643,6 +654,33 @@ void ACombatPlayerController::BuildMenuKeys()
 										 CombatMenuKeys::GetIntelTabPrevGamepad());
 	IntelTabNextAction = MakeIntelAction(CombatMenuKeys::INTEL_TAB_NEXT_ACTION_NAME, CombatMenuKeys::GetIntelTabNextKeyboard(),
 										 CombatMenuKeys::GetIntelTabNextGamepad());
+
+	// B-582b: the confirm keys, not consumed either (Space may also be the editor-mapped Dodge; its window is checked
+	// in OnConfirmKey, and the DefenseSystem ignores a Dodge press with no window open).
+	for (const TPair<const TCHAR *, FKey> &Confirm : {TPair<const TCHAR *, FKey>(CombatMenuKeys::CONFIRM_ACTION_NAME, CombatMenuKeys::GetConfirmKeyboard()),
+													  TPair<const TCHAR *, FKey>(CombatMenuKeys::CONFIRM_SPACE_ACTION_NAME, CombatMenuKeys::GetConfirmSpaceKeyboard())})
+	{
+		UInputAction *Action = NewObject<UInputAction>(this, Confirm.Key);
+		Action->ValueType = EInputActionValueType::Boolean;
+		Action->bConsumeInput = false;
+		MenuKeysContext->MapKey(Action, Confirm.Value);
+		ConfirmActions.Add(Action);
+	}
+}
+
+void ACombatPlayerController::OnConfirmKey(const FInputActionValue &Value)
+{
+	// B-582b (D-267): the old WBP HUD (wor.UI.NewHUD 0) confirms through CommonUI on Enter; acting here too would pick twice.
+	if (!UCombatHUD::WantsNewHUD())
+	{
+		return;
+	}
+	// A Guard / Dodge window on this machine takes the key; a pick never lands then (the menu is shut on an enemy's turn too).
+	if (const UDefenseSystem *Defense = GetDefenseSystem(); Defense && Defense->GetActiveDefenderForLocalPlayer())
+	{
+		return;
+	}
+	PressMenuKey(EPieMenuCategory::Target);
 }
 
 UBattleHUDWidget *ACombatPlayerController::FindBattleHUD() const
@@ -808,6 +846,11 @@ FString ACombatPlayerController::GetMenuKeysString()
 				CombatMenuKeys::GetIntelTabPrevGamepad());
 	AddIntelKey(CombatMenuKeys::INTEL_TAB_NEXT_ACTION_NAME, TEXT("Intel next tab"), CombatMenuKeys::GetIntelTabNextKeyboard(),
 				CombatMenuKeys::GetIntelTabNextGamepad());
+	for (const TCHAR *Name : {CombatMenuKeys::CONFIRM_ACTION_NAME, CombatMenuKeys::CONFIRM_SPACE_ACTION_NAME})
+	{
+		const FKey Key = Name == CombatMenuKeys::CONFIRM_ACTION_NAME ? CombatMenuKeys::GetConfirmKeyboard() : CombatMenuKeys::GetConfirmSpaceKeyboard();
+		Out += FString::Printf(TEXT("\n  %s (confirm the highlighted target, B-582b): %s / -"), Name, *Key.GetDisplayName().ToString());
+	}
 	return Out;
 }
 
