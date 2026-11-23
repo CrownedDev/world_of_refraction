@@ -117,6 +117,18 @@ struct FCombatMenuKey
 	FKey Gamepad;
 };
 
+/** B-582b (D-267): what a battle-menu navigation key does (the new HUD's UBattleCommandMenuWidget). */
+enum class EBattleMenuNav : uint8
+{
+	Confirm,
+	RowUp,
+	RowDown,
+	ValuePrev,
+	ValueNext,
+	TargetPrev,
+	TargetNext,
+};
+
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatPlayerController : public APlayerController
 {
@@ -193,10 +205,11 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UInputAction> IntelTabNextAction;
 
-	/** B-582b (D-267): Enter and Space, confirming the highlighted target in a target picker. */
+	/** B-582b (D-267): the battle menu's keyboard navigation (Enter / Space, W / S, A / D, Q / E), and what each does. */
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UInputAction>> ConfirmActions;
-	void OnConfirmKey(const FInputActionValue &Value);
+	TArray<TObjectPtr<UInputAction>> MenuNavActions;
+	TArray<EBattleMenuNav> MenuNavKinds;
+	void OnMenuNavKey(const FInputActionInstance &Instance);
 
 	/** Creates the menu-key actions (and the cinematic skip) and their mapping context once. */
 	void BuildMenuKeys();

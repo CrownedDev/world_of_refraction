@@ -207,8 +207,8 @@ public:
     bool PressMenuKey(EPieMenuCategory Category);
 
     /** B-582 / B-582b (D-266, D-267): in an open single-target picker, press the highlighted target's row, as a click
-     *  on it. False (nothing done) when no such picker is open or the row is greyed. PressMenuKey(Target) is the
-     *  confirm keys (Enter / Space); PressMenuKey(Attack) in the Attack picker is the second 1 / A. */
+     *  on it. False (nothing done) when no such picker is open or the row is greyed. Enter / Space reach it through
+     *  UBattleCommandMenuWidget::PressLitRow; PressMenuKey(Attack) in the Attack picker is the second 1 / A. */
     bool ConfirmHighlightedTarget();
 
     /** Call when the turn ends or combat closes the menu. */

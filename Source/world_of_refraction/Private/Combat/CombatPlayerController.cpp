@@ -19,6 +19,7 @@
 #include "InputCoreTypes.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/CombatHUD.h"
+#include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
@@ -51,12 +52,30 @@ namespace CombatMenuKeys
 	FKey GetIntelTabNextGamepad() { return EKeys::Gamepad_RightShoulder; }
 	constexpr int32 INTEL_TAB_PREV = -1;
 	constexpr int32 INTEL_TAB_NEXT = 1;
-	/** B-582b (D-267): Enter and Space confirm the highlighted target in a target picker (the new HUD only). Two actions,
-	 *  one key each, so each stays rebindable (D-063). No pad button: A is already the Attack picker's second press. */
-	constexpr const TCHAR *CONFIRM_ACTION_NAME = TEXT("IA_Combat_MenuConfirm");
-	constexpr const TCHAR *CONFIRM_SPACE_ACTION_NAME = TEXT("IA_Combat_MenuConfirmSpace");
-	FKey GetConfirmKeyboard() { return EKeys::Enter; }
-	FKey GetConfirmSpaceKeyboard() { return EKeys::SpaceBar; }
+	/** B-582b (D-267; Crown, 2026-11-23: Q / E, no Tab): the battle menu's keyboard navigation, the new HUD only. One
+	 *  action per key, so each stays rebindable (D-063). No pad buttons: A is the Attack picker's second press, LB / RB
+	 *  the infusion keys, and the D-pad main-menu keys. */
+	struct FMenuNavKey
+	{
+		const TCHAR *ActionName;
+		FKey Keyboard;
+		EBattleMenuNav Nav;
+		const TCHAR *What;
+	};
+	const TArray<FMenuNavKey> &GetMenuNavKeys()
+	{
+		static const TArray<FMenuNavKey> Keys = {
+			{TEXT("IA_Combat_MenuConfirm"), EKeys::Enter, EBattleMenuNav::Confirm, TEXT("press the lit row; in a picker, the highlighted target")},
+			{TEXT("IA_Combat_MenuConfirmSpace"), EKeys::SpaceBar, EBattleMenuNav::Confirm, TEXT("as Enter")},
+			{TEXT("IA_Combat_MenuRowUp"), EKeys::W, EBattleMenuNav::RowUp, TEXT("light the row above, wrapping")},
+			{TEXT("IA_Combat_MenuRowDown"), EKeys::S, EBattleMenuNav::RowDown, TEXT("light the row below, wrapping")},
+			{TEXT("IA_Combat_MenuValuePrev"), EKeys::A, EBattleMenuNav::ValuePrev, TEXT("the lit row's value back, or the previous target")},
+			{TEXT("IA_Combat_MenuValueNext"), EKeys::D, EBattleMenuNav::ValueNext, TEXT("the lit row's value on, or the next target")},
+			{TEXT("IA_Combat_MenuTargetPrev"), EKeys::Q, EBattleMenuNav::TargetPrev, TEXT("the previous target, wrapping (Intel's tab while it is open)")},
+			{TEXT("IA_Combat_MenuTargetNext"), EKeys::E, EBattleMenuNav::TargetNext, TEXT("the next target, wrapping (Intel's tab while it is open)")},
+		};
+		return Keys;
+	}
 
 	/** B-587 (D-262): holding V / R3 this long closes Intel; a shorter press is a tap. */
 	constexpr float INTEL_HOLD_SECONDS = 0.5f; // TODO: tune in PIE
@@ -200,9 +219,9 @@ void ACombatPlayerController::SetupInputComponent()
 	EnhancedInput->BindAction(IntelDetailsAction, ETriggerEvent::Completed, this, &ACombatPlayerController::OnIntelDetailsReleased); // B-587
 	EnhancedInput->BindAction(IntelTabPrevAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelTabPrev);
 	EnhancedInput->BindAction(IntelTabNextAction, ETriggerEvent::Started, this, &ACombatPlayerController::OnIntelTabNext);
-	for (const TObjectPtr<UInputAction> &ConfirmAction : ConfirmActions) // B-582b
+	for (const TObjectPtr<UInputAction> &NavAction : MenuNavActions) // B-582b
 	{
-		EnhancedInput->BindAction(ConfirmAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnConfirmKey);
+		EnhancedInput->BindAction(NavAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnMenuNavKey);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
@@ -655,32 +674,70 @@ void ACombatPlayerController::BuildMenuKeys()
 	IntelTabNextAction = MakeIntelAction(CombatMenuKeys::INTEL_TAB_NEXT_ACTION_NAME, CombatMenuKeys::GetIntelTabNextKeyboard(),
 										 CombatMenuKeys::GetIntelTabNextGamepad());
 
-	// B-582b: the confirm keys, not consumed either (Space may also be the editor-mapped Dodge; its window is checked
-	// in OnConfirmKey, and the DefenseSystem ignores a Dodge press with no window open).
-	for (const TPair<const TCHAR *, FKey> &Confirm : {TPair<const TCHAR *, FKey>(CombatMenuKeys::CONFIRM_ACTION_NAME, CombatMenuKeys::GetConfirmKeyboard()),
-													  TPair<const TCHAR *, FKey>(CombatMenuKeys::CONFIRM_SPACE_ACTION_NAME, CombatMenuKeys::GetConfirmSpaceKeyboard())})
+	// B-582b: the navigation keys, not consumed either (Space or a letter may also be an editor-mapped Guard / Dodge key;
+	// its window is checked in OnMenuNavKey, and the DefenseSystem ignores a press with no window open).
+	for (const CombatMenuKeys::FMenuNavKey &Nav : CombatMenuKeys::GetMenuNavKeys())
 	{
-		UInputAction *Action = NewObject<UInputAction>(this, Confirm.Key);
+		UInputAction *Action = NewObject<UInputAction>(this, Nav.ActionName);
 		Action->ValueType = EInputActionValueType::Boolean;
 		Action->bConsumeInput = false;
-		MenuKeysContext->MapKey(Action, Confirm.Value);
-		ConfirmActions.Add(Action);
+		MenuKeysContext->MapKey(Action, Nav.Keyboard);
+		MenuNavActions.Add(Action);
+		MenuNavKinds.Add(Nav.Nav);
 	}
 }
 
-void ACombatPlayerController::OnConfirmKey(const FInputActionValue &Value)
+void ACombatPlayerController::OnMenuNavKey(const FInputActionInstance &Instance)
 {
 	// B-582b (D-267): the old WBP HUD (wor.UI.NewHUD 0) confirms through CommonUI on Enter; acting here too would pick twice.
-	if (!UCombatHUD::WantsNewHUD())
+	if (!IsLocalController() || !UCombatHUD::WantsNewHUD())
 	{
 		return;
 	}
-	// A Guard / Dodge window on this machine takes the key; a pick never lands then (the menu is shut on an enemy's turn too).
+	// A Guard / Dodge window on this machine takes the key; nothing in the menu moves then (it is shut on an enemy's turn too).
 	if (const UDefenseSystem *Defense = GetDefenseSystem(); Defense && Defense->GetActiveDefenderForLocalPlayer())
 	{
 		return;
 	}
-	PressMenuKey(EPieMenuCategory::Target);
+	UBattleHUDWidget *HUD = FindBattleHUD();
+	UBattleCommandMenuWidget *MenuView = HUD ? HUD->GetCommandMenu() : nullptr;
+	if (!MenuView || HUD->IsIntelOpen()) // Intel open: Q / E step its tabs, the rest wait (as the menu keys, B-586)
+	{
+		return;
+	}
+	const UInputAction *Pressed = Instance.GetSourceAction();
+	const int32 Index = MenuNavActions.IndexOfByPredicate([Pressed](const TObjectPtr<UInputAction> &Action) { return Action.Get() == Pressed; });
+	if (!MenuNavKinds.IsValidIndex(Index))
+	{
+		return;
+	}
+	constexpr int32 PREVIOUS = -1;
+	constexpr int32 NEXT = 1;
+	switch (MenuNavKinds[Index])
+	{
+	case EBattleMenuNav::Confirm:
+		MenuView->PressLitRow();
+		break;
+	case EBattleMenuNav::RowUp:
+		MenuView->MoveLitRow(PREVIOUS);
+		break;
+	case EBattleMenuNav::RowDown:
+		MenuView->MoveLitRow(NEXT);
+		break;
+	case EBattleMenuNav::ValuePrev:
+		MenuView->ChangeLitRowValue(PREVIOUS);
+		break;
+	case EBattleMenuNav::ValueNext:
+		MenuView->ChangeLitRowValue(NEXT);
+		break;
+	case EBattleMenuNav::TargetPrev:
+	case EBattleMenuNav::TargetNext:
+		if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GetGameInstance()))
+		{
+			Menu->CycleHighlightedTarget(MenuNavKinds[Index] == EBattleMenuNav::TargetNext ? NEXT : PREVIOUS); // nothing outside a picker
+		}
+		break;
+	}
 }
 
 UBattleHUDWidget *ACombatPlayerController::FindBattleHUD() const
@@ -846,10 +903,9 @@ FString ACombatPlayerController::GetMenuKeysString()
 				CombatMenuKeys::GetIntelTabPrevGamepad());
 	AddIntelKey(CombatMenuKeys::INTEL_TAB_NEXT_ACTION_NAME, TEXT("Intel next tab"), CombatMenuKeys::GetIntelTabNextKeyboard(),
 				CombatMenuKeys::GetIntelTabNextGamepad());
-	for (const TCHAR *Name : {CombatMenuKeys::CONFIRM_ACTION_NAME, CombatMenuKeys::CONFIRM_SPACE_ACTION_NAME})
+	for (const CombatMenuKeys::FMenuNavKey &Nav : CombatMenuKeys::GetMenuNavKeys())
 	{
-		const FKey Key = Name == CombatMenuKeys::CONFIRM_ACTION_NAME ? CombatMenuKeys::GetConfirmKeyboard() : CombatMenuKeys::GetConfirmSpaceKeyboard();
-		Out += FString::Printf(TEXT("\n  %s (confirm the highlighted target, B-582b): %s / -"), Name, *Key.GetDisplayName().ToString());
+		Out += FString::Printf(TEXT("\n  %s (%s, B-582b): %s / -"), Nav.ActionName, Nav.What, *Nav.Keyboard.GetDisplayName().ToString());
 	}
 	return Out;
 }
