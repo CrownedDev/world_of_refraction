@@ -1293,7 +1293,7 @@ The queue of questions only Crown can answer.
 **Crown:** the target step (Attack, a skill, an item) starts small; X shows the weapon, Y the infusion. Later notes: no "Size x…" line and no backlash text in the target panel; the HP cost shows only as a ghost on the caster's HP bar.
 **Ruled (new battle HUD):**
 - The panel starts small: the heading ("Attack · choose a target") and one dim summary of the current choice ("Hammer · Lightning · Lv I"; "No infusion" at level 0). No weapon, element or level lines by default. The target rows stay under it (the only way to pick a target until a target-cycle key exists).
-- **X / 2** shows only the weapon line (Attack with two weapons); X again switches to the next weapon and stays in the step.
+- **X / 2** shows only the weapon line (Attack with two weapons); X again switches to the next weapon and stays in the step. It is the turn's one weapon switch (as 6 / L3): once spent, "Next weapon" greys with why.
 - **Y / 3** hides the weapon line and shows the infusion lines (element, then level); R / T (LB / RB) change them as before; Y again closes them. Back closes an open line first.
 - A spell bound to one element (any spell but a breakthrough one, or a breakthrough with one source) shows no element line and no element in the summary: Y opens the level line only. Attack, weapon skills and breakthrough spells with a choice keep the element line.
 - Corner hints: "2 Weapon / 3 Infusion" (keys), "X Weapon / Y Infusion" (pad), "Next weapon" / "Close" while open, "Level" / "Element" for the infusion keys only while the infusion line is open. Only what applies shows: no Weapon with one weapon, nothing for an item.
