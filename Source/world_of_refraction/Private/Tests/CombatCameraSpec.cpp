@@ -35,6 +35,8 @@
 #include "Combat/CombatPlayerController.h"
 #include "Blueprint/UserWidget.h"
 #include "Camera/CameraActor.h"
+#include "Components/CapsuleComponent.h"
+#include "Components/SphereComponent.h"
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 
 namespace
@@ -102,6 +104,16 @@ namespace
 	constexpr int32 TARGET_TEST_ONE = 1;
 	/** B-400: an ally beside the acting character (a heal's target). */
 	const FVector TARGET_TEST_ALLY(0.0f, 250.0f, 0.0f);
+
+	// B-587 QA: a fighter this far across the screen from the character (-1..1 units) is off it; a point this far below
+	// the floor (cm) is off screen.
+	constexpr float INTEL_TEST_OFF_SUBJECT = CameraFraming::THIRD_LINE * 0.5f;
+	constexpr float INTEL_TEST_FAR_BELOW = 10000.0f;
+	/** B-587 QA: a recruit's body and the talk sphere around it (UPartyInteractionComponent's), in cm. */
+	constexpr float INTEL_TEST_CAPSULE_RADIUS = 40.0f;
+	constexpr float INTEL_TEST_CAPSULE_HALF_HEIGHT = 90.0f;
+	constexpr float INTEL_TEST_TALK_RADIUS = 300.0f;
+	constexpr float INTEL_TEST_SHAPE_TOLERANCE = 1.0f;
 
 	FVector2D ProjectInTurnView(const FTransform &View, const FVector &Point)
 	{
@@ -488,6 +500,27 @@ void FCombatCameraSpec::Define()
 					TestTrue(FString::Printf(TEXT("%s: from the side it faces (front)"), *Name), bEnemy ? View.GetLocation().X < Feet.X : View.GetLocation().X > Feet.X);
 				}
 			}
+		});
+
+		It("moves to a clear angle when another fighter stands in front of the character (B-587 QA)", [this]()
+		{
+			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, TurnTestThreeEnemies());
+			const FVector Feet = TARGET_TEST_ALLY;
+			const FVector Middle = Feet + FVector::UpVector * TARGET_TEST_PERSON_HEIGHT * 0.5f;
+			const FTransform Clear = FCombatCameraRules::ComputeIntelView(Frame, Feet, TARGET_TEST_PERSON_HEIGHT);
+			// Another party member halfway between that camera and the ally, on the line of sight.
+			const FVector InFront = (Clear.GetLocation() + Middle) * 0.5f;
+			const FTransform View = FCombatCameraRules::ComputeIntelView(Frame, Feet, TARGET_TEST_PERSON_HEIGHT, {InFront});
+			TestFalse(TEXT("another angle"), View.Equals(Clear));
+			const float BlockerDepth = FVector::DotProduct(InFront - View.GetLocation(), View.GetRotation().GetForwardVector());
+			const float AllyDepth = FVector::DotProduct(Middle - View.GetLocation(), View.GetRotation().GetForwardVector());
+			const bool bOffTheAlly = BlockerDepth >= AllyDepth
+				|| FMath::Abs(ProjectInTurnView(View, InFront).X - ProjectInTurnView(View, Middle).X) > INTEL_TEST_OFF_SUBJECT;
+			TestTrue(TEXT("the fighter in front is off the ally"), bOffTheAlly);
+			TestTrue(TEXT("the ally still in frame, left of the panel"), CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Feet)
+				&& ProjectInTurnView(View, Middle).X < CameraFraming::THIRD_LINE);
+			const FVector FarBelow = Middle - FVector::UpVector * INTEL_TEST_FAR_BELOW;
+			TestTrue(TEXT("nobody in front: the first angle"), FCombatCameraRules::ComputeIntelView(Frame, Feet, TARGET_TEST_PERSON_HEIGHT, {FarBelow}).Equals(Clear));
 		});
 	});
 
@@ -1384,6 +1417,30 @@ void FCombatCameraDirectorSpec::Define()
 		TestEqual(TEXT("one move for it"), Director->GetIntelMoveCount(), MovesBeforeTurn + 1);
 		HUD->CloseIntel();
 		TestFalse(TEXT("closed: the turn view"), Director->IsIntelViewShowing());
+	});
+
+	It("sizes a recruit by its body, not the talk sphere around it (B-587 QA)", [this]()
+	{
+		AActor *Recruit = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<AActor>() : nullptr;
+		if (!TestNotNull(TEXT("setup"), Recruit))
+		{
+			return;
+		}
+		UCapsuleComponent *Capsule = NewObject<UCapsuleComponent>(Recruit);
+		Capsule->InitCapsuleSize(INTEL_TEST_CAPSULE_RADIUS, INTEL_TEST_CAPSULE_HALF_HEIGHT);
+		Capsule->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+		Recruit->SetRootComponent(Capsule);
+		Capsule->RegisterComponent();
+		USphereComponent *Talk = NewObject<USphereComponent>(Recruit);
+		Talk->SetSphereRadius(INTEL_TEST_TALK_RADIUS);
+		Talk->SetCollisionEnabled(ECollisionEnabled::QueryOnly); // as UPartyInteractionComponent's trigger
+		Talk->SetupAttachment(Capsule);
+		Talk->RegisterComponent();
+		FVector Feet;
+		float Height = 0.0f;
+		UCombatCameraDirector::GetTargetShape(Recruit, Feet, Height);
+		TestEqual(TEXT("the capsule's height"), Height, INTEL_TEST_CAPSULE_HALF_HEIGHT * 2.0f, INTEL_TEST_SHAPE_TOLERANCE);
+		TestEqual(TEXT("its feet"), static_cast<float>(Feet.Z), static_cast<float>(Capsule->GetComponentLocation().Z) - INTEL_TEST_CAPSULE_HALF_HEIGHT, INTEL_TEST_SHAPE_TOLERANCE);
 	});
 
 	Describe("boss cinematics (B-406)", [this]()

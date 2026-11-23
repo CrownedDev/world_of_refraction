@@ -343,6 +343,27 @@ void FBattleIntelSpec::Define()
 		TestFalse(TEXT("V closes it"), HUD->IsIntelOpen());
 		HUD->Teardown();
 	});
+
+	It("hides the turn order and the enemy cards under the side panel while open (B-587 QA)", [this]()
+	{
+		AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UBattleHUDWidget *HUD = Hero && Foe ? MakeHUD({Hero}, {Foe}) : nullptr;
+		if (HUD)
+		{
+			HUD->TakeWidget(); // builds the tree
+		}
+		const UWidget *RightColumn = HUD ? HUD->GetWidgetFromName(TEXT("RightColumn")) : nullptr;
+		if (!TestNotNull(TEXT("the right-hand column"), RightColumn))
+		{
+			return;
+		}
+		HUD->OpenIntel(FOE_CARD);
+		TestEqual(TEXT("open: hidden"), RightColumn->GetVisibility(), ESlateVisibility::Collapsed);
+		HUD->CloseIntel();
+		TestEqual(TEXT("closed: back"), RightColumn->GetVisibility(), ESlateVisibility::SelfHitTestInvisible);
+		HUD->Teardown();
+	});
 }
 
 #endif
