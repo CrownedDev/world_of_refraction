@@ -113,6 +113,13 @@ namespace WoRRestSpot
 	/** B-187e: which revival the next Revive would be at the last used rest spot (1 for the first). */
 	WORLD_OF_REFRACTION_API int32 GetNextRevivalNumber(const UWorld *World);
 
+	/** B-589 (Q-450 = B, D-187): who a Revive brings back, by name, never its rank: the last used rest spot's opponent
+	 *  (ATrialRestSpot::GetOpponentName), or "opponent" when it has no name. The lines read "the {name}". */
+	WORLD_OF_REFRACTION_API FText GetReviveOpponentName(const UWorld *World);
+
+	/** B-589: the rest menu's revive row, "Revive the Ash Warden (1 of 3)". */
+	WORLD_OF_REFRACTION_API FText MakeReviveRowText(const FText &OpponentName, int32 RevivalNumber);
+
 	/** B-187e (review): how near the rest stand a client must be for the host to take its Revive (cm). */
 	constexpr float CLIENT_REVIVE_REACH_CM = 600.f;
 }
@@ -136,8 +143,13 @@ public:
 	UMerchantData *GetServiceMerchant() const { return ServiceMerchant; }
 
 	/** B-187b: a rest spot where the beaten mini-boss EncounterId stood (its id is the encounter's, so the menu can
-	 *  revive it). Null when the spawn fails. */
-	static ATrialRestSpot *SpawnForMiniBoss(UWorld *World, const FTransform &Where, FName EncounterId);
+	 *  revive it). B-589 (Q-450): OpponentName is its leader's name, which the revive row and vote say. Null when the
+	 *  spawn fails. */
+	static ATrialRestSpot *SpawnForMiniBoss(UWorld *World, const FTransform &Where, FName EncounterId,
+											const FText &OpponentName = FText::GetEmpty());
+
+	/** B-589: the beaten mini-boss's name on its rest spot (SpawnForMiniBoss); empty on any other spot. */
+	const FText &GetOpponentName() const { return OpponentName; }
 
 	/** The id the run records for this spot: a mini-boss's encounter id, else its own feature id. */
 	FName GetRestSpotId() const { return MiniBossEncounterId.IsNone() ? GetFeatureId() : MiniBossEncounterId; }
@@ -157,4 +169,7 @@ protected:
 private:
 	/** B-187b: set when this spot marks a beaten mini-boss (SpawnForMiniBoss). */
 	FName MiniBossEncounterId;
+
+	/** B-589: SpawnForMiniBoss's OpponentName. */
+	FText OpponentName;
 };
