@@ -51,7 +51,6 @@ class UDefenseSystem;
 enum class ECombatState : uint8;
 class UBorder;
 class UCombatPresentationComponent;
-class UButton;
 class UCanvasPanel;
 class UCharacterDataComponent;
 class ULoadoutComponent;
@@ -142,17 +141,9 @@ public:
 	/** Card index of each tab: party cards, then enemies. */
 	TArray<int32> GetIntelCardOrder() const;
 
-	/** The old view-all status list. OBSOLETE (B-587 QA, D-261): the Status button opens Intel on the party now
-	 *  (HandleStatusButtonClicked); nothing calls this. Kept until Crown's PIE pass (docs/PIE/B-587.md check 6). */
-	void ToggleAllStatuses();
-
 	/** B-436c (D-263): the enemy card shown as the target marker (the picker's highlighted enemy); INDEX_NONE: none,
 	 *  so no enemy card shows. */
 	int32 GetMarkedCardIndex() const;
-
-	/** B-587 QA: the Status button's click: Intel on the party, or closed. Public for specs. */
-	UFUNCTION()
-	void HandleStatusButtonClicked();
 
 	/** OBSOLETE (B-586, D-261): inspect moved to Intel; always INDEX_NONE now. Kept until PIE (docs/PIE/Sweep.md). */
 	int32 GetInspectedCardIndex() const { return InspectedCard; }

@@ -418,7 +418,7 @@ void FBattleIntelSpec::Define()
 		HUD->Teardown();
 	});
 
-	It("opens on the party from the Status button, and a second click closes it (B-587 QA)", [this]()
+	It("has no Status button; a party card and V still open Intel on the party (B-591, D-265)", [this]()
 	{
 		AActor *Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
 		AActor *Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
@@ -427,13 +427,15 @@ void FBattleIntelSpec::Define()
 		{
 			return;
 		}
-		HUD->HandleStatusButtonClicked();
-		TestTrue(TEXT("Intel on the party, not the old list"), HUD->IsIntelOpen() && HUD->GetIntelTab() == HERO_CARD && !HUD->IsStatusPanelOpen());
-		HUD->HandleStatusButtonClicked();
-		TestFalse(TEXT("closed"), HUD->IsIntelOpen() || HUD->IsStatusPanelOpen());
-		HUD->InspectCard(FOE_CARD);
-		HUD->HandleStatusButtonClicked();
-		TestFalse(TEXT("from an enemy's page it closes too"), HUD->IsIntelOpen());
+		TestNull(TEXT("no Status button"), HUD->GetWidgetFromName(TEXT("StatusesButton")));
+		HUD->InspectCard(HERO_CARD);
+		TestTrue(TEXT("the party card opens Intel on it, not the old list"), HUD->IsIntelOpen() && HUD->GetIntelTab() == HERO_CARD && !HUD->IsStatusPanelOpen());
+		HUD->InspectCard(HERO_CARD);
+		TestFalse(TEXT("the same card closes it"), HUD->IsIntelOpen());
+		HUD->ToggleIntel();
+		TestTrue(TEXT("V opens it on the party"), HUD->IsIntelOpen() && HUD->GetIntelTab() == HERO_CARD && !HUD->IsStatusPanelOpen());
+		HUD->ToggleIntel();
+		TestFalse(TEXT("V closes it"), HUD->IsIntelOpen() || HUD->IsStatusPanelOpen());
 		HUD->Teardown();
 	});
 
