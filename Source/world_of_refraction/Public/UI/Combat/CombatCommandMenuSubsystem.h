@@ -249,6 +249,10 @@ public:
     /** B-400: how many targets the open single-target picker offers (0 when none is open). */
     int32 GetHighlightTargetCount() const { return HighlightTargets.Num(); }
 
+    /** B-582 (D-266): the target Fighter last attacked in this fight (null: none yet, or it is gone). The Attack picker
+     *  opens on it while it is still offered. */
+    AActor *GetLastAttackTarget(const AActor *Fighter) const;
+
     // ==================== STATE QUERIES ====================
 
     UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
@@ -362,6 +366,8 @@ private:
     int32 IndexOfHighlightTarget(const AActor *Target) const;
     TArray<TWeakObjectPtr<AActor>> HighlightTargets;
     TWeakObjectPtr<AActor> HighlightedTarget;
+    /** B-582 (D-266): each fighter's last confirmed Attack target, for this fight only (cleared with the orchestrator). */
+    TMap<TWeakObjectPtr<const AActor>, TWeakObjectPtr<AActor>> LastAttackTargets;
 
     /** BrokenDarknessManager of the actor whose menu is open — bound to
      *  OnAlignmentChanged for live BD spell-pool refresh. */

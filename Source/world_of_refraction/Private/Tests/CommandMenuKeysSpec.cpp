@@ -337,6 +337,68 @@ void FCommandMenuKeysSpec::Define()
 		TestFalse(TEXT("its key does nothing now"), Menu->PressMenuKey(EPieMenuCategory::MoveRow));
 	});
 
+	It("attacks the highlighted target on 1 / A again, and opens the next Attack on it while it lives (B-582, D-266)", [this]()
+	{
+		if (!Orchestrator || !Menu)
+		{
+			return;
+		}
+		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("Combatants spawned"), Hero && Foe && SecondFoe))
+		{
+			return;
+		}
+		MenuKeysAddLoadout(Hero);
+		MenuKeysAddLoadout(Foe);
+		MenuKeysAddLoadout(SecondFoe);
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero}, {Foe, SecondFoe});
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		if (!TestTrue(TEXT("Hero's menu is open on turn 1"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero))
+		{
+			return;
+		}
+		const auto OpenAttack = [this]()
+		{
+			FPieMenuButtonData Attack;
+			Attack.Category = EPieMenuCategory::Attack;
+			Menu->HandleSelection(Attack);
+			return Menu->GetHighlightedTarget();
+		};
+
+		AActor *Default = OpenAttack();
+		TestEqual(TEXT("two targets"), Menu->GetHighlightTargetCount(), 2);
+		TestNull(TEXT("nothing remembered yet"), Menu->GetLastAttackTarget(Hero));
+		AActor *Other = Default == Foe ? SecondFoe : Foe;
+		if (!TestTrue(TEXT("the first target by default"), Default == Foe || Default == SecondFoe))
+		{
+			return;
+		}
+		Menu->HighlightTarget(Other);
+		TestTrue(TEXT("1 again is taken in the Attack picker"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestNull(TEXT("and leaves it: the attack is sent"), Menu->GetHighlightedTarget());
+		TestTrue(TEXT("on the highlighted target, which is remembered"), Menu->GetLastAttackTarget(Hero) == Other);
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+
+		UCharacterDataComponent *OtherData = Other->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestTrue(TEXT("the target survived the hit"), OtherData && OtherData->bIsAlive))
+		{
+			return;
+		}
+		Menu->OpenForActor(Hero); // the hero's next menu
+		TestTrue(TEXT("the hero's menu"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero);
+		TestTrue(TEXT("the next Attack opens on the last target"), OpenAttack() == Other);
+		Menu->HandleBack();
+		OtherData->bIsAlive = false;
+		TestTrue(TEXT("a dead last target: the default again"), OpenAttack() == Default);
+		Menu->HandleBack();
+
+		Menu->SetCombatOrchestrator(Orchestrator); // a new fight
+		TestNull(TEXT("forgotten with the fight"), Menu->GetLastAttackTarget(Hero));
+	});
+
 	It("steps back out of the Position picker without moving (B-588)", [this]()
 	{
 		if (!StartDuel())

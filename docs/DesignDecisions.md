@@ -1288,6 +1288,12 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-266 — Quick attack: 1 twice
+**Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-22 (Crown, B-582's idea) · **Blocks:** B-582
+**Crown:** chose the quick attack as pressing 1 twice in the battle menu.
+**Ruled:** (1) The Attack target picker (1 / A on the main menu) opens on this fighter's last attack target in this fight; when that target is dead or there is none, on the first target as before. (2) In the Attack picker, 1 again (A on the pad) attacks the highlighted target, the same as clicking its row; the highlight can still be moved in between. (3) The last target is remembered per fighter for one fight only. The Position picker is unchanged (there, 1 is Front Row). Enter doesn't confirm: the new battle HUD has no confirm key, picking is a click or now 1 / A in the Attack picker (Q-391's open gap).
+**Reference:** Expedition 33 keeps the last target selected and confirms with the same button that opened the attack; Persona 5 and Final Fantasy X also remember the last target.
+
 ### D-265 — Remove the battle HUD's Status button
 **Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown) · **Blocks:** B-591
 **Crown:** "Remove it" (the top-centre Status button).

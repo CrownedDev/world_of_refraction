@@ -30,6 +30,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Infusion source (target picker only) | R; click its row | LB (L1) | `IA_Combat_MenuInfusionSource` | Built (B-093) |
 | Infusion level (target picker only) | T; click its row | RB (R1) | `IA_Combat_MenuInfusionLevel` | Built (B-093); shares RB with Defend (B-436g, D-258c) |
 | Attack (main menu only) | 1 | A (Cross) | `IA_Combat_MenuAttack` | Built (B-391, Q-391) |
+| Quick attack: in the Attack target picker, attack the highlighted target (1, 1 from the main menu; the highlight can move in between) | 1 | A (Cross) | `IA_Combat_MenuAttack` (no new action) | Built (B-582, D-266): the picker opens on this fighter's last attack target in the fight (the first target when it is dead or there is none). Only the Attack picker; the Position picker keeps 1 = Front Row. Enter doesn't confirm (the new HUD has no confirm key, Q-391) |
 | Skills: the one kind's list, else the kinds (main menu only) | 2 | X (Square) | `IA_Combat_MenuSkills` | Built (B-391; B-436g, D-258a: one Skills key) |
 | Spells | (was 3) | (was B) | (was `IA_Combat_MenuSpells`) | Retired (B-436g, D-258a): spells are under Skills |
 | Items (main menu only) | 3 (was 4) | Y (Triangle) (was D-pad Up) | `IA_Combat_MenuItems` | Built (B-391; moved by B-436g, D-258): 4 and D-pad Up are free |
@@ -246,3 +247,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-22 | B-581 (D-254): a left click on a party card in a fight inspects that character (Combat table row, and the Battle HUD mouse row); no key or pad route yet (B-436h) | feature/B-581-card-text-inspect |
 | 2026-11-22 | B-436g (D-258): the battle menu: Items to 3 / Y, Defend to RB (main menu only), Back on Backspace, Esc and B, the Spells key retired; End Turn and the steps are clickable hints with no keys | feature/B-436g-command-menu |
 | 2026-11-22 | B-586 (D-261, Q-586): Intel in a fight: V / R3 and a click on any card open it, Q / E and LB / RB step its tabs (combat menu keys stand down while it is open), Back closes it; the inspect row is gone | feature/B-586-intel-panel |
+| 2026-11-23 | B-582 (D-266): quick attack, 1 / A again in the Attack target picker attacks the highlighted target; the picker opens on the last attack target. No new action | feature/B-582-quick-attack |
