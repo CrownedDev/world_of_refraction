@@ -118,7 +118,7 @@ TSharedRef<SWidget> URestSpotWidget::RebuildWidget()
 		// B-502 (D-214): a vendor rest point's shop (Refresh names it: the anvil's Blacksmith, the ritual tree's Spiritualist).
 		ServiceButton = RestSpotStyle::AddButton(WidgetTree, Box, FText::GetEmpty());
 		ServiceButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleServiceClicked);
-		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive the mini-boss"));
+		ReviveButton = RestSpotStyle::AddButton(WidgetTree, Box, LOCTEXT("Revive", "Revive"));
 		ReviveButton->OnClicked.AddDynamic(this, &URestSpotWidget::HandleReviveClicked);
 		ReviveLabel = Cast<UTextBlock>(ReviveButton->GetChildAt(0));
 		VoteText = RestSpotStyle::AddText(WidgetTree, Box);
@@ -284,15 +284,17 @@ void URestSpotWidget::Refresh()
 	const int32 RevivalNumber = bOnClient ? HostRevivalNumber : WoRRestSpot::GetNextRevivalNumber(GetWorld());
 	if (ReviveLabel && bCanRevive)
 	{
-		ReviveLabel->SetText(FText::Format(LOCTEXT("ReviveCount", "Revive the mini-boss ({0} of {1})"),
-										   FText::AsNumber(RevivalNumber), FText::AsNumber(MiniBossRevival::MAX_REVIVALS)));
+		// B-589 (Q-450 = B): the opponent's name, never its rank (D-187).
+		const FText Opponent = bOnClient ? HostOpponentName : WoRRestSpot::GetReviveOpponentName(GetWorld());
+		ReviveLabel->SetText(WoRRestSpot::MakeReviveRowText(Opponent, RevivalNumber));
 	}
 }
 
-void URestSpotWidget::SetHostRevive(bool bCanRevive, int32 RevivalNumber)
+void URestSpotWidget::SetHostRevive(bool bCanRevive, int32 RevivalNumber, const FText &OpponentName)
 {
 	bHostCanRevive = bCanRevive;
 	HostRevivalNumber = RevivalNumber;
+	HostOpponentName = OpponentName;
 	Refresh();
 }
 
@@ -360,8 +362,15 @@ static FAutoConsoleCommandWithWorldAndArgs GTrialVoteCommand(
 
 FString URestSpotWidget::GetRestSpotWidgetString() const
 {
-	return FString::Printf(TEXT("[RestSpotMenu] %s | %s | host revive: %s (%d)"), PayoutText ? *PayoutText->GetText().ToString() : TEXT("-"),
-						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"), bHostCanRevive ? TEXT("yes") : TEXT("no"), HostRevivalNumber);
+	return FString::Printf(TEXT("[RestSpotMenu] %s | %s | host revive: %s (%d) | revive row: %s"), PayoutText ? *PayoutText->GetText().ToString() : TEXT("-"),
+						   bConfirmingLeave ? TEXT("confirming leave") : TEXT("menu"), bHostCanRevive ? TEXT("yes") : TEXT("no"), HostRevivalNumber,
+						   *GetReviveRowText().ToString());
+}
+
+FText URestSpotWidget::GetReviveRowText() const
+{
+	const bool bShown = ReviveButton && ReviveButton->GetVisibility() == ESlateVisibility::Visible;
+	return bShown && ReviveLabel ? ReviveLabel->GetText() : FText::GetEmpty();
 }
 
 void URestSpotWidget::HandleLevelUpClicked()
