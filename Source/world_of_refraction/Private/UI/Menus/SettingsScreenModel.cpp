@@ -9,6 +9,7 @@
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Save/SaveSubsystem.h"
+#include "UI/Combat/Battle/BattleHUDView.h"
 #include "WoRLog.h"
 
 #define LOCTEXT_NAMESPACE "WoRSettingsScreen"
@@ -124,6 +125,19 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		Intel.Value = !Save || Save->IsIntelKeyCycle() ? LOCTEXT("IntelKeyCycle", "Cycle") : LOCTEXT("IntelKeyOpenClose", "Open and close");
 		Intel.Explanation = LOCTEXT("IntelKeyExplain", "V / R3 in a fight. Cycle: the first press shows your party, the second the enemies, the third closes it. Open and close: each press opens or closes it. Holding it always closes.");
 		Rows.Add(Intel);
+		FSettingsRow Layout; // B-590 (D-264)
+		Layout.Id = ESettingId::TurnOrderLayout;
+		Layout.Label = LOCTEXT("TurnOrderLayout", "Turn order layout");
+		Layout.Value = Save && Save->IsTurnOrderColumn() ? LOCTEXT("TurnOrderColumn", "Column") : LOCTEXT("TurnOrderRow", "Row");
+		Layout.Explanation = LOCTEXT("TurnOrderLayoutExplain", "How the fight's turn order sits at the top right: a row across, or a column down the side.");
+		Rows.Add(Layout);
+		FSettingsRow Turns; // B-590 (D-264)
+		Turns.Id = ESettingId::TurnsShown;
+		Turns.Label = LOCTEXT("TurnsShown", "Turns shown");
+		Turns.Value = FText::AsNumber(Save ? Save->GetTurnsShown() : BattleHUDView::DEFAULT_TURNS_SHOWN);
+		Turns.Explanation = FText::Format(LOCTEXT("TurnsShownExplain", "How many turns the turn order shows, the current one included: {0} to {1}."),
+										  FText::AsNumber(BattleHUDView::MIN_TURNS_SHOWN), FText::AsNumber(BattleHUDView::MAX_TURNS_SHOWN));
+		Rows.Add(Turns);
 	}
 	else if (Page == ESettingsPage::Accessibility)
 	{
@@ -256,6 +270,20 @@ bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direct
 	case ESettingId::IntelKey: // B-587: the next press reads it (UBattleHUDWidget::PressIntelKey)
 		Save->SetIntelKeyCycle(!Save->IsIntelKeyCycle());
 		return true;
+	case ESettingId::TurnOrderLayout: // B-590: the next turn-order refresh reads it
+		Save->SetTurnOrderColumn(!Save->IsTurnOrderColumn());
+		return true;
+	case ESettingId::TurnsShown: // B-590: 1 to 6, stopping at the ends (a count, not a list to wrap)
+	{
+		const int32 Current = Save->GetTurnsShown();
+		const int32 Next = FMath::Clamp(Current + (Direction < 0 ? -1 : 1), BattleHUDView::MIN_TURNS_SHOWN, BattleHUDView::MAX_TURNS_SHOWN);
+		if (Next == Current)
+		{
+			return false;
+		}
+		Save->SetTurnsShown(Next);
+		return true;
+	}
 	case ESettingId::HoldToConfirm: // B-453c
 		Save->SetHoldToConfirmOn(!Save->IsHoldToConfirmOn());
 		return true;

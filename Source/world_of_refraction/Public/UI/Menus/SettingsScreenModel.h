@@ -40,7 +40,9 @@ enum class ESettingId : uint8
 	HoldToConfirm,
 	ElementLetters,
 	Subtitles,
-	IntelKey
+	IntelKey,
+	TurnOrderLayout,
+	TurnsShown
 };
 
 struct FSettingsRow
