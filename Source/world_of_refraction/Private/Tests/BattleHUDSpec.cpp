@@ -1133,7 +1133,9 @@ void FBattleHUDSpec::Define()
 					  WoRCombatTier::GetCombatTierText(WoRCombatTier::GetCombatTier(Foe)).ToString());
 			TestTrue(TEXT("the tier names no rank"), Cards[FoeCard].TierLine.ToString().StartsWith(TEXT("Tier ")));
 			TestTrue(TEXT("still no HP number on it (Q-391)"), Cards[FoeCard].HPBar && !Cards[FoeCard].HPText);
-			TestTrue(TEXT("its tier line built"), Cards[FoeCard].TierText && !Cards[CardOf(Hero)].TierText);
+			// B-582c (Crown, 2026-11-23): the floating card keeps its HP bar, buildup bar and status line, not the tier line.
+			TestTrue(TEXT("no tier line drawn on any card"), !Cards[FoeCard].TierText && !Cards[CardOf(Hero)].TierText);
+			TestTrue(TEXT("the enemy card keeps its HP bar"), Cards[FoeCard].HPBar != nullptr);
 
 			FPieMenuButtonData Attack;
 			Attack.Category = EPieMenuCategory::Attack;
