@@ -28,8 +28,6 @@ namespace SettingsScreenStyle
 	constexpr float KeyColumnWidth = 300.0f;
 	constexpr float KeyRowGap = 6.0f;
 	constexpr float KeyScrollStep = 90.0f;
-	/** The most rows a page has (Gameplay and Accessibility have seven). */
-	constexpr int32 MaxRows = 7;
 }
 
 USettingsScreenWidget::USettingsScreenWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -94,7 +92,9 @@ void USettingsScreenWidget::BuildTree()
 	UVerticalBox *ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	// B-590 QA: the rows scroll (Refresh keeps the selected one in view), so a long page fits at 720p.
 	RowList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("RowList"));
-	for (int32 Index = 0; Index < MaxRows; ++Index)
+	// B-590 QA 2: one row widget per row of the longest page (was a fixed 7, so Gameplay's last rows had none).
+	const int32 RowCount = WoRSettingsScreen::GetMostRows(GetWorld());
+	for (int32 Index = 0; Index < RowCount; ++Index)
 	{
 		UBorder *Row = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Row->SetPadding(FMargin(RowPaddingX, 0.0f));

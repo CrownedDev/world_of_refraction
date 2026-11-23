@@ -80,6 +80,9 @@ namespace WoRSettingsScreen
 	/** The page's rows; none for Camera, Display, Audio and Controls (see GetPageNote and BuildKeyRows). */
 	WORLD_OF_REFRACTION_API TArray<FSettingsRow> BuildRows(const UWorld *World, ESettingsPage Page);
 
+	/** B-590 QA 2: the longest page's row count, so the screen builds a row widget for every row. */
+	WORLD_OF_REFRACTION_API int32 GetMostRows(const UWorld *World);
+
 	/** What a page with no rows says; empty for a page with rows. */
 	WORLD_OF_REFRACTION_API FText GetPageNote(ESettingsPage Page);
 

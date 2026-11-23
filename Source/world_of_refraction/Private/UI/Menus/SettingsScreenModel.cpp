@@ -177,6 +177,16 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 	return Rows;
 }
 
+int32 WoRSettingsScreen::GetMostRows(const UWorld *World)
+{
+	int32 Most = 0;
+	for (int32 Index = 0; Index < PAGE_COUNT; ++Index)
+	{
+		Most = FMath::Max(Most, BuildRows(World, static_cast<ESettingsPage>(Index)).Num());
+	}
+	return Most;
+}
+
 FText WoRSettingsScreen::GetPageNote(ESettingsPage Page)
 {
 	switch (Page)
