@@ -8,6 +8,7 @@
 #include "Combat/CombatPlayerController.h"
 #include "Combat/TurnManager.h"
 #include "Combat/WoRFightSubsystem.h"
+#include "Engine/Texture2D.h"
 #include "Equipment/FRuntimeAttachedItem.h"
 #include "Equipment/Rings/RingData.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -78,6 +79,47 @@ TArray<FBattleTurnSlot> BattleHUDView::ReadTurnStrip(const UObject *Context, int
 		return MakeTurnStrip(TurnManager->GetCurrentActor(), TurnManager->GetCurrentTurnIsBonus(), TurnNumber, Upcoming, MaxUpcoming);
 	}
 	return {};
+}
+
+int32 BattleHUDView::ReadTurnsShown(int32 Saved)
+{
+	return Saved == 0 ? DEFAULT_TURNS_SHOWN : FMath::Clamp(Saved, MIN_TURNS_SHOWN, MAX_TURNS_SHOWN);
+}
+
+TArray<FBattleTurnHex> BattleHUDView::MakeTurnHexes(const TArray<FBattleTurnSlot> &Strip, int32 TurnsShown,
+													TFunctionRef<bool(const AActor *)> IsParty)
+{
+	TArray<FBattleTurnHex> Hexes;
+	for (int32 Index = 0; Index < Strip.Num() && Index < TurnsShown; ++Index)
+	{
+		const FBattleTurnSlot &TurnSlot = Strip[Index];
+		const AActor *Actor = TurnSlot.Actor.Get();
+		if (!Actor)
+		{
+			continue; // an empty slot shows nothing
+		}
+		FBattleTurnHex &Hex = Hexes.AddDefaulted_GetRef();
+		Hex.Actor = TurnSlot.Actor;
+		Hex.Portrait = GetPortrait(Actor);
+		Hex.bCurrent = TurnSlot.bCurrent;
+		Hex.bParty = IsParty(Actor);
+		Hex.Size = Hex.bCurrent ? CURRENT_TURN_HEX_SIZE : NEXT_TURN_HEX_SIZE;
+		Hex.Border = Hex.bCurrent ? CURRENT_TURN_HEX_COLOUR : Hex.bParty ? PARTY_TURN_HEX_COLOUR : ENEMY_TURN_HEX_COLOUR;
+	}
+	return Hexes;
+}
+
+UTexture2D *BattleHUDView::GetPortrait(const AActor *Actor)
+{
+	const UCharacterDataComponent *CharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	return CharComp && CharComp->CharacterData ? CharComp->CharacterData->Portrait : nullptr;
+}
+
+TArray<FVector2f> BattleHUDView::GetTurnHexCorners(float Size)
+{
+	const float Quarter = Size * 0.25f;
+	const float Half = Size * 0.5f;
+	return {{0.0f, Half}, {Quarter, 0.0f}, {Size - Quarter, 0.0f}, {Size, Half}, {Size - Quarter, Size}, {Quarter, Size}};
 }
 
 int32 BattleHUDView::ReadTurnNumber(const UObject *Context)

@@ -11,6 +11,7 @@
 #include "UI/Combat/PieMenuButtonData.h"
 
 class AActor;
+class UTexture2D;
 struct FActiveSkillEffect;
 
 /** B-391c: what a party card names of its gear (the loadout component's active loadout). Empty = none. */
@@ -50,10 +51,55 @@ struct FBattleUpcomingTurn
 	bool bBonus = false;
 };
 
+/** B-590 (D-264): one hexagon of the turn order. */
+struct FBattleTurnHex
+{
+	TWeakObjectPtr<AActor> Actor;
+	/** The character's portrait (UCharacterData::Portrait); null: the hexagon's plain placeholder. */
+	TWeakObjectPtr<UTexture2D> Portrait;
+	FLinearColor Border = FLinearColor::White;
+	/** Width and height of the hexagon's box, Slate units. */
+	float Size = 0.0f;
+	bool bCurrent = false;
+	bool bParty = false;
+};
+
 namespace BattleHUDView
 {
-	/** Turns shown after the current one (Expedition 33's left column shows about eight in all; Q-391). */
+	/** OBSOLETE (B-590, D-264): the turns shown come from the Turns shown setting (GetTurnsShown); delete after PIE. */
 	constexpr int32 UPCOMING_TURNS_SHOWN = 6;
+
+	// ---- B-590 (D-264): the turn order as hexagon portraits ----
+
+	/** Turns shown, the current one included: the Turns shown setting's range and default. */
+	constexpr int32 MIN_TURNS_SHOWN = 1;
+	constexpr int32 MAX_TURNS_SHOWN = 6;
+	constexpr int32 DEFAULT_TURNS_SHOWN = 6;
+
+	// TODO: tune in PIE. Slate units: 1080p draws them as pixels, 720p at two thirds (D-264's 56 px and 40 px).
+	constexpr float CURRENT_TURN_HEX_SIZE = 84.0f;
+	constexpr float NEXT_TURN_HEX_SIZE = 60.0f;
+	constexpr float TURN_HEX_GAP = 6.0f;
+	constexpr float CURRENT_TURN_HEX_BORDER = 3.0f;
+	constexpr float NEXT_TURN_HEX_BORDER = 2.0f;
+	inline const FLinearColor CURRENT_TURN_HEX_COLOUR(0.72f, 0.55f, 1.0f); // violet
+	inline const FLinearColor PARTY_TURN_HEX_COLOUR(0.3f, 0.85f, 0.95f);   // cyan
+	inline const FLinearColor ENEMY_TURN_HEX_COLOUR(0.92f, 0.3f, 0.5f);    // rose
+	inline const FLinearColor TURN_HEX_PLACEHOLDER_COLOUR(0.14f, 0.15f, 0.2f, 0.9f);
+
+	/** A saved Turns shown: 0 (never set) is DEFAULT_TURNS_SHOWN; the rest clamped to MIN..MAX. */
+	WORLD_OF_REFRACTION_API int32 ReadTurnsShown(int32 Saved);
+
+	/** The hexagons for Strip's first TurnsShown slots (empty slots skipped): the current one CURRENT_TURN_HEX_SIZE with
+	 *  the violet edge, the next ones NEXT_TURN_HEX_SIZE, cyan for the party (IsParty) and rose for the rest. */
+	WORLD_OF_REFRACTION_API TArray<FBattleTurnHex> MakeTurnHexes(const TArray<FBattleTurnSlot> &Strip, int32 TurnsShown,
+																 TFunctionRef<bool(const AActor *)> IsParty);
+
+	/** The character's portrait from its data asset; null without one. */
+	WORLD_OF_REFRACTION_API UTexture2D *GetPortrait(const AActor *Actor);
+
+	/** The six corners of a flat-topped hexagon filling a Size x Size box, clockwise from the left point. */
+	WORLD_OF_REFRACTION_API TArray<FVector2f> GetTurnHexCorners(float Size);
 
 	/** The strip: the current actor first, then Upcoming in order (at most MaxUpcoming), numbered on from TurnNumber.
 	 *  Null actors are kept as slots so the numbering stays true. */
