@@ -1254,12 +1254,12 @@ The queue of questions only Crown can answer.
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-23 (B-590, from D-264) · **Blocks:** nothing
 **Question:** D-264 sets the hexagons' sizes and colours. What shows without portrait art? Are bonus turns marked? Where does the column sit next to Intel? How does Turns shown step?
 **Answer (defaults):**
-1. **No art:** a plain dark hexagon with the same coloured edge, until the character has a portrait. `wor.UI.Print` says which characters have art.
+1. **The picture (Crown's answer, 2026-11-23, after B-590 QA 1):** face snapshots. The hexagons had shown item icons, because the test characters' Portrait field points at item art. Now, when the fight starts, one close-up picture is taken of each fighter's face from its 3D model, from in front, and kept for the fight. The plain dark hexagon with the same coloured edge shows only when that capture fails. `wor.UI.Print` names each face.
 2. **Bonus turns:** not marked; the next hexagon is simply the same character again. The old list's green "(bonus)" stays in `wor.UI.Print`.
 3. **The current turn:** violet whatever its side. Cyan and rose are for the next turns.
 4. **Column:** the current turn on top, the rest centred under it, and Intel under the column as under the row.
 5. **Turns shown:** stops at 1 and 6 rather than wrapping round, as a count does. A save from before this (none set) reads 6.
-6. **Sizes:** gaps of 4 px at 720p; edges of 2 px (current) and 1.3 px (next).
+6. **Sizes:** gaps of 4 px at 720p; edges of 2.7 px (current) and 2 px (next). QA 1 thickened them from 2 px and 1.3 px, which were hard to see on a bright sky.
 
 **Reference:** Honkai: Star Rail's action order shows an extra turn as just another portrait in the line, with no badge, and marks only the acting character. Expedition 33's turn cards are small portraits with no names. The deckbuilder has no turn strip.
 
