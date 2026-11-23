@@ -302,6 +302,8 @@ public:
 
     /** B-400: how many targets the open single-target picker offers (0 when none is open). */
     int32 GetHighlightTargetCount() const { return HighlightTargets.Num(); }
+    /** B-582c QA: the fighters the open single-target picker offers (the HUD's pointer pick). */
+    const TArray<TWeakObjectPtr<AActor>> &GetHighlightTargets() const { return HighlightTargets; }
 
     /** B-582 (D-266): the target Fighter last attacked in this fight (null: none yet, or it is gone). The Attack picker
      *  opens on it while it is still offered. */

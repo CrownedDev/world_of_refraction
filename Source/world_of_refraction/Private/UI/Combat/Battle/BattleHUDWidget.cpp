@@ -8,6 +8,8 @@
 
 #include "Blueprint/WidgetLayoutLibrary.h"
 #include "Blueprint/WidgetTree.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
 #include "Character/CharacterDataComponent.h"
 #include "Combat/CombatConstants.h"
 #include "Combat/CombatOrchestrator.h"
@@ -523,9 +525,11 @@ void UBattleHUDWidget::SetMarkedTarget(AActor *Target)
 	{
 		return;
 	}
-	if (Marked == INDEX_NONE)
+	const UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this);
+	if (Marked == INDEX_NONE && !(Menu && Menu->IsSingleTargetPickerOpen())) // an ally pick keeps the timer for hover
 	{
 		World->GetTimerManager().ClearTimer(TargetMarkerTimer);
+		LastHoverPointer.Reset(); // the next pick starts from where the pointer rests, not from a move made between
 		return;
 	}
 	PlaceTargetMarker();
@@ -538,6 +542,7 @@ void UBattleHUDWidget::SetMarkedTarget(AActor *Target)
 
 void UBattleHUDWidget::PlaceTargetMarker()
 {
+	HoverFighterUnderPointer();
 	const int32 Marked = GetMarkedCardIndex();
 	UBorder *Frame = Cards.IsValidIndex(Marked) ? Cards[Marked].Frame.Get() : nullptr;
 	APlayerController *PC = GetOwningPlayer();
@@ -1079,6 +1084,123 @@ bool UBattleHUDWidget::PickFighter(AActor *Fighter)
 	return Menu->GetHighlightedTarget() == Fighter && Menu->ConfirmHighlightedTarget();
 }
 
+bool UBattleHUDWidget::PickFighterUnderPointer()
+{
+	float X = 0.0f;
+	float Y = 0.0f;
+	const APlayerController *PC = GetOwningPlayer();
+	return PC && PC->GetMousePosition(X, Y) && PickFighter(GetOfferedFighterAt(FVector2D(X, Y)));
+}
+
+void UBattleHUDWidget::HoverFighterUnderPointer()
+{
+	float X = 0.0f;
+	float Y = 0.0f;
+	const APlayerController *PC = GetOwningPlayer();
+	UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this);
+	if (!PC || !PC->GetMousePosition(X, Y) || !Menu || !Menu->IsSingleTargetPickerOpen())
+	{
+		return;
+	}
+	const FVector2D Pointer(X, Y);
+	if (bIntelOpen)
+	{
+		LastHoverPointer = Pointer; // a move made over Intel doesn't mark a fighter once it closes
+		return;
+	}
+	const bool bMoved = LastHoverPointer.IsSet() && !LastHoverPointer.GetValue().Equals(Pointer);
+	LastHoverPointer = Pointer; // before HighlightTarget, which re-enters through SetMarkedTarget
+	AActor *Fighter = bMoved ? GetOfferedFighterAt(Pointer) : nullptr;
+	if (Fighter && Fighter != Menu->GetHighlightedTarget())
+	{
+		Menu->HighlightTarget(Fighter);
+	}
+}
+
+bool UBattleHUDWidget::GetFighterScreenBox(const AActor *Fighter, FBox2D &OutBox, double &OutDistance) const
+{
+	const APlayerController *PC = GetOwningPlayer();
+	if (!Fighter || !PC || !PC->PlayerCameraManager)
+	{
+		return false;
+	}
+	FVector Feet;
+	float Height = 0.0f;
+	UCombatCameraDirector::GetTargetShape(Fighter, Feet, Height);
+	const float Radius = Fighter->GetSimpleCollisionRadius();
+	OutBox = FBox2D(ForceInit);
+	for (int32 Corner = 0; Corner < 8; ++Corner)
+	{
+		const FVector Point = Feet + FVector((Corner & 1) ? Radius : -Radius, (Corner & 2) ? Radius : -Radius, (Corner & 4) ? Height : 0.0f);
+		FVector2D Screen;
+		if (!PC->ProjectWorldLocationToScreen(Point, Screen, /*bPlayerViewportRelative=*/false))
+		{
+			return false; // partly behind the camera
+		}
+		OutBox += Screen;
+	}
+	OutDistance = FVector::Dist(PC->PlayerCameraManager->GetCameraLocation(), Feet);
+	return true;
+}
+
+AActor *UBattleHUDWidget::GetOfferedFighterAt(const FVector2D &Point) const
+{
+	const UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this);
+	if (!Menu || !Menu->IsSingleTargetPickerOpen())
+	{
+		return nullptr;
+	}
+	TArray<AActor *> Fighters;
+	TArray<FBox2D> Boxes;
+	TArray<double> Distances;
+	for (const TWeakObjectPtr<AActor> &Offered : Menu->GetHighlightTargets())
+	{
+		FBox2D Box(ForceInit);
+		double Distance = 0.0;
+		if (GetFighterScreenBox(Offered.Get(), Box, Distance))
+		{
+			Fighters.Add(Offered.Get());
+			Boxes.Add(Box);
+			Distances.Add(Distance);
+		}
+	}
+	const int32 Picked = PickNearestBoxAt(Boxes, Distances, Point);
+	return Fighters.IsValidIndex(Picked) ? Fighters[Picked] : nullptr;
+}
+
+int32 UBattleHUDWidget::PickNearestBoxAt(const TArray<FBox2D> &Boxes, const TArray<double> &Distances, const FVector2D &Point)
+{
+	int32 Best = INDEX_NONE;
+	for (int32 Index = 0; Index < Boxes.Num() && Index < Distances.Num(); ++Index)
+	{
+		if (Boxes[Index].bIsValid && Boxes[Index].IsInside(Point) && (Best == INDEX_NONE || Distances[Index] < Distances[Best]))
+		{
+			Best = Index;
+		}
+	}
+	return Best;
+}
+
+FString UBattleHUDWidget::GetOfferedFighterBoxesString() const
+{
+	const UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this);
+	if (!Menu || !Menu->IsSingleTargetPickerOpen())
+	{
+		return TEXT("no single-target pick open");
+	}
+	FString Out;
+	for (const TWeakObjectPtr<AActor> &Offered : Menu->GetHighlightTargets())
+	{
+		FBox2D Box(ForceInit);
+		double Distance = 0.0;
+		Out += GetFighterScreenBox(Offered.Get(), Box, Distance)
+				   ? FString::Printf(TEXT("  %s: box %.0f,%.0f to %.0f,%.0f, %.0f cm away\n"), *GetNameSafe(Offered.Get()), Box.Min.X,
+									 Box.Min.Y, Box.Max.X, Box.Max.Y, Distance)
+				   : FString::Printf(TEXT("  %s: off screen\n"), *GetNameSafe(Offered.Get()));
+	}
+	return Out;
+}
+
 void UBattleHUDWidget::HandleFighterCursorOver(AActor *Fighter)
 {
 	UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this);
@@ -1112,6 +1234,8 @@ void UBattleHUDWidget::RefreshTurnStrip()
 		if (Card.bActing && Card.bParty)
 		{
 			LastActingPartyCard = Index; // B-436a: stays featured through the enemies' turns
+			FLinearColor Fill;
+			UBattleCommandMenuWidget::GetSelectorColoursFor(Card.Actor.Get(), Fill, Card.ActingOutline);
 		}
 		if (Card.bParty && Card.Actor.IsValid())
 		{
