@@ -19,6 +19,7 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "GameFramework/Pawn.h"
 #include "InputCoreTypes.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
@@ -588,6 +589,75 @@ void FCommandMenuKeysSpec::Define()
 		TestFalse(TEXT("no element key hint"), HasHint(View, TEXT("Element"), EKeys::R));
 		Menu->PressMenuKey(EPieMenuCategory::Items);
 		TestEqual(TEXT("the summary is the level alone"), View->GetPanel().Summary.ToString(), FString(TEXT("Lv II")));
+	});
+
+	It("moves the lit row with W / S (wrapping), opens it with D, picks a target with D, backs out with A (B-582c, D-269)", [this]()
+	{
+		if (!StartSkilledDuel(true)) // Attack and Skills open; Items greyed (W / S skip it)
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
+		const auto LitLabel = [View]()
+		{
+			const int32 Lit = View->GetLitRow();
+			return View->GetRowLabels().IsValidIndex(Lit) ? View->GetRowLabels()[Lit].ToString() : FString();
+		};
+		TestEqual(TEXT("the main menu starts unlit"), View->GetLitRow(), static_cast<int32>(INDEX_NONE));
+		TestFalse(TEXT("D with nothing lit does nothing"), View->PressLitRow());
+		View->MoveLitRow(1);
+		TestTrue(TEXT("S lights the first row, Attack"), LitLabel().Contains(TEXT("Attack")));
+		View->MoveLitRow(-1);
+		const FString Last = LitLabel();
+		TestTrue(TEXT("W from the first wraps to the last row"), !Last.IsEmpty() && !Last.Contains(TEXT("Attack")));
+		View->MoveLitRow(1);
+		TestTrue(TEXT("S from the last wraps to the first"), LitLabel().Contains(TEXT("Attack")));
+		TestTrue(TEXT("wor.UI.Print shows the lit row"), View->GetCommandMenuString().Contains(FString::Printf(TEXT("lit=%d"), View->GetLitRow())));
+
+		TestFalse(TEXT("A (Back) on the main menu does nothing"), Menu->PressMenuKey(EPieMenuCategory::Back));
+		TestTrue(TEXT("still the main menu"), Menu->IsOpen() && Menu->IsAtMainMenu());
+
+		TestTrue(TEXT("D opens the lit row, as its key"), View->PressLitRow());
+		TestEqual(TEXT("the Attack picker, on the foe"), Menu->GetHighlightedTarget(), Foe);
+		TestEqual(TEXT("the foe's row is lit"), View->GetRowTarget(View->GetLitRow()), Foe);
+		TestTrue(TEXT("A goes back one step"), Menu->PressMenuKey(EPieMenuCategory::Back));
+		TestTrue(TEXT("to the main menu"), Menu->IsAtMainMenu());
+		TestEqual(TEXT("a new view starts unlit"), View->GetLitRow(), static_cast<int32>(INDEX_NONE));
+
+		View->MoveLitRow(1);
+		View->PressLitRow();
+		TestTrue(TEXT("D on a target row picks it, as Enter"), View->PressLitRow());
+		TestNull(TEXT("and leaves the picker"), Menu->GetHighlightedTarget());
+
+		const FString Keys = ACombatPlayerController::GetMenuKeysString();
+		TestTrue(TEXT("W / S / D are bound"), Keys.Contains(TEXT("IA_Combat_MenuRowUp")) && Keys.Contains(TEXT("IA_Combat_MenuRowDown")) &&
+												  Keys.Contains(TEXT("IA_Combat_MenuForward")));
+		const FCombatMenuKey *BackA = ACombatPlayerController::GetMenuKeys().FindByPredicate([](const FCombatMenuKey &Key) { return Key.Keyboard == EKeys::A; });
+		TestTrue(TEXT("A is a Back key"), BackA && BackA->Category == EPieMenuCategory::Back);
+		TestFalse(TEXT("Q / E stay Intel's: no menu key on them"),
+				  ACombatPlayerController::GetMenuKeys().ContainsByPredicate([](const FCombatMenuKey &Key) { return Key.Keyboard == EKeys::Q || Key.Keyboard == EKeys::E; }));
+	});
+
+	It("never moves the possessed fighter on move input in a fight (B-582c, D-269)", [this]()
+	{
+		// No movement component: AddMovementInput then queues input unless the controller ignores move input.
+		APawn *Pawn = TestWorld->GetWorld()->SpawnActor<APawn>();
+		ACombatPlayerController *Controller = TestWorld->GetWorld()->SpawnActor<ACombatPlayerController>();
+		if (!TestNotNull(TEXT("a fighter pawn"), Pawn) || !TestNotNull(TEXT("the fight's player controller"), Controller))
+		{
+			return;
+		}
+		Controller->Possess(Pawn);
+		TestTrue(TEXT("move input is ignored"), Controller->IsMoveInputIgnored());
+		Pawn->AddMovementInput(FVector::ForwardVector, 1.0f); // what a W mapped to walking would do
+		TestTrue(TEXT("no movement queued"), Pawn->GetPendingMovementInputVector().IsNearlyZero());
 	});
 
 	It("steps back out of the Position picker without moving (B-588)", [this]()

@@ -19,6 +19,7 @@
 #include "InputCoreTypes.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/CombatHUD.h"
+#include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
@@ -57,6 +58,27 @@ namespace CombatMenuKeys
 	constexpr const TCHAR *CONFIRM_SPACE_ACTION_NAME = TEXT("IA_Combat_MenuConfirmSpace");
 	FKey GetConfirmKeyboard() { return EKeys::Enter; }
 	FKey GetConfirmSpaceKeyboard() { return EKeys::SpaceBar; }
+
+	/** B-582c (D-269): W / S / D in the battle menu, the new HUD only; one action per key (D-063). No pad buttons: the
+	 *  D-pad and face buttons are the menu's own keys already. A is the Back row in GetMenuKeys. */
+	struct FMenuNavKey
+	{
+		const TCHAR *ActionName;
+		FKey Keyboard;
+		EBattleMenuNav Nav;
+		const TCHAR *What;
+	};
+	const TArray<FMenuNavKey> &GetMenuNavKeys()
+	{
+		static const TArray<FMenuNavKey> Keys = {
+			{TEXT("IA_Combat_MenuRowUp"), EKeys::W, EBattleMenuNav::RowUp, TEXT("light the row above, wrapping")},
+			{TEXT("IA_Combat_MenuRowDown"), EKeys::S, EBattleMenuNav::RowDown, TEXT("light the row below, wrapping")},
+			{TEXT("IA_Combat_MenuForward"), EKeys::D, EBattleMenuNav::Forward, TEXT("open the lit row; on a target row, pick it")},
+		};
+		return Keys;
+	}
+	constexpr int32 ROW_PREVIOUS = -1;
+	constexpr int32 ROW_NEXT = 1;
 
 	/** B-587 (D-262): holding V / R3 this long closes Intel; a shorter press is a tap. */
 	constexpr float INTEL_HOLD_SECONDS = 0.5f; // TODO: tune in PIE
@@ -203,6 +225,10 @@ void ACombatPlayerController::SetupInputComponent()
 	for (const TObjectPtr<UInputAction> &ConfirmAction : ConfirmActions) // B-582b
 	{
 		EnhancedInput->BindAction(ConfirmAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnConfirmKey);
+	}
+	for (const TObjectPtr<UInputAction> &NavAction : MenuNavActions) // B-582c
+	{
+		EnhancedInput->BindAction(NavAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnMenuNavKey);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
@@ -666,6 +692,56 @@ void ACombatPlayerController::BuildMenuKeys()
 		MenuKeysContext->MapKey(Action, Confirm.Value);
 		ConfirmActions.Add(Action);
 	}
+
+	// B-582c: W / S / D, not consumed either (a letter may also be an editor-mapped Guard / Dodge key; OnMenuNavKey checks
+	// the window, and the DefenseSystem ignores a press with no window open).
+	for (const CombatMenuKeys::FMenuNavKey &Nav : CombatMenuKeys::GetMenuNavKeys())
+	{
+		UInputAction *Action = NewObject<UInputAction>(this, Nav.ActionName);
+		Action->ValueType = EInputActionValueType::Boolean;
+		Action->bConsumeInput = false;
+		MenuKeysContext->MapKey(Action, Nav.Keyboard);
+		MenuNavActions.Add(Action);
+		MenuNavKinds.Add(Nav.Nav);
+	}
+}
+
+void ACombatPlayerController::OnMenuNavKey(const FInputActionInstance &Instance)
+{
+	// B-582c (D-269): the new HUD only (the old WBP HUD has its own focus navigation).
+	if (!IsLocalController() || !UCombatHUD::WantsNewHUD())
+	{
+		return;
+	}
+	// A Guard / Dodge window on this machine takes the key; nothing in the menu moves then (it is shut on an enemy's turn too).
+	if (const UDefenseSystem *Defense = GetDefenseSystem(); Defense && Defense->GetActiveDefenderForLocalPlayer())
+	{
+		return;
+	}
+	UBattleHUDWidget *HUD = FindBattleHUD();
+	UBattleCommandMenuWidget *MenuView = HUD ? HUD->GetCommandMenu() : nullptr;
+	if (!MenuView || HUD->IsIntelOpen()) // Intel open: the menu keys stand down (B-586)
+	{
+		return;
+	}
+	const UInputAction *Pressed = Instance.GetSourceAction();
+	const int32 Index = MenuNavActions.IndexOfByPredicate([Pressed](const TObjectPtr<UInputAction> &Action) { return Action.Get() == Pressed; });
+	if (!MenuNavKinds.IsValidIndex(Index))
+	{
+		return;
+	}
+	switch (MenuNavKinds[Index])
+	{
+	case EBattleMenuNav::RowUp:
+		MenuView->MoveLitRow(CombatMenuKeys::ROW_PREVIOUS);
+		break;
+	case EBattleMenuNav::RowDown:
+		MenuView->MoveLitRow(CombatMenuKeys::ROW_NEXT);
+		break;
+	case EBattleMenuNav::Forward:
+		MenuView->PressLitRow();
+		break;
+	}
 }
 
 void ACombatPlayerController::OnConfirmKey(const FInputActionValue &Value)
@@ -851,6 +927,10 @@ FString ACombatPlayerController::GetMenuKeysString()
 		const FKey Key = Name == CombatMenuKeys::CONFIRM_ACTION_NAME ? CombatMenuKeys::GetConfirmKeyboard() : CombatMenuKeys::GetConfirmSpaceKeyboard();
 		Out += FString::Printf(TEXT("\n  %s (confirm the highlighted target, B-582b): %s / -"), Name, *Key.GetDisplayName().ToString());
 	}
+	for (const CombatMenuKeys::FMenuNavKey &Nav : CombatMenuKeys::GetMenuNavKeys())
+	{
+		Out += FString::Printf(TEXT("\n  %s (%s, B-582c): %s / -"), Nav.ActionName, Nav.What, *Nav.Keyboard.GetDisplayName().ToString());
+	}
 	return Out;
 }
 
@@ -870,6 +950,8 @@ const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 		// Backspace is the key the hints name (B-481); Esc is the second, its own action as a row takes one key.
 		{TEXT("IA_Combat_MenuBack"), EPieMenuCategory::Back, EKeys::BackSpace, EKeys::Gamepad_FaceButton_Right},
 		{TEXT("IA_Combat_MenuBackEscape"), EPieMenuCategory::Back, EKeys::Escape, EKeys::Invalid},
+		// B-582c (D-269): A goes back one step, as Backspace (W / S / D move and open, GetMenuNavKeys).
+		{TEXT("IA_Combat_MenuBackA"), EPieMenuCategory::Back, EKeys::A, EKeys::Invalid},
 		{TEXT("IA_Combat_MenuFlee"), EPieMenuCategory::Flee, EKeys::Five, EKeys::Gamepad_DPad_Down},
 		// B-474 (D-207): Switch Weapon moved from D-pad Left to L3 (D-pad Left is free).
 		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_LeftThumbstick},
