@@ -11,6 +11,7 @@
 #include "WoRTestWorld.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
+#include "Combat/Grid/CombatGridSubsystem.h"
 #include "Infusion/InfusionVFXComponent.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Loadout/LoadoutComponent.h"
@@ -288,6 +289,70 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("B Back"), PadOf(EPieMenuCategory::Back) == EKeys::Gamepad_FaceButton_Right);
 		TestTrue(TEXT("RB Defend"), PadOf(EPieMenuCategory::Defend) == EKeys::Gamepad_RightShoulder);
 		TestFalse(TEXT("no Spells key"), ACombatPlayerController::GetMenuKeysString().Contains(TEXT("IA_Combat_MenuSpells")));
+	});
+
+	It("opens Position on 4 / D-pad Up and picks a row on 1-3 / A X Y, the other hints hidden (B-588, D-263)", [this]()
+	{
+		const FCombatMenuKey *PositionKey = ACombatPlayerController::GetMenuKeys().FindByPredicate(
+			[](const FCombatMenuKey &Key) { return Key.Category == EPieMenuCategory::MoveRow; });
+		TestTrue(TEXT("4 / D-pad Up"), PositionKey && PositionKey->Keyboard == EKeys::Four && PositionKey->Gamepad == EKeys::Gamepad_DPad_Up);
+		if (!StartDuel())
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
+		const auto CountHints = [View]()
+		{
+			TArray<FString> Lines;
+			View->GetCommandMenuString().ParseIntoArrayLines(Lines);
+			return Lines.FilterByPredicate([](const FString &Line) { return Line.Contains(TEXT("] hint ")); }).Num();
+		};
+		const FString Main = View->GetCommandMenuString();
+		TestTrue(TEXT("one Position hint with its key"), Main.Contains(TEXT("hint [4] Position")));
+		TestFalse(TEXT("no Step Forward / Back"), Main.Contains(TEXT("Step")));
+
+		TestTrue(TEXT("Position key"), Menu->PressMenuKey(EPieMenuCategory::MoveRow));
+		TestTrue(TEXT("the picker"), Menu->IsPositionPickerOpen());
+		TestEqual(TEXT("its header"), Menu->GetViewTitle().ToString(), FString(TEXT("Position")));
+		const FString Picker = View->GetCommandMenuString();
+		TestTrue(TEXT("Front on 1"), Picker.Contains(TEXT("[1] Front Row")));
+		TestTrue(TEXT("Middle marked, no key"), Picker.Contains(TEXT("Middle Row  (You are here.) (greyed)")));
+		TestTrue(TEXT("Back on 3"), Picker.Contains(TEXT("[3] Back Row")));
+		TestEqual(TEXT("only Back stays a hint"), CountHints(), 1);
+		TestFalse(TEXT("the marked row's key does nothing"), Menu->PressMenuKey(EPieMenuCategory::Skills));
+
+		TestTrue(TEXT("3 picks the back row"), Menu->PressMenuKey(EPieMenuCategory::Items));
+		FCombatGridPosition Position;
+		const UCombatGridSubsystem *Grid = TestWorld->GetSubsystem<UCombatGridSubsystem>();
+		TestTrue(TEXT("moved to the back"), Grid && Grid->GetActorPosition(Hero, Position) && Position.Row == ECombatRow::Back);
+		TestTrue(TEXT("the main menu again, still the hero's turn"), Menu->IsAtMainMenu() && Orchestrator->GetCurrentActor() == Hero);
+		TestTrue(TEXT("Position greyed with why"), View->GetCommandMenuString().Contains(TEXT("Position  (Already moved this turn.) (greyed)")));
+		TestFalse(TEXT("its key does nothing now"), Menu->PressMenuKey(EPieMenuCategory::MoveRow));
+	});
+
+	It("steps back out of the Position picker without moving (B-588)", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		FPieMenuButtonData Position;
+		Position.Category = EPieMenuCategory::MoveRow; // DataIndex -1: the Position button
+		Menu->HandleSelection(Position);
+		TestTrue(TEXT("the picker"), Menu->IsPositionPickerOpen());
+		TestTrue(TEXT("Back key"), Menu->PressMenuKey(EPieMenuCategory::Back));
+		TestTrue(TEXT("the main menu"), Menu->IsAtMainMenu());
+		FCombatGridPosition Where;
+		const UCombatGridSubsystem *Grid = TestWorld->GetSubsystem<UCombatGridSubsystem>();
+		TestTrue(TEXT("not moved"), Grid && Grid->GetActorPosition(Hero, Where) && Where.Row == ECombatRow::Middle);
+		TestTrue(TEXT("the move is still free"), Orchestrator->GetMoveToRowRefusedReason(Hero, ECombatRow::Front).IsEmpty());
 	});
 
 	It("cycles the infusion level in a target picker that offers it", [this]()
