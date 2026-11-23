@@ -45,6 +45,8 @@ struct FBattleCardParts
 	bool bGear = false;
 	bool bActions = false;
 	bool bStatus = false;
+	/** B-436c: "Tier C" centred at the bottom of a fight's enemy card (the target marker), no rank. */
+	bool bTier = false;
 	/** B-503k: the card's fixed width (CardWidth); without it the card fits its name. */
 	bool bFixedWidth = false;
 };
@@ -112,6 +114,8 @@ struct FBattleHUDCard
 	/** B-170e: "Actions ●●○ 2 · Max 3 (+75/100)"; party cards in an action-pips fight only. */
 	FText ActionsLine;
 	FText StatusLine;
+	/** B-436c: "Tier C" (WoRCombatTier::GetCombatTierText); enemy cards only. */
+	FText TierLine;
 
 	/** B-391c: the status buildup bar (every card; the line on party cards only, Q-391). */
 	float BuildupFraction = 0.0f;
@@ -152,6 +156,9 @@ struct FBattleHUDCard
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> StatusText;
+
+	UPROPERTY()
+	TObjectPtr<UTextBlock> TierText;
 
 	UPROPERTY()
 	TObjectPtr<UProgressBar> BuildupBar;

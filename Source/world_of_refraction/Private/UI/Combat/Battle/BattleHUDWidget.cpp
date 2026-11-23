@@ -15,6 +15,8 @@
 #include "EngineUtils.h"
 #include "Combat/CombatPresentationComponent.h"
 #include "Combat/Defense/DefenseSystem.h"
+#include "Combat/Tier/CombatTier.h"
+#include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "Combat/Mechanics/BrokenDarknessManager.h"
 #include "Combat/StatusBarStateComponent.h"
 #include "Combat/Actions/ActionPipsText.h"
@@ -66,12 +68,12 @@ namespace BattleHUDStyle
 	const FLinearColor BonusColor(0.45f, 0.9f, 0.55f);   // a bonus turn (Emerald), as the old strip's green
 
 	// B-436a layout (docs/Design/BattleHUDRefinePlan.md piece 1, D-254: refine_final/1_main_menu.png).
-	const FVector2D RightColumnAnchor(1.0f, 0.0f);  // top-right: the turn order, the enemy cards under it
+	const FVector2D RightColumnAnchor(1.0f, 0.0f);  // top-right: the turn order (Intel under it, B-587)
 	const FVector2D PartyAnchor(0.0f, 1.0f);        // bottom-left: the featured card, the compact cards in a row to its right
 	const FVector2D StatusButtonAnchor(0.5f, 0.0f); // top centre
 	const FVector2D StatusPanelAnchor(0.5f, 0.5f);  // centre
 	constexpr float CardGap = 8.0f;
-	constexpr float RightColumnGap = 16.0f; // between the turn order and the enemy cards
+	constexpr float RightColumnGap = 16.0f; // between the turn order and Intel
 	// shortcut: the command menu sits a fixed height above the bottom margin, not the featured card's real height,
 	// upgrade to the card's measured height if its lines outgrow this. Today's full card with two identity lines is
 	// about 225 by its fonts and bars; the rest is room for one wrapped line. TODO: tune in PIE.
@@ -83,6 +85,11 @@ namespace BattleHUDStyle
 
 	// B-391b: a damage number's text is centred on its point and sits above it.
 	const FVector2D DamageNumberAlignment(0.5f, 1.0f);
+
+	// B-436c (D-263): the enemy's card is the target marker, centred above the highlighted target's head.
+	const FVector2D TargetMarkerAlignment(0.5f, 1.0f);
+	constexpr float TargetMarkerLift = 40.0f;		  // cm above the head. TODO: tune in PIE
+	constexpr float TargetMarkerStepSeconds = 0.033f; // follows the camera while shown (a blend, a turn-view change)
 }
 
 namespace BattleHUDBuild
@@ -185,6 +192,18 @@ void UBattleHUDWidget::Initialise(const TArray<AActor *> &Party, const TArray<AA
 		It->OnCombatStateChanged.AddDynamic(this, &UBattleHUDWidget::HandleCombatStateChanged);
 		break; // one fight at a time, as FindBattleHUD
 	}
+	// B-436c (D-263): the enemy's card shows over the target the picker highlights, and nowhere else.
+	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(this))
+	{
+		BoundMenu = Menu;
+		Menu->OnTargetHighlighted.AddDynamic(this, &UBattleHUDWidget::HandleTargetHighlighted);
+		Menu->OnCommandMenuClosed.AddDynamic(this, &UBattleHUDWidget::HandleCommandMenuClosed);
+		MarkedTarget = Menu->GetHighlightedTarget();
+	}
+	else
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[BattleHUD] No command menu subsystem: no target marker, so no enemy HP shows"));
+	}
 
 	bBound = true;
 	RefreshPools();
@@ -204,6 +223,10 @@ void UBattleHUDWidget::AddCard(AActor *Actor, bool bParty)
 	Card.Actor = Actor;
 	Card.bParty = bParty;
 	Card.Name = BattleHUDView::GetCombatantName(Actor);
+	if (!bParty)
+	{
+		Card.TierLine = WoRCombatTier::GetCombatTierText(WoRCombatTier::GetCombatTier(Actor)); // B-436c: the marker's tier
+	}
 
 	UCharacterDataComponent *CharData = Actor->FindComponentByClass<UCharacterDataComponent>();
 	Card.CharData = CharData;
@@ -364,7 +387,96 @@ void UBattleHUDWidget::Teardown()
 		Orchestrator->OnCombatStateChanged.RemoveDynamic(this, &UBattleHUDWidget::HandleCombatStateChanged);
 	}
 	BoundOrchestrator.Reset();
+	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get())
+	{
+		Menu->OnTargetHighlighted.RemoveDynamic(this, &UBattleHUDWidget::HandleTargetHighlighted);
+		Menu->OnCommandMenuClosed.RemoveDynamic(this, &UBattleHUDWidget::HandleCommandMenuClosed);
+	}
+	BoundMenu.Reset();
+	MarkedTarget.Reset();
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(TargetMarkerTimer);
+	}
 	bBound = false;
+}
+
+void UBattleHUDWidget::HandleTargetHighlighted(AActor *Actor, AActor *Target, int32 TargetCount)
+{
+	SetMarkedTarget(Target);
+}
+
+void UBattleHUDWidget::HandleCommandMenuClosed()
+{
+	SetMarkedTarget(nullptr);
+}
+
+int32 UBattleHUDWidget::GetMarkedCardIndex() const
+{
+	const AActor *Target = MarkedTarget.Get();
+	return Target ? Cards.IndexOfByPredicate([Target](const FBattleHUDCard &Card) { return !Card.bParty && Card.Actor.Get() == Target; })
+				  : INDEX_NONE;
+}
+
+void UBattleHUDWidget::SetMarkedTarget(AActor *Target)
+{
+	MarkedTarget = Target;
+	const int32 Marked = GetMarkedCardIndex(); // an ally the picker highlights has no marker: its own card shows its HP
+	for (int32 Index = 0; Index < Cards.Num(); ++Index)
+	{
+		if (!Cards[Index].bParty && Cards[Index].Frame)
+		{
+			// The marked one waits Hidden for PlaceTargetMarker, so it never shows at the slot's corner first.
+			Cards[Index].Frame->SetVisibility(Index == Marked ? ESlateVisibility::Hidden : ESlateVisibility::Collapsed);
+		}
+	}
+	UWorld *World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+	if (Marked == INDEX_NONE)
+	{
+		World->GetTimerManager().ClearTimer(TargetMarkerTimer);
+		return;
+	}
+	PlaceTargetMarker();
+	if (!World->GetTimerManager().IsTimerActive(TargetMarkerTimer))
+	{
+		World->GetTimerManager().SetTimer(TargetMarkerTimer, this, &UBattleHUDWidget::PlaceTargetMarker, BattleHUDStyle::TargetMarkerStepSeconds,
+										  /*bLoop=*/true);
+	}
+}
+
+void UBattleHUDWidget::PlaceTargetMarker()
+{
+	const int32 Marked = GetMarkedCardIndex();
+	UBorder *Frame = Cards.IsValidIndex(Marked) ? Cards[Marked].Frame.Get() : nullptr;
+	APlayerController *PC = GetOwningPlayer();
+	if (!Frame || bIntelOpen)
+	{
+		return; // unbuilt, or the marker layer is hidden under Intel
+	}
+	if (!PC)
+	{
+		Frame->SetVisibility(ESlateVisibility::Visible); // headless: shown, nowhere to place it
+		return;
+	}
+	FVector Feet;
+	float Height = 0.0f;
+	UCombatCameraDirector::GetTargetShape(Cards[Marked].Actor.Get(), Feet, Height);
+	FVector2D Point;
+	const FVector Head = Feet + FVector::UpVector * (Height + BattleHUDStyle::TargetMarkerLift);
+	if (!UWidgetLayoutLibrary::ProjectWorldLocationToWidgetPosition(PC, Head, Point, /*bPlayerViewportRelative=*/false))
+	{
+		Frame->SetVisibility(ESlateVisibility::Hidden); // behind the camera: back when it comes into view
+		return;
+	}
+	if (UCanvasPanelSlot *MarkerSlot = Cast<UCanvasPanelSlot>(Frame->Slot))
+	{
+		MarkerSlot->SetPosition(Point);
+	}
+	Frame->SetVisibility(ESlateVisibility::Visible);
 }
 
 void UBattleHUDWidget::CloseIntelForFight(const TCHAR *Why)
@@ -403,6 +515,7 @@ void UBattleHUDWidget::NativeConstruct()
 	Super::NativeConstruct();
 	SetVisibility(ESlateVisibility::SelfHitTestInvisible); // clicks pass through except on the Statuses button
 	PushToWidgets();
+	SetMarkedTarget(MarkedTarget.Get()); // B-436c: a target highlighted before the cards were built
 }
 
 void UBattleHUDWidget::NativeDestruct()
@@ -423,8 +536,18 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		Canvas->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		WidgetTree->RootWidget = Canvas;
 
-		// B-436a: the right-hand column, top: the turn order, the enemy cards under it. B-586: only the enemy cards take a
-		// click (Intel).
+		// B-436c (D-263): the enemy cards are target markers over the world, one shown at a time; first, so the rest
+		// draws over them. Stretched over the root, so a projected point is its position here too.
+		UCanvasPanel *Markers = WidgetTree->ConstructWidget<UCanvasPanel>(UCanvasPanel::StaticClass(), TEXT("TargetMarkers"));
+		Markers->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		EnemyColumn = Markers; // hidden under Intel (B-587)
+		if (UCanvasPanelSlot *MarkersSlot = Canvas->AddChildToCanvas(Markers))
+		{
+			MarkersSlot->SetAnchors(FAnchors(0.0f, 0.0f, 1.0f, 1.0f));
+			MarkersSlot->SetOffsets(FMargin(0.0f));
+		}
+
+		// B-436a: the right-hand column, top: the turn order (B-436c: the enemy cards left it; B-587: Intel under it).
 		UVerticalBox *RightColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightColumn"));
 		RightColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		UVerticalBox *TurnColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TurnOrder"));
@@ -434,17 +557,10 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		{
 			TurnTexts.Add(BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::TurnFontSize));
 		}
-		UVerticalBox *Enemies = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Enemies"));
-		Enemies->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		EnemyColumn = Enemies;
 		if (UVerticalBoxSlot *TurnSlot = RightColumn->AddChildToVerticalBox(TurnColumn))
 		{
 			TurnSlot->SetHorizontalAlignment(HAlign_Right);
 			TurnSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::RightColumnGap));
-		}
-		if (UVerticalBoxSlot *EnemySlot = RightColumn->AddChildToVerticalBox(Enemies))
-		{
-			EnemySlot->SetHorizontalAlignment(HAlign_Right);
 		}
 		BattleHUDBuild::Place(Canvas, RightColumn, BattleHUDStyle::RightColumnAnchor, BattleHUDBuild::Inset(BattleHUDStyle::RightColumnAnchor));
 
@@ -498,9 +614,12 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 					CardSlot->SetVerticalAlignment(VAlign_Bottom);
 				}
 			}
-			else if (UVerticalBoxSlot *ColumnSlot = Enemies->AddChildToVerticalBox(Frame))
+			else if (UCanvasPanelSlot *MarkerSlot = Markers->AddChildToCanvas(Frame))
 			{
-				ColumnSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
+				MarkerSlot->SetAnchors(FAnchors(0.0f, 0.0f)); // positioned in viewport space (PlaceTargetMarker)
+				MarkerSlot->SetAlignment(BattleHUDStyle::TargetMarkerAlignment);
+				MarkerSlot->SetAutoSize(true);
+				Frame->SetVisibility(ESlateVisibility::Collapsed); // B-436c: shown only on the highlighted target
 			}
 		}
 
@@ -1330,6 +1449,10 @@ FString UBattleHUDWidget::GetBattleHUDString() const
 		Out += FString::Printf(TEXT("\n  intel tab %d/%d: %s"), IntelTab + 1, IntelPages.Num(),
 							   *BattleIntelView::GetPageString(IntelPages[IntelTab]).Replace(TEXT("\n"), TEXT("\n    ")));
 	}
+	const int32 Marked = GetMarkedCardIndex(); // B-436c
+	Out += FString::Printf(TEXT("\n  target marker (%s): %s"), BoundMenu.IsValid() ? TEXT("follows the picker") : TEXT("no picker bound"), Cards.IsValidIndex(Marked) ? *FString::Printf(TEXT("%s (%s)"), *Cards[Marked].Name.ToString(),
+																									   *Cards[Marked].TierLine.ToString())
+																				  : TEXT("none"));
 	const int32 Featured = GetFeaturedCardIndex();
 	const FBattleHUDCard *FeaturedCard = Cards.IsValidIndex(Featured) ? &Cards[Featured] : nullptr;
 	for (const FBattleHUDCard &Card : Cards)

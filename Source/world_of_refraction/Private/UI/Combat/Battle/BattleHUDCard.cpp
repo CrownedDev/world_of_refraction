@@ -161,6 +161,7 @@ FBattleCardParts BattleHUDCard::GetParts(EBattleCardLevel Level, bool bParty)
 	Parts.bBuildupLine = Parts.bGear = Level == EBattleCardLevel::Battle && bParty;
 	Parts.bActions = false; // B-436g (D-260): the pips moved to the command menu's tab; OBSOLETE with ActionsText, kept until PIE (docs/PIE/Sweep.md)
 	Parts.bStatus = Level == EBattleCardLevel::Battle && !bParty; // D-261 (B-586): a party member's effects are in Intel
+	Parts.bTier = Level == EBattleCardLevel::Battle && !bParty;	  // B-436c: the target marker's tier
 	Parts.bFixedWidth = Level != EBattleCardLevel::Hub; // the hub's name-only card shrinks to the name
 	return Parts;
 }
@@ -242,6 +243,11 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 	{
 		Card.StatusText = AddText(Tree, Rows, LineFontSize);
 	}
+	if (Parts.bTier)
+	{
+		Card.TierText = AddText(Tree, Rows, LineFontSize);
+		Card.TierText->SetJustification(ETextJustify::Center);
+	}
 	return Card.Frame;
 }
 
@@ -276,6 +282,7 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 	}
 	SetTextSafe(Card.ActionsText, Card.ActionsLine);
 	SetTextSafe(Card.StatusText, Card.StatusLine);
+	SetTextSafe(Card.TierText, Card.TierLine);
 	if (Card.Frame)
 	{
 		Card.Frame->SetRenderOpacity(Card.bAlive ? 1.0f : DownedCardOpacity);

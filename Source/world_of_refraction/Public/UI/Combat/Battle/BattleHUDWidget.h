@@ -9,7 +9,8 @@
 //   Body lines on a card. B-586 (D-261): a click on any card, or V / R3, opens the Intel panel (UBattleIntelWidget) on
 //   that character's tab; a party card shows no status chips (they are in Intel);
 // - turn order top-right: the current actor, then the next turns (bonus turns marked);
-// - enemy cards under the turn order: name, HP bar (no numbers, Q-391), status chips;
+// - B-436c (D-263): an enemy's card (name, HP bar without numbers (Q-391), build-up bar, status chips, "Tier C") is
+//   the target marker: shown only above the enemy the picker highlights, none in the command state;
 // - a Statuses button (top centre) opening one panel with every status in full (FeelGuide 5);
 // - B-391b: floating damage numbers at each card character's hit point (UCombatPresentationComponent::OnHitDetailShown,
 //   so every machine shows the server's numbers), styled by DamageNumberView; a Broken Darkness card's EP line is its
@@ -44,6 +45,7 @@
 class ACombatOrchestrator;
 class UBattleCommandMenuWidget;
 class UBattleIntelWidget;
+class UCombatCommandMenuSubsystem;
 class UDefenseSystem;
 enum class ECombatState : uint8;
 class UBorder;
@@ -138,6 +140,10 @@ public:
 	 *  (HandleStatusButtonClicked); nothing calls this. Kept until Crown's PIE pass (docs/PIE/B-587.md check 6). */
 	void ToggleAllStatuses();
 
+	/** B-436c (D-263): the enemy card shown as the target marker (the picker's highlighted enemy); INDEX_NONE: none,
+	 *  so no enemy card shows. */
+	int32 GetMarkedCardIndex() const;
+
 	/** B-587 QA: the Status button's click: Intel on the party, or closed. Public for specs. */
 	UFUNCTION()
 	void HandleStatusButtonClicked();
@@ -217,6 +223,19 @@ private:
 	UFUNCTION()
 	void HandleTurnStateChanged();
 
+	/** B-436c: the picker's highlight moved (null: none). */
+	UFUNCTION()
+	void HandleTargetHighlighted(AActor *Actor, AActor *Target, int32 TargetCount);
+
+	UFUNCTION()
+	void HandleCommandMenuClosed();
+
+	/** B-436c: show Target's enemy card as the marker (hide the others) and follow it while shown. */
+	void SetMarkedTarget(AActor *Target);
+
+	/** B-436c: the marker centred above the target's head, projected each step. */
+	void PlaceTargetMarker();
+
 	/** B-587 QA: close Intel when the fight moves on without the player; Why goes to the log. */
 	void CloseIntelForFight(const TCHAR *Why);
 
@@ -276,6 +295,9 @@ private:
 	TArray<TWeakObjectPtr<UStatusBarStateComponent>> BoundBarStates;
 	TWeakObjectPtr<UDefenseSystem> BoundDefense;
 	TWeakObjectPtr<ACombatOrchestrator> BoundOrchestrator;
+	TWeakObjectPtr<UCombatCommandMenuSubsystem> BoundMenu;
+	TWeakObjectPtr<AActor> MarkedTarget;
+	FTimerHandle TargetMarkerTimer;
 
 	UPROPERTY(Transient)
 	TArray<FBattleDamageNumber> DamageNumbers;

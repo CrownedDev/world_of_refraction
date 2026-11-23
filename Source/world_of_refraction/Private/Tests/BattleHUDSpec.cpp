@@ -26,6 +26,7 @@
 #include "Combat/Actions/ActionPipsText.h"
 #include "Combat/CombatOrchestrator.h"
 #include "Combat/CombatPlayerController.h"
+#include "Combat/Tier/CombatTier.h"
 #include "Equipment/Crystals/FCrystalId.h"
 #include "Equipment/FCrystalAttachment.h"
 #include "Equipment/FRuntimeAttachedItem.h"
@@ -948,6 +949,72 @@ void FBattleHUDSpec::Define()
 				TestTrue(TEXT("and back to the first"), Menu->GetHighlightedTarget() == Foe);
 			}
 			MenuWidget->Teardown();
+		});
+
+		It("shows an enemy's card only as the marker over the highlighted target, with its tier (B-436c, D-263)", [this]()
+		{
+			TestWorld = MakeUnique<FWoRTestWorld>();
+			if (!TestTrue(TEXT("Test world created"), TestWorld->Create()))
+			{
+				return;
+			}
+			Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+			Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();
+			Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestTrue(TEXT("Orchestrator, menu and combatants"), Orchestrator && Menu && Hero && Foe && SecondFoe))
+			{
+				return;
+			}
+			for (AActor *Actor : {Hero, Foe, SecondFoe})
+			{
+				BattleHUDAddLoadout(Actor);
+			}
+			Menu->SetCombatOrchestrator(Orchestrator);
+			Orchestrator->StartCombat({Hero}, {Foe, SecondFoe});
+			TestWorld->Tick(BATTLE_HUD_SETTLE_FRAMES);
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (!TestTrue(TEXT("Hero's menu is open"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero) || !TestNotNull(TEXT("battle HUD"), HUD))
+			{
+				return;
+			}
+			HUD->Initialise({Hero}, {Foe, SecondFoe});
+			const TSharedRef<SWidget> Built = HUD->TakeWidget(); // builds the cards; held, or its release tears the HUD down
+			const TArray<FBattleHUDCard> &Cards = HUD->GetCards();
+			const auto CardOf = [&Cards](const AActor *Actor) { return Cards.IndexOfByPredicate([Actor](const FBattleHUDCard &Card) { return Card.Actor.Get() == Actor; }); };
+			const int32 FoeCard = CardOf(Foe);
+			const int32 SecondCard = CardOf(SecondFoe);
+			if (!TestTrue(TEXT("both enemy cards built"), Cards.IsValidIndex(FoeCard) && Cards.IsValidIndex(SecondCard) && Cards[FoeCard].Frame && Cards[SecondCard].Frame))
+			{
+				return;
+			}
+			const auto Shown = [&Cards](int32 Card) { return Cards[Card].Frame->GetVisibility() == ESlateVisibility::Visible; };
+			TestEqual(TEXT("the command state: no marker"), HUD->GetMarkedCardIndex(), INDEX_NONE);
+			TestFalse(TEXT("and no enemy card"), Shown(FoeCard) || Shown(SecondCard));
+			TestNotNull(TEXT("the marker layer"), HUD->GetWidgetFromName(TEXT("TargetMarkers")));
+			TestNull(TEXT("the old column is gone"), HUD->GetWidgetFromName(TEXT("Enemies")));
+			TestEqual(TEXT("an enemy card reads its tier"), Cards[FoeCard].TierLine.ToString(),
+					  WoRCombatTier::GetCombatTierText(WoRCombatTier::GetCombatTier(Foe)).ToString());
+			TestTrue(TEXT("the tier names no rank"), Cards[FoeCard].TierLine.ToString().StartsWith(TEXT("Tier ")));
+			TestTrue(TEXT("still no HP number on it (Q-391)"), Cards[FoeCard].HPBar && !Cards[FoeCard].HPText);
+			TestTrue(TEXT("its tier line built"), Cards[FoeCard].TierText && !Cards[CardOf(Hero)].TierText);
+
+			FPieMenuButtonData Attack;
+			Attack.Category = EPieMenuCategory::Attack;
+			Menu->HandleSelection(Attack);
+			const int32 First = CardOf(Menu->GetHighlightedTarget());
+			const int32 Other = First == FoeCard ? SecondCard : FoeCard;
+			TestTrue(TEXT("the picker marks its highlighted enemy"), First != INDEX_NONE && HUD->GetMarkedCardIndex() == First);
+			TestTrue(TEXT("its card shows, the other's not"), First != INDEX_NONE && Shown(First) && !Shown(Other));
+			Menu->CycleHighlightedTarget(1);
+			TestEqual(TEXT("the marker follows the highlight"), HUD->GetMarkedCardIndex(), Other);
+			TestTrue(TEXT("on the other card now"), Shown(Other) && !Shown(First));
+			TestTrue(TEXT("wor.UI.Print names it"), HUD->GetBattleHUDString().Contains(TEXT("follows the picker): ") + Cards[Other].Name.ToString()));
+			Menu->HandleBack();
+			TestEqual(TEXT("Back to the main menu: no marker"), HUD->GetMarkedCardIndex(), INDEX_NONE);
+			TestFalse(TEXT("and no enemy card"), Shown(FoeCard) || Shown(SecondCard));
+			HUD->Teardown();
 		});
 	});
 }
