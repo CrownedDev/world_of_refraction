@@ -600,6 +600,26 @@ void UCombatCommandMenuSubsystem::RefreshTargetHighlight()
     SetHighlightedTarget(Keep);
 }
 
+bool UCombatCommandMenuSubsystem::ConfirmHighlightedTarget()
+{
+    const AActor *Highlighted = IsSingleTargetPickerOpen() ? HighlightedTarget.Get() : nullptr;
+    if (!Highlighted)
+    {
+        return false;
+    }
+    const TArray<FPieMenuButtonData> Rows = RebuildCurrentPicker();
+    const FPieMenuButtonData *Row = Rows.FindByPredicate([Highlighted](const FPieMenuButtonData &Candidate)
+                                                         { return Candidate.Category == EPieMenuCategory::Target && Candidate.DataReference == Highlighted &&
+                                                                  Candidate.Targets.IsEmpty() && Candidate.bEnabled; });
+    if (!Row)
+    {
+        return false;
+    }
+    const FPieMenuButtonData Pressed = *Row; // HandleSelection rebuilds the menu
+    HandleSelection(Pressed);
+    return true;
+}
+
 AActor *UCombatCommandMenuSubsystem::GetLastAttackTarget(const AActor *Fighter) const
 {
     const TWeakObjectPtr<AActor> *Last = Fighter ? LastAttackTargets.Find(Fighter) : nullptr;
@@ -2560,21 +2580,13 @@ bool UCombatCommandMenuSubsystem::PressMenuKey(EPieMenuCategory Category)
     }
     if (Category == EPieMenuCategory::Attack && PendingActionCategory == EPieMenuCategory::Attack && IsSingleTargetPickerOpen())
     {
-        // B-582 (D-266): 1 / A again in the Attack picker attacks the highlighted target, as a click on its row
-        // (1, 1 is a quick attack). The Position picker's 1 is its own branch below; this needs the Attack picker.
-        const AActor *Highlighted = HighlightedTarget.Get();
-        const TArray<FPieMenuButtonData> Rows = RebuildCurrentPicker();
-        const FPieMenuButtonData *Row = Highlighted ? Rows.FindByPredicate([Highlighted](const FPieMenuButtonData &Candidate)
-                                                                         { return Candidate.Category == EPieMenuCategory::Target && Candidate.DataReference == Highlighted &&
-                                                                                  Candidate.Targets.IsEmpty() && Candidate.bEnabled; })
-                                                    : nullptr;
-        if (!Row)
-        {
-            return false;
-        }
-        const FPieMenuButtonData Pressed = *Row; // HandleSelection rebuilds the menu
-        HandleSelection(Pressed);
-        return true;
+        // B-582 (D-266): 1 / A again in the Attack picker attacks the highlighted target (1, 1 is a quick attack). The
+        // Position picker's 1 is its own branch below; this needs the Attack picker.
+        return ConfirmHighlightedTarget();
+    }
+    if (Category == EPieMenuCategory::Target)
+    {
+        return ConfirmHighlightedTarget(); // B-582b (D-267): Enter / Space, in any single-target picker; nothing elsewhere
     }
     TArray<FPieMenuButtonData> View;
     const bool bInfusionKey = Category == EPieMenuCategory::CycleSource || Category == EPieMenuCategory::CycleLevel;
