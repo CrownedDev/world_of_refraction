@@ -19,6 +19,7 @@
 
 class ULoadoutComponent;
 enum class ECombatFreeCommand : uint8;
+enum class ECombatRow : uint8;
 class UCharacterData;
 class USpellData;
 class UAbilityData;
@@ -77,9 +78,27 @@ namespace CommandMenuRules
 		case EPieMenuCategory::SwitchWeapon:
 		case EPieMenuCategory::ChangeRing:
 		case EPieMenuCategory::EndTurn:
+		case EPieMenuCategory::MoveRow: // B-588: Position
 			return true;
 		default:
 			return false;
+		}
+	}
+
+	/** B-588 (D-263): in the Position picker the main menu's first three keys pick its rows, top to bottom (1 / A
+	 *  Front, 2 / X Middle, 3 / Y Back), as they press the main menu's first three rows; INDEX_NONE for other keys. */
+	inline int32 PositionPickerRowForKey(EPieMenuCategory Key)
+	{
+		switch (Key)
+		{
+		case EPieMenuCategory::Attack:
+			return 0;
+		case EPieMenuCategory::Skills:
+			return 1;
+		case EPieMenuCategory::Items:
+			return 2;
+		default:
+			return INDEX_NONE;
 		}
 	}
 
@@ -238,6 +257,13 @@ public:
     UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
     bool IsAtMainMenu() const { return CurrentDepth == ECombatMenuDepth::Main; }
 
+    /** B-588 (D-263): the Position row picker (Front / Middle / Back) is open. */
+    bool IsPositionPickerOpen() const { return CurrentDepth == ECombatMenuDepth::Submenu && ActiveSubmenuType == EPieMenuCategory::MoveRow; }
+
+    /** B-588 (D-263): the picker's rows, Front, Middle, Back, then Back: the current row greyed "You are here.", a row
+     *  the move is refused for greyed with why (a co-op client greys its current row only; the server checks the rest). */
+    TArray<FPieMenuButtonData> BuildPositionButtons() const;
+
     UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
     const FCombatCapabilities &GetCurrentCapabilities() const { return CurrentCapabilities; }
 
@@ -371,8 +397,11 @@ private:
     bool CanHandToAI() const;
     /** B-453e (D-190): tells the orchestrator the player is still choosing (its idle clock starts again). */
     void NoteTurnActivity() const;
-    /** D-096 placeholder: "Step Forward" / "Step Back", greyed with the reason. */
+    /** D-096 placeholder: "Step Forward" / "Step Back", greyed with the reason. OBSOLETE (B-588): the main menu shows
+     *  Position (CreatePositionButton) instead; kept until PIE. */
     FPieMenuButtonData CreateMoveRowButton(bool bForward) const;
+    /** B-588 (D-263): "Position", a corner hint that opens the row picker; greyed with why when no row can be taken. */
+    FPieMenuButtonData CreatePositionButton() const;
     /** ET-19: greys a switch button, with the reason, once the turn's free switch is used. */
     void GreyIfTurnSwitchUsed(FPieMenuButtonData &Button) const;
     FPieMenuButtonData CreateSwitchRingButton() const;
@@ -398,7 +427,11 @@ private:
     void OpenAbilitySubmenu();
     void OpenSpellSubmenu(EPieMenuCategory Source);
     void ExecuteSwitchWeapon();
-    void ExecuteMoveRow(bool bForward);
+    void ExecuteMoveRow(bool bForward); // OBSOLETE (B-588): ExecuteMoveToRow; kept until PIE
+    /** B-588: opens the Position picker (a sub-menu: only Back stays a corner hint). */
+    void OpenPositionPicker();
+    /** B-588: the move; back to the main menu once it is sent or made, the picker again on a refusal. */
+    void ExecuteMoveToRow(ECombatRow Row);
     void ExecuteSwitchRing();
     void OpenItemsSubmenu();
 
