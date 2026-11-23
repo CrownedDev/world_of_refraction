@@ -15,7 +15,11 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Border.h"
+#include "Components/HorizontalBox.h"
 #include "Components/ProgressBar.h"
+#include "Combat/Actions/ActionExecutor.h"
+#include "Infusion/InfusionVFXComponent.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Combat/CombatConstants.h"
@@ -61,6 +65,11 @@ namespace
 	constexpr int32 BATTLE_HUD_GEM_DURABILITY = 7; // the hero's weapon gem in the durability header case
 	const FCrystalId BATTLE_HUD_GEM(ECrystalType::Garnet, EItemTier::F_Tier);
 	constexpr int32 BATTLE_HUD_ONE_ACTION = 1;
+	// B-592b: pools and an ability EP cost that give a Raw L2 infusion a visible, non-lethal HP cost.
+	constexpr int32 BATTLE_HUD_GHOST_POOL = 200;
+	constexpr int32 BATTLE_HUD_GHOST_ABILITY_EP = 40;
+	constexpr int32 BATTLE_HUD_GHOST_LEVEL = 2;
+	constexpr int32 BATTLE_HUD_MAX_SOURCE_PRESSES = 8; // more than any character's source count
 
 	void BattleHUDAddLoadout(AActor *Actor)
 	{
@@ -1141,6 +1150,111 @@ void FBattleHUDSpec::Define()
 			TestEqual(TEXT("Back to the main menu: no marker"), HUD->GetMarkedCardIndex(), INDEX_NONE);
 			TestFalse(TEXT("and no enemy card"), Shown(FoeCard) || Shown(SecondCard));
 			HUD->Teardown();
+		});
+
+		It("ghosts the picked infusion's HP cost on the caster's HP bar, KILL red when lethal, gone when the step closes (B-592b)", [this]()
+		{
+			TestWorld = MakeUnique<FWoRTestWorld>();
+			if (!TestTrue(TEXT("Test world created"), TestWorld->Create()))
+			{
+				return;
+			}
+			Orchestrator = TestWorld->GetWorld()->SpawnActor<ACombatOrchestrator>();
+			Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();
+			Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			if (!TestTrue(TEXT("Orchestrator, menu and combatants"), Orchestrator && Menu && Hero && Foe))
+			{
+				return;
+			}
+			BattleHUDAddLoadout(Hero);
+			BattleHUDAddLoadout(Foe);
+			UInfusionVFXComponent *VFX = NewObject<UInfusionVFXComponent>(Hero);
+			Hero->AddInstanceComponent(VFX);
+			VFX->RegisterComponent();
+			Menu->SetCombatOrchestrator(Orchestrator);
+			Orchestrator->StartCombat({Hero}, {Foe});
+			TestWorld->Tick(BATTLE_HUD_SETTLE_FRAMES);
+			UCharacterDataComponent *Stats = Hero->FindComponentByClass<UCharacterDataComponent>();
+			const UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+			UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+			if (!TestTrue(TEXT("Hero's menu is open"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero) || !TestNotNull(TEXT("battle HUD"), HUD) ||
+				!TestNotNull(TEXT("Stats"), Stats) || !TestNotNull(TEXT("ActionExecutor"), Executor))
+			{
+				return;
+			}
+			Stats->MaxEP = Stats->CurrentEP = BATTLE_HUD_GHOST_POOL;
+			Stats->MaxHP = Stats->CurrentHP = BATTLE_HUD_GHOST_POOL;
+			HUD->Initialise({Hero}, {Foe});
+			const TSharedRef<SWidget> Built = HUD->TakeWidget(); // builds the cards; held, or its release tears the HUD down
+			ON_SCOPE_EXIT { HUD->Teardown(); };
+			const TArray<FBattleHUDCard> &Cards = HUD->GetCards();
+			const int32 HeroCard = Cards.IndexOfByPredicate([this](const FBattleHUDCard &Card) { return Card.Actor.Get() == Hero; });
+			if (!TestTrue(TEXT("the hero's card with its ghost built"), Cards.IsValidIndex(HeroCard) && Cards[HeroCard].HPGhostRow && Cards[HeroCard].HPGhost))
+			{
+				return;
+			}
+			const FBattleHUDCard &Card = Cards[HeroCard];
+			const auto GhostShown = [&Card]() { return Card.HPGhostRow->GetVisibility() != ESlateVisibility::Collapsed; };
+			TestFalse(TEXT("the command state: no ghost"), Card.HPGhostFraction > 0.0f || GhostShown());
+
+			UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+			Ability->BaseEnergyCost = BATTLE_HUD_GHOST_ABILITY_EP;
+			FPieMenuButtonData Use;
+			Use.Category = EPieMenuCategory::Ability;
+			Use.DataReference = Ability;
+			const auto PickedRaw = [VFX]()
+			{
+				return VFX->GetCachedSources().IsValidIndex(VFX->GetCurrentSourceIndex()) &&
+					   VFX->GetCachedSources()[VFX->GetCurrentSourceIndex()] == EInfusionSourceOption::Raw;
+			};
+			// The ability's target step with Raw at L2, through the menu's own keys (each rebroadcasts the picker).
+			const auto OpenRawL2 = [this, &Use, &PickedRaw]()
+			{
+				Menu->HandleSelection(Use);
+				for (int32 Press = 0; Press < BATTLE_HUD_MAX_SOURCE_PRESSES && !PickedRaw(); ++Press)
+				{
+					Menu->PressMenuKey(EPieMenuCategory::CycleSource);
+				}
+				for (int32 Press = 0; Press < BATTLE_HUD_GHOST_LEVEL; ++Press)
+				{
+					Menu->PressMenuKey(EPieMenuCategory::CycleLevel);
+				}
+				return TestTrue(TEXT("Raw at L2 picked"), Menu->GetPendingInfusionLevel() == BATTLE_HUD_GHOST_LEVEL && PickedRaw());
+			};
+			Menu->HandleSelection(Use);
+			TestFalse(TEXT("the target step at L0: no ghost"), Card.HPGhostFraction > 0.0f);
+			Menu->HandleBack();
+			if (!OpenRawL2())
+			{
+				return;
+			}
+			const FInfusionCostPreview Cost = Menu->GetTargetStepCostPreview();
+			TestTrue(TEXT("Raw L2 costs HP"), Cost.HP > 0 && !Cost.bWouldKill);
+			TestNearlyEqual(TEXT("the ghost is that share of max HP"), Card.HPGhostFraction, BattleHUDView::PoolFraction(Cost.HP, BATTLE_HUD_GHOST_POOL));
+			TestTrue(TEXT("shown, not KILL red"), GhostShown() && !Card.bHPGhostKills);
+			TestTrue(TEXT("wor.UI.Print shows it"), HUD->GetBattleHUDString().Contains(TEXT("HP ghost")));
+
+			Menu->PressMenuKey(EPieMenuCategory::CycleLevel);
+			TestFalse(TEXT("the level wraps to L0: the ghost follows, gone"), Card.HPGhostFraction > 0.0f || GhostShown());
+			Stats->CurrentHP = Cost.HP; // the same cost now takes the hero to 0
+			Menu->PressMenuKey(EPieMenuCategory::CycleLevel);
+			Menu->PressMenuKey(EPieMenuCategory::CycleLevel);
+			TestTrue(TEXT("back at L2, lethal: KILL red"), Card.bHPGhostKills && GhostShown());
+			TestTrue(TEXT("wor.UI.Print says so"), HUD->GetBattleHUDString().Contains(TEXT("(would kill)")));
+
+			Menu->HandleBack();
+			TestFalse(TEXT("Back closes the step: no ghost"), Card.HPGhostFraction > 0.0f || Card.bHPGhostKills || GhostShown());
+			TestEqual(TEXT("and the menu previews nothing"), Menu->GetTargetStepCostPreview().HP, 0);
+
+			Stats->CurrentHP = BATTLE_HUD_GHOST_POOL;
+			if (!OpenRawL2())
+			{
+				return;
+			}
+			TestTrue(TEXT("the ghost is back"), Card.HPGhostFraction > 0.0f);
+			TestTrue(TEXT("Enter commits the action"), Menu->PressMenuKey(EPieMenuCategory::Target));
+			TestFalse(TEXT("committed: no ghost"), Card.HPGhostFraction > 0.0f || GhostShown());
 		});
 	});
 }
