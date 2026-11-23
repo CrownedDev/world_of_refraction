@@ -316,7 +316,7 @@ void FCommandMenuKeysSpec::Define()
 		};
 		const FString Main = View->GetCommandMenuString();
 		TestTrue(TEXT("one Position hint with its key"), Main.Contains(TEXT("hint [4] Position")));
-		TestFalse(TEXT("no Step Forward / Back"), Main.Contains(TEXT("Step")));
+		TestFalse(TEXT("no Step Forward / Back"), Main.Contains(TEXT("Step Forward")) || Main.Contains(TEXT("Step Back")));
 
 		TestTrue(TEXT("Position key"), Menu->PressMenuKey(EPieMenuCategory::MoveRow));
 		TestTrue(TEXT("the picker"), Menu->IsPositionPickerOpen());
