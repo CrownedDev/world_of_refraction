@@ -204,6 +204,11 @@ public:
 	bool IsFightCameraMovementOff() const;
 	void SetFightCameraMovementOff(bool bOff);
 
+	/** B-587 (Crown, D-262): the fight's Intel key cycles party, enemies, close (default), or opens and closes. Kept in
+	 *  memory at once; written with the next save. UBattleHUDWidget reads it on each press. */
+	bool IsIntelKeyCycle() const;
+	void SetIntelKeyCycle(bool bCycle);
+
 	/** B-453c (D-190): something that can't be undone (the game menu's quit, the title's start over) asks for a hold
 	 *  (default) or, off, a press on its confirm. Kept in memory at once; written with the next save. */
 	bool IsHoldToConfirmOn() const;
