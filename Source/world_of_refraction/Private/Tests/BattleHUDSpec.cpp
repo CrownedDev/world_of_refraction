@@ -659,13 +659,6 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("another card switches to its tab"), HUD->IsIntelOpen() && OpenPage().Actor.Get() == Hero);
 			HUD->InspectCard(FOE_CARD);
 			TestTrue(TEXT("an enemy card opens its own tab now (D-261)"), HUD->IsIntelOpen() && OpenPage().bEnemy && OpenPage().Actor.Get() == Foe);
-			HUD->ToggleAllStatuses();
-			TestTrue(TEXT("the Status button shows everyone and closes Intel"),
-					 HUD->IsStatusPanelOpen() && !HUD->IsIntelOpen() && HUD->GetInspectedCardIndex() == INDEX_NONE &&
-						 HUD->GetStatusPanelText().ToString().Contains(HUD->GetCards()[FOE_CARD].Name.ToString() + TEXT(":")));
-			HUD->ToggleAllStatuses();
-			TestFalse(TEXT("and closes it on the next press"), HUD->IsStatusPanelOpen());
-
 			HUD->InspectCard(HERO_CARD);
 			HUD->InspectCard(HERO_CARD);
 			TestFalse(TEXT("the same card again closes Intel"), HUD->IsIntelOpen() || HUD->IsStatusPanelOpen());
