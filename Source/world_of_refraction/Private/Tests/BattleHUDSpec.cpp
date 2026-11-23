@@ -297,7 +297,7 @@ void FBattleHUDSpec::Define()
 			TestNull(TEXT("no capture: the placeholder"), All[2].Portrait.Get());
 			TestEqual(TEXT("Turns shown cuts the strip, the current turn included"), BattleHUDView::MakeTurnHexes(Strip, 2, IsParty, FindFace).Num(), 2);
 			TestEqual(TEXT("1: only the current turn"), BattleHUDView::MakeTurnHexes(Strip, BattleHUDView::MIN_TURNS_SHOWN, IsParty, FindFace).Num(), 1);
-			TestNull(TEXT("no 3D model: no capture, so the placeholder"), TurnHexFace::Capture(Ally, GetTransientPackage()));
+			TestNull(TEXT("no 3D model: no capture, so the placeholder"), TurnHexFace::Capture(Ally, GetTransientPackage(), FVector::ZeroVector, {Enemy}));
 		});
 
 		It("reads a saved Turns shown and draws a flat-topped hexagon in its box (B-590)", [this]()
