@@ -390,6 +390,28 @@ void FSettingsScreenSpec::Define()
 		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
 		TestFalse(TEXT("and the change was handed to the save"), Screen->HasUnsavedChanges());
 	});
+
+	It("sizes the screen's rows to the longest page, so Gameplay's last row can be selected (B-590 QA 2)", [this]()
+	{
+		// The screen builds GetMostRows row widgets (SettingsScreenWidget::BuildTree); a fixed 7 left Gameplay's last
+		// three with none. Its scroll at 720p is PIE (docs/PIE/B-590.md check 4): a CommonUI tree can't be built here.
+		const int32 Most = WoRSettingsScreen::GetMostRows(TestWorld->GetWorld());
+		for (int32 PageIndex = 0; PageIndex < WoRSettingsScreen::PAGE_COUNT; ++PageIndex)
+		{
+			TestTrue(TEXT("no page has more rows"), Most >= WoRSettingsScreen::BuildRows(TestWorld->GetWorld(), static_cast<ESettingsPage>(PageIndex)).Num());
+		}
+		TestEqual(TEXT("Gameplay is the longest"), Most, SETTINGS_TEST_GAMEPLAY_ROWS);
+		USettingsScreenWidget *Screen = CreateWidget<USettingsScreenWidget>(TestWorld->GetWorld(), USettingsScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen created"), Screen))
+		{
+			return;
+		}
+		Screen->ActivateWidget();
+		Screen->MoveSelection(-1); // up from the first row: the last
+		const int32 Last = SETTINGS_TEST_GAMEPLAY_ROWS - 1;
+		TestEqual(TEXT("the last Gameplay row is selected"), Screen->GetSelectedRow(), Last);
+		TestTrue(TEXT("and it is Turns shown"), Screen->GetRows().IsValidIndex(Last) && Screen->GetRows()[Last].Id == ESettingId::TurnsShown);
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS
