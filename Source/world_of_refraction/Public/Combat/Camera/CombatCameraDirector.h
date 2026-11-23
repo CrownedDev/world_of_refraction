@@ -90,8 +90,9 @@ public:
 	/** B-587 (debug, specs): the Intel camera moves this fight (to a close-up, between tabs and back). */
 	int32 GetIntelMoveCount() const { return IntelMoveCount; }
 
-	/** B-400: the target's feet and height from its colliding body (a default height without one). B-587 QA: a trigger
-	 *  shape attached to it (a recruit's talk sphere) isn't the body. Public for specs. */
+	/** B-400: the target's feet and height from its colliding body (a default height without one). B-587 QA: a query-only
+	 *  shape attached to it (a recruit's talk sphere) isn't the body; this also tightens the B-400 target view on such
+	 *  a fighter. Public for specs. */
 	static void GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight);
 
 	bool IsInCombat() const { return bInCombat; }

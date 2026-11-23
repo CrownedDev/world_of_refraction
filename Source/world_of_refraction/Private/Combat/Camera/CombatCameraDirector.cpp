@@ -540,7 +540,9 @@ void UCombatCameraDirector::SetIntelSubject(AActor *Subject)
 		for (const UCombatCameraComponent *Camera : Cameras)
 		{
 			const AActor *Other = Camera ? Camera->GetOwner() : nullptr;
-			if (Other && Other != Subject)
+			const UCharacterDataComponent *OtherData = Other ? Other->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+			const bool bGone = !IsValid(Other) || Other->IsHidden() || (OtherData && !OtherData->bIsAlive);
+			if (!bGone && Other != Subject)
 			{
 				FVector OtherFeet;
 				float OtherHeight = 0.0f;
@@ -583,7 +585,8 @@ void UCombatCameraDirector::GetTargetShape(const AActor *Target, FVector &OutFee
 	FBox Body(ForceInit);
 	Target->ForEachComponent<UPrimitiveComponent>(false, [Target, &Body](const UPrimitiveComponent *Primitive)
 	{
-		const bool bTrigger = Primitive->IsA<UShapeComponent>() && Primitive != Target->GetRootComponent();
+		const bool bTrigger = Primitive->IsA<UShapeComponent>() && Primitive != Target->GetRootComponent() &&
+							  Primitive->GetCollisionEnabled() == ECollisionEnabled::QueryOnly;
 		if (Primitive->IsRegistered() && Primitive->IsCollisionEnabled() && !bTrigger)
 		{
 			Body += Primitive->Bounds.GetBox();
