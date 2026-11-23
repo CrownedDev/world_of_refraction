@@ -1,6 +1,7 @@
 // BattleIntelWidget.h
-// PLACEHOLDER UI (B-586, D-261; refine_final/13_intel.png): the fight's Intel panel, plain C++ (no .uasset). One row of
-// tabs (party first, then enemies; yours reads "You"), then the selected page: heading, subline, bars, and its sections
+// PLACEHOLDER UI (B-586, D-261; refine_final/13_intel.png): the fight's Intel panel, plain C++ (no .uasset). B-587
+// (Crown, D-262): one title line, "◀ Q  name  E ▶" under its side ("You", "Party", "Enemy"), in place of B-586's tab row;
+// then the open page: subline, bars, and its sections
 // (party: Pillars, Stats, Effects; enemy: Weak to, Resists, Effects). Built once in RebuildWidget with fixed row pools;
 // Push only changes texts and visibility (TransBuffer rule). The rules are in BattleIntelView; UBattleHUDWidget owns the
 // open / tab state and pushes. CommonUI replaces it later (D-024).
@@ -19,7 +20,7 @@ class UProgressBar;
 class UTextBlock;
 class UVerticalBox;
 
-DECLARE_DELEGATE_OneParam(FOnBattleIntelTabClicked, int32 /*Tab*/);
+DECLARE_DELEGATE_OneParam(FOnBattleIntelStepClicked, int32 /*Delta: -1 previous, 1 next*/);
 
 /** One pooled line: label, the value before the fight's effects, an arrow, the value now, an effect's turns left. */
 USTRUCT()
@@ -58,34 +59,45 @@ class WORLD_OF_REFRACTION_API UBattleIntelWidget : public UUserWidget
 
 public:
 	// shortcut: fixed pools sized for today's fights (a party of four, a handful of enemies), upgrade to a scroll box
-	// if a fight outgrows them (extra tabs are reachable by Q / E only; extra effects fold into "+N more").
-	static constexpr int32 MAX_TABS = 10;
+	// if a fight outgrows them (extra effects fold into "+N more").
 	static constexpr int32 MAX_EFFECT_ROWS = 8;
 	static constexpr int32 MAX_ELEMENT_ROWS = 10;
 	static constexpr int32 STAT_ROWS_PER_COLUMN = 6;
 	static constexpr int32 PILLAR_COUNT = 3;
 
-	/** Show Pages[Selected] and the tab row. Texts only; safe before the widget is built (no-op). */
-	void Push(const TArray<FBattleIntelPage> &Pages, int32 Selected);
+	/** Show Pages[Selected]; the arrows only when there is another page. bCycleKey: the V / R3 footer for the Cycle
+	 *  setting (party, then enemies, then close). Texts only; safe before the widget is built (no-op). */
+	void Push(const TArray<FBattleIntelPage> &Pages, int32 Selected, bool bCycleKey);
 
-	/** A click on a tab: its index. The HUD binds it. */
-	FOnBattleIntelTabClicked OnTabClicked;
+	/** A click on an arrow: -1 or 1. The HUD binds it. */
+	FOnBattleIntelStepClicked OnStepClicked;
+
+	/** B-587: the title line's side label, name and footer as shown (specs, wor.UI.Print). */
+	FText GetSideText() const;
+	FText GetTitleText() const;
+	bool AreArrowsShown() const;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 
 private:
 	UFUNCTION()
-	FEventReply HandleTabMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent);
+	FEventReply HandlePrevMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent);
+	UFUNCTION()
+	FEventReply HandleNextMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent);
 
 	UVerticalBox *AddSection(UVerticalBox *Parent, const FText &Title, TObjectPtr<UWidget> &OutSection);
 	void AddRows(UPanelWidget *Parent, int32 Count, bool bTurnsColumn, FBattleIntelRowPool &OutPool);
 	static void PushRows(const FBattleIntelRowPool &Pool, const TArray<FBattleIntelRow> &Rows);
 
 	UPROPERTY()
-	TArray<TObjectPtr<UBorder>> Tabs;
+	TObjectPtr<UTextBlock> SideLabel;
 	UPROPERTY()
-	TArray<TObjectPtr<UTextBlock>> TabLabels;
+	TObjectPtr<UBorder> PrevArrow;
+	UPROPERTY()
+	TObjectPtr<UBorder> NextArrow;
+	UPROPERTY()
+	TObjectPtr<UTextBlock> Footer;
 
 	UPROPERTY()
 	TObjectPtr<UTextBlock> Heading;

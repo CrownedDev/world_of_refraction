@@ -7,7 +7,6 @@
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/ProgressBar.h"
-#include "Components/WrapBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -24,6 +23,9 @@ namespace BattleIntelStyle
 	/** B-587 (D-262 a): the panel's content width. With its padding and the HUD's 24 screen margin the panel fills the
 	 *  right third of 1920 (640), leaving the left two-thirds to the close-up. Was 960, centred (B-586). */
 	constexpr float PanelWidth = 580.0f;
+	/** B-587: an arrow click's step. */
+	constexpr int32 StepPrev = -1;
+	constexpr int32 StepNext = 1;
 	constexpr float PanelPadding = 18.0f;
 	constexpr float RowGap = 2.0f;
 	constexpr float LabelIndent = 4.0f;
@@ -88,22 +90,32 @@ TSharedRef<SWidget> UBattleIntelWidget::RebuildWidget()
 		UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		Panel->SetContent(MakeSized(WidgetTree, PanelWidth, 0.0f, Column));
 
-		// B-587 QA: each tab as wide as its name, at full size, wrapping to a second row in the narrower side panel.
-		UWrapBox *TabRow = WidgetTree->ConstructWidget<UWrapBox>(UWrapBox::StaticClass());
-		TabRow->SetInnerSlotPadding(FVector2D(TabGap, TabGap));
-		for (int32 Index = 0; Index < MAX_TABS; ++Index)
+		// B-587 (Crown, D-262): one name in place of a tab row, the keys and arrows either side ("◀ Q  name  E ▶"; a click
+		// on an arrow steps too), under its side.
+		SideLabel = MakeText(WidgetTree, SmallFontSize, CyanColor, true);
+		AddToColumn(Column, SideLabel)->SetHorizontalAlignment(HAlign_Center);
+		const auto MakeArrow = [this](const FText &Pattern)
 		{
-			UTextBlock *Label = nullptr;
-			UBorder *Tab = MakeTab(WidgetTree, Label);
-			Tab->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleIntelWidget, HandleTabMouseDown));
-			TabRow->AddChildToWrapBox(Tab);
-			Tabs.Add(Tab);
-			TabLabels.Add(Label);
-		}
-		AddToColumn(Column, TabRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
-
+			UTextBlock *Unused = nullptr;
+			UBorder *Arrow = MakeTab(WidgetTree, Unused);
+			UTextBlock *Keys = MakeHintText(WidgetTree, RowFontSize, TextColor);
+			WoRKeyHints::SetHint(Keys, Pattern);
+			Arrow->SetContent(Keys);
+			Arrow->SetVerticalAlignment(VAlign_Center);
+			return Arrow;
+		};
+		PrevArrow = MakeArrow(LOCTEXT("PrevArrow", "◀ {TabPrev}"));
+		PrevArrow->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleIntelWidget, HandlePrevMouseDown));
+		NextArrow = MakeArrow(LOCTEXT("NextArrow", "{TabNext} ▶"));
+		NextArrow->OnMouseButtonDownEvent.BindUFunction(this, GET_FUNCTION_NAME_CHECKED(UBattleIntelWidget, HandleNextMouseDown));
 		Heading = MakeText(WidgetTree, NameFontSize, TextColor, true);
-		AddToColumn(Column, Heading);
+		Heading->SetJustification(ETextJustify::Center);
+		Heading->SetAutoWrapText(true); // a long name takes two lines at full size
+		UHorizontalBox *TitleRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		AddToRow(TitleRow, PrevArrow, FMargin(0.0f), VAlign_Center);
+		AddToRow(TitleRow, Heading, FMargin(WordGap, 0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToRow(TitleRow, NextArrow, FMargin(0.0f), VAlign_Center);
+		AddToColumn(Column, TitleRow, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		Subline = MakeText(WidgetTree, SmallFontSize, DimColor);
 		AddToColumn(Column, Subline);
 		ActionsLine = MakeText(WidgetTree, SmallFontSize, DimColor);
@@ -139,8 +151,7 @@ TSharedRef<SWidget> UBattleIntelWidget::RebuildWidget()
 		AddRows(AddSection(Column, LOCTEXT("Resists", "Resists"), ResistSection), MAX_ELEMENT_ROWS, false, ResistRows);
 		AddRows(AddSection(Column, LOCTEXT("Effects", "Effects"), EffectsSection), MAX_EFFECT_ROWS, /*bTurnsColumn=*/true, EffectRows);
 
-		UTextBlock *Footer = MakeHintText(WidgetTree, SmallFontSize, DimColor);
-		WoRKeyHints::SetHint(Footer, LOCTEXT("Footer", "{Tabs}  next tab        {Details}  close"));
+		Footer = MakeHintText(WidgetTree, SmallFontSize, DimColor); // its keys follow the Intel key setting (Push)
 		AddToColumn(Column, Footer, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
 	}
 	return Super::RebuildWidget();
@@ -227,32 +238,31 @@ void UBattleIntelWidget::PushRows(const FBattleIntelRowPool &Pool, const TArray<
 	}
 }
 
-void UBattleIntelWidget::Push(const TArray<FBattleIntelPage> &Pages, int32 Selected)
+void UBattleIntelWidget::Push(const TArray<FBattleIntelPage> &Pages, int32 Selected, bool bCycleKey)
 {
 	using namespace BattleIntelStyle;
 	if (!Heading)
 	{
 		return; // not built yet
 	}
-	for (int32 Index = 0; Index < Tabs.Num(); ++Index)
-	{
-		const bool bUsed = Pages.IsValidIndex(Index);
-		Tabs[Index]->SetVisibility(bUsed ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-		if (!bUsed)
-		{
-			continue;
-		}
-		const bool bSelected = Index == Selected;
-		const bool bEnemy = Pages[Index].bEnemy;
-		Tabs[Index]->SetBrushColor(bSelected ? FocusColor : bEnemy ? EnemyTabColor : PartyTabColor);
-		TabLabels[Index]->SetText(Pages[Index].Tab);
-		TabLabels[Index]->SetColorAndOpacity(FSlateColor(bSelected ? TextColor : bEnemy ? EnemyTabTextColor : DimColor));
-	}
 	if (!Pages.IsValidIndex(Selected))
 	{
 		return;
 	}
 	const FBattleIntelPage &Page = Pages[Selected];
+	// B-587: the side in words and colour; the arrows only when there is another page to step to.
+	SideLabel->SetText(Page.bEnemy ? LOCTEXT("SideEnemy", "Enemy") : Page.bYou ? LOCTEXT("SideYou", "You") : LOCTEXT("SideParty", "Party"));
+	SideLabel->SetColorAndOpacity(FSlateColor(Page.bEnemy ? EnemyTabTextColor : CyanColor));
+	Heading->SetColorAndOpacity(FSlateColor(Page.bEnemy ? EnemyTabTextColor : TextColor));
+	const ESlateVisibility Arrows = Pages.Num() > 1 ? ESlateVisibility::Visible : ESlateVisibility::Hidden;
+	PrevArrow->SetVisibility(Arrows);
+	NextArrow->SetVisibility(Arrows);
+	PrevArrow->SetBrushColor(Page.bEnemy ? EnemyTabColor : PartyTabColor);
+	NextArrow->SetBrushColor(Page.bEnemy ? EnemyTabColor : PartyTabColor);
+	// Cycle (the default): V on a party page goes to the enemies, on an enemy page closes; holding it always closes.
+	WoRKeyHints::SetHint(Footer, !bCycleKey ? LOCTEXT("FooterToggle", "{Details}  close")
+								 : Page.bEnemy ? LOCTEXT("FooterCycleEnemy", "{Details}  close")
+											   : LOCTEXT("FooterCycleParty", "{Details}  enemies        hold {Details}  close"));
 	Heading->SetText(Page.Heading);
 	SetTextShown(Subline, Page.Subline);
 	SetTextShown(ActionsLine, Page.ActionsLine);
@@ -289,23 +299,39 @@ void UBattleIntelWidget::Push(const TArray<FBattleIntelPage> &Pages, int32 Selec
 	PushRows(EffectRows, Effects);
 }
 
-FEventReply UBattleIntelWidget::HandleTabMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent)
+FEventReply UBattleIntelWidget::HandlePrevMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent)
 {
 	if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 	{
 		return FEventReply(false);
 	}
-	// One handler for every tab: the tab under the pointer is the one clicked.
-	const int32 Clicked = Tabs.IndexOfByPredicate([&MouseEvent](const TObjectPtr<UBorder> &Tab)
-	{
-		return Tab && Tab->IsVisible() && Tab->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition());
-	});
-	if (Clicked == INDEX_NONE)
+	OnStepClicked.ExecuteIfBound(BattleIntelStyle::StepPrev);
+	return FEventReply(true);
+}
+
+FEventReply UBattleIntelWidget::HandleNextMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent)
+{
+	if (MouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 	{
 		return FEventReply(false);
 	}
-	OnTabClicked.ExecuteIfBound(Clicked);
+	OnStepClicked.ExecuteIfBound(BattleIntelStyle::StepNext);
 	return FEventReply(true);
+}
+
+FText UBattleIntelWidget::GetSideText() const
+{
+	return SideLabel ? SideLabel->GetText() : FText::GetEmpty();
+}
+
+FText UBattleIntelWidget::GetTitleText() const
+{
+	return Heading ? Heading->GetText() : FText::GetEmpty();
+}
+
+bool UBattleIntelWidget::AreArrowsShown() const
+{
+	return PrevArrow && NextArrow && PrevArrow->GetVisibility() == ESlateVisibility::Visible && NextArrow->GetVisibility() == ESlateVisibility::Visible;
 }
 
 #undef LOCTEXT_NAMESPACE
