@@ -1136,6 +1136,10 @@ void FBattleHUDSpec::Define()
 			// B-582c (Crown, 2026-11-23): the floating card keeps its HP bar, buildup bar and status line, not the tier line.
 			TestTrue(TEXT("no tier line drawn on any card"), !Cards[FoeCard].TierText && !Cards[CardOf(Hero)].TierText);
 			TestTrue(TEXT("the enemy card keeps its HP bar"), Cards[FoeCard].HPBar != nullptr);
+			// B-582c QA: a foe with no effects has no empty status row under its bars.
+			TestTrue(TEXT("the fresh foe has no effects"), Cards[FoeCard].StatusLine.IsEmpty());
+			TestTrue(TEXT("so its status row takes no space"),
+					 Cards[FoeCard].StatusText && Cards[FoeCard].StatusText->GetVisibility() == ESlateVisibility::Collapsed);
 
 			FPieMenuButtonData Attack;
 			Attack.Category = EPieMenuCategory::Attack;

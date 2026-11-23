@@ -349,6 +349,10 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 	}
 	SetTextSafe(Card.ActionsText, Card.ActionsLine);
 	SetTextSafe(Card.StatusText, Card.StatusLine);
+	if (Card.StatusText) // B-582c QA: no effects, no empty row under the bars
+	{
+		Card.StatusText->SetVisibility(Card.StatusLine.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
 	SetTextSafe(Card.TierText, Card.TierLine);
 	if (Card.Frame)
 	{
@@ -387,7 +391,7 @@ void BattleHUDCard::SetCompact(const FBattleHUDCard &Card, bool bCompact)
 	ShowIf(Card.DetailText, !bCompact && !Card.DetailLine.IsEmpty());
 	ShowIf(Card.EPRow, !bCompact && Card.bShowEP);
 	ShowIf(Card.ActionsText, !bCompact);
-	ShowIf(Card.StatusText, !bCompact);
+	ShowIf(Card.StatusText, !bCompact && !Card.StatusLine.IsEmpty());
 }
 
 void BattleHUDCard::SetHPPulse(const FBattleHUDCard &Card, float Opacity)
