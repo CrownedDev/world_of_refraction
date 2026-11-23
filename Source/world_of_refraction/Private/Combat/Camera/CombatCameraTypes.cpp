@@ -109,6 +109,35 @@ namespace CombatCameraIntelView
 	constexpr float MinDistance = 200.0f;
 	/** Where the character sits across the screen (-1 left edge, 1 right edge): the middle of the left two-thirds (D-262 a). */
 	constexpr float SubjectScreenX = -CameraFraming::THIRD_LINE;
+	// B-587 QA: another fighter between the camera and the character tries the other three-quarter side, then each side
+	// from higher up, and keeps the clearest. TODO: tune in PIE.
+	/** The higher tries' extra rise, as a part of the shot's distance. */
+	constexpr float HigherRise = 0.4f;
+	/** How near the character's place across the screen (in -1..1 screen units) a fighter in front counts as on it. */
+	constexpr float OnSubjectWidth = 0.3f;
+	/** A fighter in front on the character weighs this many in front elsewhere in the free part of the screen. */
+	constexpr int32 OnSubjectWeight = 3;
+
+	/** How much the fighters at OtherBodies (their middles) stand in front of the character in View's free part. */
+	int32 ScoreForeground(const FTransform &View, float SubjectDepth, const TArray<FVector> &OtherBodies)
+	{
+		int32 Score = 0;
+		for (const FVector &Body : OtherBodies)
+		{
+			const float Depth = FVector::DotProduct(Body - View.GetLocation(), View.GetRotation().GetForwardVector());
+			FVector2D Screen;
+			if (Depth >= SubjectDepth || !CameraFraming::ProjectToScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Body, Screen))
+			{
+				continue; // behind the character, or behind the camera
+			}
+			if (Screen.X < -1.0f || Screen.X >= CameraFraming::THIRD_LINE || FMath::Abs(Screen.Y) > 1.0f)
+			{
+				continue; // off screen, or under the panel
+			}
+			Score += FMath::Abs(Screen.X - SubjectScreenX) < OnSubjectWidth ? OnSubjectWeight : 1;
+		}
+		return Score;
+	}
 }
 
 namespace CombatCameraWindow
@@ -268,7 +297,8 @@ FTransform FCombatCameraRules::ComputeTargetViewFrom(ETurnViewStyle Style, const
 	return LookFrom(Location, AimPoint);
 }
 
-FTransform FCombatCameraRules::ComputeIntelView(const FCombatCameraFrame &Frame, const FVector &SubjectFeet, float SubjectHeight)
+FTransform FCombatCameraRules::ComputeIntelView(const FCombatCameraFrame &Frame, const FVector &SubjectFeet, float SubjectHeight,
+												  const TArray<FVector> &OtherBodies)
 {
 	using namespace CombatCameraIntelView;
 	const FTransform Front = ComputeTargetViewFrom(ETurnViewStyle::OverTheShoulder, Frame, FTransform::Identity, SubjectFeet, SubjectHeight,
@@ -277,10 +307,34 @@ FTransform FCombatCameraRules::ComputeIntelView(const FCombatCameraFrame &Frame,
 	const FVector AimPoint = SubjectFeet + FVector::UpVector * FramedHeight * 0.5f; // where the front shot aims
 	const FVector FromAim = Front.GetLocation() - AimPoint;
 	const float Distance = FMath::Max(FromAim.Size() * CloserThanTargetView, MinDistance);
-	// The same aim, slid to the camera's right so the character lands at SubjectScreenX.
 	const float HorizontalHalfTan = FMath::Tan(FMath::DegreesToRadians(DefaultFieldOfView * 0.5f));
-	const FVector Slide = Front.GetRotation().GetRightVector() * (-SubjectScreenX * Distance * HorizontalHalfTan);
-	return FTransform(Front.GetRotation(), AimPoint + FromAim.GetSafeNormal() * Distance + Slide);
+
+	// The front shot's direction first, then the other three-quarter side, then each from higher up.
+	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	const FVector Side = FVector::CrossProduct(FVector::UpVector, Forward);
+	const FVector Mirrored = FromAim - Side * FVector::DotProduct(FromAim, Side) * 2.0f;
+	const FVector Higher = FVector::UpVector * FromAim.Size() * HigherRise;
+	FTransform Best;
+	int32 BestScore = TNumericLimits<int32>::Max();
+	for (const FVector &Offset : {FromAim, Mirrored, FromAim + Higher, Mirrored + Higher})
+	{
+		const FVector Back = Offset.GetSafeNormal(UE_SMALL_NUMBER, FromAim.GetSafeNormal());
+		const FTransform Aimed = LookFrom(AimPoint + Back * Distance, AimPoint);
+		// The same aim, slid to the camera's right so the character lands at SubjectScreenX.
+		const FVector Slide = Aimed.GetRotation().GetRightVector() * (-SubjectScreenX * Distance * HorizontalHalfTan);
+		const FTransform View(Aimed.GetRotation(), Aimed.GetLocation() + Slide);
+		const int32 Score = ScoreForeground(View, Distance, OtherBodies);
+		if (Score < BestScore)
+		{
+			Best = View;
+			BestScore = Score;
+		}
+		if (Score == 0)
+		{
+			break; // the first clear one
+		}
+	}
+	return Best;
 }
 
 #define LOCTEXT_NAMESPACE "CombatCameraSettings"

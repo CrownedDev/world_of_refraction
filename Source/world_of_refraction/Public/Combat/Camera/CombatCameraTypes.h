@@ -285,8 +285,11 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 
 	/** B-587 (D-262): Intel's close-up of the character whose feet are at SubjectFeet, SubjectHeight tall: the target
 	 *  view's front shot (OverTheShoulder), a step nearer, slid so the character sits in the middle of the screen's left
-	 *  two-thirds (the Intel panel covers the right third). Shown by a cut, in every turn-view style. */
-	static FTransform ComputeIntelView(const FCombatCameraFrame &Frame, const FVector &SubjectFeet, float SubjectHeight);
+	 *  two-thirds (the Intel panel covers the right third). Shown by a cut, in every turn-view style. OtherBodies are the
+	 *  other fighters' middles: when one stands in front of the character, the other three-quarter side, then a higher
+	 *  angle, is tried, and the clearest kept (B-587 QA). */
+	static FTransform ComputeIntelView(const FCombatCameraFrame &Frame, const FVector &SubjectFeet, float SubjectHeight,
+									   const TArray<FVector> &OtherBodies = TArray<FVector>());
 
 	/** B-400: the move to, between and back from target views: 0 (a cut) for OverTheShoulder (study §12: one cut per
 	 *  press); a very short re-aim blend for the other styles (§9: a setting, not a rule). */
