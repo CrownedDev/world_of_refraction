@@ -866,6 +866,47 @@ FText ACombatOrchestrator::GetRowEdgeRefusal(ECombatRow Row, bool bForward)
 
 FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward) const
 {
+	FCombatGridPosition Position;
+	if (const FText Refusal = GetRowMoveTurnRefusal(Actor, Position); !Refusal.IsEmpty())
+	{
+		return Refusal;
+	}
+	if (const FText Edge = GetRowEdgeRefusal(Position.Row, bForward); !Edge.IsEmpty())
+	{
+		return Edge;
+	}
+	// B-342 (D-134): three rows, no columns. A row holds the whole side, so an ally there never blocks the
+	// step; only a full row would (it can't be, at MAX_TEAM_SIZE). Replaces Q-180's empty-cell rule.
+	FCombatGridPosition FreeSlot;
+	const UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this);
+	if (!Grid->FindFreeSlotInRow(Position.TeamIndex, OrchestratorStepTarget(Position, bForward).Row, FreeSlot))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowFull", "That row is full.");
+	}
+	return FText::GetEmpty();
+}
+
+FText ACombatOrchestrator::GetMoveToRowRefusedReason(AActor *Actor, ECombatRow Row) const
+{
+	FCombatGridPosition Position;
+	if (const FText Refusal = GetRowMoveTurnRefusal(Actor, Position); !Refusal.IsEmpty())
+	{
+		return Refusal;
+	}
+	if (Position.Row == Row)
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowAlreadyThere", "Already in that row.");
+	}
+	FCombatGridPosition FreeSlot;
+	if (!WoRFight::Get<UCombatGridSubsystem>(this)->FindFreeSlotInRow(Position.TeamIndex, Row, FreeSlot))
+	{
+		return NSLOCTEXT("CombatOrchestrator", "RowFull", "That row is full.");
+	}
+	return FText::GetEmpty();
+}
+
+FText ACombatOrchestrator::GetRowMoveTurnRefusal(AActor *Actor, FCombatGridPosition &OutPosition) const
+{
 	if (CombatState != ECombatState::InProgress)
 	{
 		return NSLOCTEXT("CombatOrchestrator", "RowNoFight", "There is no fight.");
@@ -883,21 +924,9 @@ FText ACombatOrchestrator::GetRowMoveRefusedReason(AActor *Actor, bool bForward)
 		return NSLOCTEXT("CombatOrchestrator", "RowUsed", "Already moved this turn.");
 	}
 	const UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this);
-	FCombatGridPosition Position;
-	if (!Grid || !Grid->GetActorPosition(Actor, Position))
+	if (!Grid || !Grid->GetActorPosition(Actor, OutPosition))
 	{
 		return NSLOCTEXT("CombatOrchestrator", "RowNoGrid", "Not on the battle grid.");
-	}
-	if (const FText Edge = GetRowEdgeRefusal(Position.Row, bForward); !Edge.IsEmpty())
-	{
-		return Edge;
-	}
-	// B-342 (D-134): three rows, no columns. A row holds the whole side, so an ally there never blocks the
-	// step; only a full row would (it can't be, at MAX_TEAM_SIZE). Replaces Q-180's empty-cell rule.
-	FCombatGridPosition FreeSlot;
-	if (!Grid->FindFreeSlotInRow(Position.TeamIndex, OrchestratorStepTarget(Position, bForward).Row, FreeSlot))
-	{
-		return NSLOCTEXT("CombatOrchestrator", "RowFull", "That row is full.");
 	}
 	return FText::GetEmpty();
 }
@@ -909,21 +938,27 @@ bool ACombatOrchestrator::TryMoveRow(AActor *Actor, bool bForward, FText &OutRef
 	{
 		return false;
 	}
-
-	UCombatGridSubsystem *Grid = WoRFight::Get<UCombatGridSubsystem>(this);
 	FCombatGridPosition Position;
-	Grid->GetActorPosition(Actor, Position);
-	const FCombatGridPosition Target = OrchestratorStepTarget(Position, bForward);
+	WoRFight::Get<UCombatGridSubsystem>(this)->GetActorPosition(Actor, Position);
+	return TryMoveToRow(Actor, OrchestratorStepTarget(Position, bForward).Row, OutRefusedReason);
+}
 
-	// The target row has room (GetRowMoveRefusedReason); MoveActorToRow takes a free slot there (B-342).
-	if (!Grid->MoveActorToRow(Actor, Target.Row, GetActorLocation()))
+bool ACombatOrchestrator::TryMoveToRow(AActor *Actor, ECombatRow Row, FText &OutRefusedReason)
+{
+	OutRefusedReason = GetMoveToRowRefusedReason(Actor, Row);
+	if (!OutRefusedReason.IsEmpty())
+	{
+		return false;
+	}
+	// The row has room (GetMoveToRowRefusedReason); MoveActorToRow takes a free slot there (B-342).
+	if (!WoRFight::Get<UCombatGridSubsystem>(this)->MoveActorToRow(Actor, Row, GetActorLocation()))
 	{
 		OutRefusedReason = NSLOCTEXT("CombatOrchestrator", "RowBlocked", "Can't move there.");
 		return false;
 	}
 	bRowMoveUsedThisTurn = true;
-	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s stepped to the %s row"), *Actor->GetName(),
-		   *CombatRowHelpers::GetRowName(Target.Row));
+	UE_LOG(LogTemp, Verbose, TEXT("[CombatOrchestrator] %s moved to the %s row"), *Actor->GetName(),
+		   *CombatRowHelpers::GetRowName(Row));
 	return true;
 }
 

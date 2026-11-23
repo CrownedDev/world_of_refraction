@@ -2,12 +2,14 @@
 // D-096 (Crown, 2026-10-26; B-180): a character can step one row forward or back on their turn,
 // free and once per turn; skills can push or pull a target one row. Row bonuses (PA-30) apply from
 // the new row at once. B-342 (D-134): three rows, no columns, so an ally in the row never blocks.
+// B-588 (D-263): the Position command moves to any row, still once per turn; push and pull stay one row.
 
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Misc/AutomationTest.h"
 #include "WoRTestWorld.h"
 #include "Combat/CombatOrchestrator.h"
+#include "Combat/CombatPlayerController.h"
 #include "Combat/Grid/CombatGridSubsystem.h"
 #include "Skills/Effects/ActiveSkillEffect.h"
 #include "Skills/Effects/SkillEffectManager.h"
@@ -225,6 +227,72 @@ void FRowMoveSpec::Define()
 			TestTrue(TEXT("but back is fine"), Orchestrator->GetRowMoveRefusedReason(Hero, ROW_MOVE_BACK).IsEmpty());
 			TestFalse(TEXT("not the ally's turn"), Orchestrator->GetRowMoveRefusedReason(Ally, ROW_MOVE_BACK).IsEmpty());
 			TestFalse(TEXT("not the foe's turn"), Orchestrator->GetRowMoveRefusedReason(Foe, ROW_MOVE_BACK).IsEmpty());
+		});
+	});
+
+	Describe("the Position move (B-588, D-263)", [this]()
+	{
+		It("goes from the front to the back in one move, once per turn", [this]()
+		{
+			if (!StartFight())
+			{
+				return;
+			}
+			Place(Hero, ECombatRow::Front, PositionOf(Hero).Column);
+			FText Reason;
+			TestTrue(TEXT("front to back"), Orchestrator->TryMoveToRow(Hero, ECombatRow::Back, Reason));
+			TestTrue(TEXT("now at the back"), RowOf(Hero) == ECombatRow::Back);
+			TestTrue(TEXT("back-row defence bonus at once"), Grid->GetDefenseModifier(Hero) > 1.0f);
+			TestFalse(TEXT("a second move is refused"), Orchestrator->TryMoveToRow(Hero, ECombatRow::Front, Reason));
+			TestFalse(TEXT("with a reason"), Reason.IsEmpty());
+			TestFalse(TEXT("and so is a step: one move a turn"), Orchestrator->TryMoveRow(Hero, ROW_MOVE_FORWARD, Reason));
+			TestTrue(TEXT("still at the back"), RowOf(Hero) == ECombatRow::Back);
+		});
+
+		It("is refused after the turn's step", [this]()
+		{
+			if (!StartFight())
+			{
+				return;
+			}
+			FText Reason;
+			TestTrue(TEXT("stepped forward"), Orchestrator->TryMoveRow(Hero, ROW_MOVE_FORWARD, Reason));
+			TestFalse(TEXT("refused"), Orchestrator->TryMoveToRow(Hero, ECombatRow::Back, Reason));
+			TestTrue(TEXT("still in front"), RowOf(Hero) == ECombatRow::Front);
+		});
+
+		It("is refused for the row you are in, off your turn and while stunned", [this]()
+		{
+			if (!StartFight())
+			{
+				return;
+			}
+			TestTrue(TEXT("starts in the middle"), RowOf(Hero) == ECombatRow::Middle);
+			TestFalse(TEXT("already there"), Orchestrator->GetMoveToRowRefusedReason(Hero, ECombatRow::Middle).IsEmpty());
+			TestTrue(TEXT("front is fine"), Orchestrator->GetMoveToRowRefusedReason(Hero, ECombatRow::Front).IsEmpty());
+			TestTrue(TEXT("back is fine"), Orchestrator->GetMoveToRowRefusedReason(Hero, ECombatRow::Back).IsEmpty());
+			TestFalse(TEXT("not the ally's turn"), Orchestrator->GetMoveToRowRefusedReason(Ally, ECombatRow::Front).IsEmpty());
+			TestFalse(TEXT("not the foe's turn"), Orchestrator->GetMoveToRowRefusedReason(Foe, ECombatRow::Front).IsEmpty());
+			FActiveSkillEffect Stun;
+			Stun.EffectName = TEXT("Position test stun");
+			Stun.EffectType = ESkillEffectType::Stun;
+			Stun.RemainingTurns = 1;
+			TestWorld->GetSubsystem<USkillEffectManager>()->ApplyEffect(Hero, Stun, Foe);
+			FText Reason;
+			TestFalse(TEXT("stunned: refused"), Orchestrator->TryMoveToRow(Hero, ECombatRow::Front, Reason));
+			TestTrue(TEXT("still in the middle"), RowOf(Hero) == ECombatRow::Middle);
+		});
+
+		It("sends each row as its own free command", [this]()
+		{
+			for (const ECombatRow Row : {ECombatRow::Front, ECombatRow::Middle, ECombatRow::Back})
+			{
+				ECombatRow Sent = ECombatRow::Middle == Row ? ECombatRow::Front : ECombatRow::Middle;
+				TestTrue(TEXT("a Position command"), CombatFreeCommands::GetMoveToRow(CombatFreeCommands::MoveTo(Row), Sent));
+				TestTrue(TEXT("the same row back"), Sent == Row);
+			}
+			ECombatRow Unused;
+			TestFalse(TEXT("a weapon switch is not one"), CombatFreeCommands::GetMoveToRow(ECombatFreeCommand::SwitchWeapon, Unused));
 		});
 	});
 
