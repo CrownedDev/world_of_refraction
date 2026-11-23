@@ -89,6 +89,9 @@ public:
 	bool IsIntelViewShowing() const { return bIntelViewShowing; }
 	/** B-587 (debug, specs): the Intel camera moves this fight (to a close-up, between tabs and back). */
 	int32 GetIntelMoveCount() const { return IntelMoveCount; }
+	/** B-590 QA 3: where Intel's close-up of Subject stands (the same shot SetIntelSubject cuts to), without moving the
+	 *  camera; the turn hexagon's face capture looks from there. False outside a fight or with no subject. */
+	bool GetIntelViewLocation(AActor *Subject, FVector &OutLocation) const;
 
 	/** B-400: the target's feet and height from its colliding body (a default height without one). B-587 QA: a query-only
 	 *  shape attached to it (a recruit's talk sphere) isn't the body; this also tightens the B-400 target view on such
@@ -325,6 +328,8 @@ private:
 	/** B-407: a player or team signature sequence reached the cap; cut back as if it had finished. */
 	void HandleSignatureCapReached();
 	FCombatCameraFrame BuildFrame(AActor *Focus) const;
+	/** B-587's close-up of Subject on Frame (ComputeIntelView, the other fighters kept out of its foreground). */
+	FTransform ComputeIntelViewOf(const AActor *Subject, const FCombatCameraFrame &Frame) const;
 	/** B-405: the turn view's height from the living enemies' data and ranks (FBossFramingRules::FightHeight). */
 	EEnemyCameraHeight GetFightCameraHeight() const;
 	/** B-399 / B-400 merge: the turn view at the menu depth with B-405's fight height on top; every turn-view move uses it. */

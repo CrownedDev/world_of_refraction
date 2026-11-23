@@ -1250,6 +1250,19 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### Q-590 — The turn-order hexagons' small points
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-23 (B-590, from D-264) · **Blocks:** nothing
+**Question:** D-264 sets the hexagons' sizes and colours. What shows without portrait art? Are bonus turns marked? Where does the column sit next to Intel? How does Turns shown step?
+**Answer (defaults):**
+1. **The picture (Crown's answer, 2026-11-23, after B-590 QA 1):** face snapshots. The hexagons had shown item icons, because the test characters' Portrait field points at item art. Now, when the fight starts, one close-up picture is taken of each fighter's face from its 3D model, from in front, and kept for the fight. After QA 3 (Crown wants the mockup `I_hex_row_small.png`'s look, cropped from Intel's view): the picture is taken from the side Intel's camera stands on for that fighter, framed on the head, shoulders and upper chest, in the lit arena (the other fighters left out). The plain dark hexagon with the same coloured edge shows only when that capture fails. `wor.UI.Print` names each face.
+2. **Bonus turns:** not marked; the next hexagon is simply the same character again. The old list's green "(bonus)" stays in `wor.UI.Print`.
+3. **The current turn:** violet whatever its side. Cyan and rose are for the next turns.
+4. **Column:** the current turn on top, the rest centred under it, and Intel under the column as under the row.
+5. **Turns shown:** stops at 1 and 6 rather than wrapping round, as a count does. A save from before this (none set) reads 6.
+6. **Sizes:** gaps of 4 px at 720p; edges of 2.7 px (current) and 2 px (next). QA 1 thickened them from 2 px and 1.3 px, which were hard to see on a bright sky.
+
+**Reference:** Honkai: Star Rail's action order shows an extra turn as just another portrait in the line, with no badge, and marks only the acting character. Expedition 33's turn cards are small portraits with no names. The deckbuilder has no turn strip.
+
 ### Q-588 — Position's keys and the picker's look
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-23 (B-588, from D-263 points 1 and 2) · **Blocks:** nothing
 **Question:** D-263 makes one Position command with a Front / Middle / Back picker. Which key opens it, how are the rows picked by keys and pad, and how is the current row marked?

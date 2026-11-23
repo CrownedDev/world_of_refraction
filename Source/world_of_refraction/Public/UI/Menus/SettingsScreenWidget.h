@@ -78,6 +78,9 @@ private:
 	TArray<TObjectPtr<UTextBlock>> RowValues;
 	UPROPERTY(Transient)
 	TObjectPtr<UScrollBox> KeyList;
+	/** B-590 QA: the page's rows, scrolled to keep the selected one in view. */
+	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> RowList;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> PanelHeading;
 	UPROPERTY(Transient)

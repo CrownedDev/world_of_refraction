@@ -14,13 +14,20 @@
 #include "UI/Menus/SettingsScreenWidget.h"
 #include "UI/Settings/TextSizeSetting.h"
 #include "Engine/UserInterfaceSettings.h"
+#include "Kismet/GameplayStatics.h"
+#include "Save/WoRSaveGame.h"
+#include "UI/Combat/Battle/BattleHUDView.h"
 #include "WoRTestWorld.h"
 
 namespace
 {
-	constexpr int32 SETTINGS_TEST_GAMEPLAY_ROWS = 8;
-	/** B-587: Gameplay's Intel key, the last row. */
+	constexpr int32 SETTINGS_TEST_GAMEPLAY_ROWS = 10;
+	/** B-587: Gameplay's Intel key. */
 	constexpr int32 SETTINGS_TEST_INTEL_KEY_ROW = 7;
+	/** B-590: the turn order's layout and turns shown, the last two rows. */
+	constexpr int32 SETTINGS_TEST_TURN_ORDER_LAYOUT_ROW = 8;
+	constexpr int32 SETTINGS_TEST_TURNS_SHOWN_ROW = 9;
+	constexpr int32 SETTINGS_TEST_SAVED_TURNS_SHOWN = 3;
 	constexpr int32 SETTINGS_TEST_ACCESSIBILITY_ROWS = 7;
 	constexpr int32 SETTINGS_TEST_KEY_SECTIONS = 3;
 	constexpr int32 SETTINGS_TEST_TURN_VIEW_ROW = 1;
@@ -246,6 +253,74 @@ void FSettingsScreenSpec::Define()
 		TestTrue(TEXT("cycle again"), Save->IsIntelKeyCycle());
 	});
 
+	It("switches the turn order between Row and Column; Row is the default (B-590)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Rows = Gameplay();
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Rows.IsValidIndex(SETTINGS_TEST_TURN_ORDER_LAYOUT_ROW)))
+		{
+			return;
+		}
+		TestTrue(TEXT("the layout row"), Rows[SETTINGS_TEST_TURN_ORDER_LAYOUT_ROW].Id == ESettingId::TurnOrderLayout);
+		TestTrue(TEXT("it can change"), Rows[SETTINGS_TEST_TURN_ORDER_LAYOUT_ROW].CanChange());
+		TestFalse(TEXT("Row by default"), FSavedSettings().bTurnOrderColumn);
+		Save->SetTurnOrderColumn(false);
+		const FString Row = Gameplay()[SETTINGS_TEST_TURN_ORDER_LAYOUT_ROW].Value.ToString();
+		TestTrue(TEXT("changed"), WoRSettingsScreen::ChangeSetting(World, ESettingId::TurnOrderLayout, 1));
+		TestTrue(TEXT("column"), Save->IsTurnOrderColumn());
+		TestNotEqual(TEXT("the row reads it"), Gameplay()[SETTINGS_TEST_TURN_ORDER_LAYOUT_ROW].Value.ToString(), Row);
+		WoRSettingsScreen::ChangeSetting(World, ESettingId::TurnOrderLayout, -1);
+		TestFalse(TEXT("row again"), Save->IsTurnOrderColumn());
+	});
+
+	It("steps Turns shown from 1 to 6, stopping at the ends; 6 is the default (B-590)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		const TArray<FSettingsRow> Rows = Gameplay();
+		if (!TestNotNull(TEXT("save"), Save) || !TestTrue(TEXT("the row"), Rows.IsValidIndex(SETTINGS_TEST_TURNS_SHOWN_ROW)))
+		{
+			return;
+		}
+		TestTrue(TEXT("the turns shown row"), Rows[SETTINGS_TEST_TURNS_SHOWN_ROW].Id == ESettingId::TurnsShown);
+		TestTrue(TEXT("it can change"), Rows[SETTINGS_TEST_TURNS_SHOWN_ROW].CanChange());
+		TestEqual(TEXT("never saved reads as 6"), BattleHUDView::ReadTurnsShown(FSavedSettings().TurnsShown), BattleHUDView::DEFAULT_TURNS_SHOWN);
+		TestEqual(TEXT("the default is the most"), BattleHUDView::DEFAULT_TURNS_SHOWN, BattleHUDView::MAX_TURNS_SHOWN);
+		Save->SetTurnsShown(BattleHUDView::MAX_TURNS_SHOWN);
+		TestEqual(TEXT("the row reads it"), Gameplay()[SETTINGS_TEST_TURNS_SHOWN_ROW].Value.ToString(), FString::FromInt(BattleHUDView::MAX_TURNS_SHOWN));
+		TestFalse(TEXT("no step past 6"), WoRSettingsScreen::ChangeSetting(World, ESettingId::TurnsShown, 1));
+		TestEqual(TEXT("still 6"), Save->GetTurnsShown(), BattleHUDView::MAX_TURNS_SHOWN);
+		TestTrue(TEXT("down one"), WoRSettingsScreen::ChangeSetting(World, ESettingId::TurnsShown, -1));
+		TestEqual(TEXT("5"), Save->GetTurnsShown(), BattleHUDView::MAX_TURNS_SHOWN - 1);
+		Save->SetTurnsShown(BattleHUDView::MIN_TURNS_SHOWN);
+		TestFalse(TEXT("no step below 1"), WoRSettingsScreen::ChangeSetting(World, ESettingId::TurnsShown, -1));
+		TestEqual(TEXT("still 1"), Save->GetTurnsShown(), BattleHUDView::MIN_TURNS_SHOWN);
+		Save->SetTurnsShown(BattleHUDView::MAX_TURNS_SHOWN + 1);
+		TestEqual(TEXT("a set past the range is clamped"), Save->GetTurnsShown(), BattleHUDView::MAX_TURNS_SHOWN);
+		TestEqual(TEXT("an old save's 7 reads as 6"), BattleHUDView::ReadTurnsShown(BattleHUDView::MAX_TURNS_SHOWN + 1), BattleHUDView::MAX_TURNS_SHOWN);
+	});
+
+	It("saves and loads the turn order settings (B-590, in memory only)", [this]()
+	{
+		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
+		Save->HandlePreSave();
+		Save->Data.Settings.bTurnOrderColumn = true;
+		Save->Data.Settings.TurnsShown = SETTINGS_TEST_SAVED_TURNS_SHOWN;
+		TArray<uint8> Bytes;
+		if (!TestTrue(TEXT("saved to bytes"), UGameplayStatics::SaveGameToMemory(Save, Bytes)))
+		{
+			return;
+		}
+		const UWoRSaveGame *Loaded = Cast<UWoRSaveGame>(UGameplayStatics::LoadGameFromMemory(Bytes));
+		if (!TestNotNull(TEXT("loaded"), Loaded))
+		{
+			return;
+		}
+		TestTrue(TEXT("column kept"), Loaded->Data.Settings.bTurnOrderColumn);
+		TestEqual(TEXT("turns shown kept"), BattleHUDView::ReadTurnsShown(Loaded->Data.Settings.TurnsShown), SETTINGS_TEST_SAVED_TURNS_SHOWN);
+	});
+
 	It("turns element letters on and off; off is the default (B-453f)", [this]()
 	{
 		UWorld *World = TestWorld->GetWorld();
@@ -314,6 +389,28 @@ void FSettingsScreenSpec::Define()
 		Screen->PressBack();
 		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
 		TestFalse(TEXT("and the change was handed to the save"), Screen->HasUnsavedChanges());
+	});
+
+	It("sizes the screen's rows to the longest page, so Gameplay's last row can be selected (B-590 QA 2)", [this]()
+	{
+		// The screen builds GetMostRows row widgets (SettingsScreenWidget::BuildTree); a fixed 7 left Gameplay's last
+		// three with none. Its scroll at 720p is PIE (docs/PIE/B-590.md check 4): a CommonUI tree can't be built here.
+		const int32 Most = WoRSettingsScreen::GetMostRows(TestWorld->GetWorld());
+		for (int32 PageIndex = 0; PageIndex < WoRSettingsScreen::PAGE_COUNT; ++PageIndex)
+		{
+			TestTrue(TEXT("no page has more rows"), Most >= WoRSettingsScreen::BuildRows(TestWorld->GetWorld(), static_cast<ESettingsPage>(PageIndex)).Num());
+		}
+		TestEqual(TEXT("Gameplay is the longest"), Most, SETTINGS_TEST_GAMEPLAY_ROWS);
+		USettingsScreenWidget *Screen = CreateWidget<USettingsScreenWidget>(TestWorld->GetWorld(), USettingsScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen created"), Screen))
+		{
+			return;
+		}
+		Screen->ActivateWidget();
+		Screen->MoveSelection(-1); // up from the first row: the last
+		const int32 Last = SETTINGS_TEST_GAMEPLAY_ROWS - 1;
+		TestEqual(TEXT("the last Gameplay row is selected"), Screen->GetSelectedRow(), Last);
+		TestTrue(TEXT("and it is Turns shown"), Screen->GetRows().IsValidIndex(Last) && Screen->GetRows()[Last].Id == ESettingId::TurnsShown);
 	});
 }
 

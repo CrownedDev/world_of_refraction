@@ -533,24 +533,7 @@ void UCombatCameraDirector::SetIntelSubject(AActor *Subject)
 	const FCombatCameraFrame Frame = BuildFrame(Actor);
 	if (Subject)
 	{
-		FVector Feet;
-		float Height = 0.0f;
-		GetTargetShape(Subject, Feet, Height);
-		TArray<FVector> OtherBodies; // B-587 QA: the fighters the close-up keeps out of its foreground
-		for (const UCombatCameraComponent *Camera : Cameras)
-		{
-			const AActor *Other = Camera ? Camera->GetOwner() : nullptr;
-			const UCharacterDataComponent *OtherData = Other ? Other->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-			const bool bGone = !IsValid(Other) || Other->IsHidden() || (OtherData && !OtherData->bIsAlive);
-			if (!bGone && Other != Subject)
-			{
-				FVector OtherFeet;
-				float OtherHeight = 0.0f;
-				GetTargetShape(Other, OtherFeet, OtherHeight);
-				OtherBodies.Add(OtherFeet + FVector::UpVector * OtherHeight * 0.5f);
-			}
-		}
-		if (MoveTurnCamera(FCombatCameraRules::ComputeIntelView(Frame, Feet, Height, OtherBodies), 0.0f)) // a cut (D-262 b)
+		if (MoveTurnCamera(ComputeIntelViewOf(Subject, Frame), 0.0f)) // a cut (D-262 b)
 		{
 			bIntelViewShowing = true;
 			bTargetViewShowing = false;
@@ -570,6 +553,39 @@ void UCombatCameraDirector::SetIntelSubject(AActor *Subject)
 		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Intel closed: back to the turn view (move %d)"), IntelMoveCount);
 	}
 	ReapplyHighlightedTarget(); // Intel opened over the target picker: its view again
+}
+
+FTransform UCombatCameraDirector::ComputeIntelViewOf(const AActor *Subject, const FCombatCameraFrame &Frame) const
+{
+	FVector Feet;
+	float Height = 0.0f;
+	GetTargetShape(Subject, Feet, Height);
+	TArray<FVector> OtherBodies; // B-587 QA: the fighters the close-up keeps out of its foreground
+	for (const UCombatCameraComponent *Camera : Cameras)
+	{
+		const AActor *Other = Camera ? Camera->GetOwner() : nullptr;
+		const UCharacterDataComponent *OtherData = Other ? Other->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+		const bool bGone = !IsValid(Other) || Other->IsHidden() || (OtherData && !OtherData->bIsAlive);
+		if (!bGone && Other != Subject)
+		{
+			FVector OtherFeet;
+			float OtherHeight = 0.0f;
+			GetTargetShape(Other, OtherFeet, OtherHeight);
+			OtherBodies.Add(OtherFeet + FVector::UpVector * OtherHeight * 0.5f);
+		}
+	}
+	return FCombatCameraRules::ComputeIntelView(Frame, Feet, Height, OtherBodies);
+}
+
+bool UCombatCameraDirector::GetIntelViewLocation(AActor *Subject, FVector &OutLocation) const
+{
+	if (!bInCombat || !Subject)
+	{
+		return false;
+	}
+	AActor *Focus = ViewedActor.IsValid() ? ViewedActor.Get() : Subject; // as SetIntelSubject frames it; none yet at the fight's start
+	OutLocation = ComputeIntelViewOf(Subject, BuildFrame(Focus)).GetLocation();
+	return true;
 }
 
 void UCombatCameraDirector::GetTargetShape(const AActor *Target, FVector &OutFeet, float &OutHeight)

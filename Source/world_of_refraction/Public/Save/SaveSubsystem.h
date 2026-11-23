@@ -209,6 +209,16 @@ public:
 	bool IsIntelKeyCycle() const;
 	void SetIntelKeyCycle(bool bCycle);
 
+	/** B-590 (D-264): the fight's turn order runs down the right side (Column) instead of a row at the top right (the
+	 *  default). Kept in memory at once; written with the next save. UBattleHUDWidget reads it on each turn change. */
+	bool IsTurnOrderColumn() const;
+	void SetTurnOrderColumn(bool bColumn);
+
+	/** B-590 (D-264): turns the turn order shows, the current one included: BattleHUDView::MIN_TURNS_SHOWN to
+	 *  MAX_TURNS_SHOWN, DEFAULT_TURNS_SHOWN when unset. Set clamps. Written with the next save. */
+	int32 GetTurnsShown() const;
+	void SetTurnsShown(int32 Turns);
+
 	/** B-453c (D-190): something that can't be undone (the game menu's quit, the title's start over) asks for a hold
 	 *  (default) or, off, a press on its confirm. Kept in memory at once; written with the next save. */
 	bool IsHoldToConfirmOn() const;

@@ -7,6 +7,7 @@
 #include "Save/WoRSaveGame.h"
 #include "Combat/Camera/CombatCameraTypes.h" // ETurnViewStyle (B-398)
 #include "UI/Settings/TextSizeSetting.h" // B-453d
+#include "UI/Combat/Battle/BattleHUDView.h" // B-590: the turns-shown range
 #include "Character/CharacterData.h"
 #include "Character/PlayerBuild.h" // B-554
 #include "Misc/ConfigCacheIni.h" // B-554: the last played slot
@@ -1400,6 +1401,26 @@ bool USaveSubsystem::IsIntelKeyCycle() const
 void USaveSubsystem::SetIntelKeyCycle(bool bCycle)
 {
 	SaveGame->Data.Settings.bIntelKeyOpenClose = !bCycle;
+}
+
+bool USaveSubsystem::IsTurnOrderColumn() const
+{
+	return SaveGame->Data.Settings.bTurnOrderColumn;
+}
+
+void USaveSubsystem::SetTurnOrderColumn(bool bColumn)
+{
+	SaveGame->Data.Settings.bTurnOrderColumn = bColumn;
+}
+
+int32 USaveSubsystem::GetTurnsShown() const
+{
+	return BattleHUDView::ReadTurnsShown(SaveGame->Data.Settings.TurnsShown);
+}
+
+void USaveSubsystem::SetTurnsShown(int32 Turns)
+{
+	SaveGame->Data.Settings.TurnsShown = static_cast<uint8>(FMath::Clamp(Turns, BattleHUDView::MIN_TURNS_SHOWN, BattleHUDView::MAX_TURNS_SHOWN));
 }
 
 bool USaveSubsystem::IsHoldToConfirmOn() const

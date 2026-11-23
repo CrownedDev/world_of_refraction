@@ -3,6 +3,7 @@
 #include "UI/Menus/SettingsScreenWidget.h"
 
 #include "Components/ScrollBox.h"
+#include "Components/ScrollBoxSlot.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Player/WoRHubController.h"
@@ -27,8 +28,6 @@ namespace SettingsScreenStyle
 	constexpr float KeyColumnWidth = 300.0f;
 	constexpr float KeyRowGap = 6.0f;
 	constexpr float KeyScrollStep = 90.0f;
-	/** The most rows a page has (Gameplay and Accessibility have seven). */
-	constexpr int32 MaxRows = 7;
 }
 
 USettingsScreenWidget::USettingsScreenWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -91,7 +90,11 @@ void USettingsScreenWidget::BuildTree()
 
 	// Left: the page's rows, or the key list on Controls.
 	UVerticalBox *ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	for (int32 Index = 0; Index < MaxRows; ++Index)
+	// B-590 QA: the rows scroll (Refresh keeps the selected one in view), so a long page fits at 720p.
+	RowList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("RowList"));
+	// B-590 QA 2: one row widget per row of the longest page (was a fixed 7, so Gameplay's last rows had none).
+	const int32 RowCount = WoRSettingsScreen::GetMostRows(GetWorld());
+	for (int32 Index = 0; Index < RowCount; ++Index)
 	{
 		UBorder *Row = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Row->SetPadding(FMargin(RowPaddingX, 0.0f));
@@ -107,8 +110,12 @@ void USettingsScreenWidget::BuildTree()
 		RowBoxes.Add(Row);
 		RowLabels.Add(Label);
 		RowValues.Add(Value);
-		AddToColumn(ListColumn, MakeSized(WidgetTree, ListWidth, RowHeight, Row), FMargin(0.0f, 0.0f, 0.0f, RowGap));
+		if (UScrollBoxSlot *RowSlot = Cast<UScrollBoxSlot>(RowList->AddChild(MakeSized(WidgetTree, ListWidth, RowHeight, Row))))
+		{
+			RowSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, RowGap));
+		}
 	}
+	AddToColumn(ListColumn, RowList)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	KeyList = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 	for (const FSettingsKeyRow &KeyRow : WoRSettingsScreen::BuildKeyRows())
 	{
@@ -212,6 +219,14 @@ void USettingsScreenWidget::Refresh()
 	{
 		// Visible, not SelfHitTestInvisible: the scroll box itself has to take the mouse wheel.
 		KeyList->SetVisibility(Page == ESettingsPage::Controls ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
+	}
+	if (RowList)
+	{
+		RowList->SetVisibility(Rows.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
+		if (RowBoxes.IsValidIndex(SelectedRow) && Rows.IsValidIndex(SelectedRow))
+		{
+			RowList->ScrollWidgetIntoView(RowBoxes[SelectedRow]->GetParent(), /*AnimateScroll=*/false);
+		}
 	}
 
 	if (!PanelHeading)
