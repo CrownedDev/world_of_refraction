@@ -25,6 +25,7 @@
 #include "Engine/GameInstance.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "GameFramework/Actor.h"
+#include "Infusion/ClassColors.h"
 #include "UI/Combat/Battle/BattleHUDButton.h"
 #include "UI/Combat/Battle/BattleHUDCard.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
@@ -75,6 +76,10 @@ namespace BattleCommandMenuStyle
 	const FLinearColor FaceBColor = FLinearColor::FromSRGBColor(FColor(235, 87, 87));
 	const FLinearColor FaceXColor = FLinearColor::FromSRGBColor(FColor(91, 141, 239));
 	const FLinearColor FaceYColor = FLinearColor::FromSRGBColor(FColor(242, 201, 76));
+	/** B-582c: the selector fill's luminance cap, about the old violet focus's (#5B3A99): white text on it reads ~8:1. */
+	constexpr float MaxSelectorFillLuminance = 0.08f;
+	/** B-582c: an accent darker than this vanishes as an outline on the dark panel (Darkness): the pale outline instead. */
+	constexpr float MinSelectorOutlineLuminance = 0.05f;
 }
 
 namespace BattleCommandMenuBuild
@@ -140,24 +145,20 @@ namespace BattleCommandMenuBuild
 															: Row.DisplayName;
 	}
 
-	/** The row's look: plate, violet on hover (the highlighted target uses Highlighted); a footer row has none. */
-	const FButtonStyle &RowStyle(bool bHighlighted, bool bFooter)
+	/** The row's look: plate, the selector colour on hover and when lit (B-582c: the acting character's colour, Fill /
+	 *  Outline; was violet); a footer row has none. */
+	FButtonStyle RowStyle(bool bHighlighted, bool bFooter, const FLinearColor &Fill = WoRMenuStyle::FocusColor,
+						  const FLinearColor &Outline = WoRMenuStyle::CyanColor)
 	{
 		static const FSlateRoundedBoxBrush Plate(WoRMenuStyle::PlateColor, CutCorner());
-		static const FSlateRoundedBoxBrush Focus(WoRMenuStyle::FocusColor, CutCorner(), WoRMenuStyle::CyanColor, FrameOutline);
 		static const FSlateRoundedBoxBrush Hover(WoRMenuStyle::HoverColor, CutCorner());
 		static const FSlateNoResource None;
-		const auto Make = [](const FSlateBrush &Normal, const FSlateBrush &Hovered)
-		{
-			FButtonStyle Style;
-			Style.SetNormal(Normal).SetHovered(Hovered).SetPressed(Focus).SetDisabled(Normal);
-			Style.SetNormalPadding(FMargin(0.0f)).SetPressedPadding(FMargin(0.0f));
-			return Style;
-		};
-		static const FButtonStyle Row = Make(Plate, Focus);
-		static const FButtonStyle Highlighted = Make(Focus, Focus);
-		static const FButtonStyle Footer = Make(None, Hover);
-		return bFooter ? Footer : bHighlighted ? Highlighted : Row;
+		const FSlateRoundedBoxBrush Focus(Fill, CutCorner(), Outline, FrameOutline);
+		const FSlateBrush &Normal = bFooter ? static_cast<const FSlateBrush &>(None) : bHighlighted ? Focus : Plate;
+		FButtonStyle Style;
+		Style.SetNormal(Normal).SetHovered(bFooter ? Hover : Focus).SetPressed(Focus).SetDisabled(Normal);
+		Style.SetNormalPadding(FMargin(0.0f)).SetPressedPadding(FMargin(0.0f));
+		return Style;
 	}
 
 	UTextBlock *MakeText(UWidgetTree *Tree, int32 Size, const FLinearColor &Color, bool bBold = false)
@@ -564,6 +565,7 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 		Rows.SetNum(MAX_ROWS);
 	}
 	RefreshKeys();
+	RefreshSelectorColours();
 	// D-260: no "Your turn" title; past the main menu the header says where you are.
 	Title = Menu ? Menu->GetViewTitle() : FText::GetEmpty();
 	RefreshDurability(); // B-391c: per menu open, as the old header
@@ -696,6 +698,35 @@ void UBattleCommandMenuWidget::HandleTargetHighlighted(AActor *Actor, AActor *Ta
 		}
 		PushToWidgets(); // the lit row turns violet
 	}
+}
+
+float UBattleCommandMenuWidget::GetRelativeLuminance(const FLinearColor &Colour)
+{
+	return 0.2126f * Colour.R + 0.7152f * Colour.G + 0.0722f * Colour.B; // linear channels (WCAG 2)
+}
+
+void UBattleCommandMenuWidget::MakeSelectorColours(const FLinearColor &Accent, FLinearColor &OutFill, FLinearColor &OutOutline)
+{
+	using namespace BattleCommandMenuStyle;
+	const float Luminance = GetRelativeLuminance(Accent);
+	const float Scale = Luminance > MaxSelectorFillLuminance ? MaxSelectorFillLuminance / Luminance : 1.0f;
+	OutFill = FLinearColor(Accent.R * Scale, Accent.G * Scale, Accent.B * Scale, 1.0f);
+	OutOutline = Luminance < MinSelectorOutlineLuminance ? ElementColors::TextOutline : Accent.CopyWithNewOpacity(1.0f);
+}
+
+void UBattleCommandMenuWidget::RefreshSelectorColours()
+{
+	// B-582c (Crown, 2026-11-23): the selector is the acting character's colour; overrides UI_Theme §3's violet here only.
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	const AActor *Acting = Menu ? Menu->GetCurrentActor() : nullptr;
+	const UCharacterDataComponent *Data = Acting ? Acting->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (Data && Data->CharacterData)
+	{
+		MakeSelectorColours(ClassColors::GetColorForCharacter(Data->CharacterData), SelectorFill, SelectorOutline);
+		return;
+	}
+	SelectorFill = WoRMenuStyle::FocusColor;
+	SelectorOutline = WoRMenuStyle::CyanColor;
 }
 
 bool UBattleCommandMenuWidget::IsNavigableRow(int32 RowIndex) const
@@ -880,7 +911,7 @@ void UBattleCommandMenuWidget::PushToWidgets()
 			WoRMenuStyle::SetShown(Button, Choices.IsValidIndex(Index));
 			if (Choices.IsValidIndex(Index))
 			{
-				Button->SetStyle(BattleCommandMenuBuild::RowStyle(Index == LineActive[Line], false));
+				Button->SetStyle(BattleCommandMenuBuild::RowStyle(Index == LineActive[Line], false, SelectorFill, SelectorOutline));
 				Word->SetText(Choices[Index]);
 			}
 		}
@@ -914,7 +945,7 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		const FPieMenuButtonData &Row = Rows[Index];
 		const bool bFooter = BattleCommandMenuBuild::IsFooterRow(Row.Category);
 		const bool bHighlighted = Index == Lit;
-		Button->SetStyle(BattleCommandMenuBuild::RowStyle(bHighlighted, bFooter));
+		Button->SetStyle(BattleCommandMenuBuild::RowStyle(bHighlighted, bFooter, SelectorFill, SelectorOutline));
 
 		const FKey Key = RowKeys.IsValidIndex(Index) ? RowKeys[Index] : FKey();
 		WoRMenuStyle::SetShown(Cap->GetParent(), Key.IsValid());
@@ -972,7 +1003,7 @@ FString UBattleCommandMenuWidget::GetCommandMenuString() const
 								  Rows.Num(), *ActionsLine.ToString(), *Title.ToString(),
 								  DurabilityLines.IsEmpty() ? TEXT("none")
 															: *FText::Join(FText::FromString(TEXT(", ")), DurabilityLines).ToString());
-	Out += FString::Printf(TEXT(" lit=%d"), GetLitRow()); // B-582c: W / S's row (-1: none)
+	Out += FString::Printf(TEXT(" lit=%d selector=%s"), GetLitRow(), *SelectorFill.ToFColor(true).ToHex()); // B-582c
 	if (Panel.bShown) // B-592
 	{
 		const FText Comma = FText::FromString(TEXT(", "));

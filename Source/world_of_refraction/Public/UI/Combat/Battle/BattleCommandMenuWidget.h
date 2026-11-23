@@ -178,6 +178,16 @@ public:
 	const TArray<FText> &GetRowLabels() const { return RowLabels; }
 	/** B-436g (D-260): the tab, "Act: ●●○ · Skills 1/3" (ActionPipsText::MakeCardActionsLine). */
 	const FText &GetActionsLine() const { return ActionsLine; }
+
+	/** B-582c (Crown, 2026-11-23): the lit row's and lit chip's fill and outline, in the acting character's colour
+	 *  (ClassColors: a Caster's element, a Resonator's silver, a Generic's brown); the violet focus with no character. */
+	const FLinearColor &GetSelectorFill() const { return SelectorFill; }
+	const FLinearColor &GetSelectorOutline() const { return SelectorOutline; }
+	/** B-582c: Accent darkened until white text on it reads well (about the old violet's contrast), and an outline that
+	 *  shows on the dark panel (the pale crystal outline for a near-black colour such as Darkness). */
+	static void MakeSelectorColours(const FLinearColor &Accent, FLinearColor &OutFill, FLinearColor &OutOutline);
+	/** WCAG relative luminance of a linear colour (debug, specs: contrast checks). */
+	static float GetRelativeLuminance(const FLinearColor &Colour);
 	/** B-436g: the corner hints of this view, in row order. */
 	const TArray<FBattleMenuHint> &GetHints() const { return Hints; }
 
@@ -231,6 +241,10 @@ private:
 	TArray<FBattleMenuHint> Hints;
 	FText Title;
 	FText ActionsLine;
+	/** B-582c: the selector colours for the acting character, set per menu open (a turn change re-opens the menu). */
+	FLinearColor SelectorFill = FLinearColor::Transparent;
+	FLinearColor SelectorOutline = FLinearColor::Transparent;
+	void RefreshSelectorColours();
 	bool bAtMainMenu = false;
 	bool bShowing = false;
 	bool bBound = false;

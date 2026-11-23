@@ -20,6 +20,7 @@
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "GameFramework/Pawn.h"
+#include "Infusion/ClassColors.h"
 #include "InputCoreTypes.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
@@ -663,6 +664,63 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("A is a Back key"), BackA && BackA->Category == EPieMenuCategory::Back);
 		TestFalse(TEXT("Q / E stay Intel's: no menu key on them"),
 				  ACombatPlayerController::GetMenuKeys().ContainsByPredicate([](const FCombatMenuKey &Key) { return Key.Keyboard == EKeys::Q || Key.Keyboard == EKeys::E; }));
+	});
+
+	It("colours the selector with the acting character's element or class, readable with white text (B-582c, Crown)", [this]()
+	{
+		if (!StartSkilledDuel(false))
+		{
+			return;
+		}
+		UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+		UCharacterDataComponent *FoeData = Foe->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestTrue(TEXT("both have character data"), HeroData && HeroData->CharacterData && FoeData && FoeData->CharacterData))
+		{
+			return;
+		}
+		HeroData->CharacterData->InnateElement = ESpellElement::Water; // a Water Caster
+		FoeData->CharacterData->CharacterClass = ECharacterClass::Generic;
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
+		FLinearColor Fill, Outline;
+		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Water, Fill, Outline);
+		TestEqual(TEXT("the Caster's selector is its element, Water"), View->GetSelectorFill(), Fill);
+		TestEqual(TEXT("outlined in Water"), View->GetSelectorOutline(), ElementColors::Water);
+		const FLinearColor HeroFill = View->GetSelectorFill();
+
+		TestTrue(TEXT("the hero defends"), Menu->PressMenuKey(EPieMenuCategory::Defend));
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		TestTrue(TEXT("the foe's turn"), Menu->IsOpen() && Menu->GetCurrentActor() == Foe);
+		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Generic, Fill, Outline);
+		TestEqual(TEXT("a Generic has no element: its class colour, the brown"), View->GetSelectorFill(), Fill);
+		TestNotEqual(TEXT("the colour changed with the turn"), View->GetSelectorFill(), HeroFill);
+		TestTrue(TEXT("wor.UI.Print shows it"), View->GetCommandMenuString().Contains(TEXT("selector=")));
+
+		// Every element and class colour: white text on the fill at >= 4.5:1, and an outline that shows on the dark panel.
+		constexpr float MIN_TEXT_CONTRAST = 4.5f;
+		constexpr float WCAG_FLARE = 0.05f;
+		TArray<FLinearColor> Accents = {ClassColors::ResonatorSilver, ElementColors::Generic, ElementColors::Ice};
+		for (const ESpellElement Element : {ESpellElement::Fire, ESpellElement::Lightning, ESpellElement::Earth, ESpellElement::Wind,
+											ESpellElement::Water, ESpellElement::Reality, ESpellElement::Void, ESpellElement::Light,
+											ESpellElement::Darkness})
+		{
+			Accents.Add(ElementColors::GetColorForElement(Element));
+		}
+		for (const FLinearColor &Accent : Accents)
+		{
+			UBattleCommandMenuWidget::MakeSelectorColours(Accent, Fill, Outline);
+			const float Contrast = (1.0f + WCAG_FLARE) / (UBattleCommandMenuWidget::GetRelativeLuminance(Fill) + WCAG_FLARE);
+			TestTrue(FString::Printf(TEXT("white text on %s's fill reads (%.1f:1)"), *Accent.ToFColor(true).ToHex(), Contrast), Contrast >= MIN_TEXT_CONTRAST);
+			TestTrue(FString::Printf(TEXT("%s's outline shows"), *Accent.ToFColor(true).ToHex()), UBattleCommandMenuWidget::GetRelativeLuminance(Outline) >= WCAG_FLARE);
+		}
+		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Darkness, Fill, Outline);
+		TestEqual(TEXT("Darkness keeps its black fill with the pale outline"), Outline, ElementColors::TextOutline);
 	});
 
 	It("never moves the possessed fighter on move input in a fight (B-582c, D-269)", [this]()
