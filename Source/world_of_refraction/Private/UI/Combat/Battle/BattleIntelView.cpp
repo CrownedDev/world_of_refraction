@@ -288,7 +288,8 @@ FBattleIntelPage BattleIntelView::BuildPage(const FBattleHUDCard &Card, const TA
 	Page.Actor = Actor;
 	Page.bEnemy = !Card.bParty;
 	Page.Heading = Card.Name;
-	Page.Tab = !Page.bEnemy && IsYou(Actor) ? LOCTEXT("YouTab", "You") : Card.Name;
+	Page.bYou = !Page.bEnemy && IsYou(Actor);
+	Page.Tab = Page.bYou ? LOCTEXT("YouTab", "You") : Card.Name;
 	Page.HPFraction = Card.HPFraction;
 	Page.HPLine = Page.bEnemy ? FText::GetEmpty() : Card.HPLine; // Q-391: an enemy's HP number stays hidden
 	Page.bShowEP = !Page.bEnemy && Card.bShowEP;

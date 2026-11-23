@@ -111,8 +111,15 @@ public:
 	// and Intel never show together.
 	/** Open on CardIndex's tab; the same tab again closes it. */
 	void OpenIntel(int32 CardIndex);
-	/** V / R3: open on the featured card's tab, or close. */
+	/** V / R3 with the Intel key's Open and close setting: open on the featured card's tab, or close. */
 	void ToggleIntel();
+	/** B-587 (Crown, D-262): V / R3 with the Cycle setting, the default: open on the featured party card, then the
+	 *  first enemy, then close. */
+	void CycleIntel();
+	/** A tap of V / R3: CycleIntel or ToggleIntel, by the saved Intel key setting (a hold closes: CloseIntel). */
+	void PressIntelKey();
+	/** The saved Intel key setting is Cycle (true without a save). */
+	bool IsIntelKeyCycle() const;
 	/** Q / E, LB / RB while open: the previous or next tab, wrapping. */
 	void StepIntelTab(int32 Delta);
 	void SelectIntelTab(int32 Tab);
@@ -217,7 +224,7 @@ private:
 	/** B-586: rebuild IntelPages from the cards (only while open). */
 	void RefreshIntelPages();
 
-	void HandleIntelTabClicked(int32 Tab);
+	void HandleIntelStepClicked(int32 Delta);
 
 	UFUNCTION()
 	void HandleBuildupChanged(AActor *Target, float Current, float Max, ESpellElement PendingElement, AActor *Source);
@@ -277,9 +284,12 @@ private:
 	int32 IntelTab = 0;
 	TArray<FBattleIntelPage> IntelPages;
 
-	/** B-587 QA: the turn order with the enemy cards, and the corner hints' holder: hidden while Intel is open. */
+	/** B-587 (Crown, Expedition 33's close-up): hidden while Intel is open, which takes the enemy cards' place under the
+	 *  turn order: the enemy cards, the command menu's holder and the corner hints' holder. */
 	UPROPERTY()
-	TObjectPtr<UVerticalBox> RightColumn;
+	TObjectPtr<UWidget> EnemyColumn;
+	UPROPERTY()
+	TObjectPtr<UWidget> MenuHolder;
 	UPROPERTY()
 	TObjectPtr<UWidget> CornerHints;
 

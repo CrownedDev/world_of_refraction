@@ -69,7 +69,6 @@ namespace BattleHUDStyle
 	const FVector2D PartyAnchor(0.0f, 1.0f);        // bottom-left: the featured card, the compact cards in a row to its right
 	const FVector2D StatusButtonAnchor(0.5f, 0.0f); // top centre
 	const FVector2D StatusPanelAnchor(0.5f, 0.5f);  // centre
-	const FVector2D IntelPanelAnchor(1.0f, 0.5f);   // B-587 (D-262 a): right side, the close-up in the left two-thirds
 	constexpr float CardGap = 8.0f;
 	constexpr float RightColumnGap = 16.0f; // between the turn order and the enemy cards
 	// shortcut: the command menu sits a fixed height above the bottom margin, not the featured card's real height,
@@ -369,7 +368,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 
 		// B-436a: the right-hand column, top: the turn order, the enemy cards under it. B-586: only the enemy cards take a
 		// click (Intel).
-		RightColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightColumn"));
+		UVerticalBox *RightColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("RightColumn"));
 		RightColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		UVerticalBox *TurnColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("TurnOrder"));
 		TurnColumn->SetVisibility(ESlateVisibility::HitTestInvisible);
@@ -378,14 +377,15 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		{
 			TurnTexts.Add(BattleHUDBuild::AddText(WidgetTree, TurnColumn, BattleHUDStyle::TurnFontSize));
 		}
-		UVerticalBox *EnemyColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Enemies"));
-		EnemyColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		UVerticalBox *Enemies = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Enemies"));
+		Enemies->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		EnemyColumn = Enemies;
 		if (UVerticalBoxSlot *TurnSlot = RightColumn->AddChildToVerticalBox(TurnColumn))
 		{
 			TurnSlot->SetHorizontalAlignment(HAlign_Right);
 			TurnSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::RightColumnGap));
 		}
-		if (UVerticalBoxSlot *EnemySlot = RightColumn->AddChildToVerticalBox(EnemyColumn))
+		if (UVerticalBoxSlot *EnemySlot = RightColumn->AddChildToVerticalBox(Enemies))
 		{
 			EnemySlot->SetHorizontalAlignment(HAlign_Right);
 		}
@@ -398,7 +398,12 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		PartyColumn->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		if (CommandMenu)
 		{
-			if (UVerticalBoxSlot *MenuSlot = PartyColumn->AddChildToVerticalBox(CommandMenu))
+			// B-587: in a holder the HUD hides under Intel; the menu keeps its own visibility.
+			UOverlay *Holder = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass(), TEXT("CommandMenuHolder"));
+			Holder->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			Holder->AddChild(CommandMenu);
+			MenuHolder = Holder;
+			if (UVerticalBoxSlot *MenuSlot = PartyColumn->AddChildToVerticalBox(Holder))
 			{
 				MenuSlot->SetHorizontalAlignment(HAlign_Left);
 				MenuSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, BattleHUDStyle::MenuCardGap));
@@ -436,7 +441,7 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 					CardSlot->SetVerticalAlignment(VAlign_Bottom);
 				}
 			}
-			else if (UVerticalBoxSlot *ColumnSlot = EnemyColumn->AddChildToVerticalBox(Frame))
+			else if (UVerticalBoxSlot *ColumnSlot = Enemies->AddChildToVerticalBox(Frame))
 			{
 				ColumnSlot->SetPadding(FMargin(BattleHUDStyle::RowPadding));
 			}
@@ -461,11 +466,15 @@ TSharedRef<SWidget> UBattleHUDWidget::RebuildWidget()
 		StatusPanelBody = BattleHUDBuild::AddText(WidgetTree, PanelRows, BattleHUDStyle::LineFontSize);
 		BattleHUDBuild::Place(Canvas, StatusPanel, BattleHUDStyle::StatusPanelAnchor, FVector2D::ZeroVector);
 
-		// B-586 (D-261): the Intel panel; the status panel and it never show together. B-587: on the right side.
+		// B-586 (D-261): the Intel panel; the status panel and it never show together. B-587 (Crown, Expedition 33): on
+		// the right under the turn order, in the enemy cards' place (they hide while it is open), so nothing is covered.
 		IntelPanel = WidgetTree->ConstructWidget<UBattleIntelWidget>(UBattleIntelWidget::StaticClass(), TEXT("Intel"));
 		IntelPanel->SetVisibility(ESlateVisibility::Collapsed); // closed until the first push says otherwise
-		IntelPanel->OnTabClicked.BindUObject(this, &UBattleHUDWidget::HandleIntelTabClicked);
-		BattleHUDBuild::Place(Canvas, IntelPanel, BattleHUDStyle::IntelPanelAnchor, BattleHUDBuild::Inset(BattleHUDStyle::IntelPanelAnchor));
+		IntelPanel->OnStepClicked.BindUObject(this, &UBattleHUDWidget::HandleIntelStepClicked);
+		if (UVerticalBoxSlot *IntelSlot = RightColumn->AddChildToVerticalBox(IntelPanel))
+		{
+			IntelSlot->SetHorizontalAlignment(HAlign_Right);
+		}
 
 		BuildDamageNumberWidgets(Canvas); // last, so the numbers draw over the cards
 	}
@@ -663,9 +672,44 @@ void UBattleHUDWidget::CloseIntel()
 	PushToWidgets();
 }
 
-void UBattleHUDWidget::HandleIntelTabClicked(int32 Tab)
+void UBattleHUDWidget::CycleIntel()
 {
-	SelectIntelTab(Tab);
+	if (!bIntelOpen)
+	{
+		ToggleIntel(); // the featured party card
+		return;
+	}
+	const TArray<int32> Order = GetIntelCardOrder();
+	const bool bOnParty = Order.IsValidIndex(IntelTab) && Cards[Order[IntelTab]].bParty;
+	const int32 FirstEnemy = Order.IndexOfByPredicate([this](int32 CardIndex) { return !Cards[CardIndex].bParty; });
+	if (bOnParty && FirstEnemy != INDEX_NONE)
+	{
+		SelectIntelTab(FirstEnemy);
+		return;
+	}
+	CloseIntel();
+}
+
+void UBattleHUDWidget::PressIntelKey()
+{
+	if (IsIntelKeyCycle())
+	{
+		CycleIntel();
+		return;
+	}
+	ToggleIntel();
+}
+
+bool UBattleHUDWidget::IsIntelKeyCycle() const
+{
+	const UWorld *World = GetWorld();
+	const USaveSubsystem *Save = World && World->GetGameInstance() ? World->GetGameInstance()->GetSubsystem<USaveSubsystem>() : nullptr;
+	return !Save || Save->IsIntelKeyCycle();
+}
+
+void UBattleHUDWidget::HandleIntelStepClicked(int32 Delta)
+{
+	StepIntelTab(Delta);
 }
 
 void UBattleHUDWidget::RefreshIntelPages()
@@ -687,7 +731,8 @@ void UBattleHUDWidget::RefreshIntelPages()
 		Page.Actor = Card.Actor;
 		Page.bEnemy = !Card.bParty;
 		Page.Heading = Card.Name;
-		Page.Tab = Card.bParty && BattleIntelView::IsYou(Card.Actor.Get()) ? LOCTEXT("IntelYouTab", "You") : Card.Name;
+		Page.bYou = Card.bParty && BattleIntelView::IsYou(Card.Actor.Get());
+		Page.Tab = Page.bYou ? LOCTEXT("IntelYouTab", "You") : Card.Name;
 	}
 }
 
@@ -891,12 +936,12 @@ void UBattleHUDWidget::PushToWidgets()
 	if (IntelPanel)
 	{
 		IntelPanel->SetVisibility(bIntelOpen ? ESlateVisibility::Visible : ESlateVisibility::Collapsed);
-		IntelPanel->Push(IntelPages, IntelTab);
+		IntelPanel->Push(IntelPages, IntelTab, IsIntelKeyCycle());
 	}
-	// B-587 QA: the side panel stands where the turn order, the enemy cards and the corner hints are; Intel shows the
-	// enemies and its own keys, and no combat menu key acts while it is open, so they step aside until it closes.
+	// B-587 (Crown, as Expedition 33's close-up hides its action UI): while Intel is open the enemy cards (Intel takes
+	// their place under the turn order), the command menu and the corner hints step aside; no menu key acts meanwhile.
 	const ESlateVisibility UnderIntel = bIntelOpen ? ESlateVisibility::Collapsed : ESlateVisibility::SelfHitTestInvisible;
-	for (UWidget *Piece : {static_cast<UWidget *>(RightColumn.Get()), CornerHints.Get()})
+	for (UWidget *Piece : {EnemyColumn.Get(), MenuHolder.Get(), CornerHints.Get()})
 	{
 		if (Piece)
 		{
