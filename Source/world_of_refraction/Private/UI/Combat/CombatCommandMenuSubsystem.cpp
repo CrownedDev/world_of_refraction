@@ -1177,7 +1177,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildPositionButtons() c
     for (const ECombatRow Row : POSITION_PICKER_ROWS)
     {
         const FText Name = WoRGameNames::GetCombatRowName(Row);
-        FPieMenuButtonData Button(TEXT("Position"), Name, EPieMenuCategory::MoveRow);
+        FPieMenuButtonData Button(TEXT("PositionRow"), Name, EPieMenuCategory::MoveRow);
         FText Reason;
         if (bOnGrid && Position.Row == Row)
         {
@@ -1522,6 +1522,7 @@ void UCombatCommandMenuSubsystem::OpenPositionPicker()
 void UCombatCommandMenuSubsystem::ExecuteMoveToRow(ECombatRow Row)
 {
     // B-232c: a client's move runs on the server (HandleFreeCommandApplied redraws); the host and solo run it here.
+    // TODO: B-232d: a client's refused move gives no feedback (as the old step), and its Position stays lit.
     if (!SendFreeCommandToServer(CombatFreeCommands::MoveTo(Row)))
     {
         ACombatOrchestrator *Orchestrator = CurrentOrchestrator.Get();
