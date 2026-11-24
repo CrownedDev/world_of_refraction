@@ -360,6 +360,14 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	/** B-604b: an enemy's skill at one party member opens on the defend camera (a named attack keeps its front shot,
 	 *  B-406; several targets keep today's shots). A party member's skill keeps the attack camera (its style). */
 	static bool UsesDefendCamera(bool bCasterIsEnemy, ECameraShotMoment Opening, bool bOnePartyTarget);
+	/** B-604c: the hit is seen in the defend camera for this long before the next turn's camera moves. TODO: tune in PIE. */
+	static constexpr float DefendHitHoldSeconds = 0.6f;
+	/** B-604c: the longest the next turn's camera waits for a defend camera's hit that hasn't landed (a stalled action). */
+	static constexpr float DefendHitWaitLimitSeconds = 1.5f;
+	/** B-604c: how long the next turn's camera waits while a defend camera is up. A swing with no Impact notify lands its
+	 *  hit at the animation's end (B-032d fallback), after the next turn has started. Unset: the hit hasn't landed, wait
+	 *  for it (DefendHitWaitLimitSeconds at most). Set: the rest of the hit's hold (0: go now; no defend camera: 0). */
+	static TOptional<float> GetDefendTurnWait(bool bDefendShowing, bool bHitLanded, float SecondsSinceHit);
 
 	/** B-402 (R10, R11; Q-402): a shot shown while the viewer defends keeps still: no shake, no FOV punch and no melee
 	 *  rush blur (B-403). A held punch is dropped, not replayed; the next shot after the combo plays its own as usual. */

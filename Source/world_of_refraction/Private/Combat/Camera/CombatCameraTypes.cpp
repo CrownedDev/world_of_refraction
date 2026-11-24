@@ -610,6 +610,19 @@ bool FCombatCameraRules::UsesDefendCamera(bool bCasterIsEnemy, ECameraShotMoment
 	return bCasterIsEnemy && bOnePartyTarget && Opening != ECameraShotMoment::NamedAttack;
 }
 
+TOptional<float> FCombatCameraRules::GetDefendTurnWait(bool bDefendShowing, bool bHitLanded, float SecondsSinceHit)
+{
+	if (!bDefendShowing)
+	{
+		return 0.0f;
+	}
+	if (!bHitLanded)
+	{
+		return {};
+	}
+	return FMath::Max(0.0f, DefendHitHoldSeconds - SecondsSinceHit);
+}
+
 FCameraShot FCombatCameraRules::SteadyForDefence(const FCameraShot &Shot, bool bViewerDefending)
 {
 	FCameraShot Out = Shot;
