@@ -774,8 +774,8 @@ void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, 
 			return; // B-600: the style's shot holds through the hit
 		}
 		// B-600: a style's hit shot stays on the caster's camera (a still shot never hops cameras); Standard as before.
-		UCombatCameraComponent *Camera = ShotStyle == ESkillCameraStyle::Standard || ShotStyle == ESkillCameraStyle::Cinematic
-											 ? (IsValid(Target) ? Target->FindComponentByClass<UCombatCameraComponent>() : nullptr)
+		UCombatCameraComponent *Camera = FCombatCameraRules::PlaysStandardShots(ShotStyle) && IsValid(Target)
+											 ? Target->FindComponentByClass<UCombatCameraComponent>()
 											 : nullptr;
 		PlayShot(Camera ? Camera : ShotCamera.Get(), Moment, HitShot.GetValue());
 		return;
@@ -1278,7 +1278,7 @@ void UCombatCameraDirector::HandleProjectileLaunched(AActor *Caster, AActor *Pro
 		return; // B-600: no Cast pull-back in this style; the wind-up's shot holds
 	}
 	// B-600: only Standard follows the projectile; a style's release shot is still, and the projectile crosses it.
-	const bool bFollows = ShotTuning.bFollowProjectile && (ShotStyle == ESkillCameraStyle::Standard || ShotStyle == ESkillCameraStyle::Cinematic);
+	const bool bFollows = ShotTuning.bFollowProjectile && FCombatCameraRules::PlaysStandardShots(ShotStyle);
 	ShotProjectile = bFollows ? Projectile : nullptr;
 	PlayShot(ShotCamera.Get(), ECameraShotMoment::Cast, CastShot.GetValue());
 }

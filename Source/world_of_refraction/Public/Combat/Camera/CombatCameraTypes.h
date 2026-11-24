@@ -370,6 +370,10 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  today's camera) or with no skill. */
 	static ESkillCameraStyle GetCameraStyle(const USkillDataBase *Skill, bool bCasterIsEnemy);
 
+	/** B-600: Style plays today's shots (Standard, and Cinematic without a sequence): they follow a projectile and
+	 *  frame a hit from the target's camera. */
+	static bool PlaysStandardShots(ESkillCameraStyle Style);
+
 	/** B-600 (Q-600): Style's shot for Moment. Standard and Cinematic: ComputeShot's. Unset: the style plays nothing at
 	 *  that moment and the shot showing holds. Ranged Release ignores Tuning.bFollowProjectile (its shots hold still). */
 	static TOptional<FCameraShot> ComputeStyledShot(ESkillCameraStyle Style, ECameraShotMoment Moment, const FCameraShotContext &Context,

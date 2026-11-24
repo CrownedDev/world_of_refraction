@@ -94,9 +94,7 @@ namespace CombatCameraStyles
 	constexpr float ReleaseHitShake = 0.15f;
 	// Heavy Wind-Up: the charge's push is slower than the plain wind-up's.
 	constexpr float HeavyPushSeconds = 2.0f;
-	// Heavy Wind-Up: the low hero angle, three-quarter front of the attacker, looking up at it.
-	constexpr float HeroFront = 260.0f;
-	constexpr float HeroSide = 160.0f;
+	// Heavy Wind-Up: the low hero angle, the side two-shot's place at shin height, looking up at the attacker.
 	constexpr float HeroHeight = 30.0f;
 	constexpr float HeroLookHeight = 110.0f;
 	// Area Sweep: wide and higher, back from everyone's centre past the attacker.
@@ -599,8 +597,12 @@ bool FCombatCameraRules::UsesShotPatterns(const USkillDataBase *Skill, bool bCas
 	{
 		return false;
 	}
-	const ESkillCameraStyle Style = GetCameraStyle(Skill, bCasterIsEnemy);
-	return Skill->CameraSequence.IsNull() || (Style != ESkillCameraStyle::Standard && Style != ESkillCameraStyle::Cinematic);
+	return Skill->CameraSequence.IsNull() || !PlaysStandardShots(GetCameraStyle(Skill, bCasterIsEnemy));
+}
+
+bool FCombatCameraRules::PlaysStandardShots(ESkillCameraStyle Style)
+{
+	return Style == ESkillCameraStyle::Standard || Style == ESkillCameraStyle::Cinematic;
 }
 
 ESkillCameraStyle FCombatCameraRules::GetCameraStyle(const USkillDataBase *Skill, bool bCasterIsEnemy)
@@ -806,9 +808,11 @@ TOptional<FCameraShot> FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle S
 		}
 		if (bHit)
 		{
+			// The side two-shot's place dropped low, looking up at the fighters' chests: both stay in frame.
 			FCameraShot Hero = WithPassingPunch(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)); // its punch and shake
-			Hero.End = LookFrom(Caster + Forward * HeroFront * Scale + Right * HeroSide * SideSign * Scale + FVector::UpVector * HeroHeight,
-								Caster + FVector::UpVector * HeroLookHeight);
+			FVector Low = Hero.End.GetLocation();
+			Low.Z = Caster.Z + HeroHeight;
+			Hero.End = LookFrom(Low, (Caster + TargetCentre) * 0.5f + FVector::UpVector * HeroLookHeight);
 			return CutAndHold(Hero);
 		}
 		return {};
