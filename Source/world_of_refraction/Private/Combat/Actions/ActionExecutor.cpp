@@ -691,17 +691,7 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 		// Stage c: spells scale the skill BaseDamage (SpellDamage/Mind/element scaling still runs at
 		// ApplyHit, ActionType=Spell).
 		Preview.BaseDamage = Action.SpellData->CalculateDamage(UserData, ActionMods);
-		// Cluster 3c: a Generic spell resolves to its source/pool element; fixed elements pass through.
-		Preview.Element = ResolveSpellCastElement(User, Action.SpellData);
-		// B-435b (Q-435 B): a BD / Reality caster who infused through Innate on another origin casts their own element.
-		if (bIsInfused && Action.SelectedSource == EInfusionSourceOption::Innate)
-		{
-			const TArray<EInfusionSourceOption> Allowed = GetAllowedInfusionSourcesForSpell(User, Action.SpellData);
-			if (Allowed.Num() > 1 && Allowed[0] != EInfusionSourceOption::Innate)
-			{
-				Preview.Element = GetElementForSourceOption(User, EInfusionSourceOption::Innate);
-			}
-		}
+		Preview.Element = GetActionHitElement(User, Action); // the cost reads the same element (B-593)
 		// 3a safety net: a still-Generic result means the resolver could not bind a source (e.g. a
 		// Generic-innate Caster routing through Innate — a data misconfiguration). Never let Generic
 		// ("inherit") reach the damage/colour/resistance pipeline.
@@ -4640,6 +4630,25 @@ float UActionExecutor::GetIceInfusionCostMultiplier(const FAction &Action, ESpel
 {
 	const bool bDealsIceSpell = Action.ActionType == EActionType::Spell && Action.SpellData && Action.SpellData->bDealsIce;
 	return IsIceInfusion(Action, Element) && !bDealsIceSpell ? InfusionConstants::ICE_INFUSION_COST_MULTIPLIER : 1.0f;
+}
+
+ESpellElement UActionExecutor::GetActionHitElement(AActor *User, const FAction &Action) const
+{
+	if (Action.ActionType != EActionType::Spell || !Action.SpellData)
+	{
+		return GetElementForSourceOption(User, Action.SelectedSource);
+	}
+	// B-435b (Q-435 B): a BD / Reality caster who infused through Innate on another origin casts their own element.
+	if (Action.SelectedSource == EInfusionSourceOption::Innate)
+	{
+		const TArray<EInfusionSourceOption> Allowed = GetAllowedInfusionSourcesForSpell(User, Action.SpellData);
+		if (Allowed.Num() > 1 && Allowed[0] != EInfusionSourceOption::Innate)
+		{
+			return GetElementForSourceOption(User, EInfusionSourceOption::Innate);
+		}
+	}
+	// Cluster 3c: a Generic spell resolves to its source/pool element; fixed elements pass through.
+	return ResolveSpellCastElement(User, Action.SpellData);
 }
 
 ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const

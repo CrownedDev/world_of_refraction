@@ -302,6 +302,10 @@ public:
 	 *  Action is no Ice infusion. */
 	static float GetIceInfusionCostMultiplier(const FAction &Action, ESpellElement Element);
 
+	/** The element Action's infused hit resolves to: a spell's cast element (Generic resolved, a BD / Reality caster's
+	 *  Innate override, B-435b), else the selected source's element. The cost reads it so cost and hit agree (B-593). */
+	ESpellElement GetActionHitElement(AActor *User, const FAction &Action) const;
+
 	/** B-307: the one infusion-source resolver. The adapter options (ActiveRing / PrimaryRing) both mean "the adapter
 	 *  in use" (GetActiveSlot); WeaponCrystal the weapon in hand; Evolution the primary seat. The element, mode,
 	 *  attachment readers read it, and availability for the adapter and the weapon, so the broken rule is stated once. */

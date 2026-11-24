@@ -187,7 +187,7 @@ int32 UActionExecutor::CalculateSourceEnergyCost(AActor *Actor, const FAction &A
 			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
 			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
 			// D-271 (B-593): an Ice infusion costs more, except on a spell marked Deals Ice.
-			const float IceMult = GetIceInfusionCostMultiplier(Action, GetElementForSourceOption(Actor, Action.SelectedSource));
+			const float IceMult = GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action));
 			return FMath::RoundToInt(BaseCost * CostMultiplier * IceMult * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 		}
 		break;
@@ -216,7 +216,7 @@ int32 UActionExecutor::CalculateSourceEnergyCost(AActor *Actor, const FAction &A
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
 			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveAbilityTier(Actor, Skill));
-			const float IceMult = GetIceInfusionCostMultiplier(Action, GetElementForSourceOption(Actor, Action.SelectedSource)); // D-271
+			const float IceMult = GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action)); // D-271
 			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
 			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
 			return FMath::RoundToInt(BaseCost * CostMultiplier * IceMult * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
@@ -429,7 +429,7 @@ int32 UActionExecutor::ComputePreEffInfusedEP(AActor *Actor, const FAction &Acti
 	// Tier-gap cost (Cluster 3a): the HP-infusion basis tracks the now-gap-scaled
 	// EP cost, so the reciprocal gap flows through to the HP penalty too.
 	// D-271 (B-593): an Ice infusion's extra cost reaches the HP basis too, so HP tracks EP.
-	const float IceMult = GetIceInfusionCostMultiplier(Action, GetElementForSourceOption(Actor, Action.SelectedSource));
+	const float IceMult = GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action));
 	return FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * IceMult * PowerMult *
 							 GetTierGapCostMultiplier(Actor, Action));
 }
