@@ -915,17 +915,6 @@ float FCombatCameraRules::GetPunchedFieldOfView(const FCameraShot &Shot, float E
 TOptional<FCameraShot> FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle Style, bool bCasterIsEnemy, const FCameraShotContext &Context,
 															   const FSkillCameraTuning &Tuning)
 {
-	if (Style == ESkillCameraStyle::HeavyWindUp && !bCasterIsEnemy)
-	{
-		// B-595c: a heavy blow that dashes in cuts to its low hero angle as the dash ends, still; the hit punches there.
-		TOptional<FCameraShot> Hero = ComputeStyledShot(Style, ECameraShotMoment::Impact, Context, Tuning);
-		if (Hero.IsSet())
-		{
-			Hero->FovPunch = 0.0f;
-			Hero->ShakeScale = 0.0f;
-		}
-		return Hero;
-	}
 	if (Style != ESkillCameraStyle::MeleeRush && !bCasterIsEnemy)
 	{
 		return {};

@@ -105,7 +105,8 @@ void FSkillCameraStyleSpec::Define()
 													 CameraFraming::IsOnScreen(Arrival->End, Arrival->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
 		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Impact, Arrived, Tuning);
 		TestTrue(TEXT("the hit's view is the arrival's (it punches there, no second cut)"), Hit.IsSet() && Arrival.IsSet() && Hit->End.Equals(Arrival->End));
-		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::RangedRelease, ESkillCameraStyle::AreaSweep, ESkillCameraStyle::Cinematic})
+		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::RangedRelease, ESkillCameraStyle::HeavyWindUp, ESkillCameraStyle::AreaSweep,
+											  ESkillCameraStyle::Cinematic})
 		{
 			TestFalse(FString::Printf(TEXT("%s: no arrival cut"), *UEnum::GetValueAsString(Style)), FCombatCameraRules::ComputeArrivalShot(Style, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
 		}
@@ -300,11 +301,6 @@ void FSkillCameraStyleSpec::Define()
 		TestTrue(TEXT("low, looking up"), Hit.IsSet() && Hit->End.GetLocation().Z - Context.Caster.Z < STYLE_TEST_LOW_CAMERA_HEIGHT && Hit->End.GetRotation().Rotator().Pitch > 0.0f);
 		TestTrue(TEXT("both fighters in frame"), Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster) &&
 													 CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
-		// B-595c: a heavy blow that dashes in cuts to the same low angle as the dash ends, still; the hit punches there.
-		const TOptional<FCameraShot> Arrival = FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::HeavyWindUp, /*bCasterIsEnemy=*/false, Context, Tuning);
-		TestTrue(TEXT("on arrival: the hit's low angle, a cut that holds, no punch or shake yet"),
-				 Arrival.IsSet() && Hit.IsSet() && Arrival->End.Equals(Hit->End) && Arrival->bCut && IsStill(*Arrival) && FMath::IsNearlyZero(Arrival->FovPunch) &&
-					 FMath::IsNearlyZero(Arrival->ShakeScale));
 	});
 
 	It("Area Sweep: one wide still shot of the attacker and every target, held through the hit", [this, Tuning]()
