@@ -1288,6 +1288,22 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-271 — Ice infusion from a Water source; the infusion HP backlash scaled and cut by Efficiency
+**Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, during the weapon glow change) · **Blocks:** B-593, B-594
+**Crown:** Ice is not an element; it stays Water's damage type, but a Water source can infuse Ice. The infusion HP backlash stays tied to EP, gets its own tunable multiplier, and Efficiency also cuts it.
+**Ruled (Ice):**
+- Ice stays a **damage type of Water** (ED-04): no Ice crystal, adapter or Refractor.
+- **New:** where a character has a Water source (weapon crystal, adapter, evolution, innate), the infusion picker also offers an **Ice** infusion from that same source. It deals Ice (the Ice hit kind: Ice resistance alone resists it) and fills the Ice bar.
+- An Ice infusion **costs more** than a Water infusion from the same source: × `ICE_INFUSION_COST_MULTIPLIER` (placeholder, `// TODO: Crown tune`).
+- On a skill marked **Deals Ice**, an Ice infusion costs the normal (Water) amount, no extra. On a plain Water skill it costs the higher amount.
+- Ice has its own row in the default infusion glow list (`IceInfusionGlowVFX`), scaling with the level like every glow (built on `feature/weapon-glow-trail`).
+**Ruled (HP backlash, ED-32):**
+- HP lost = (infused EP before Efficiency ÷ max EP) × max HP × `HP_BACKLASH_MULTIPLIER` × (1 − Efficiency) × (1 − Resistance).
+- `HP_BACKLASH_MULTIPLIER` placeholder **0.15** (`// TODO: Crown tune`). At 1.0 a level-2 Heavy Attack already kills a 119 HP character; 0.25 lands level 2 at about 15-30% of max HP, and Crown went lower still.
+- Efficiency's cut on HP is **capped at the stats-only max** (`EFFICIENCY_MAX`, 50%) even with gear; EP keeps its 90% gear ceiling. Resistance still applies.
+- **D-035 stands:** an infused ability keeps the x1.5 EP surcharge (`INFUSION_ENERGY_MULTIPLIER`). A same-day proposal to drop it was withdrawn.
+**Build defaults (Crown may change):** the Ice multiplier scales whatever the source pays for that infusion (EP, the L2 HP backlash, or crystal wear for a free source). Its placeholder value is the builder's pick in B-593, named and marked TODO.
+
 ### D-270 — Single targets are picked on the field, not from a list
 **Status:** ANSWERED (Crown, 2026-11-23) · **Raised:** 2026-11-23 (Crown, B-582c QA) · **Blocks:** B-582c
 **Crown:** no need to show the target's name row in the panel while targeting; the marker and the enemy's card above it already show it.
