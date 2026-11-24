@@ -184,7 +184,7 @@ namespace
 			return Abilities.ContainsByPredicate([Weapon](const UAbilityData *Ability) { return WoRQAKit::IsHPCostSkillFor(Ability, Weapon); });
 		};
 		TArray<FString> Steps;
-		if (!HasFittingSkill(Loadout.GetPrimaryWeapon()))
+		if (Loadout.GetPrimaryWeapon() && !HasFittingSkill(Loadout.GetPrimaryWeapon())) // never swaps over an evolution or adapter primary
 		{
 			Steps.Add(PutPrimaryWithSkill(World, Member, HasFittingSkill));
 		}
@@ -213,7 +213,7 @@ namespace
 		}
 		if (Line.IsEmpty())
 		{
-			return Prefix + FString::Printf(TEXT("skill: no ability that costs EP and has a SkillMontage fits %s (%s, %s), nor any owned weapon%s"), *Weapon->GetName(),
+			return Prefix + FString::Printf(TEXT("skill: %s's skill list offers no ability that costs EP and has a SkillMontage (%s, %s)%s"), *Weapon->GetName(),
 											*UEnum::GetValueAsString(Weapon->WeaponType), *UEnum::GetValueAsString(Weapon->WieldMode),
 											Learned.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("; learned %s"), *FString::Join(Learned, TEXT(", "))));
 		}
