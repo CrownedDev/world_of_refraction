@@ -866,11 +866,6 @@ float FCombatCameraRules::GetPunchedFieldOfView(const FCameraShot &Shot, float E
 	return Shot.FieldOfView - Shot.FovPunch * FMath::Sin(UE_PI * Elapsed / Shot.FovPunchSeconds);
 }
 
-TOptional<FCameraShot> FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle Style, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning)
-{
-	return ComputeArrivalShot(Style, /*bCasterIsEnemy=*/false, Context, Tuning);
-}
-
 TOptional<FCameraShot> FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle Style, bool bCasterIsEnemy, const FCameraShotContext &Context,
 															   const FSkillCameraTuning &Tuning)
 {

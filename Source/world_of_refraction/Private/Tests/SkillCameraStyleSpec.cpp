@@ -90,7 +90,7 @@ void FSkillCameraStyleSpec::Define()
 
 		FCameraShotContext Arrived = Context;
 		Arrived.Caster = STYLE_TEST_STRIKE_SPOT;
-		const TOptional<FCameraShot> Arrival = FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::MeleeRush, Arrived, Tuning);
+		const TOptional<FCameraShot> Arrival = FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::MeleeRush, /*bCasterIsEnemy=*/false, Arrived, Tuning);
 		TestTrue(TEXT("on arrival: a cut that holds, no punch or shake yet"), Arrival.IsSet() && Arrival->bCut && IsStill(*Arrival) &&
 																					 FMath::IsNearlyZero(Arrival->FovPunch) && FMath::IsNearlyZero(Arrival->ShakeScale));
 		TestTrue(FString::Printf(TEXT("the attacker at least %.0f cm from the lens"), STYLE_TEST_MIN_LENS_DISTANCE),
@@ -102,7 +102,7 @@ void FSkillCameraStyleSpec::Define()
 		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::RangedRelease, ESkillCameraStyle::HeavyWindUp, ESkillCameraStyle::AreaSweep,
 											  ESkillCameraStyle::Cinematic})
 		{
-			TestFalse(FString::Printf(TEXT("%s: no arrival cut"), *UEnum::GetValueAsString(Style)), FCombatCameraRules::ComputeArrivalShot(Style, Arrived, Tuning).IsSet());
+			TestFalse(FString::Printf(TEXT("%s: no arrival cut"), *UEnum::GetValueAsString(Style)), FCombatCameraRules::ComputeArrivalShot(Style, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
 		}
 	});
 
