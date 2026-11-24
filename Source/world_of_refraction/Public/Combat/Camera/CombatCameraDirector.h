@@ -418,6 +418,19 @@ private:
 	bool bArrivedOnSide = false;
 	void CutOnArrival();
 
+	/** B-604c: the enemy whose defend camera is up, and when its first hit landed (< 0: not yet). The next turn's camera
+	 *  waits for that hit and its hold (FCombatCameraRules::GetDefendTurnWait). */
+	TWeakObjectPtr<AActor> DefendAttacker;
+	double DefendHitTime = -1.0;
+	/** B-604c: a turn start that came while the defend camera waited for its hit; played when the hold ends. */
+	FTimerHandle DeferredTurnTimer;
+	TWeakObjectPtr<AActor> DeferredTurnActor;
+	int32 DeferredTurnNumber = 0;
+	bool bTurnStartDeferred = false;
+	void SetDefendAttacker(AActor *Attacker);
+	void PlayDeferredTurnStart();
+	void ClearDefendWait();
+
 	// B-404: the wide beat and the party handover of the current turn start.
 	FTimerHandle WideBeatTimer;
 	FTurnChangePlan PendingTurnChange;
