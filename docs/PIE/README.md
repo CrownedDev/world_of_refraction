@@ -681,6 +681,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-309d2b](B-309d2b.md) | `refactor/B-309d2b-socket-skill-edits-write-slots` (built 2026-11-24, on B-309d2's branch) | B-309d2b: the socket preview and the skill picks edit the piece's slot; `wor.Loadout.CompareSlots` 0 differ after each | Pending |
 | [B-309d3](B-309d3.md) | `refactor/B-309d3-inventory-writes-slots` (built 2026-11-24, on B-309d2b's branch) | B-309d3: selling, dismantling, crystal changes, run presets and the loadout clean go through the slots; `wor.Loadout.CompareSlots` 0 differ after each | Pending |
 | [B-309d4](B-309d4.md) | `refactor/B-309d4-slots-are-the-truth` (built 2026-11-24, on B-309d3's branch) | B-309d4: slots found by place; switching weapon or adapter, loadouts and a save round trip as on dev; `wor.Loadout.CompareSlots` 0 differ | Pending |
+| [QA-kit](QA-kit.md) | `chore/qa-kit` (built 2026-11-24) | QA setup: `wor.Debug.QAKit` puts an ability that costs EP in the weapon in hand's skill slot (B-592b's HP ghost) and has a Caster join as your seat (the selector colour; Darkness, or the TestGear bd hint). QA save only | Pending |
 
 Move rows to **Done** when every check passes.
 
