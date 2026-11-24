@@ -145,6 +145,11 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 		Executor->OnReturnStarted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleReturnStarted); // B-600d
 		BoundExecutor = Executor;
 	}
+	if (UDefenseSystem *Defense = WoRFight::Get<UDefenseSystem>(this))
+	{
+		Defense->OnDefenseResolved.AddUniqueDynamic(this, &UCombatCameraDirector::HandleDefenseResolved); // B-604c
+		BoundDefense = Defense;
+	}
 	// B-399: the command menu's depth, whichever HUD draws it. Looked up per fight, not cached across PIE.
 	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH;
 	MenuStepCount = 0;
@@ -213,6 +218,14 @@ void UCombatCameraDirector::EndCombat()
 	HandoverFrom.Reset();
 	HandoverTo.Reset();
 	bActedSinceAsked = false; // B-401
+	// B-604c: a turn start held for the defend camera's hit is dropped with the fight.
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DeferredTurnTimer);
+	}
+	bTurnStartDeferred = false;
+	DeferredTurnActor.Reset();
+	ClearDefendWait();
 
 	if (ACombatOrchestrator *Orchestrator = Cast<ACombatOrchestrator>(GetOwner()))
 	{
@@ -226,6 +239,11 @@ void UCombatCameraDirector::EndCombat()
 		Executor->OnProjectileLaunched.RemoveDynamic(this, &UCombatCameraDirector::HandleProjectileLaunched);
 		Executor->OnReturnStarted.RemoveDynamic(this, &UCombatCameraDirector::HandleReturnStarted);
 	}
+	if (UDefenseSystem *Defense = BoundDefense.Get())
+	{
+		Defense->OnDefenseResolved.RemoveDynamic(this, &UCombatCameraDirector::HandleDefenseResolved); // B-604c
+	}
+	BoundDefense.Reset();
 	BoundExecutor.Reset();
 	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get())
 	{
@@ -342,6 +360,30 @@ void UCombatCameraDirector::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumber)
 {
+	if (bTurnStartDeferred)
+	{
+		PlayDeferredTurnStart(); // a second turn start: the first one's camera goes now
+	}
+	// B-604c: the defend camera holds until the enemy's hit has landed and been seen.
+	UWorld *World = GetWorld();
+	if (World && DefendAttacker.IsValid() && Actor != DefendAttacker.Get())
+	{
+		const bool bHitLanded = DefendHitTime >= 0.0;
+		const TOptional<float> Wait = FCombatCameraRules::GetDefendTurnWait(
+			true, bHitLanded, bHitLanded ? static_cast<float>(World->GetTimeSeconds() - DefendHitTime) : 0.0f);
+		const float Seconds = Wait.Get(FCombatCameraRules::DefendHitWaitLimitSeconds);
+		if (Seconds > 0.0f)
+		{
+			bTurnStartDeferred = true;
+			DeferredTurnActor = Actor;
+			DeferredTurnNumber = TurnNumber;
+			World->GetTimerManager().SetTimer(DeferredTurnTimer, this, &UCombatCameraDirector::PlayDeferredTurnStart, Seconds, false);
+			UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's turn: the defend camera holds %s's %s (up to %.2f s)"), *GetNameSafe(Actor),
+				   *GetNameSafe(DefendAttacker.Get()), bHitLanded ? TEXT("hit") : TEXT("coming hit"), Seconds);
+			return;
+		}
+	}
+	ClearDefendWait();
 	// B-404: who the camera followed, and whether anyone acted since the last turn start, decide the wide beat.
 	FlushPendingHandover();
 	AActor *From = ViewedActor.Get();
@@ -637,6 +679,11 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	{
 		return;
 	}
+	if (bTurnStartDeferred)
+	{
+		PlayDeferredTurnStart(); // B-604c: the next fighter acts: its turn's camera goes now
+	}
+	ClearDefendWait();
 	FlushPendingHandover(); // B-404: an action inside the beat: the handover now; the action's own camera follows
 	bActedSinceTurnStart = true;
 	bActedSinceAsked = true; // B-401
@@ -758,6 +805,7 @@ void UCombatCameraDirector::HandleSequenceFinished()
 
 void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical)
 {
+	MarkDefendHit(Attacker); // B-604c
 	// B-371: the caster's first hit plays the Impact shot (several targets: Spread), or cuts back when set to.
 	if (IsShotPlaying() && Attacker == ShotCaster.Get() && !bShotImpactShown)
 	{
@@ -1138,6 +1186,10 @@ void UCombatCameraDirector::ShowDefenceView()
 	// B-604b (Q-604b): one defender gets the defend camera (the same pose an enemy's shot opened on); several, the wide view.
 	const FTransform View = Defenders.Num() == 1 ? FCombatCameraRules::ComputeDefendShot(Defenders[0], Attacker->GetActorLocation()).End
 												 : FCombatCameraRules::ComputeDefenceView(Defenders, Attacker->GetActorLocation());
+	if (Defenders.Num() == 1)
+	{
+		SetDefendAttacker(Attacker); // B-604c: the next turn's camera waits for this hit
+	}
 	if (ACameraActor *CameraActor = Camera->ShowView(CurrentMode, View))
 	{
 		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // B-371
@@ -1283,6 +1335,7 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 		}
 		bArrivedOnSide = true; // HandleDamageDealt: the hit stays on this camera and pose
 		bShotCastShown = true; // no Cast pull-back to the enemy's side
+		SetDefendAttacker(Caster); // B-604c: the next turn's camera waits for this hit
 		CurrentMode = ECombatCameraMode::Action;
 		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defend camera: %s's %s at %s, from behind the defender"), *GetNameSafe(Caster), *GetNameSafe(Skill),
 			   *GetNameSafe(FirstTarget));
@@ -1517,6 +1570,59 @@ void UCombatCameraDirector::HandleReturnStarted(AActor *Actor, FVector Home)
 		}
 	}
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s leaps home: the wide view from its spot in %.2f s"), *GetNameSafe(Actor), Beat.BeatBlendSeconds);
+}
+
+void UCombatCameraDirector::SetDefendAttacker(AActor *Attacker)
+{
+	if (DefendAttacker.Get() != Attacker)
+	{
+		DefendAttacker = Attacker;
+		DefendHitTime = -1.0; // the Defence view after the defend shot keeps a hit that already landed
+	}
+}
+
+void UCombatCameraDirector::MarkDefendHit(AActor *Attacker)
+{
+	// The defend camera's hit: a turn start waiting on it now waits only for the hold.
+	UWorld *World = GetWorld();
+	if (!World || !Attacker || Attacker != DefendAttacker.Get() || DefendHitTime >= 0.0)
+	{
+		return;
+	}
+	DefendHitTime = World->GetTimeSeconds();
+	if (bTurnStartDeferred)
+	{
+		World->GetTimerManager().SetTimer(DeferredTurnTimer, this, &UCombatCameraDirector::PlayDeferredTurnStart, FCombatCameraRules::DefendHitHoldSeconds, false);
+	}
+}
+
+void UCombatCameraDirector::HandleDefenseResolved(AActor *Defender, AActor *Attacker, EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex,
+												  float AttackEnergyCost)
+{
+	MarkDefendHit(Attacker);
+}
+
+void UCombatCameraDirector::PlayDeferredTurnStart()
+{
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DeferredTurnTimer);
+	}
+	AActor *Actor = DeferredTurnActor.Get();
+	const int32 TurnNumber = DeferredTurnNumber;
+	bTurnStartDeferred = false;
+	DeferredTurnActor.Reset();
+	ClearDefendWait();
+	if (bInCombat && Actor)
+	{
+		HandleActorTurnStarted(Actor, TurnNumber);
+	}
+}
+
+void UCombatCameraDirector::ClearDefendWait()
+{
+	DefendAttacker.Reset();
+	DefendHitTime = -1.0;
 }
 
 void UCombatCameraDirector::CutOnArrival()
@@ -2120,6 +2226,12 @@ FString UCombatCameraDirector::GetHandoverString() const
 		State = FString::Printf(TEXT("handover: wide beat %s -> %s, blend %.2f s in %.2f s%s"), *GetNameSafe(HandoverFrom.Get()),
 								*GetNameSafe(HandoverTo.Get()), PendingTurnChange.HandoverBlendSeconds, Left,
 								bHandoverBroadcasts ? TEXT("") : TEXT(" (preview)"));
+	}
+	// B-604c: a turn start held for the defend camera's hit.
+	if (bTurnStartDeferred)
+	{
+		State += FString::Printf(TEXT("; %s's turn held for %s's %s"), *GetNameSafe(DeferredTurnActor.Get()), *GetNameSafe(DefendAttacker.Get()),
+								 DefendHitTime >= 0.0 ? TEXT("hit hold") : TEXT("coming hit"));
 	}
 	// B-401: the same-turn returns ride on the handover line (wor.Camera.Print).
 	return FString::Printf(TEXT("%s; %d sent this fight%s; %d same-turn return(s)"), *State, HandoverCount,

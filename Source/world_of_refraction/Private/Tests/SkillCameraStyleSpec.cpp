@@ -10,6 +10,7 @@
 #include "Combat/Camera/CameraFramingChecks.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Combat/Actions/ApproachWarp.h"
+#include "Animation/AnimMontage.h"
 
 namespace
 {
@@ -23,6 +24,8 @@ namespace
 	// B-604b: the test trial enemy's real skills (BP_Enemy_Generic in the B-604 check).
 	const TCHAR *const STYLE_TEST_WRATH_CUT = TEXT("/Game/Data/Pool/Generic/Weapons/Sword/Slash/Abilities/DA_Sword_Ability_WrathCut.DA_Sword_Ability_WrathCut");
 	const TCHAR *const STYLE_TEST_LUNGE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_Lunge.DA_Sword_Abilities_Lunge");
+	const TCHAR *const STYLE_TEST_HEAVY_STRIKE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_HeavyStrike.DA_Sword_Abilities_HeavyStrike");
+	constexpr float STYLE_TEST_TURN_BEFORE_HIT = 0.25f; // B-604b check: the next turn started up to 0.25 s before the hit
 
 	FCameraShotContext StyleTestContext()
 	{
@@ -134,6 +137,42 @@ void FSkillCameraStyleSpec::Define()
 				  FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::Standard, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
 		TestTrue(TEXT("a party member's Melee Rush still cuts (B-600c)"),
 				 FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::MeleeRush, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
+	});
+
+	It("B-604c: with the enemy's real Wrath Cut and Heavy Strike timing, the defend camera holds until the hit lands and is seen", [this]()
+	{
+		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_HEAVY_STRIKE})
+		{
+			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
+			if (!TestNotNull(FString::Printf(TEXT("%s loads (renamed? point this case at the enemy's skill)"), Path), Skill) ||
+				!TestNotNull(FString::Printf(TEXT("%s has its swing"), Path), Skill->SkillMontage))
+			{
+				continue;
+			}
+			const FString Name = Skill->Name;
+			// The real path (B-604b check): no Impact notify and no window, so no Defence hand-off, and the hit lands by the
+			// B-032d fallback at the swing's end, after the turn system has started the next fighter's turn.
+			const FCinematicWindowTiming Timing = FCombatCameraRules::ReadWindowTiming(Skill, Skill->BaseAnimSpeed, false);
+			float WindowEnd = 0.0f;
+			TestFalse(Name + TEXT(": no Defence window to hand off at (if this fails, its swing gained an Impact notify: re-check the timing)"),
+					  FCombatCameraRules::ResolveWindowEnd(Timing, WindowEnd));
+			const float HitAt = Skill->SkillMontage->GetPlayLength() / FMath::Max(Skill->BaseAnimSpeed, UE_KINDA_SMALL_NUMBER);
+			const float TurnStartAt = HitAt - STYLE_TEST_TURN_BEFORE_HIT;
+
+			const TOptional<float> AtTurnStart = FCombatCameraRules::GetDefendTurnWait(true, /*bHitLanded=*/false, 0.0f);
+			TestFalse(Name + TEXT(": at the next turn's start the hit hasn't landed: the camera waits for it"), AtTurnStart.IsSet());
+			TestTrue(Name + TEXT(": the wait limit covers the gap to the hit"),
+					 TurnStartAt + FCombatCameraRules::DefendHitWaitLimitSeconds > HitAt);
+			const TOptional<float> AtHit = FCombatCameraRules::GetDefendTurnWait(true, /*bHitLanded=*/true, 0.0f);
+			const float BeatAt = HitAt + AtHit.Get(0.0f);
+			TestTrue(FString::Printf(TEXT("%s: the beat at %.2f s, after the hit at %.2f s and its %.2f s hold"), *Name, BeatAt, HitAt,
+									 FCombatCameraRules::DefendHitHoldSeconds),
+					 BeatAt >= HitAt + FCombatCameraRules::DefendHitHoldSeconds - UE_KINDA_SMALL_NUMBER);
+		}
+		TestTrue(TEXT("a hit seen long enough before the turn start (the enemy's Quick Strike): no wait"),
+				 FMath::IsNearlyZero(FCombatCameraRules::GetDefendTurnWait(true, true, FCombatCameraRules::DefendHitHoldSeconds).Get(-1.0f)));
+		TestTrue(TEXT("no defend camera (a party member's attack): no wait"),
+				 FMath::IsNearlyZero(FCombatCameraRules::GetDefendTurnWait(false, false, 0.0f).Get(-1.0f)));
 	});
 
 	It("B-604b: the enemy's real Wrath Cut and Lunge play the defend camera: behind the defender, the enemy in front, clear of the lens", [this]()
