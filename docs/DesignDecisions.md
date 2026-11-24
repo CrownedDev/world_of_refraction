@@ -1305,7 +1305,12 @@ The queue of questions only Crown can answer.
 - **Elements tint it** (colour, brightness, size by infusion level); the shape stays the same. Physical (normal / enhanced) is the plain look.
 - **No trail on a plain swing**; the trail shows only while infused, in the element's colour (with the blade glow).
 - **Weapon projectiles** follow the three damage types: Slash (a flying air crescent), Pierce (a straight air thrust), Impact (a shockwave). Each lands with a plain hit burst.
-- **Assets:** blade glow + infused trail from "Sword VFX Pack: 11 Magical Blade Effects" (Code Like Me, recoloured; Crown buys). **No store pack sells a pure compressed-air slash** (searched 2026-11-24; wind packs like Mythforge Air read as magic, Crown rejected it): a worker **builds** the air slash in Niagara: a crescent mesh with a refraction (heat-haze) material, a faint pale rim, wind streaks, and a dust and debris burst on landing. Pierce and shockwave reuse the same material. Epic's free Niagara examples may supply the dust and debris.
+- **Assets (Crown picked after a full Fab sweep, 2026-11-24; all "Generated with AI: No"; Crown buys):**
+  - Blade glow + infused trail: "Sword VFX Pack: 11 Magical Blade Effects" (Code Like Me, `fab.com/listings/36cb6f95-479d-4755-b519-d9f5a2bdbb44`), recoloured per element.
+  - **Slash** projectile: "Slash Projectile Spell VFX" (Ugur VFX Studios, `fab.com/listings/952baee1-15be-4732-a85e-1ceec8cdfbcf`): a pale crescent with smoke. Listed to UE 5.7; check it in 5.8.
+  - **Impact** shockwave: "Shockwave Distortion" (Sandbox Studio, free, `fab.com/listings/db0d837f-3c94-4a67-86a8-5653ebddce12`): a refractive air ripple.
+  - **Pierce** and **hits**: "Slash and Hit VFX" (SoftTofuVFX, `fab.com/listings/9d886fdb-8011-49e7-a10d-0d8897fe9dc2`): use its Wind / Distortion / Basic styles, pierce attack, hits; colour and size are exposed.
+  - Rejected as magic-looking: Mythforge Air Magic VFX, the fiery MohmmadAslam slash pack.
 **Open:** B-596 (player-picked trail look) assumed every swing trails; Crown to say whether it stays as a style pick or is dropped.
 
 ### D-272 — The player picks the weapon trail's look
