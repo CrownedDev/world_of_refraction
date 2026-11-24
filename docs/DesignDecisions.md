@@ -1291,6 +1291,12 @@ The queue of questions only Crown can answer.
 **Reference:** Expedition 33 frames enemy attacks from behind your character so you read the enemy's swing for the parry/dodge timing; widely praised as its core loop.
 **B-604c (same default):** the defend view holds until the hit has landed (damage, guard or dodge) and been seen for 0.6 s, for every enemy single-target skill, also one whose hit lands after the next turn starts; then the normal beat. A hit that never comes stops the wait after 1.5 s. The next turn's menu and HUD handover wait with it. Both times are TODO tune in PIE.
 
+### Q-604d — The defend camera: side-on, and wide for the whole party
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-604d, the camera video study) · **Blocks:** nothing
+**Question:** B-604b's defend camera sits tight behind the one defender. Keep it, or frame the attack so the attacker's whole body and weapon stay in view? And an enemy hit on the whole party?
+**Answer (default, built):** a low side-on two-shot from the attacker's weapon side, swung a little behind the defender (the B-402 Defence view's framing), standing back until both fighters fit with room for bodies and weapons; held as a cut through the hit, as before. Several party targets: the wide shot of every defender and the enemy. The DEFEND! hand-off shows the same view, and the B-604c hit wait applies to several defenders too. Replaces Q-604b's behind-the-defender pose.
+**Reference:** the camera video study (`docs/analysis/TurnBasedCameraComparison.md` §5c): none of E33, P5R, Metaphor or FFX sits tight behind one defender; FFX (1:06) and E33's single combos use a side-on or wide two-shot, and E33 (2:32) and Metaphor (3:46) go wide for a hit on the whole party.
+
 ### Q-604 — How the enemy's melee rush is framed
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-604) · **Blocks:** nothing
 **Question:** the enemy's rush camera followed its dash and met it at the lens. Cut to a side view on arrival (as B-600c did for Melee Rush), or a framing that stays clear the whole way?
