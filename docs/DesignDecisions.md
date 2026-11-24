@@ -1288,6 +1288,18 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-272 — The player picks the weapon trail's look
+**Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, while choosing a weapon VFX pack) · **Blocks:** B-596
+**Crown:** one customisable weapon trail; players pick the trail they want. Think about two weapons and shields.
+**Ruled (reference-backed defaults, Crown may change):**
+- Still **one universal trail** (the weapon glow change); its **look** (colour or style) is a per-character cosmetic picked in the loadout. No stats.
+- **One pick per character**, shown on every weapon that character swings.
+- **Two weapons:** both blades carry the trail, but only the swinging one shows it.
+- **Shield:** no trail, except on a shield bash.
+- **Infused:** the element's glow and colour take over the trail while the infusion lasts; the chosen look returns after.
+- Reference: chosen trail cosmetics are a long-liked cosmetic (Fortnite's contrails).
+**Notes for Claude:** needs a trail VFX pack with a few looks first (Crown is choosing one, 2026-11-24).
+
 ### D-271 — Ice infusion from a Water source; the infusion HP backlash scaled and cut by Efficiency
 **Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, during the weapon glow change) · **Blocks:** B-593, B-594
 **Crown:** Ice is not an element; it stays Water's damage type, but a Water source can infuse Ice. The infusion HP backlash stays tied to EP, gets its own tunable multiplier, and Efficiency also cuts it.
