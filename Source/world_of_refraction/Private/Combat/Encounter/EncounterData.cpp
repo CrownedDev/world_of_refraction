@@ -9,14 +9,16 @@
 TArray<UCharacterData *> UEncounterData::GetEnemyRoster() const
 {
 	TArray<UCharacterData *> Roster;
-	if (MiniBossForm && MiniBossForm->Character)
+	UCharacterData *FormCharacter = MiniBossForm ? MiniBossForm->Character.Get() : nullptr;
+	if (FormCharacter)
 	{
-		Roster.Add(MiniBossForm->Character);
+		Roster.Add(FormCharacter);
 	}
 	for (UCharacterData *Enemy : Enemies)
 	{
-		// The form's character takes the field once, even when it is also listed.
-		if (Enemy && !Roster.Contains(Enemy) && Roster.Num() < EncounterConstants::ENCOUNTER_MAX_ENEMIES)
+		// The form's character takes the field once, even when it is also listed; any other enemy listed
+		// twice fields twice (a pack of the same enemy; its kits roll apart, EnemyKitRoll::RollTeam).
+		if (Enemy && Enemy != FormCharacter && Roster.Num() < EncounterConstants::ENCOUNTER_MAX_ENEMIES)
 		{
 			Roster.Add(Enemy);
 		}

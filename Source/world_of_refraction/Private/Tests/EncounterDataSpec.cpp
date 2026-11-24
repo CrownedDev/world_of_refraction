@@ -48,6 +48,14 @@ void FEncounterDataSpec::Define()
 		TestTrue(TEXT("In authored order"), Roster.Num() > 1 && Roster[0] == Encounter->Enemies[0] && Roster[1] == Encounter->Enemies[2]);
 	});
 
+	It("fields the same enemy listed three times as three (wor.Debug.TeamOfThree)", [this]()
+	{
+		UEncounterData *Encounter = NewObject<UEncounterData>(GetTransientPackage());
+		UCharacterData *Copy = FWoRTestWorld::NewCharacterData();
+		Encounter->Enemies.Init(Copy, EncounterConstants::ENCOUNTER_MAX_ENEMIES);
+		TestEqual(TEXT("Three copies take the field"), Encounter->GetEnemyRoster(), TArray<UCharacterData *>{Copy, Copy, Copy});
+	});
+
 	It("falls back to the encounter's own pawn when no team is set", [this]()
 	{
 		UCharacterData *Pawn = FWoRTestWorld::NewCharacterData();
