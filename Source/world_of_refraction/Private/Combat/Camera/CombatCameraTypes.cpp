@@ -16,7 +16,9 @@ namespace CombatCameraOffsets
 	// lower-left third, enemy centre in the middle) holds at any range. TODO: tune in PIE.
 	constexpr float ShoulderBackPerRange = 0.35f;
 	constexpr float ShoulderSidePerRange = 0.25f;
-	constexpr float ShoulderHeightPerRange = 0.2f;
+	// B-600g (Q-600g): lowered from 0.2 toward E33's hip-to-chest camera: about head height at 8 m, the lowest that
+	// keeps the character's centre in the lower third (lower, it drifts into the middle band unless the camera comes in).
+	constexpr float ShoulderHeightPerRange = 0.12f;
 	/** The shortest range the offsets scale from, so a close enemy doesn't put the camera inside the character.
 	 *  TODO: tune in PIE. */
 	constexpr float ShoulderMinRange = 500.0f;
@@ -26,8 +28,9 @@ namespace CombatCameraOffsets
 	constexpr float MenuStepLower = 0.3f;
 	constexpr float TacticalSide = 1400.0f;
 	constexpr float TacticalHeight = 550.0f;
-	constexpr float NotYourTurnBack = 1300.0f;
-	constexpr float NotYourTurnHeight = 750.0f;
+	// The view of everyone (ComputeWideView; the NotYourTurn view until B-600g).
+	constexpr float WideViewBack = 1300.0f;
+	constexpr float WideViewHeight = 750.0f;
 	constexpr float StaticBack = 1600.0f;
 	constexpr float StaticHeight = 950.0f;
 }
@@ -220,7 +223,13 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 	case ECombatCameraMode::Turn:
 		return ComputeTurnView(Style, Frame, MenuDepth);
 	case ECombatCameraMode::NotYourTurn:
-		return LookFrom(Frame.Focus - Forward * NotYourTurnBack + FVector::UpVector * NotYourTurnHeight, Frame.ArenaCentre);
+	{
+		// B-600g: the viewer's frame turned round to the acting fighter's side: it faces the viewer's side's centre.
+		FCombatCameraFrame FighterFrame = Frame;
+		FighterFrame.TowardEnemies = -Forward;
+		FighterFrame.EnemyCentre = Frame.ArenaCentre * 2.0f - Frame.EnemyCentre;
+		return ComputeTurnView(Style, FighterFrame);
+	}
 	case ECombatCameraMode::Static:
 		return LookFrom(Frame.ArenaCentre - Forward * StaticBack + FVector::UpVector * StaticHeight, Frame.ArenaCentre);
 	case ECombatCameraMode::Action:
@@ -228,6 +237,18 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 	default:
 		return LookFrom(Frame.Focus - Forward * CentredWideBack + FVector::UpVector * CentredWideHeight, Frame.EnemyCentre);
 	}
+}
+
+FTransform FCombatCameraRules::ComputeWideView(const FCombatCameraFrame &Frame)
+{
+	using namespace CombatCameraOffsets;
+	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	return LookFrom(Frame.Focus - Forward * WideViewBack + FVector::UpVector * WideViewHeight, Frame.ArenaCentre);
+}
+
+bool FCombatCameraRules::IsWideAction(int32 TargetCount)
+{
+	return TargetCount >= MinTargetsForWideBeat;
 }
 
 FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth)
@@ -984,16 +1005,17 @@ namespace CombatCameraTurnChange
 	constexpr float HandoverBlendSeconds = 0.5f;
 }
 
-FTurnChangePlan FCombatCameraRules::PlanTurnChange(bool bSomeoneActed, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
+FTurnChangePlan FCombatCameraRules::PlanTurnChange(bool bWideActionSinceTurnStart, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
 												   const FCombatCameraFrame &Frame)
 {
 	using namespace CombatCameraTurnChange;
 	FTurnChangePlan Plan;
 	Plan.TurnView = ComputeView(NextMode, Style, Frame);
-	Plan.bWideBeat = bSomeoneActed && !bSameActor && NextMode == ECombatCameraMode::Turn;
+	const bool bNextIsTurnView = NextMode == ECombatCameraMode::Turn || NextMode == ECombatCameraMode::NotYourTurn;
+	Plan.bWideBeat = bWideActionSinceTurnStart && !bSameActor && bNextIsTurnView;
 	if (Plan.bWideBeat)
 	{
-		Plan.WideView = ComputeView(ECombatCameraMode::NotYourTurn, Style, Frame);
+		Plan.WideView = ComputeWideView(Frame);
 		Plan.BeatBlendSeconds = WideBeatBlendSeconds;
 		Plan.BeatSeconds = WideBeatBlendSeconds + WideBeatHoldSeconds;
 		Plan.HandoverBlendSeconds = HandoverBlendSeconds;

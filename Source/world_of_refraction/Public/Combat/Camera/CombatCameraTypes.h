@@ -20,7 +20,7 @@ enum class ECombatCameraMode : uint8
 	Turn UMETA(DisplayName = "Turn"),
 	/** A skill's Level Sequence is playing. */
 	Action UMETA(DisplayName = "Action"),
-	/** Someone else's turn: pan out wide. */
+	/** Someone else's turn. B-600g: behind that fighter, as a turn view (it was a wide pan-out). */
 	NotYourTurn UMETA(DisplayName = "Not Your Turn"),
 	/** Camera movement off: one fixed wide view. */
 	Static UMETA(DisplayName = "Static"),
@@ -31,7 +31,7 @@ enum class ECombatCameraMode : uint8
 	KillShot UMETA(DisplayName = "Kill shot")
 };
 
-/** Turn-view setting (D-074 (2)): centred-wide is the default. B-398: a player setting, saved (FSavedSettings);
+/** Turn-view setting (D-074 (2)): over-the-shoulder is the default since B-600g (Q-600g; it was centred-wide). B-398: a player setting, saved (FSavedSettings);
  *  its player-facing names are FCombatCameraRules::GetTurnViewStyleName. */
 UENUM(BlueprintType)
 enum class ETurnViewStyle : uint8
@@ -278,14 +278,25 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static ECameraTemplateKind TemplateKindFor(const USkillDataBase *Skill, EActionType ActionType);
 
 	/** Camera transform for a mode. Action has no transform of its own (the sequence owns the view). Defence uses
-	 *  ComputeDefenceView. Turn is ComputeTurnView (MenuDepth is read only there). */
+	 *  ComputeDefenceView. Turn is ComputeTurnView (MenuDepth is read only there). NotYourTurn (B-600g, Q-600g): the
+	 *  same turn view behind the other side's acting fighter, facing the viewer's side (Frame is the viewer's, as
+	 *  BuildFrame makes it); the view of everyone is ComputeWideView. */
 	static FTransform ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth = 0);
+
+	/** B-600g: the view of everyone (the wide beat between turns): behind and high above Frame's focus, aimed at the
+	 *  arena centre. Before B-600g it was the NotYourTurn view. */
+	static FTransform ComputeWideView(const FCombatCameraFrame &Frame);
+
+	/** B-600g (Q-600g): the fewest targets an action needs for the wide beat to play before the next turn; a single-
+	 *  target action goes straight to the next fighter's turn view. */
+	static constexpr int32 MinTargetsForWideBeat = 2;
+	static bool IsWideAction(int32 TargetCount);
 
 	/** B-399: the deepest menu step the turn view takes (a sub-menu); deeper menus hold it. */
 	static constexpr int32 MaxMenuDepth = 1;
 
 	/** B-398 (study R1): the turn view for each turn-view setting; the one place a turn view is framed.
-	 *  CentredWide: behind and above the character, facing the enemy centre (D-074 default).
+	 *  CentredWide: behind and above the character, facing the enemy centre (D-074's default until B-600g).
 	 *  OverTheShoulder: the acting character in the lower-left third, back to the camera, the enemy centre in the
 	 *  middle of the frame; scaled to the character's distance from the enemy centre, so every party member at any
 	 *  range gets the same layout. Tactical: side-on, both teams in view.
@@ -450,11 +461,11 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  framing as the burst ends, so the travel is never followed on screen. */
 	static FCameraShot FollowApproachBurst(const FCameraShot &Rush, const FCameraShot &WindUpAtStrike, float WindowStart, float WindowEnd, bool bCut);
 
-	/** B-404 (study R12, R16, Q-404): the camera's way into a new turn. A wide beat (the NotYourTurn wide, framed
-	 *  from the new actor's side) plays only between turns: someone acted since the last turn start, the turn passes
-	 *  to another actor, and the new view is a Turn view. Never between actions of one actor (B-401), never with
-	 *  movement off (Static), and not before an enemy's turn (its watch view is already the wide). */
-	static FTurnChangePlan PlanTurnChange(bool bSomeoneActed, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
+	/** B-404 (study R12, R16, Q-404): the camera's way into a new turn. A wide beat (ComputeWideView) plays only between
+	 *  turns: B-600g (Q-600g), an action since the last turn start hit several targets (IsWideAction), the turn passes
+	 *  to another actor, and the new view is a turn view (Turn, or NotYourTurn behind an enemy). Never between actions
+	 *  of one actor (B-401), never with movement off (Static). Otherwise the next turn view comes straight away. */
+	static FTurnChangePlan PlanTurnChange(bool bWideActionSinceTurnStart, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
 										  const FCombatCameraFrame &Frame);
 	/** B-406: the first shot of a skill's pattern: an enemy's named attack opens on the NamedAttack front shot, every
 	 *  other skill on the over-the-shoulder WindUp. */
