@@ -9,6 +9,7 @@
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "Combat/Camera/CameraFramingChecks.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Combat/Actions/ApproachWarp.h"
 
 namespace
 {
@@ -19,6 +20,9 @@ namespace
 	constexpr float STYLE_TEST_LOW_CAMERA_HEIGHT = 100.0f; // a hero angle sits below the fighters' chests
 	const FVector STYLE_TEST_STRIKE_SPOT(650.0f, 0.0f, 0.0f);	   // B-600c: where a melee dash ends, in reach of the target
 	constexpr float STYLE_TEST_MIN_LENS_DISTANCE = 250.0f;		   // B-600c: the attacker never fills the lens
+	// B-604b: the test trial enemy's real skills (BP_Enemy_Generic in the B-604 check).
+	const TCHAR *const STYLE_TEST_WRATH_CUT = TEXT("/Game/Data/Pool/Generic/Weapons/Sword/Slash/Abilities/DA_Sword_Ability_WrathCut.DA_Sword_Ability_WrathCut");
+	const TCHAR *const STYLE_TEST_LUNGE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_Lunge.DA_Sword_Abilities_Lunge");
 
 	FCameraShotContext StyleTestContext()
 	{
@@ -130,6 +134,47 @@ void FSkillCameraStyleSpec::Define()
 				  FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::Standard, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
 		TestTrue(TEXT("a party member's Melee Rush still cuts (B-600c)"),
 				 FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::MeleeRush, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
+	});
+
+	It("B-604b: the enemy's real Wrath Cut and Lunge play the defend camera: behind the defender, the enemy in front, clear of the lens", [this]()
+	{
+		// The enemy at its start (StyleTestContext's caster), the one party member it attacks at STYLE_TEST_TARGET.
+		const FVector Enemy = StyleTestContext().Caster;
+		const FVector Defender = STYLE_TEST_TARGET;
+		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_LUNGE})
+		{
+			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
+			if (!TestNotNull(FString::Printf(TEXT("%s loads (renamed? point this case at the enemy's skill)"), Path), Skill))
+			{
+				continue;
+			}
+			// StartShotPattern's path for an enemy caster with one party target.
+			const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(Skill->CameraTuning, /*bCasterIsEnemy=*/true);
+			TestTrue(FString::Printf(TEXT("%s: the enemy's attack plays the defend camera"), *Skill->Name),
+					 FCombatCameraRules::UsesDefendCamera(/*bCasterIsEnemy=*/true, Opening, /*bOnePartyTarget=*/true));
+
+			const FCameraShot Shot = FCombatCameraRules::ComputeDefendShot(Defender, Enemy);
+			const FVector Lens = Shot.End.GetLocation();
+			const FVector Strike = ApproachWarp::GetStrikePosition(Enemy, Defender, Skill->ExecutionRange); // where a dash would end
+			const FString Name = Skill->Name;
+			TestTrue(Name + TEXT(": a cut that holds (through the hit), no rush blur"), Shot.bCut && IsStill(Shot) && FMath::IsNearlyZero(Shot.MotionBlur));
+			TestTrue(Name + TEXT(": behind the defender: the defender stands between the lens and the enemy"),
+					 FVector::DotProduct(Defender - Lens, (Enemy - Lens).GetSafeNormal2D()) > 0.0f &&
+						 FVector::Dist2D(Lens, Defender) < FVector::Dist2D(Lens, Strike));
+			TestTrue(FString::Printf(TEXT("%s: low (below %.0f cm over the defender)"), *Name, STYLE_TEST_LOW_CAMERA_HEIGHT), Lens.Z < Defender.Z + STYLE_TEST_LOW_CAMERA_HEIGHT);
+			for (const FVector &EnemyAt : {Enemy, Strike})
+			{
+				TestTrue(FString::Printf(TEXT("%s: the enemy at %s at least %.0f cm from the lens"), *Name, *EnemyAt.ToCompactString(), STYLE_TEST_MIN_LENS_DISTANCE),
+						 FVector::Dist(Lens, EnemyAt) >= STYLE_TEST_MIN_LENS_DISTANCE);
+				TestTrue(FString::Printf(TEXT("%s: the enemy at %s and the defender both in frame"), *Name, *EnemyAt.ToCompactString()),
+						 CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, EnemyAt) &&
+							 CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Defender));
+			}
+		}
+		TestFalse(TEXT("a party member's attack keeps the attack camera (its style)"),
+				  FCombatCameraRules::UsesDefendCamera(false, ECameraShotMoment::WindUp, true));
+		TestFalse(TEXT("an enemy's named attack keeps its front shot (B-406)"), FCombatCameraRules::UsesDefendCamera(true, ECameraShotMoment::NamedAttack, true));
+		TestFalse(TEXT("an enemy at several targets, or at its own side: today's shots"), FCombatCameraRules::UsesDefendCamera(true, ECameraShotMoment::WindUp, false));
 	});
 
 	It("B-600d: a party member's leap home leaves its shot; an enemy's keeps its shot", [this]()
