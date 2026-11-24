@@ -23,6 +23,26 @@ namespace ImpactVisualDefaultsAsset
 	inline const TCHAR *PATH = TEXT("/Game/Data/Combat/DA_ImpactVisualDefaults.DA_ImpactVisualDefaults");
 }
 
+/** One infusion level's look (Crown 2026-11-24): how much brighter (the glow's and trail's tint) and bigger (the
+ *  glow's Scale_All) it plays. The glow also gets the level itself as the int user parameter InfusionLevel. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FInfusionLevelVisual
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows", meta = (ClampMin = "0.0"))
+	float Intensity = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows", meta = (ClampMin = "0.0"))
+	float Size = 1.0f;
+
+	/** Color with its RGB scaled by Intensity; alpha kept. */
+	FLinearColor Brighten(const FLinearColor &Color) const
+	{
+		return FLinearColor(Color.R * Intensity, Color.G * Intensity, Color.B * Intensity, Color.A);
+	}
+};
+
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UImpactVisualDefaults : public UPrimaryDataAsset
 {
@@ -88,6 +108,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
 	TMap<ESpellElement, TSoftObjectPtr<UNiagaraSystem>> ElementInfusionGlowVFX;
 
-	/** The element's default glow slot; empty when it has none. */
-	TSoftObjectPtr<UNiagaraSystem> GetInfusionGlowVFX(ESpellElement Element) const;
+	/** A Physical infusion's default glow: a source with no element (it deals None). TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TSoftObjectPtr<UNiagaraSystem> PhysicalInfusionGlowVFX;
+
+	/** A Raw infusion's default glow (enhanced physical, paid in HP). TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TSoftObjectPtr<UNiagaraSystem> RawInfusionGlowVFX;
+
+	/** Each infusion level's look, level 1 first; a level past the end uses the last row. Every glow (all elements,
+	 *  Physical, Raw) and the weapon trail's tint use the same table. TODO: tune. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TArray<FInfusionLevelVisual> InfusionLevelVisuals;
+
+	UImpactVisualDefaults();
+
+	/** The default glow slot: Raw's when bRaw, Physical's with no element (None or Generic), else the element's row;
+	 *  empty when that slot has none. */
+	TSoftObjectPtr<UNiagaraSystem> GetInfusionGlowVFX(ESpellElement Element, bool bRaw = false) const;
+
+	/** Level's row in InfusionLevelVisuals; plain (x1) at level 0 or with no rows. */
+	FInfusionLevelVisual GetInfusionLevelVisual(int32 Level) const;
+
+	/** Level's look from the authored asset, else the built-in table. */
+	static FInfusionLevelVisual ForInfusionLevel(int32 Level);
 };
