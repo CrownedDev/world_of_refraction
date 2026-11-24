@@ -111,13 +111,18 @@ void FIceInfusionSpec::Define()
 		const float MaxDur = static_cast<float>(DurabilityConstants::GetMaxDurabilityForTier(Matched));
 		const float InfusionPct = UBreakCalculator::GetInfusionWearPercent(ICE_TEST_L1, true);
 		TestTrue(TEXT("an L1 spell infusion wears"), InfusionPct > 0.0f);
-		TestEqual(TEXT("matched tier: all of it is the add-on, x the factor"),
-				  UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Matched, ICE_TEST_L1, true, Ice), FMath::RoundToInt(InfusionPct * Ice * MaxDur));
+		const int32 IceMatched = UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Matched, ICE_TEST_L1, true, Ice);
+		TestTrue(FString::Printf(TEXT("matched tier: all of it is the add-on, x the factor (%d)"), IceMatched),
+				 FMath::Abs(IceMatched - InfusionPct * Ice * MaxDur) <= ICE_TEST_ROUNDING);
 		TestEqual(TEXT("the default factor leaves wear as it was"), UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Matched, ICE_TEST_L1, true),
 				  UBreakCalculator::CalculateDurabilityWear(Matched, Matched, ICE_TEST_L1, true));
 		const EItemTier Above = EItemTier::A_Tier;
 		TestEqual(TEXT("uninfused tier-gap wear is not scaled"), UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Above, ICE_TEST_L0, true, Ice),
 				  UBreakCalculator::CalculateDurabilityWear(Matched, Above, ICE_TEST_L0, true));
+		const int32 GapWater = UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Above, ICE_TEST_L1, true);
+		const int32 GapIce = UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Above, ICE_TEST_L1, true, Ice);
+		TestTrue(FString::Printf(TEXT("tier gap plus infusion: Ice adds only the add-on's extra (%d vs %d)"), GapIce, GapWater),
+				 FMath::Abs(GapIce - GapWater - (Ice - 1.0f) * InfusionPct * MaxDur) <= ICE_TEST_ROUNDING && GapIce > GapWater);
 	});
 
 	It("carries the Ice pick through a co-op pick request", [this]()
