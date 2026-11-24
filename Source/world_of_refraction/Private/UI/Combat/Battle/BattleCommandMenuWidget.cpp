@@ -283,8 +283,7 @@ void UBattleMenuHintsWidget::PushToWidgets()
 		WoRMenuStyle::SetShown(KeyCaps[Index]->GetParent(), !Hint.Key.IsEmpty());
 		LabelTexts[Index]->SetText(Hint.Label);
 		LabelTexts[Index]->SetColorAndOpacity(FSlateColor(Hint.bEnabled ? WoRMenuStyle::TextColor : WoRMenuStyle::OffColor));
-		Button->SetIsEnabled(Hint.bEnabled);
-		Button->SetToolTipText(Hint.Reason); // a greyed hint says why (Flee in a boss fight)
+		// B-598b: a greyed hint stays clickable, so a click says why in the panel's second line (PressRow); no tooltip.
 		Button->SetVisibility(ESlateVisibility::Visible);
 	}
 }
@@ -540,6 +539,7 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 {
 	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
 	bAtMainMenu = Menu && Menu->IsAtMainMenu();
+	Refusal = FText::GetEmpty(); // B-598b: a new or refreshed view drops the last greyed command's reason
 	Panel = Menu ? Menu->GetTargetPanel() : FTargetPanelView(); // B-592: before RefreshKeys (the infusion hints follow it)
 	if (Panel.Elements.Num() > MAX_CHIPS)
 	{
@@ -592,6 +592,7 @@ void UBattleCommandMenuWidget::HandleMenuClosed()
 	Title = FText::GetEmpty();
 	DurabilityLines.Reset();
 	Panel = FTargetPanelView();
+	Refusal = FText::GetEmpty();
 	bShowing = false;
 	PushToWidgets();
 }
@@ -650,7 +651,6 @@ void UBattleCommandMenuWidget::RefreshKeys()
 			Hint.Label = Row.Category == EPieMenuCategory::CycleLevel	 ? LOCTEXT("HintLevel", "Level")
 						 : Row.Category == EPieMenuCategory::CycleSource ? LOCTEXT("HintElement", "Element")
 																		 : Name;
-			Hint.Reason = Reason;
 			Hint.RowIndex = Index;
 			Hint.bEnabled = Row.bEnabled;
 		}
@@ -802,6 +802,7 @@ void UBattleCommandMenuWidget::MoveLitRow(int32 Direction)
 		if (IsNavigableRow(Index))
 		{
 			LitRow = Index;
+			Refusal = FText::GetEmpty(); // B-598b: moving on selects another command
 			HoverRow(Index); // a target row highlights its target: the marker and camera follow, as hover
 			PushToWidgets();
 			return;
@@ -865,8 +866,10 @@ void UBattleCommandMenuWidget::PressRow(int32 RowIndex)
 	const FPieMenuButtonData Pressed = Rows[RowIndex]; // HandleSelection can rebroadcast and replace Rows
 	if (!Pressed.bEnabled || Pressed.Category == EPieMenuCategory::SectionHeader)
 	{
+		ShowRefusal(Pressed);
 		return;
 	}
+	Refusal = FText::GetEmpty();
 	if (IsNavigableRow(RowIndex))
 	{
 		LitRow = RowIndex; // B-582c QA: a click or D leaves this list on this row, for Back
@@ -875,6 +878,33 @@ void UBattleCommandMenuWidget::PressRow(int32 RowIndex)
 	{
 		Menu->HandleSelection(Pressed);
 	}
+}
+
+bool UBattleCommandMenuWidget::ShowRefusal(const FPieMenuButtonData &Row)
+{
+	// A greyed frame row already says why under its name (PushToWidgets); only a corner hint needs the line.
+	if (!bShowing || Row.bEnabled || Row.Description.IsEmpty() || !IsCornerHint(Row.Category, bAtMainMenu))
+	{
+		return false;
+	}
+	Refusal = Row.Description;
+	PushToWidgets();
+	return true;
+}
+
+bool UBattleCommandMenuWidget::ShowRefusalForKey(EPieMenuCategory Key)
+{
+	// Mirrors PressMenuKey's lookup: in a target step 2 / X and 3 / Y press the panel's lines; the category keys
+	// press main-menu buttons only.
+	const EPieMenuCategory PanelButton = bAtMainMenu ? EPieMenuCategory::None : CommandMenuRules::TargetPanelButtonForKey(Key);
+	const EPieMenuCategory Presses = PanelButton == EPieMenuCategory::None ? Key : PanelButton;
+	if (!bAtMainMenu && PanelButton == EPieMenuCategory::None && CommandMenuRules::IsMainMenuKey(Key))
+	{
+		return false;
+	}
+	const FPieMenuButtonData *Greyed = Rows.FindByPredicate([Presses](const FPieMenuButtonData &Row)
+															{ return !Row.bEnabled && CommandMenuRules::KeyPressesButton(Presses, Row.Category); });
+	return Greyed && ShowRefusal(*Greyed);
 }
 
 void UBattleCommandMenuWidget::PressChip(int32 Line, int32 Index)
@@ -933,8 +963,10 @@ void UBattleCommandMenuWidget::PushToWidgets()
 	const bool bPanel = bShowing && Panel.bShown;
 	if (SummaryText)
 	{
-		SummaryText->SetText(Panel.Summary);
-		WoRMenuStyle::SetShown(SummaryText, bPanel && Panel.Open == ETargetPanelLine::None && !Panel.Summary.IsEmpty());
+		// B-598b: a greyed command's reason takes the same quiet line ("Can't flee a boss"), on the main menu too.
+		const bool bRefusal = bShowing && !Refusal.IsEmpty();
+		SummaryText->SetText(bRefusal ? Refusal : Panel.Summary);
+		WoRMenuStyle::SetShown(SummaryText, bRefusal || (bPanel && Panel.Open == ETargetPanelLine::None && !Panel.Summary.IsEmpty()));
 	}
 	const TArray<FText> *LineChoices[CHIP_LINES] = {&Panel.Weapons, &Panel.Elements, &Panel.Levels};
 	const int32 LineActive[CHIP_LINES] = {Panel.ActiveWeapon, Panel.ActiveElement, Panel.ActiveLevel};
@@ -1048,6 +1080,10 @@ FString UBattleCommandMenuWidget::GetCommandMenuString() const
 								  DurabilityLines.IsEmpty() ? TEXT("none")
 															: *FText::Join(FText::FromString(TEXT(", ")), DurabilityLines).ToString());
 	Out += FString::Printf(TEXT(" lit=%d selector=%s"), GetLitRow(), *SelectorFill.ToFColor(true).ToHex()); // B-582c
+	if (!Refusal.IsEmpty())
+	{
+		Out += FString::Printf(TEXT(" refusal=\"%s\""), *Refusal.ToString()); // B-598b
+	}
 	if (Panel.bShown) // B-592
 	{
 		const FText Comma = FText::FromString(TEXT(", "));
