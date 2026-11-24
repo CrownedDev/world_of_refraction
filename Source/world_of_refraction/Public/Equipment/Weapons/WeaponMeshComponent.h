@@ -11,6 +11,7 @@ class UCharacterDataComponent;
 class ULoadoutComponent;
 class UWeaponData;
 class USkeletalMeshComponent;
+class UMeshComponent;
 
 UCLASS(ClassGroup = (Custom), meta = (BlueprintSpawnableComponent))
 class WORLD_OF_REFRACTION_API UWeaponMeshComponent : public UActorComponent
@@ -44,6 +45,14 @@ public:
     /** Get the primary static mesh component (for VFX sampling) */
     UFUNCTION(BlueprintPure, Category = "Weapon Mesh")
     UStaticMeshComponent *GetPrimaryStaticMeshComp() const { return PrimaryStaticMeshComp; }
+
+    /** Crown 2026-11-24: the weapon in hand's own mesh, for what plays on it (the weapon infusion glow, the trail): the
+     *  main-hand piece (static or skeletal), else the off hand's; null with none shown. It sits in whichever hand holds
+     *  the piece, so a two-hander or a left-hand weapon needs nothing more. */
+    UMeshComponent *GetWeaponVFXMesh() const;
+
+    /** Fires after the weapon meshes are rebuilt (a swap, a set change), so what rides on them can re-attach. */
+    FSimpleMulticastDelegate OnWeaponMeshRebuilt;
 
     // ==================== SOCKETS (D-242) ====================
     // One hold per hand on every body, and each weapon made to fit it; a shield has its own point in either hand. The

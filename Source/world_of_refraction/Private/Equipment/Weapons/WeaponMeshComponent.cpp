@@ -288,6 +288,24 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
 
     UE_LOG(LogTemp, Verbose, TEXT("[WeaponMeshComponent] Updated weapon mesh: %s"),
            ActiveWeapon ? *ActiveWeapon->Name : TEXT("None"));
+    OnWeaponMeshRebuilt.Broadcast();
+}
+
+UMeshComponent *UWeaponMeshComponent::GetWeaponVFXMesh() const
+{
+    if (PrimaryStaticMeshComp)
+    {
+        return PrimaryStaticMeshComp;
+    }
+    if (PrimarySkeletalMeshComp)
+    {
+        return PrimarySkeletalMeshComp;
+    }
+    if (SecondaryStaticMeshComp)
+    {
+        return SecondaryStaticMeshComp;
+    }
+    return SecondarySkeletalMeshComp;
 }
 
 void UWeaponMeshComponent::SetWeaponHidden(bool bHidden)
