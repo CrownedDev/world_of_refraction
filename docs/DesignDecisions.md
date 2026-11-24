@@ -1297,6 +1297,17 @@ The queue of questions only Crown can answer.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-273 — Weapon VFX are plain physical "compressed air", tinted per element
+**Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, choosing weapon VFX for the sword skills) · **Blocks:** B-595b-e, B-596
+**Crown:** weapon effects should look physical, not magical: think of Zoro's flying slashes in One Piece (compressed air). Raw physical effects, recoloured for an element; no pre-made elemental weapon effects. The trail only matters for an elemental infusion.
+**Ruled:**
+- **One plain physical look** for weapon effects: a thin pale crescent, a heat-haze ripple, wind streaks, dust and debris where it lands. No embers, runes or magic sparkle.
+- **Elements tint it** (colour, brightness, size by infusion level); the shape stays the same. Physical (normal / enhanced) is the plain look.
+- **No trail on a plain swing**; the trail shows only while infused, in the element's colour (with the blade glow).
+- **Weapon projectiles** follow the three damage types: Slash (a flying air crescent), Pierce (a straight air thrust), Impact (a shockwave). Each lands with a plain hit burst.
+- **Assets (Crown buys):** blade glow + infused trail from "Sword VFX Pack: 11 Magical Blade Effects" (Code Like Me, recoloured); the air slash base from "Mythforge Air Magic VFX" (wind crescent slash); a worker adds the ripple and dust. Pierce and shockwave are built from these or Epic's free Niagara examples.
+**Open:** B-596 (player-picked trail look) assumed every swing trails; Crown to say whether it stays as a style pick or is dropped.
+
 ### D-272 — The player picks the weapon trail's look
 **Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, while choosing a weapon VFX pack) · **Blocks:** B-596
 **Crown:** one customisable weapon trail; players pick the trail they want. Think about two weapons and shields.
