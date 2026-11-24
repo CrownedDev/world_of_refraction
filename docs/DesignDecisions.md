@@ -1359,6 +1359,15 @@ Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wi
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
+### D-274 — Every fighter starts a fight with 1 action
+**Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, play-testing action pips) · **Blocks:** B-605
+**Crown:** "we should start with one action".
+**Ruled:**
+- **Every fighter, party and enemy, starts a fight with 1 action banked**, whatever its regain (capped at its Max Actions). Was: the fight started with the regain (1 + Reflex steps, up to Max; Q-170, B-170a).
+- **Unchanged:** the regain from the second turn on (1 + one per Reflex step, Q-170i) and Max Actions (2 + 1 per 100 action points, at most 5).
+- Built in B-605: `ActionPipsConstants::ACTIONS_AT_FIGHT_START`, `ActionPipsRules::ActionsAtFightStart`, `UCharacterDataComponent::ResetActionsForFight`.
+**Open:** a fighter that joins mid-fight (a summon, a co-op seat) gets no fight-start bank today (it starts at 0 and its first turn is skipped until it has actions); unchanged by B-605, to be ruled when one of those is built.
+
 ### D-273 — Weapon VFX are plain physical "compressed air", tinted per element
 **Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, choosing weapon VFX for the sword skills) · **Blocks:** B-595b-e, B-596
 **Crown:** weapon effects should look physical, not magical: think of Zoro's flying slashes in One Piece (compressed air). Raw physical effects, recoloured for an element; no pre-made elemental weapon effects. The trail only matters for an elemental infusion.
