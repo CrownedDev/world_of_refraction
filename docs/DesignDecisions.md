@@ -1250,6 +1250,16 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### Q-595e — Force Strike's numbers (the ranged air slash)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595e) · **Blocks:** nothing
+**Question:** Force Strike swings from where the fighter stands and sends the cut through the air (D-273). What are its numbers next to Quick Strike's 35 damage / 10 EP?
+**Answer (default, built):** **30 damage, 12 EP, 5 status buildup, 1 action, no stat scaling, Ranged.**
+- A little less damage than Quick Strike for a little more EP: you pay for not having to close the distance (no dash in, no counter window up close).
+- Buildup 5 like Quick Strike: a plain cut, not a status tool. Projectile speed 1500: about 0.5 s of flight across the usual 7 m gap, the same time to read it and Guard or Dodge as a spell bolt.
+- On the QA save it hit the test enemy for 71 (Quick Strike: 96).
+- **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
+**Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
+
 ### Q-595 — Quick Strike's numbers (the first of the four one-handed sword skills)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595a) · **Blocks:** nothing
 **Question:** Quick Strike had the placeholder 30 damage / 15 EP shared by most sword skills. What are its real numbers, between the basic Slash (20 damage, free) and Heavy Attack (80, 25 EP)?
@@ -1257,6 +1267,7 @@ The queue of questions only Crown can answer.
 - About 1.75x the free attack for the cheapest EP cost of the four. Heavy Attack stays the best damage per EP (+60 over Slash for 25 EP, against Quick Strike's +15 for 10), so the cheap skill is the safe filler and the big one the payoff.
 - Buildup 5, the same as the basic Slash: a light cut, not a status tool.
 - On the QA save it hit the test enemy for 96; the old 30-damage version hit it for 71.
+- **Price (added in B-595e):** the Combat Master sells it at the tier F ability price, **25 Gold + 10 Dormant Essence** (prices come from the tier, not authored), half the shop's tier E sword skills (50 Gold + 13), which hit about twice as hard. Every new B-595 skill joins that shop the same way.
 **Reference:** Honkai: Star Rail's basic attack is free and its Skill costs one point for about twice the damage; that cheap-filler / point-spender loop is widely praised for keeping every turn a choice. Expedition 33 also keeps its base attack free and puts its skills on a small AP cost. The deckbuilder has no per-card number to copy here (its costs are energy per card, not a ratio to an attack).
 
 ### Q-590 — The turn-order hexagons' small points
