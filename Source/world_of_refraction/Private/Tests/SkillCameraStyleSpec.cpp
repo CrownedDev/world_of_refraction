@@ -9,6 +9,7 @@
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "Combat/Camera/CameraFramingChecks.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Combat/Actions/ApproachWarp.h"
 
 namespace
 {
@@ -19,6 +20,9 @@ namespace
 	constexpr float STYLE_TEST_LOW_CAMERA_HEIGHT = 100.0f; // a hero angle sits below the fighters' chests
 	const FVector STYLE_TEST_STRIKE_SPOT(650.0f, 0.0f, 0.0f);	   // B-600c: where a melee dash ends, in reach of the target
 	constexpr float STYLE_TEST_MIN_LENS_DISTANCE = 250.0f;		   // B-600c: the attacker never fills the lens
+	// B-604b: the test trial enemy's real skills (BP_Enemy_Generic in the B-604 check).
+	const TCHAR *const STYLE_TEST_WRATH_CUT = TEXT("/Game/Data/Pool/Generic/Weapons/Sword/Slash/Abilities/DA_Sword_Ability_WrathCut.DA_Sword_Ability_WrathCut");
+	const TCHAR *const STYLE_TEST_LUNGE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_Lunge.DA_Sword_Abilities_Lunge");
 
 	FCameraShotContext StyleTestContext()
 	{
@@ -130,6 +134,53 @@ void FSkillCameraStyleSpec::Define()
 				  FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::Standard, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
 		TestTrue(TEXT("a party member's Melee Rush still cuts (B-600c)"),
 				 FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::MeleeRush, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
+	});
+
+	It("B-604b: the test trial enemy's real Wrath Cut and Lunge (swung in place) open on the side view, clear of the lens", [this, Tuning]()
+	{
+		// The enemy at its start (StyleTestContext's caster), the party member at STYLE_TEST_TARGET: no dash, so no arrival.
+		const FCameraShotContext Context = StyleTestContext();
+		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_LUNGE})
+		{
+			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
+			if (!TestNotNull(FString::Printf(TEXT("%s loads"), Path), Skill))
+			{
+				continue;
+			}
+			// StartShotPattern's path for an enemy caster, step by step.
+			const ESkillCameraStyle Style = FCombatCameraRules::GetCameraStyle(Skill, /*bCasterIsEnemy=*/true);
+			const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(Skill->CameraTuning, /*bCasterIsEnemy=*/true);
+			FCameraShotContext SkillContext = Context;
+			SkillContext.bRanged = Skill->ExecutionType == EAbilityExecutionType::Ranged;
+			const FCameraShot OpeningShot = FCombatCameraRules::ComputeStyledShot(Style, Opening, SkillContext, Skill->CameraTuning)
+												.Get(FCombatCameraRules::ComputeShot(Opening, SkillContext, Skill->CameraTuning));
+			const bool bRush = Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f;
+			FVector Strike;
+			FApproachBurst Burst;
+			const bool bHasDash = FCombatCameraRules::MeasureApproach(SkillContext.Caster, STYLE_TEST_TARGET, Skill, Strike, Burst);
+			TestTrue(FString::Printf(TEXT("%s: a melee rush opening"), *Skill->Name), bRush);
+			TestFalse(FString::Printf(TEXT("%s: no dash (its montage has no warp window: it swings where it stands)"), *Skill->Name), bHasDash);
+			TestTrue(FString::Printf(TEXT("%s: opens on the side view at once"), *Skill->Name),
+					 FCombatCameraRules::PlanRushOpening(Style, /*bCasterIsEnemy=*/true, bRush, bHasDash) == ERushOpening::SideViewNow);
+
+			const TOptional<FCameraShot> Side = FCombatCameraRules::ComputeArrivalShot(Style, /*bCasterIsEnemy=*/true, SkillContext, Skill->CameraTuning);
+			TestTrue(FString::Printf(TEXT("%s: a still cut, no rush blur"), *Skill->Name), Side.IsSet() && Side->bCut && IsStill(*Side) && FMath::IsNearlyZero(Side->MotionBlur));
+			TestTrue(FString::Printf(TEXT("%s: the enemy at least %.0f cm from the lens"), *Skill->Name, STYLE_TEST_MIN_LENS_DISTANCE),
+					 Side.IsSet() && FVector::Dist(Side->End.GetLocation(), SkillContext.Caster) >= STYLE_TEST_MIN_LENS_DISTANCE);
+			TestTrue(FString::Printf(TEXT("%s: the enemy and its target both in frame"), *Skill->Name),
+					 Side.IsSet() && CameraFraming::IsOnScreen(Side->End, Side->FieldOfView, CameraFraming::DEFAULT_ASPECT, SkillContext.Caster) &&
+						 CameraFraming::IsOnScreen(Side->End, Side->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
+		}
+		TestTrue(TEXT("an enemy that dashes: holds, then cuts on arrival (B-604)"),
+				 FCombatCameraRules::PlanRushOpening(ESkillCameraStyle::Standard, true, true, true) == ERushOpening::HoldThenCut);
+		TestTrue(TEXT("party Standard with a dash: the timed rush, unchanged"),
+				 FCombatCameraRules::PlanRushOpening(ESkillCameraStyle::Standard, false, true, true) == ERushOpening::TimedRush);
+		TestTrue(TEXT("party Melee Rush with a dash: holds, then cuts (B-600c)"),
+				 FCombatCameraRules::PlanRushOpening(ESkillCameraStyle::MeleeRush, false, true, true) == ERushOpening::HoldThenCut);
+		TestTrue(TEXT("party skill swung in place: as before"),
+				 FCombatCameraRules::PlanRushOpening(ESkillCameraStyle::MeleeRush, false, true, false) == ERushOpening::Plain);
+		TestTrue(TEXT("not a rush (ranged, camera movement off): as before"),
+				 FCombatCameraRules::PlanRushOpening(ESkillCameraStyle::Standard, true, false, false) == ERushOpening::Plain);
 	});
 
 	It("B-600d: a party member's leap home leaves its shot; an enemy's keeps its shot", [this]()
