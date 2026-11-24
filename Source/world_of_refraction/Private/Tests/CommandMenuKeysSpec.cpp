@@ -1039,6 +1039,48 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 	});
 
+	It("B-598b: a greyed corner hint says why in the panel's second line, not a tooltip", [this]()
+	{
+		if (!StartDuel())
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		const FText Reason = FText::FromString(TEXT("Can't flee a boss"));
+		const FText FrameReason = FText::FromString(TEXT("No weapon to attack with."));
+		TArray<FPieMenuButtonData> Rows;
+		Rows.Add(FPieMenuButtonData::MakeDisabledButton(TEXT("Attack"), FText::FromString(TEXT("Attack")), FrameReason, EPieMenuCategory::Attack));
+		Rows.Add(FPieMenuButtonData(TEXT("Defend"), FText::FromString(TEXT("Defend")), EPieMenuCategory::Defend));
+		Rows.Add(FPieMenuButtonData::MakeDisabledButton(TEXT("Flee"), FText::FromString(TEXT("Flee")), Reason, EPieMenuCategory::Flee));
+		Menu->OnCommandMenuReady.Broadcast(Rows); // the main menu as a boss fight greys it
+		const int32 FleeRow = 2;
+		TestTrue(TEXT("Flee is a greyed corner hint"), View->GetHints().ContainsByPredicate([FleeRow](const FBattleMenuHint &Hint)
+																						  { return Hint.RowIndex == FleeRow && !Hint.bEnabled; }));
+		TestTrue(TEXT("nothing in the line yet"), View->GetRefusal().IsEmpty());
+
+		View->PressRow(FleeRow); // a click on the greyed hint
+		TestEqual(TEXT("the click shows the reason"), View->GetRefusal().ToString(), Reason.ToString());
+		TestTrue(TEXT("wor.UI.Print shows it"), View->GetCommandMenuString().Contains(TEXT("refusal=")));
+		TestTrue(TEXT("still on the main menu"), Menu->IsAtMainMenu());
+
+		Menu->OnCommandMenuReady.Broadcast(Rows);
+		TestTrue(TEXT("a new view clears it"), View->GetRefusal().IsEmpty());
+		TestTrue(TEXT("the Flee key shows the reason"), View->ShowRefusalForKey(EPieMenuCategory::Flee));
+		TestEqual(TEXT("the same reason"), View->GetRefusal().ToString(), Reason.ToString());
+
+		Menu->OnCommandMenuReady.Broadcast(Rows);
+		TestFalse(TEXT("an enabled command's key: no reason"), View->ShowRefusalForKey(EPieMenuCategory::Defend));
+		TestFalse(TEXT("a greyed frame row already says why under it"), View->ShowRefusalForKey(EPieMenuCategory::Attack));
+		View->PressRow(0);
+		TestTrue(TEXT("nor does a click on it"), View->GetRefusal().IsEmpty());
+		View->Teardown();
+	});
+
 	It("ignores the category keys outside the main menu (B-391)", [this]()
 	{
 		if (!StartDuel())
