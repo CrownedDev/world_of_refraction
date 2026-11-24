@@ -185,6 +185,7 @@ void UCombatCameraDirector::EndCombat()
 		return;
 	}
 	bInCombat = false;
+	WideShownAt = -1.0; // B-600g: no time on the wide carries into the next fight
 	ClearDefenceHandOff();
 	EndBossCinematic(false); // B-406: the HUD comes back; no finish broadcast once the fight is over
 	for (const TWeakObjectPtr<UBossPhaseComponent> &Phases : BoundBossPhases)
@@ -808,7 +809,7 @@ void UCombatCameraDirector::ReturnToTurnView(AActor *Actor)
 	FlushPendingHandover();
 	StartTurnChange(Actor, Actor, /*bSomeoneActed=*/true, /*bBroadcast=*/false);
 	++SameTurnReturnCount;
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Same-turn return: %s acts again, the wide then its turn view in %.2f s (%d this fight)"),
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Same-turn return: %s acts again, the wide then a %.2f s sweep to its turn view (%d this fight)"),
 		   *Actor->GetName(), Plan.BlendSeconds, SameTurnReturnCount);
 }
 
@@ -1575,8 +1576,8 @@ void UCombatCameraDirector::HandleReturnStarted(AActor *Actor, FVector Home)
 		ShowTurnView(); // the static view, as before
 		return;
 	}
-	// B-600e (B-600d QA): framed from where it lands, not where it struck. B-600g (§6, E33; replaces B-600f's follow home): a hard cut to the hand-over wide from behind the party; the
-	// attacker is seen walking home in it, and the next turn start (or the same fighter's next ask) sweeps out of it.
+	// B-600g (§6, E33; replaces B-600f's follow home): a hard cut to the hand-over wide from behind the party, framed
+	// from where it lands. The attacker walks home in it; the next turn start (or the same fighter's next ask) sweeps out.
 	StopShotPattern();
 	bTargetViewShowing = false; // as ShowTurnView: no target or Intel view survives the leap
 	bIntelViewShowing = false;

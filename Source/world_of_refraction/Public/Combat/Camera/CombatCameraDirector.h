@@ -256,8 +256,8 @@ private:
 	UFUNCTION()
 	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
 
-	/** B-600d/e: a party member's leap home ends its shots: the wide beat's view from its Home spot, as it goes
-	 *  (FollowsLeapHome, PlanLeapHome). */
+	/** B-600d/e/g: a party member's leap home ends its shots (FollowsLeapHome): a hard cut to the hand-over wide,
+	 *  framed from its Home spot (CutToWide). */
 	UFUNCTION()
 	void HandleReturnStarted(AActor *Actor, FVector Home);
 
@@ -315,9 +315,9 @@ private:
 	 *  one of them has a defense window open. Shots then play without shake or FOV punch. */
 	bool IsViewerDefending() const;
 
-	/** B-404: the turn start's camera move (FCombatCameraRules::PlanTurnChange): a wide beat, then the handover
-	 *  blend on WideBeatTimer; or the turn view at once. bBroadcast false for a preview and, B-600g, for a same-turn
-	 *  return (no turn started). */
+	/** B-404, B-600g: the turn start's camera move (FCombatCameraRules::PlanTurnChange): a cut to the hand-over wide,
+	 *  held on WideBeatTimer, then the sweep into the turn view or an enemy's push-in; or the turn view at once (first
+	 *  turn, movement off). bBroadcast false for a preview and for a same-turn return (no turn started). */
 	void StartTurnChange(AActor *From, AActor *To, bool bSomeoneActed, bool bBroadcast);
 	/** B-404: the beat's end: the handover blend (unless something else took the view) and the event. */
 	void HandleWideBeatEnd();

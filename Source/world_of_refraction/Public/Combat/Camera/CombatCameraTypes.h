@@ -424,16 +424,16 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, bool bCasterIsEnemy, const FCameraShotContext &Context,
 													 const FSkillCameraTuning &Tuning);
 
-	/** B-600d (Q-600d): the skill's attacker starts its leap home. A party member's shots end there and the camera
-	 *  follows it home (PlanLeapHome), never holding on the target alone. An enemy's shots hold on the party member it
-	 *  hit, as before. False when no shot of this attacker is playing. */
+	/** B-600d (Q-600d): the skill's attacker starts its leap home. A party member's shots end there and, B-600g, the
+	 *  camera cuts to the hand-over wide, never holding on the target alone. An enemy's shots hold on the party member
+	 *  it hit, as before. False when no shot of this attacker is playing. */
 	static bool FollowsLeapHome(bool bShotPlaying, bool bIsShotCaster, bool bEnemyCaster);
 
 	/** B-600e (Q-600d): where a party member's leap home goes: the wide beat's view and blend (PlanTurnChange), framed
 	 *  from the attacker's home spot (HomeFrame.Focus), not where it struck. Both sides in frame, the attacker lands in
 	 *  it, and the leap never passes the lens; the next turn's beat starts from the same kind of view.
-	 *  Obsolete since B-600f (the director follows the attacker home into its turn view at the home spot instead);
-	 *  remove after PIE. */
+	 *  Obsolete since B-600f; unused by the director since B-600g (the leap home cuts to ComputeWideView, and its
+	 *  spec now only checks the cut). Remove with its spec after B-600g's PIE. */
 	static FTurnChangePlan PlanLeapHome(ETurnViewStyle Style, const FCombatCameraFrame &HomeFrame);
 
 	/** B-600f (Q-600f): the camera follows a party member's leap home into its own turn view at the home spot (low and
