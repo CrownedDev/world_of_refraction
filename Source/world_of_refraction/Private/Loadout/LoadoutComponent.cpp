@@ -895,6 +895,10 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
         {
             // SlotIndex -1 = Generic/Caster primary ring; otherwise the Resonator
             // ring-loadout index. SubIndex addresses the spell within the ring.
+            if (Finding.SlotIndex < -1)
+            {
+                break;
+            }
             const int32 Place = Finding.SlotIndex == -1 ? WornGearLayout::PRIMARY_INDEX : WornGearLayout::FIRST_ADAPTER_INDEX + Finding.SlotIndex;
             EditAdapterAt(Loadout, Class, Place, [&Finding](FRingLoadoutEntry &Ring)
             {

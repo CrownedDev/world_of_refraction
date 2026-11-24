@@ -1211,7 +1211,9 @@ namespace InventoryGearSync
         }
     }
 
-    /** B-309d3: ForEachGearSlot for a writer, through the slots (FCombatLoadout::EditGearEntries). */
+    /** B-309d3: ForEachGearSlot for a writer, through the slots (FCombatLoadout::EditGearEntries). The order is the slots'
+     *  (each main hand then its off hand), then what no slot holds: two unlinked copies of one asset may link or adopt the
+     *  other way round from before, which is the same gear either way. */
     template <typename FWeaponFunc, typename FRingFunc>
     void EditGearSlots(FCombatLoadout &Loadout, ECharacterClass Class, FWeaponFunc &&WeaponFunc, FRingFunc &&RingFunc)
     {

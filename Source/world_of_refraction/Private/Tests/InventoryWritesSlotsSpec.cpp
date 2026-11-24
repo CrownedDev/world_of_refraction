@@ -147,6 +147,29 @@ void FInventoryWritesSlotsSpec::Define()
 		TestTrue(TEXT("the Caster's adapter stripped"), UInventoryComponent::StripFromLoadout(Loadout, NewAdapterID, Class));
 		TestTrue(TEXT("its adapter loadout is empty, the weapon stays"), Loadout.RingLoadout.IsEmpty() && Loadout.PrimaryWeapon.WeaponEntry.PersistentID == NewWeaponID);
 	});
+
+	It("strips a Caster's adapter the same through the Generic default class (the callers with no class)", [this]()
+	{
+		const FWeaponInventoryEntry Weapon = WritesOwnedWeapon();
+		const FRingInventoryEntry First = WritesOwnedAdapter();
+		const FRingInventoryEntry Second = WritesOwnedAdapter();
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		Loadout.PrimaryWeapon.WeaponEntry = Weapon;
+		Loadout.RingLoadout.AddDefaulted_GetRef().RingEntry = First;
+		Loadout.RingLoadout.AddDefaulted_GetRef().RingEntry = Second;
+		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Caster);
+		FCombatLoadout AsCaster = Loadout;
+
+		TestTrue(TEXT("stripped by default"), UInventoryComponent::StripFromLoadout(Loadout, First.PersistentID));
+		TestTrue(TEXT("stripped as a Caster"), UInventoryComponent::StripFromLoadout(AsCaster, First.PersistentID, ECharacterClass::Caster));
+		for (const FCombatLoadout *Result : {&Loadout, &AsCaster})
+		{
+			TestTrue(TEXT("the second adapter moved up, the weapon stays"),
+					 Result->RingLoadout.Num() == 1 && Result->RingLoadout[0].RingEntry.PersistentID == Second.PersistentID &&
+						 Result->PrimaryWeapon.WeaponEntry.PersistentID == Weapon.PersistentID && Result->PrimarySlotType == EPrimarySlotType::Weapon);
+		}
+	});
 }
 
 #endif
