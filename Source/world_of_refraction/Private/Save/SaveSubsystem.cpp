@@ -28,6 +28,7 @@
 #include "Player/WoRPlayerState.h"
 #include "WoRAuthority.h"
 #include "GameFramework/GameStateBase.h"
+#include "Loadout/WornGear.h"
 #include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Equipment/Crystals/StatStone.h"
@@ -300,40 +301,46 @@ FSavedCustomLoadout SaveCustomLoadout(const FSavedLoadout &Loadout)
 	Saved.Name = Loadout.LoadoutName;
 	Saved.RequiredClass = static_cast<uint8>(Loadout.RequiredClass);
 	Saved.bShowPrimary = Loadout.bShowPrimary;
-	Saved.PrimarySlotType = static_cast<uint8>(Loadout.PrimarySlotType);
-	switch (Loadout.PrimarySlotType)
+	// B-309c: the slots in the WornGearLayout places, from the old fields (which the pool still keeps until B-309d).
+	using namespace WornGearLayout;
+	Saved.Slots.SetNum(FIRST_ADAPTER_INDEX);
+	const auto PutWeapon = [](FSavedLoadoutSlot &Slot, const UWeaponData *Weapon, const FGuid &ID, const UWeaponData *OffHand,
+							  const FGuid &OffHandID, const TArray<UAbilityData *> &Abilities)
 	{
-	case EPrimarySlotType::Weapon:
-		Saved.PrimaryAsset = FSavedAssetRef::Make(Loadout.PrimaryWeapon);
-		Saved.PrimaryInstance = Loadout.PrimaryWeaponInstance;
-		break;
-	case EPrimarySlotType::Ring:
-		Saved.PrimaryAsset = FSavedAssetRef::Make(Loadout.PrimaryRing);
-		Saved.PrimaryInstance = Loadout.PrimaryRingInstance;
-		break;
-	case EPrimarySlotType::Evolution:
-		Saved.PrimaryAsset = FSavedAssetRef::Make(Loadout.PrimaryEvolution);
-		Saved.PrimaryInstance = Loadout.PrimaryEvolutionInstance;
-		break;
-	default:
-		break;
+		Slot.Gear = FSavedAssetRef::Make(Weapon);
+		Slot.GearID = ID;
+		Slot.OffHand = FSavedAssetRef::Make(OffHand); // B-477 (D-209)
+		Slot.OffHandID = OffHand ? OffHandID : FGuid();
+		Slot.Abilities = SaveLoadoutRefs(Abilities);
+	};
+	if (Loadout.PrimarySlotType == EPrimarySlotType::Weapon && Loadout.PrimaryWeapon)
+	{
+		PutWeapon(Saved.Slots[PRIMARY_INDEX], Loadout.PrimaryWeapon, Loadout.PrimaryWeaponInstance, Loadout.PrimaryOffHandWeapon,
+				  Loadout.PrimaryOffHandInstance, Loadout.PrimaryWeaponAbilities);
 	}
-	Saved.PrimaryAbilities = SaveLoadoutRefs(Loadout.PrimaryWeaponAbilities);
-	Saved.EvolutionSpells = SaveLoadoutSpellRefs(Loadout.EvolutionSpells);
-	Saved.SecondarySlotType = static_cast<uint8>(Loadout.SecondarySlotType);
-	Saved.SecondaryWeapon = FSavedAssetRef::Make(Loadout.SecondaryWeapon);
-	Saved.SecondaryInstance = Loadout.SecondaryWeaponInstance;
-	Saved.SecondaryAbilities = SaveLoadoutRefs(Loadout.SecondaryWeaponAbilities);
-	Saved.PrimaryOffHand = FSavedAssetRef::Make(Loadout.PrimaryOffHandWeapon); // B-477 (D-209)
-	Saved.PrimaryOffHandInstance = Loadout.PrimaryOffHandInstance;
-	Saved.SecondaryOffHand = FSavedAssetRef::Make(Loadout.SecondaryOffHandWeapon);
-	Saved.SecondaryOffHandInstance = Loadout.SecondaryOffHandInstance;
-	for (const FResonatorRingSlot &Slot : Loadout.EquippedRings)
+	else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing)
 	{
-		if (Slot.Ring)
+		Saved.Slots[PRIMARY_INDEX].Gear = FSavedAssetRef::Make(Loadout.PrimaryRing);
+		Saved.Slots[PRIMARY_INDEX].GearID = Loadout.PrimaryRingInstance;
+	}
+	else if (Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution)
+	{
+		Saved.Evolution = FSavedAssetRef::Make(Loadout.PrimaryEvolution);
+		Saved.EvolutionInstance = Loadout.PrimaryEvolutionInstance;
+	}
+	if (Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon)
+	{
+		PutWeapon(Saved.Slots[SECONDARY_INDEX], Loadout.SecondaryWeapon, Loadout.SecondaryWeaponInstance, Loadout.SecondaryOffHandWeapon,
+				  Loadout.SecondaryOffHandInstance, Loadout.SecondaryWeaponAbilities);
+	}
+	Saved.EvolutionSpells = SaveLoadoutSpellRefs(Loadout.EvolutionSpells);
+	for (const FResonatorRingSlot &Ring : Loadout.EquippedRings)
+	{
+		if (Ring.Ring)
 		{
-			Saved.Adapters.Add(FSavedAssetRef::Make(Slot.Ring));
-			Saved.AdapterInstances.Add(Slot.RingInstance);
+			FSavedLoadoutSlot &Slot = Saved.Slots.AddDefaulted_GetRef();
+			Slot.Gear = FSavedAssetRef::Make(Ring.Ring);
+			Slot.GearID = Ring.RingInstance;
 		}
 	}
 	for (int32 Index = 0; Index < Loadout.Apparel.Num(); ++Index) // B-380c
@@ -364,30 +371,49 @@ FSavedLoadout RestoreCustomLoadout(const FSavedCustomLoadout &Saved)
 	Loadout.LoadoutName = Saved.Name;
 	Loadout.RequiredClass = static_cast<ECharacterClass>(Saved.RequiredClass);
 	Loadout.bShowPrimary = Saved.bShowPrimary;
-	Loadout.PrimarySlotType = static_cast<EPrimarySlotType>(Saved.PrimarySlotType);
-	Loadout.PrimaryWeapon = Saved.PrimaryAsset.ResolveAs<UWeaponData>();
-	Loadout.PrimaryRing = Saved.PrimaryAsset.ResolveAs<URingData>();
-	Loadout.PrimaryEvolution = Saved.PrimaryAsset.ResolveAs<UEvolutionItemData>();
-	Loadout.PrimaryWeaponInstance = Loadout.PrimaryWeapon ? Saved.PrimaryInstance : FGuid();
-	Loadout.PrimaryRingInstance = Loadout.PrimaryRing ? Saved.PrimaryInstance : FGuid();
-	Loadout.PrimaryEvolutionInstance = Loadout.PrimaryEvolution ? Saved.PrimaryInstance : FGuid();
-	Loadout.PrimaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.PrimaryAbilities);
-	Loadout.EvolutionSpells = RestoreLoadoutSpellRefs(Saved.EvolutionSpells);
-	Loadout.SecondarySlotType = static_cast<ESecondarySlotType>(Saved.SecondarySlotType);
-	Loadout.SecondaryWeapon = Saved.SecondaryWeapon.ResolveAs<UWeaponData>();
-	Loadout.SecondaryWeaponInstance = Saved.SecondaryInstance;
-	Loadout.SecondaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Saved.SecondaryAbilities);
-	Loadout.PrimaryOffHandWeapon = Saved.PrimaryOffHand.ResolveAs<UWeaponData>(); // B-477 (D-209)
-	Loadout.PrimaryOffHandInstance = Loadout.PrimaryOffHandWeapon ? Saved.PrimaryOffHandInstance : FGuid();
-	Loadout.SecondaryOffHandWeapon = Saved.SecondaryOffHand.ResolveAs<UWeaponData>();
-	Loadout.SecondaryOffHandInstance = Loadout.SecondaryOffHandWeapon ? Saved.SecondaryOffHandInstance : FGuid();
-	for (int32 Index = 0; Index < Saved.Adapters.Num(); ++Index)
+	// B-309c: the old fields rebuilt from the slots (RebuildSlotsFromLegacy's way back) until the readers move (B-309e).
+	using namespace WornGearLayout;
+	const FSavedLoadoutSlot NoSlot;
+	const FSavedLoadoutSlot &Primary = Saved.Slots.IsValidIndex(PRIMARY_INDEX) ? Saved.Slots[PRIMARY_INDEX] : NoSlot;
+	const FSavedLoadoutSlot &Secondary = Saved.Slots.IsValidIndex(SECONDARY_INDEX) ? Saved.Slots[SECONDARY_INDEX] : NoSlot;
+	if (UWeaponData *Weapon = Primary.Gear.ResolveAs<UWeaponData>())
 	{
-		if (URingData *Ring = Saved.Adapters[Index].ResolveAs<URingData>())
+		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		Loadout.PrimaryWeapon = Weapon;
+		Loadout.PrimaryWeaponInstance = Primary.GearID;
+		Loadout.PrimaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Primary.Abilities);
+		Loadout.PrimaryOffHandWeapon = Primary.OffHand.ResolveAs<UWeaponData>(); // B-477 (D-209)
+		Loadout.PrimaryOffHandInstance = Loadout.PrimaryOffHandWeapon ? Primary.OffHandID : FGuid();
+	}
+	else if (URingData *Ring = Primary.Gear.ResolveAs<URingData>())
+	{
+		Loadout.PrimarySlotType = EPrimarySlotType::Ring;
+		Loadout.PrimaryRing = Ring;
+		Loadout.PrimaryRingInstance = Primary.GearID;
+	}
+	else if (UEvolutionItemData *Evolution = Saved.Evolution.ResolveAs<UEvolutionItemData>())
+	{
+		Loadout.PrimarySlotType = EPrimarySlotType::Evolution;
+		Loadout.PrimaryEvolution = Evolution;
+		Loadout.PrimaryEvolutionInstance = Saved.EvolutionInstance;
+	}
+	Loadout.EvolutionSpells = RestoreLoadoutSpellRefs(Saved.EvolutionSpells);
+	if (UWeaponData *Weapon = Secondary.Gear.ResolveAs<UWeaponData>())
+	{
+		Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
+		Loadout.SecondaryWeapon = Weapon;
+		Loadout.SecondaryWeaponInstance = Secondary.GearID;
+		Loadout.SecondaryWeaponAbilities = RestoreLoadoutRefs<UAbilityData>(Secondary.Abilities);
+		Loadout.SecondaryOffHandWeapon = Secondary.OffHand.ResolveAs<UWeaponData>();
+		Loadout.SecondaryOffHandInstance = Loadout.SecondaryOffHandWeapon ? Secondary.OffHandID : FGuid();
+	}
+	for (int32 Place = FIRST_ADAPTER_INDEX; Place < Saved.Slots.Num(); ++Place)
+	{
+		if (URingData *Ring = Saved.Slots[Place].Gear.ResolveAs<URingData>())
 		{
 			FResonatorRingSlot &Slot = Loadout.EquippedRings.AddDefaulted_GetRef();
 			Slot.Ring = Ring;
-			Slot.RingInstance = Saved.AdapterInstances.IsValidIndex(Index) ? Saved.AdapterInstances[Index] : FGuid();
+			Slot.RingInstance = Saved.Slots[Place].GearID;
 		}
 	}
 	for (int32 Index = 0; Index < Saved.Apparel.Num(); ++Index) // B-380c

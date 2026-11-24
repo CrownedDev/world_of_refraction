@@ -425,10 +425,6 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	int32 DroppedPrisms = 0;
 
-	/** OBSOLETE (B-362c): no longer written; delete with the next save bump after PIE. */
-	UPROPERTY()
-	TArray<FName> DropEncounters;
-
 	/** B-362c (D-160 changed, save v20): where the drop's pickup lies on the trial map; false = the trial's start. */
 	UPROPERTY()
 	bool bDropHasSpot = false;
@@ -641,6 +637,33 @@ struct WORLD_OF_REFRACTION_API FSavedWearer
 	FName Character;
 };
 
+/** B-309c (save v46): one slot of a custom loadout, a weapon (with its set's off hand) or an adapter, by its owned GUID
+ *  and asset (the asset says its kind). */
+USTRUCT()
+struct WORLD_OF_REFRACTION_API FSavedLoadoutSlot
+{
+	GENERATED_BODY()
+
+	/** The weapon or adapter; unset for an empty place. */
+	UPROPERTY()
+	FSavedAssetRef Gear;
+
+	UPROPERTY()
+	FGuid GearID;
+
+	/** A weapon set's off hand (B-477, D-209); unset for a piece alone. */
+	UPROPERTY()
+	FSavedAssetRef OffHand;
+
+	UPROPERTY()
+	FGuid OffHandID;
+
+	/** A weapon's position-merge list (FSavedLoadout::PrimaryWeaponAbilities / SecondaryWeaponAbilities, OBSOLETE
+	 *  B-351); the skill picks are EntryPicks'. */
+	UPROPERTY()
+	TArray<FSavedAssetRef> Abilities;
+};
+
 /** B-311 (D-111): one custom loadout; each piece by its owned GUID and asset, the rest by asset. An adapter's spells
  *  ride on the adapter itself (FSavedGearDetail). */
 USTRUCT()
@@ -658,59 +681,24 @@ struct WORLD_OF_REFRACTION_API FSavedCustomLoadout
 	UPROPERTY()
 	bool bShowPrimary = true;
 
-	/** EPrimarySlotType; PrimaryAsset is the weapon, adapter or evolution it names. */
+	/** B-309c (save v46): the weapons and adapters in the WornGearLayout places (the primary, the secondary, then the
+	 *  adapter loadout; an empty place kept), replacing the primary / secondary / adapter fields. */
 	UPROPERTY()
-	uint8 PrimarySlotType = 0;
+	TArray<FSavedLoadoutSlot> Slots;
+
+	/** The evolution in the primary place (not a slot, as in FWornGear); unset for none. */
+	UPROPERTY()
+	FSavedAssetRef Evolution;
 
 	UPROPERTY()
-	FSavedAssetRef PrimaryAsset;
-
-	UPROPERTY()
-	FGuid PrimaryInstance;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> PrimaryAbilities;
+	FGuid EvolutionInstance;
 
 	UPROPERTY()
 	TArray<FSavedAssetRef> EvolutionSpells;
 
-	/** ESecondarySlotType. */
-	UPROPERTY()
-	uint8 SecondarySlotType = 0;
-
-	UPROPERTY()
-	FSavedAssetRef SecondaryWeapon;
-
-	UPROPERTY()
-	FGuid SecondaryInstance;
-
-	UPROPERTY()
-	TArray<FSavedAssetRef> SecondaryAbilities;
-
-	/** B-477 (D-209, save v39): each weapon set's off hand (dual wield), by asset and owned GUID; empty for a weapon
-	 *  alone. */
-	UPROPERTY()
-	FSavedAssetRef PrimaryOffHand;
-
-	UPROPERTY()
-	FGuid PrimaryOffHandInstance;
-
-	UPROPERTY()
-	FSavedAssetRef SecondaryOffHand;
-
-	UPROPERTY()
-	FGuid SecondaryOffHandInstance;
-
 	/** D-224 (B-517, save v42): each entry's skill and spell picks by piece (FSavedLoadout::EntryPicks). */
 	UPROPERTY()
 	TArray<FSavedWornEntry> EntryPicks;
-
-	/** A Resonator's adapter loadout, in order; AdapterInstances matches it index for index. */
-	UPROPERTY()
-	TArray<FSavedAssetRef> Adapters;
-
-	UPROPERTY()
-	TArray<FGuid> AdapterInstances;
 
 	UPROPERTY()
 	TArray<FSavedAssetRef> InnateSpells;
