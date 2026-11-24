@@ -406,6 +406,10 @@ private:
 	FCameraShot ActiveShot;
 	float ShotElapsed = 0.0f;
 	FTimerHandle ShotTimer;
+	/** B-600c: the cut to the side view when a Melee Rush attacker's dash ends; the hit then punches in that shot. */
+	FTimerHandle ArrivalCutTimer;
+	bool bArrivedOnSide = false;
+	void CutOnArrival();
 
 	// B-404: the wide beat and the party handover of the current turn start.
 	FTimerHandle WideBeatTimer;
