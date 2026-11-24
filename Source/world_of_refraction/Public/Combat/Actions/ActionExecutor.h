@@ -291,6 +291,17 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Infusion")
 	ESpellElement GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const;
 
+	/** D-271 (B-593): Action is an Ice infusion that takes: bIceInfusion, infused (level 1+), resolving to Water. */
+	static bool IsIceInfusion(const FAction &Action, ESpellElement Element);
+
+	/** What Action's hits deal instead of Element's own type: Ice for a spell marked Deals Ice cast as Water (B-064a)
+	 *  or for an Ice infusion (B-593); None otherwise. Every hit-kind reader goes through this. */
+	static EWoRDamageType GetActionDealtTypeOverride(const FAction &Action, ESpellElement Element);
+
+	/** D-271: an Ice infusion's cost factor, ICE_INFUSION_COST_MULTIPLIER; x1 on a spell marked Deals Ice or when
+	 *  Action is no Ice infusion. */
+	static float GetIceInfusionCostMultiplier(const FAction &Action, ESpellElement Element);
+
 	/** B-307: the one infusion-source resolver. The adapter options (ActiveRing / PrimaryRing) both mean "the adapter
 	 *  in use" (GetActiveSlot); WeaponCrystal the weapon in hand; Evolution the primary seat. The element, mode,
 	 *  attachment readers read it, and availability for the adapter and the weapon, so the broken rule is stated once. */

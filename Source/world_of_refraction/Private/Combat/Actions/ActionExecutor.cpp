@@ -736,7 +736,7 @@ FActionDamagePreview UActionExecutor::PreviewActionDamage(AActor *User, const FA
 	// B-382 (Q-164b A): Amp adds flat to the base, once per action, so every multiplier after it scales it.
 	// Only a damaging action takes it (a 0-damage buff or heal spell stays 0).
 	// B-064a (the deckbuilder's Ice reach: Amp is exact): an Ice spell takes no Water Amp line; All and Spell still count.
-	const bool bDealsIce = bIsSpell && Action.SpellData->GetDealtTypeOverride(Preview.Element) == EWoRDamageType::Ice;
+	const bool bDealsIce = GetActionDealtTypeOverride(Action, Preview.Element) == EWoRDamageType::Ice; // B-593: an Ice infusion too
 	const ESpellElement AmpElement = bDealsIce ? ESpellElement::None : Preview.Element;
 	Preview.AmpBonus = Preview.BaseDamage > 0 ? GetActionAmp(User, AmpElement, bIsSpell) : 0;
 	if (bLog && Preview.AmpBonus != 0)
@@ -948,7 +948,7 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	{
 		// Set on every action, so an Ice cast's flag never carries into the next glow (AI and charge paths included)
 		const ESpellElement GlowElement = GetElementForSourceOption(Actor, Action.SelectedSource);
-		InfusionVFX->SetDealsIce(Action.SpellData && Action.SpellData->GetDealtTypeOverride(GlowElement) == EWoRDamageType::Ice);
+		InfusionVFX->SetDealsIce(GetActionDealtTypeOverride(Action, GlowElement) == EWoRDamageType::Ice);
 		if (MaxInfusionLevel > 0)
 		{
 			InfusionVFX->SetWeaponInfusion(Action.ActionType == EActionType::Ability);
@@ -1845,10 +1845,12 @@ void UActionExecutor::OpenDefenseWindowsForTargets(
 	// Attack collapsed into Ability (Cluster 3) — count-based close is the not-Spell / bPerImpact gate.
 	const bool bUseCountBasedClose = (ActionType == EActionType::Ability);
 
-	// B-064a (D-029): a Water spell that deals Ice; its hits carry the Ice hit kind (B-273b) while Element stays Water,
-	// so the source gate and "On Water hit" triggers hear it as before.
+	// B-064a (D-029): a Water spell that deals Ice, or an Ice infusion (B-593, D-271); its hits carry the Ice hit kind
+	// (B-273b) while Element stays Water, so the source gate and "On Water hit" triggers hear it as before.
 	const USpellData *CastSpell = ActionType == EActionType::Spell ? Cast<USpellData>(GetCurrentSkillData()) : nullptr;
-	const EWoRDamageType DealtTypeOverride = CastSpell ? CastSpell->GetDealtTypeOverride(Element) : EWoRDamageType::None;
+	const EWoRDamageType SpellDealtType = CastSpell ? CastSpell->GetDealtTypeOverride(Element) : EWoRDamageType::None;
+	const EWoRDamageType DealtTypeOverride = SpellDealtType != EWoRDamageType::None ? SpellDealtType
+											 : (CurrentExecutionContext && IsIceInfusion(CurrentExecutionContext->Action, Element) ? EWoRDamageType::Ice : EWoRDamageType::None);
 
 	// Create pending defense context for each target
 	for (AActor *Target : Targets)
@@ -4620,6 +4622,24 @@ TArray<EInfusionSourceOption> UActionExecutor::GetAllowedInfusionSourcesForSpell
 	}
 
 	return Allowed;
+}
+
+bool UActionExecutor::IsIceInfusion(const FAction &Action, ESpellElement Element)
+{
+	return Action.bIceInfusion && Action.GetChargeLevel() > 0 && Element == ESpellElement::Water;
+}
+
+EWoRDamageType UActionExecutor::GetActionDealtTypeOverride(const FAction &Action, ESpellElement Element)
+{
+	const bool bIceSpell = Action.ActionType == EActionType::Spell && Action.SpellData &&
+						   Action.SpellData->GetDealtTypeOverride(Element) == EWoRDamageType::Ice;
+	return bIceSpell || IsIceInfusion(Action, Element) ? EWoRDamageType::Ice : EWoRDamageType::None;
+}
+
+float UActionExecutor::GetIceInfusionCostMultiplier(const FAction &Action, ESpellElement Element)
+{
+	const bool bDealsIceSpell = Action.ActionType == EActionType::Spell && Action.SpellData && Action.SpellData->bDealsIce;
+	return IsIceInfusion(Action, Element) && !bDealsIceSpell ? InfusionConstants::ICE_INFUSION_COST_MULTIPLIER : 1.0f;
 }
 
 ESpellElement UActionExecutor::GetElementForSourceOption(AActor *Actor, EInfusionSourceOption Option) const
