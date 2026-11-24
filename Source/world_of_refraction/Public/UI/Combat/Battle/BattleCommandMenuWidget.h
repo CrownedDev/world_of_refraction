@@ -68,7 +68,6 @@ struct FBattleMenuHint
 	FText Key;
 	FKey KeyId; // drawn as the rows' cap (QA: the hints' keys must read as well as the rows')
 	FText Label;
-	FText Reason;
 	int32 RowIndex = INDEX_NONE;
 	bool bEnabled = true;
 };
@@ -164,6 +163,14 @@ public:
 
 	/** B-592 (D-268): a click on a target panel chip (Line: ETargetPanelChoice). */
 	void PressChip(int32 Line, int32 Index);
+
+	/** B-598b (Crown): a menu key the subsystem refused (UCombatCommandMenuSubsystem::PressMenuKey false). If it names a
+	 *  greyed row here (Flee in a boss fight), that row's reason shows quietly in the panel's second line; no pop-up.
+	 *  False: no greyed row takes this key. */
+	bool ShowRefusalForKey(EPieMenuCategory Key);
+	/** B-598b: the greyed command's reason now in the second line; empty when none. Cleared by the next move, press or
+	 *  menu change. Debug, specs. */
+	const FText &GetRefusal() const { return Refusal; }
 
 	/** B-592 (D-268): the target panel as last shown (UCombatCommandMenuSubsystem::GetTargetPanel). Debug, specs. */
 	const FTargetPanelView &GetPanel() const { return Panel; }
@@ -265,6 +272,10 @@ private:
 	TArray<FText> DurabilityLines;
 	/** B-592 (D-268): the target step's panel, re-read on every broadcast. */
 	FTargetPanelView Panel;
+	/** B-598b: the greyed command's reason shown in SummaryText's line (ShowRefusal). */
+	FText Refusal;
+	/** B-598b: Row is a greyed corner hint with a reason: show it in the second line. False otherwise. */
+	bool ShowRefusal(const FPieMenuButtonData &Row);
 	/** B-592: chips per panel line (the most infusion sources a fighter can have, plus room). */
 	static constexpr int32 MAX_CHIPS = 6;
 	static constexpr int32 CHIP_LINES = 3; // ETargetPanelChoice: Weapon, Element, Level

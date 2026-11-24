@@ -972,9 +972,15 @@ void ACombatPlayerController::PressMenuKey(EPieMenuCategory Category)
 		return;
 	}
 	UGameInstance *GI = GetGameInstance();
-	if (UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GI))
+	UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GI);
+	if (Menu && !Menu->PressMenuKey(Category))
 	{
-		Menu->PressMenuKey(Category);
+		// B-598b: a greyed command's key says why, quietly, in the menu's second line.
+		UBattleHUDWidget *HUD = FindBattleHUD();
+		if (UBattleCommandMenuWidget *CommandMenu = HUD ? HUD->GetCommandMenu() : nullptr)
+		{
+			CommandMenu->ShowRefusalForKey(Category);
+		}
 	}
 }
 

@@ -204,7 +204,7 @@ namespace BattleHUDView
 	 *  colour); a Broken Darkness attacker darkens an element to its hybrid colour. */
 	WORLD_OF_REFRACTION_API FLinearColor GetBuildupColour(ESpellElement PendingElement, bool bSourceInBrokenDarkness);
 
-	// ---- B-391c: the party card's gear line and tooltip ----
+	// ---- B-391c: the party card's gear line ----
 
 	/** The active loadout's name, weapon and ring (the Resonator's active ring, else the primary ring). Empty for an
 	 *  actor without a loadout component. */
@@ -212,9 +212,6 @@ namespace BattleHUDView
 
 	/** "Iron Sword · Ember Ring", one of them alone, or empty for no gear. */
 	WORLD_OF_REFRACTION_API FText FormatGearLine(const FBattleGearNames &Gear);
-
-	/** The hover tooltip: "Loadout: ...", "Weapon: ...", "Ring: ..." on three lines ("none" for an empty one). */
-	WORLD_OF_REFRACTION_API FText FormatGearTooltip(const FBattleGearNames &Gear);
 
 	// ---- B-391c: the command menu's durability header (the old UDurabilityHeaderWidget) ----
 

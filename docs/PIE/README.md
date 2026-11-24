@@ -692,6 +692,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [QA-kit](QA-kit.md) | `chore/qa-kit` (built 2026-11-24) | QA setup: `wor.Debug.QAKit` puts an ability that costs EP in the weapon in hand's skill slot (B-592b's HP ghost) and has a Caster join as your seat (the selector colour; Darkness, or the TestGear bd hint). QA save only | Pending |
 | [B-598](B-598.md) | `fix/B-598-no-hover-popups` (built 2026-11-24) | No hover pop-ups (Q-598): the loadout card follows the pick, no icon or tier tooltips; hover lighting stays | Pending |
 | [B-602](B-602.md) | `fix/B-602-scroll-click-picks-stale-row` (built 2026-11-24) | A click after a wheel scroll picks the row now under the mouse (vendor, and every scrolling menu list) | Pending |
+| [B-598b](B-598b.md) | `fix/B-598b-battle-hud-no-hover` (built 2026-11-24, on B-598) | No battle HUD tooltips (Q-598b): a greyed command's reason shows in the Act panel's second line when picked | Pending |
 
 Move rows to **Done** when every check passes.
 

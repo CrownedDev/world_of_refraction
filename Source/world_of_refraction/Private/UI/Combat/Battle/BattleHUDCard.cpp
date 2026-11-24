@@ -215,7 +215,7 @@ FBattleCardParts BattleHUDCard::GetParts(EBattleCardLevel Level, bool bParty)
 	Parts.bHPBar = Level != EBattleCardLevel::Hub;
 	Parts.bBuildupBar = Level == EBattleCardLevel::Battle; // D-216: the trial's bar is always empty after a fight (SB-18)
 	Parts.bHPLine = Parts.bEPLine = Level != EBattleCardLevel::Hub && bParty;
-	Parts.bBuildupLine = Parts.bGear = Level == EBattleCardLevel::Battle && bParty;
+	Parts.bBuildupLine = Level == EBattleCardLevel::Battle && bParty;
 	Parts.bActions = false; // B-436g (D-260): the pips moved to the command menu's tab; OBSOLETE with ActionsText, kept until PIE (docs/PIE/Sweep.md)
 	Parts.bStatus = Level == EBattleCardLevel::Battle && !bParty; // D-261 (B-586): a party member's effects are in Intel
 	// B-436c drew the target marker's tier here; B-582c (Crown, 2026-11-23): no tier line on the floating card. TierLine
@@ -249,12 +249,7 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 	// B-582c QA: the fill is the brush's own (Push swaps it), not SetBrushColor, which would also tint the acting frame.
 	Card.Frame->SetBrush(FSlateColorBrush(CardColor));
 	Card.Frame->SetPadding(FMargin(CardPadding));
-	// B-391c: a card with gear is hit-testable so its gear tooltip shows on hover; the others let clicks through.
-	Card.Frame->SetVisibility(Parts.bGear ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
-	if (Parts.bGear)
-	{
-		Card.Frame->SetToolTipText(Card.GearTooltip); // the battle HUD's RefreshGear ran before the widgets existed
-	}
+	Card.Frame->SetVisibility(ESlateVisibility::HitTestInvisible); // B-598b (Crown): no gear tooltip; clicks go through
 	USizeBox *Width = Tree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
 	if (Parts.bFixedWidth)
 	{

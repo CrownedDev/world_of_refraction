@@ -420,13 +420,6 @@ FText BattleHUDView::FormatGearLine(const FBattleGearNames &Gear)
 	return Gear.RingName.IsEmpty() ? FText::GetEmpty() : FText::FromString(Gear.RingName);
 }
 
-FText BattleHUDView::FormatGearTooltip(const FBattleGearNames &Gear)
-{
-	const auto OrNone = [](const FString &Name) { return Name.IsEmpty() ? LOCTEXT("GearNone", "none") : FText::FromString(Name); };
-	return FText::Format(LOCTEXT("GearTooltip", "Loadout: {0}\nWeapon: {1}\nAdapter: {2}"), OrNone(Gear.LoadoutName),
-						 OrNone(Gear.WeaponName), OrNone(Gear.RingName));
-}
-
 // ========================================
 // B-391c: DURABILITY HEADER (ported from UDurabilityHeaderWidget::RefreshForActor)
 // ========================================

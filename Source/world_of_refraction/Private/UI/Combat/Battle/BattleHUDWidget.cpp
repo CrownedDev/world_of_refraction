@@ -1378,17 +1378,6 @@ void UBattleHUDWidget::RefreshGear()
 		}
 		const FBattleGearNames Gear = BattleHUDView::ReadGearNames(Card.Actor.Get());
 		Card.GearLine = BattleHUDView::FormatGearLine(Gear);
-		const FText Tooltip = BattleHUDView::FormatGearTooltip(Gear);
-		// Review fix: the tooltip is set only when it changes (setting it rebuilds the Slate tooltip and can close an
-		// open one), not on every push.
-		if (!Tooltip.EqualTo(Card.GearTooltip))
-		{
-			Card.GearTooltip = Tooltip;
-			if (Card.Frame)
-			{
-				Card.Frame->SetToolTipText(Card.GearTooltip);
-			}
-		}
 	}
 	PushToWidgets();
 }

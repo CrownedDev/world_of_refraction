@@ -154,7 +154,7 @@ void FBattleHUDSpec::Define()
 			TestFalse(TEXT("no HP"), Parts.bHPBar || Parts.bHPLine);
 			TestFalse(TEXT("no EP"), Parts.bEPLine);
 			TestFalse(TEXT("no build-up"), Parts.bBuildupBar || Parts.bBuildupLine);
-			TestFalse(TEXT("no fight parts"), Parts.bGear || Parts.bActions || Parts.bStatus);
+			TestFalse(TEXT("no fight parts"), Parts.bActions || Parts.bStatus);
 			TestFalse(TEXT("fits the name (B-503k)"), Parts.bFixedWidth);
 		});
 
@@ -164,7 +164,7 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("HP bar and line"), Parts.bHPBar && Parts.bHPLine);
 			TestTrue(TEXT("EP line"), Parts.bEPLine);
 			TestFalse(TEXT("no build-up bar: battle only (it is always empty after a fight)"), Parts.bBuildupBar);
-			TestFalse(TEXT("no fight parts"), Parts.bBuildupLine || Parts.bGear || Parts.bActions || Parts.bStatus);
+			TestFalse(TEXT("no fight parts"), Parts.bBuildupLine || Parts.bActions || Parts.bStatus);
 			TestTrue(TEXT("the battle card's width"), Parts.bFixedWidth);
 		});
 
@@ -172,12 +172,12 @@ void FBattleHUDSpec::Define()
 		{
 			const FBattleCardParts Party = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/true);
 			TestTrue(TEXT("a party card has every part"), Party.bHPBar && Party.bHPLine && Party.bEPLine && Party.bBuildupBar &&
-															  Party.bBuildupLine && Party.bGear);
+															  Party.bBuildupLine);
 			TestFalse(TEXT("but no action pips: they are on the command menu's tab (D-260)"), Party.bActions);
 			TestFalse(TEXT("and no statuses: they are in Intel (D-261)"), Party.bStatus);
 			const FBattleCardParts Enemy = BattleHUDCard::GetParts(EBattleCardLevel::Battle, /*bParty=*/false);
 			TestTrue(TEXT("an enemy: the bars and statuses"), Enemy.bHPBar && Enemy.bBuildupBar && Enemy.bStatus);
-			TestFalse(TEXT("an enemy: no numbers, gear or actions"), Enemy.bHPLine || Enemy.bEPLine || Enemy.bBuildupLine || Enemy.bGear || Enemy.bActions);
+			TestFalse(TEXT("an enemy: no numbers or actions"), Enemy.bHPLine || Enemy.bEPLine || Enemy.bBuildupLine || Enemy.bActions);
 		});
 
 		It("builds only its level's parts", [this]()
@@ -196,7 +196,9 @@ void FBattleHUDSpec::Define()
 				TestEqual(TEXT("EP number (on the EP bar)"), Card.EPText != nullptr, Parts.bEPLine);
 				TestEqual(TEXT("build-up bar"), Card.BuildupBar != nullptr, Parts.bBuildupBar);
 				TestEqual(TEXT("build-up line"), Card.BuildupText != nullptr, Parts.bBuildupLine);
-				TestEqual(TEXT("the gear tooltip on hover, no gear line (B-503k)"), Card.Frame->GetVisibility() == ESlateVisibility::Visible, Parts.bGear);
+				TestTrue(TEXT("no gear tooltip; the card lets the mouse through (B-598b)"),
+						 Card.Frame->GetVisibility() == ESlateVisibility::HitTestInvisible && Card.Frame->GetToolTipText().IsEmpty() &&
+							 !Card.Frame->GetToolTip());
 				TestEqual(TEXT("actions"), Card.ActionsText != nullptr, Parts.bActions);
 				TestEqual(TEXT("statuses"), Card.StatusText != nullptr, Parts.bStatus);
 				BattleHUDCard::Push(Card); // the parts it didn't build are skipped
@@ -415,19 +417,15 @@ void FBattleHUDSpec::Define()
 																					.Equals(ElementColors::GetColorForElement(ESpellElement::None)));
 		});
 
-		It("names a party card's gear and lists it in the tooltip (B-391c)", [this]()
+		It("names a party card's gear (B-391c)", [this]()
 		{
 			FBattleGearNames Gear;
 			Gear.LoadoutName = TEXT("Main");
 			Gear.WeaponName = TEXT("Iron Sword");
 			Gear.RingName = TEXT("Ember Ring");
 			TestEqual(TEXT("weapon and ring"), BattleHUDView::FormatGearLine(Gear).ToString(), FString(TEXT("Iron Sword · Ember Ring")));
-			const FString Tooltip = BattleHUDView::FormatGearTooltip(Gear).ToString();
-			TestTrue(TEXT("tooltip lists all three"), Tooltip.Contains(TEXT("Loadout: Main")) && Tooltip.Contains(TEXT("Weapon: Iron Sword")) &&
-														  Tooltip.Contains(TEXT("Adapter: Ember Ring")));
 			Gear.RingName.Reset();
 			TestEqual(TEXT("weapon alone"), BattleHUDView::FormatGearLine(Gear).ToString(), FString(TEXT("Iron Sword")));
-			TestTrue(TEXT("an empty slot reads none"), BattleHUDView::FormatGearTooltip(Gear).ToString().Contains(TEXT("Adapter: none")));
 			TestTrue(TEXT("no gear, no line"), BattleHUDView::FormatGearLine(FBattleGearNames()).IsEmpty());
 			TestTrue(TEXT("no actor, no gear"), BattleHUDView::ReadGearNames(nullptr).WeaponName.IsEmpty());
 		});
@@ -822,8 +820,7 @@ void FBattleHUDSpec::Define()
 			const FBattleHUDCard &HeroCard = HUD->GetCards()[0];
 			TestEqual(TEXT("the gear line reads the loadout"), HeroCard.GearLine.ToString(),
 					  BattleHUDView::FormatGearLine(BattleHUDView::ReadGearNames(Hero)).ToString());
-			TestTrue(TEXT("the tooltip names the loadout"), HeroCard.GearTooltip.ToString().Contains(TEXT("Loadout:")));
-			TestTrue(TEXT("an enemy card has no gear"), HUD->GetCards()[1].GearTooltip.IsEmpty());
+			TestTrue(TEXT("an enemy card has no gear"), HUD->GetCards()[1].GearLine.IsEmpty());
 
 			FCombatHitShown Nothing;
 			Nothing.DamageType = EWoRDamageType::Fire;
