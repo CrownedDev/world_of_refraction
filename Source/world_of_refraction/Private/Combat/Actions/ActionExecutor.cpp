@@ -4628,8 +4628,11 @@ EWoRDamageType UActionExecutor::GetActionDealtTypeOverride(const FAction &Action
 
 float UActionExecutor::GetIceInfusionCostMultiplier(const FAction &Action, ESpellElement Element)
 {
-	const bool bDealsIceSpell = Action.ActionType == EActionType::Spell && Action.SpellData && Action.SpellData->bDealsIce;
-	return IsIceInfusion(Action, Element) && !bDealsIceSpell ? InfusionConstants::ICE_INFUSION_COST_MULTIPLIER : 1.0f;
+	const bool bSpell = Action.ActionType == EActionType::Spell && Action.SpellData;
+	const bool bDealsIceSpell = bSpell && Action.SpellData->bDealsIce;
+	// B-593b: Ice changes nothing on a spell with no damage and no status buildup (a heal, a buff).
+	const bool bNoIceEffect = bSpell && Action.SpellData->BaseDamage <= 0 && SupportSkillRules::GetAuthoredStatusBuildup(Action.SpellData) <= 0;
+	return IsIceInfusion(Action, Element) && !bDealsIceSpell && !bNoIceEffect ? InfusionConstants::ICE_INFUSION_COST_MULTIPLIER : 1.0f;
 }
 
 ESpellElement UActionExecutor::GetActionHitElement(AActor *User, const FAction &Action) const
