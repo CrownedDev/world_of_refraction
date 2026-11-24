@@ -250,9 +250,10 @@ private:
 	UFUNCTION()
 	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
 
-	/** B-600d: a party member's leap home ends its shots: the turn view, as it goes (ReturnsToTurnViewOnLeapHome). */
+	/** B-600d/e: a party member's leap home ends its shots: the wide beat's view from its Home spot, as it goes
+	 *  (FollowsLeapHome, PlanLeapHome). */
 	UFUNCTION()
-	void HandleReturnStarted(AActor *Actor);
+	void HandleReturnStarted(AActor *Actor, FVector Home);
 
 	UFUNCTION()
 	void HandleBossPhaseReached(AActor *Boss, int32 PhaseIndex);
@@ -332,6 +333,8 @@ private:
 	/** B-407: a player or team signature sequence reached the cap; cut back as if it had finished. */
 	void HandleSignatureCapReached();
 	FCombatCameraFrame BuildFrame(AActor *Focus) const;
+	/** B-600e: Focus framed as if it stood at FocusAt (a leaping attacker, at its home spot). */
+	FCombatCameraFrame BuildFrame(AActor *Focus, const FVector &FocusAt) const;
 	/** B-587's close-up of Subject on Frame (ComputeIntelView, the other fighters kept out of its foreground). */
 	FTransform ComputeIntelViewOf(const AActor *Subject, const FCombatCameraFrame &Frame) const;
 	/** B-405: the turn view's height from the living enemies' data and ranks (FBossFramingRules::FightHeight). */
