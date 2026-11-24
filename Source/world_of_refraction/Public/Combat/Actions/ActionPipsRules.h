@@ -31,6 +31,8 @@ namespace ActionPipsConstants
 
 	/** Actions regained per turn below the first Reflex threshold (Crown, Q-170). */
 	constexpr int32 ACTIONS_REGAIN_BASE = 1; // TODO: tune
+	/** D-274 (Crown, 2026-11-24): the bank every fighter starts a fight with, whatever its regain. */
+	constexpr int32 ACTIONS_AT_FIGHT_START = 1;
 	/** B-170i (Crown, 2026-11-12): Reflex points per +1 regain, times the character's natural Body multiplier.
 	 *  15 = about a sixth of the 93-point stat budget: a light Reflex build (~15 points) regains 2, a focused one
 	 *  (~30) regains 3. */
@@ -213,10 +215,11 @@ namespace ActionPipsRules
 		return FMath::Min(Current, FMath::Max(0, MaxActions));
 	}
 
-	/** A fight starts with the regain amount, capped at Max (Q-170). */
-	inline int32 ActionsAtFightStart(int32 Regain, int32 MaxActions)
+	/** D-274 (Crown, 2026-11-24): every fighter, party and enemy, starts a fight with ACTIONS_AT_FIGHT_START banked,
+	 *  capped at Max; the regain starts on its second turn (was: the regain, Q-170). */
+	inline int32 ActionsAtFightStart(int32 MaxActions)
 	{
-		return FMath::Clamp(Regain, 0, MaxActions);
+		return FMath::Clamp(ActionPipsConstants::ACTIONS_AT_FIGHT_START, 0, MaxActions);
 	}
 
 	/** B-170c (Q-170b): a cost above Max Actions can never be paid, so the skill is unusable (greyed). */

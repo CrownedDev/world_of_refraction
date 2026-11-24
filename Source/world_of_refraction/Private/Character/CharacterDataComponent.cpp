@@ -1765,7 +1765,7 @@ void UCharacterDataComponent::ResetActionsForFight()
     }
     ClearWaitingActionChanges(); // B-170d: nothing waits across fights
     ResetSkillsUsedThisTurn();
-    SetCurrentActions(ActionPipsRules::ActionsAtFightStart(GetActionRegain(), GetMaxActions()));
+    SetCurrentActions(ActionPipsRules::ActionsAtFightStart(GetMaxActions())); // D-274: 1, whatever the regain
 }
 
 void UCharacterDataComponent::RegainActions()
