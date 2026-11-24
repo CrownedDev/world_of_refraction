@@ -103,6 +103,10 @@ namespace InfusionConstants
 	 *  TODO: Crown tune (placeholder). */
 	constexpr float HP_BACKLASH_MULTIPLIER = 0.15f;
 
+	/** D-271 (B-593): an Ice infusion costs this much more than the Water infusion from the same source (EP and the
+	 *  HP basis), except on a spell marked Deals Ice. TODO: Crown tune (placeholder). */
+	constexpr float ICE_INFUSION_COST_MULTIPLIER = 1.25f;
+
 	/** EP multiplier for a charge level: the level itself (clamped to MAX_INFUSION_LEVEL), x1 with no charge. */
 	inline float ChargeLevelCostMultiplier(int32 Level)
 	{

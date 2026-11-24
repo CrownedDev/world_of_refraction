@@ -186,7 +186,9 @@ int32 UActionExecutor::CalculateSourceEnergyCost(AActor *Actor, const FAction &A
 			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveSpellTier(Actor, Action.SpellData));
 			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
 			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
-			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
+			// D-271 (B-593): an Ice infusion costs more, except on a spell marked Deals Ice.
+			const float IceMult = GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action));
+			return FMath::RoundToInt(BaseCost * CostMultiplier * IceMult * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 		}
 		break;
 
@@ -214,9 +216,10 @@ int32 UActionExecutor::CalculateSourceEnergyCost(AActor *Actor, const FAction &A
 			const float EfficiencyMult = GetEffectiveEnergyCostEfficiencyMultiplier(Actor);
 			// Own-tier power: SAME-DIRECTION cost (higher tier = higher cost), not reciprocal.
 			const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(UInventoryComponent::ResolveAbilityTier(Actor, Skill));
+			const float IceMult = GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action)); // D-271
 			// Tier-gap cost (Cluster 3a): reciprocal gap — cheaper through a stronger
 			// channel, pricier through a weaker one. Own ladder, not the damage accessor.
-			return FMath::RoundToInt(BaseCost * CostMultiplier * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
+			return FMath::RoundToInt(BaseCost * CostMultiplier * IceMult * EfficiencyMult * PowerMult * GetTierGapCostMultiplier(Actor, Action));
 		}
 		break;
 
@@ -425,7 +428,10 @@ int32 UActionExecutor::ComputePreEffInfusedEP(AActor *Actor, const FAction &Acti
 	// now-tier-scaled EP cost (this recomputes cost; it does NOT read CalculateActionEnergyCost).
 	// Tier-gap cost (Cluster 3a): the HP-infusion basis tracks the now-gap-scaled
 	// EP cost, so the reciprocal gap flows through to the HP penalty too.
-	return FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * PowerMult * GetTierGapCostMultiplier(Actor, Action));
+	// D-271 (B-593): an Ice infusion's extra cost reaches the HP basis too, so HP tracks EP.
+	const float IceMult = GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action));
+	return FMath::RoundToInt(BaseCost * ComputeInfusionCostMultiplier(Level, bIsSpellAction, CommitComp) * IceMult * PowerMult *
+							 GetTierGapCostMultiplier(Actor, Action));
 }
 
 int32 UActionExecutor::ComputeSourceHPCost(AActor *Actor, const FAction &Action, EInfusionSourceOption Source, int32 Level,

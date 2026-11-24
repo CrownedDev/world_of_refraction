@@ -50,6 +50,10 @@ struct WORLD_OF_REFRACTION_API FCombatPickRequest
 	UPROPERTY(BlueprintReadOnly, Category = "Combat Pick|Infusion")
 	int32 InfusionLevel = 0;
 
+	/** D-271 (B-593): the pick is an Ice infusion from InfusionSource (FAction::bIceInfusion). */
+	UPROPERTY(BlueprintReadOnly, Category = "Combat Pick|Infusion")
+	bool bIceInfusion = false;
+
 	/** Packs Action for InActor. The infusion level is the one for the action's type (FAction::GetChargeLevel). */
 	static FCombatPickRequest FromAction(AActor *InActor, const FAction &Action);
 
