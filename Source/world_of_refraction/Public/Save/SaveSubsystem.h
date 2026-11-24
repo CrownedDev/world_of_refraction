@@ -180,8 +180,8 @@ public:
 
 	// ==================== SETTINGS (B-398) ====================
 
-	/** The player's turn-view setting (default Over the Shoulder since B-600g, Q-600g); an unknown saved value, or one
-	 *  stored before B-600g (not picked since), reads as the default. */
+	/** The player's turn-view setting (default Over the Shoulder since B-600g, Q-600g); an unknown saved value, or the
+	 *  old default (Centred Wide) stored before B-600g and not picked since, reads as the default. */
 	ETurnViewStyle GetTurnViewStyle() const;
 	/** B-600g: GetTurnViewStyle's rule on any settings, e.g. an older save's. */
 	static ETurnViewStyle ReadTurnViewStyle(const FSavedSettings &Settings);

@@ -1349,7 +1349,9 @@ ETurnViewStyle USaveSubsystem::GetTurnViewStyle() const
 ETurnViewStyle USaveSubsystem::ReadTurnViewStyle(const FSavedSettings &Settings)
 {
 	const bool bKnown = Settings.TurnViewStyle <= static_cast<uint8>(ETurnViewStyle::Tactical);
-	return Settings.bTurnViewStylePicked && bKnown ? static_cast<ETurnViewStyle>(Settings.TurnViewStyle) : ETurnViewStyle::OverTheShoulder;
+	// Only an older save's 0 is ambiguous (the old default, picked or not); any other stored style was picked on purpose.
+	const bool bOldDefault = !Settings.bTurnViewStylePicked && Settings.TurnViewStyle == static_cast<uint8>(ETurnViewStyle::CentredWide);
+	return bKnown && !bOldDefault ? static_cast<ETurnViewStyle>(Settings.TurnViewStyle) : ETurnViewStyle::OverTheShoulder;
 }
 
 void USaveSubsystem::SetTurnViewStyle(ETurnViewStyle Style)

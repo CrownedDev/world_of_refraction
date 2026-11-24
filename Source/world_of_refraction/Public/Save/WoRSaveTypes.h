@@ -1042,8 +1042,9 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 	UPROPERTY()
 	uint8 TurnViewStyle = 1;
 
-	/** B-600g: the player picked TurnViewStyle since B-600g. An older save has no such field and reads false, so its
-	 *  stored style (the old default) gives way to the new one until the player picks again: no save version bump. */
+	/** B-600g: the player picked TurnViewStyle since B-600g. An older save has no such field and reads false, so a stored
+	 *  0 (the old default) gives way to the new one until the player picks again; any other stored style is kept. No
+	 *  save version bump. */
 	UPROPERTY()
 	bool bTurnViewStylePicked = false;
 
