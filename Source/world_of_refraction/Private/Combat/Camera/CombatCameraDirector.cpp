@@ -1211,21 +1211,6 @@ FString UCombatCameraDirector::GetTurnLayoutString() const
 
 namespace
 {
-	/** B-424: the skill montage's approach burst toward Target (the dash), and where it ends. False without one, or with a
-	 *  ritual lead-in (its own timing comes first). */
-	bool MeasureApproach(const AActor *Caster, const AActor *Target, const USkillDataBase *Skill, FVector &OutStrike, FApproachBurst &OutBurst)
-	{
-		if (!Caster || !Target || !Skill || !Skill->SkillMontage || Skill->RitualCastMontage)
-		{
-			return false;
-		}
-		OutStrike = ApproachWarp::GetStrikePosition(Caster->GetActorLocation(), Target->GetActorLocation(), Skill->ExecutionRange);
-		// TODO: B-424: the action's play rate (Action Speed); the camera reads the montage at 1.0.
-		OutBurst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(Caster->GetActorLocation(), OutStrike)), 1.0f,
-										 ApproachWarp::GetApproachBurstSeconds());
-		return OutBurst.bHasWindow;
-	}
-
 	/** B-424 (air-burst dash): a melee rush timed to the measured approach burst (MeasureApproach), framed at Strike. */
 	FCameraShot TimeRushToApproach(const FCameraShot &Rush, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning,
 								   const AActor *Caster, const FVector &Strike, const FApproachBurst &Burst)
@@ -1270,26 +1255,41 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	FVector Strike;
 	FApproachBurst Burst;
 	const bool bRush = Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f; // B-403: the melee rush
-	if (bRush && MeasureApproach(Caster, FirstTarget, Skill, Strike, Burst))
+	const bool bHasDash = bRush && FirstTarget &&
+						  FCombatCameraRules::MeasureApproach(Caster->GetActorLocation(), FirstTarget->GetActorLocation(), Skill, Strike, Burst);
+	const ERushOpening RushOpening = FCombatCameraRules::PlanRushOpening(ShotStyle, bEnemy, bRush, bHasDash);
+	ECameraShotMoment OpeningMoment = Opening;
+	switch (RushOpening)
 	{
-		if (FCombatCameraRules::ComputeArrivalShot(ShotStyle, bEnemy, Context, ShotTuning).IsSet())
+	case ERushOpening::HoldThenCut:
+		// B-600c (Melee Rush), B-604 (an enemy's rush): the rush holds behind the attacker's start (a camera timed to the
+		// dash got there first and the attacker ran through the lens); the cut to the side view comes as the dash ends.
+		if (UWorld *World = GetWorld())
 		{
-			// B-600c (Melee Rush), B-604 (an enemy's rush): the rush holds behind the attacker's start (a camera timed to the
-			// dash got there first and the attacker ran through the lens); the cut to the side view comes as the dash ends.
-			if (UWorld *World = GetWorld())
-			{
-				World->GetTimerManager().SetTimer(ArrivalCutTimer, this, &UCombatCameraDirector::CutOnArrival, FMath::Max(Burst.WindowEnd, KINDA_SMALL_NUMBER), false);
-			}
+			World->GetTimerManager().SetTimer(ArrivalCutTimer, this, &UCombatCameraDirector::CutOnArrival, FMath::Max(Burst.WindowEnd, KINDA_SMALL_NUMBER), false);
 		}
-		else
-		{
-			OpeningShot = TimeRushToApproach(OpeningShot, Context, ShotTuning, Caster, Strike, Burst);
-		}
+		break;
+	case ERushOpening::TimedRush:
+		OpeningShot = TimeRushToApproach(OpeningShot, Context, ShotTuning, Caster, Strike, Burst);
+		break;
+	case ERushOpening::SideViewNow:
+		// B-604b: no dash to wait for (it swings where it stands): the side view with both fighters from the first frame.
+		OpeningShot = FCombatCameraRules::ComputeArrivalShot(ShotStyle, bEnemy, Context, ShotTuning).Get(OpeningShot);
+		OpeningMoment = ECameraShotMoment::Impact;
+		break;
+	case ERushOpening::Plain:
+	default:
+		break;
 	}
-	if (!PlayShot(Camera, Opening, OpeningShot))
+	if (!PlayShot(Camera, OpeningMoment, OpeningShot))
 	{
 		StopShotPattern(); // review fix: no viewer or camera, nothing left half-playing
 		return false;
+	}
+	if (RushOpening == ERushOpening::SideViewNow)
+	{
+		bArrivedOnSide = true; // the hit punches in this view (HandleDamageDealt), no second cut
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s swings in place: opens on the side view"), *GetNameSafe(Caster));
 	}
 	CurrentMode = ECombatCameraMode::Action;
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Shot pattern for %s's %s (%d target(s))"), *GetNameSafe(Caster), *GetNameSafe(Skill), ShotTargets.Num());
