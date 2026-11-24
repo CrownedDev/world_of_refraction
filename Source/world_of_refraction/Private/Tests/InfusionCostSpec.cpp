@@ -4,8 +4,8 @@
 // charge level (L0 / L1 x1, L2 x2), for spells and abilities alike; an infused ability's base carries
 // INFUSION_ENERGY_MULTIPLIER (D-035 stands: x1.5 at L1, x3.0 at L2); the stat surcharge is gone (Q-334).
 // Crystal-powered casts and a deferred fire cost no EP. The HP cost is the infused EP as a share of max
-// EP, applied to max HP, x HP_BACKLASH_MULTIPLIER, less Efficiency (capped 50%) and Resistance (D-271), and only at L2 (ApplyCommitCosts, checked through the friend
-// access). Expectations are literals, so a changed number fails here on purpose.
+// EP, applied to max HP, x HP_BACKLASH_MULTIPLIER, less Efficiency (capped 50%) and Resistance (D-271), and
+// only at L2 (ApplyCommitCosts, checked through the friend access). Expectations are literals, so a changed number fails here on purpose.
 // Damage and status charge bands are WoR.Status.InfusedBuildup; wear is WoR.Durability.CrystalBreak.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -45,12 +45,12 @@ namespace
 	constexpr float COST_TEST_STAT_SWING_PERCENT = 20.0f;
 	constexpr int32 COST_TEST_STAT_EFFECT_ID = 9601;
 	constexpr int32 COST_TEST_DURATION_TURNS = 3;
-	/** 100 EP of 200 is half: half of 400 HP is 200, x0.15 (D-271) is 30, less 25% Resistance is 22.5 (rounds to 23). */
+	/** 100 EP of 200 is half: half of 400 HP is 200, x0.15 (D-271) is 30, less 20% Resistance is 24. */
 	constexpr int32 COST_TEST_MAX_EP = 200;
 	constexpr int32 COST_TEST_MAX_HP = 400;
 	constexpr int32 COST_TEST_HP_COST = 30;
-	constexpr float COST_TEST_RESIST_PERCENT = 25.0f;
-	constexpr int32 COST_TEST_HP_COST_RESISTED = 23;
+	constexpr float COST_TEST_RESIST_PERCENT = 20.0f;
+	constexpr int32 COST_TEST_HP_COST_RESISTED = 24;
 	/** An L2 innate spell's 200 EP is all of 200 max EP: all of 400 max HP, x0.15. */
 	constexpr int32 COST_TEST_SPELL_L2_HP_COST = 60;
 	/** An L2 Raw ability's 300 EP is 1.5x of 200 max EP: 1.5x of 400 max HP, x0.15. */
@@ -247,7 +247,7 @@ void FInfusionCostSpec::Define()
 		TestFalse(TEXT("One HP more survives"), UInfusionCostHelper::WouldKill(Caster, COST_TEST_BASE_EP));
 
 		GiveStatEffect(ESkillEffectType::ModifyStatusResist, COST_TEST_RESIST_PERCENT);
-		TestEqual(TEXT("25% Resistance takes a quarter off"), UInfusionCostHelper::CalculateHPCost(Caster, COST_TEST_BASE_EP),
+		TestEqual(TEXT("20% Resistance takes a fifth off"), UInfusionCostHelper::CalculateHPCost(Caster, COST_TEST_BASE_EP),
 				  COST_TEST_HP_COST_RESISTED);
 	});
 
