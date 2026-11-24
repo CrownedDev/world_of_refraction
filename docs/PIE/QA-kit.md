@@ -1,12 +1,13 @@
 # PIE — QA kit: `wor.Debug.QAKit` (QA setup)
 
 **Branch:** `chore/qa-kit` (built 2026-11-24).
-**Already proven by tests:** `WoR.Debug.QAKit` (3 tests: which ability shows an HP cost on a weapon (it needs a SkillMontage), which Caster joins, the no-player message) and the full suite.
+**Already proven by tests:** `WoR.Debug.QAKit` (4 tests: which ability shows an HP cost on a weapon (it needs a SkillMontage), which Caster joins, a brand-new character's learn, the no-player message) and the full suite.
 **Setup:** the QA save only (it changes the loaded game, and the next save keeps it). Load it in the hub, not in a run. Open the console with `` ` ``.
 
 | # | Do this | You should see | Result |
 |---|---|---|---|
 | 1 | `wor.Debug.QAKit skill` | Cyan line `skill: <ability> put in slot N of <weapon>` on the active loadout's primary (the Arming Sword: a skill with a montage, such as QuickStrike), maybe after `primary: ... put in place of ...` or `in hand: ...`, `(learned ... first)` or `, replacing ...`; or `already in a slot`. The last line is `fight loadout: <name> (n of m), in hand <weapon>, primary <weapon>; <weapon> slots [0] <skill> ...` | [ ] |
+| 1b | A brand-new game (new QA save, a Generic): `wor.Debug.QAKit skill` in the hub | As check 1, with `(learned <ability> first)`. If it still fails, the line ends `fitting: <ability> (on member yes/no, kept yes/no, needs ...)`: send that line back | [ ] |
 | 2 | Open the loadout, the primary's skill list | The skill from check 1 sits in the slot the last line names | [ ] |
 | 3 | Start a fight | You hold the weapon the last line named, and Skills is not greyed | [ ] |
 | 3b | Infuse that weapon to Raw level II, hover the skill | B-592b's HP cost ghost on your HP bar | [ ] |
