@@ -157,8 +157,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnImpactFrame, AActor *, Executor,
 /** B-371: a skill's projectile has just launched (the camera's Cast shot can follow it). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnProjectileLaunched, AActor *, Caster, AActor *, Projectile);
 
-/** B-600d: a skill's return leg has started (its ReturnMontage: the attacker heads home). */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReturnStarted, AActor *, Actor);
+/** B-600d: a skill's return leg has started (its ReturnMontage: the attacker heads home). B-600e: Home is where it
+ *  lands (its grid slot; its own spot when it returns in place). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnReturnStarted, AActor *, Actor, FVector, Home);
 
 /** Callback for async action completion */
 DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
