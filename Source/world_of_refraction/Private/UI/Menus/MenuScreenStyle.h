@@ -381,7 +381,8 @@ namespace WoRMenuStyle
 	/** B-602: the first of a scroll box's rows (GetRow(0..Count-1), any depth inside it) under ScreenPosition, inside the
 	 *  box's view; INDEX_NONE for none (and before the box is drawn). The rows' places are laid out fresh from the box's
 	 *  own place and scroll: a row scrolled out of view isn't drawn, so its cached geometry stays where it last was and
-	 *  would still be "under" the mouse after a wheel scroll. */
+	 *  would still be "under" the mouse after a wheel scroll. Each row must sit inside Scroll's own tree (any depth): a
+	 *  row placed elsewhere is never found. */
 	inline int32 FindScrolledRowUnder(const UScrollBox *Scroll, int32 Count, TFunctionRef<const UWidget *(int32)> GetRow, const FVector2D &ScreenPosition)
 	{
 		const TSharedPtr<SWidget> ScrollWidget = Scroll ? Scroll->GetCachedWidget() : nullptr;
