@@ -2,7 +2,8 @@
 // B-309d2: the loadout screens put, swap and clear pieces in FCombatLoadout::Slots by place (EditSlots) and the old
 // fields are rebuilt from them. After each screen action the slots and the old fields agree (what
 // wor.Loadout.CompareSlots checks), a piece keeps its picks, and an adapter added after an empty place keeps the gap.
-// Unproven here: the socket and skill edits through WoRLoadoutScreen::FindRowGear (B-309d2b) and the inventory writers (B-309d3).
+// B-309d2b: a socket choice and a skill pick go in the piece's slot (WoRLoadoutScreen::EditRowGear).
+// Unproven here: the inventory writers (B-309d3: socketing the owned piece, taking a socket off, Restore).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -13,6 +14,7 @@
 #include "Misc/AutomationTest.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/Menus/LoadoutSkillsModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
 
 namespace
@@ -178,6 +180,58 @@ void FLoadoutScreensWriteSlotsSpec::Define()
 		Resonator.PrimaryWeapon.WeaponEntry = OwnedWeapon();
 		TestTrue(TEXT("an adapter added"), WoRLoadoutV2::ApplyDraft(Resonator, ECharacterClass::Resonator, AdapterDraft(OwnedAdapter()), Refusal));
 		TestTrue(TEXT("the hidden weapon kept, the evolution type too"), Resonator.PrimaryWeapon.IsValid() && Resonator.PrimarySlotType == EPrimarySlotType::Evolution);
+	});
+
+	It("puts a socket choice and a skill pick in the piece's slot, in step, and a Caster's hidden adapter in its old entry (B-309d2b)", [this]()
+	{
+		const ECharacterClass Class = ECharacterClass::Generic;
+		UWeaponData *SwordData = NewObject<UWeaponData>(GetTransientPackage());
+		SwordData->WeaponType = EWeaponType::Sword;
+		FCombatLoadout Loadout;
+		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
+		Loadout.PrimaryWeapon.WeaponEntry = FWeaponInventoryEntry::CreateFromWeapon(SwordData);
+		Loadout.PrimaryWeapon.WeaponEntry.Tier = EItemTier::C_Tier; // has a skill slot
+		Loadout.PrimaryWeapon.WeaponEntry.PersistentID = FGuid::NewGuid();
+		Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
+		Loadout.SecondaryWeapon.WeaponEntry = OwnedWeapon();
+		Loadout.bShowPrimary = true;
+		Loadout.RebuildSlotsFromLegacy(Class);
+
+		FLoadoutScreenRow Secondary;
+		Secondary.Kind = ELoadoutScreenRowKind::Weapon;
+		Secondary.Place = ELoadoutScreenPlace::Secondary;
+		Secondary.GearID = Loadout.SecondaryWeapon.WeaponEntry.PersistentID;
+		Secondary.Sockets.SetNum(LoadoutScreenSockets::STONE + 1);
+		FLoadoutScreenChoice Garnet;
+		Garnet.Attachment.Kind = EAttachedItemKind::Crystal;
+		Garnet.Attachment.Crystal.Id = FCrystalId(ECrystalType::Garnet, EItemTier::C_Tier);
+		TestTrue(TEXT("socketed"), WoRLoadoutScreen::PutSocketChoice(Loadout, Class, Secondary, LoadoutScreenSockets::CRYSTAL, Garnet));
+		const FLoadoutSlot *SecondSlot = Loadout.FindSlotAt(SECONDARY_INDEX);
+		TestTrue(TEXT("in the slot and the old entry, in step"), SecondSlot && SecondSlot->Gear.AttachedItem.Crystal.Id == Garnet.Attachment.Crystal.Id &&
+																	 Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Crystal.Id == Garnet.Attachment.Crystal.Id && InStep(Loadout, Class));
+
+		UAbilityData *Pick = NewObject<UAbilityData>(GetTransientPackage());
+		const FLoadoutSkillsPage Page = WoRLoadoutSkills::BuildSkillsPage(Loadout, Class, 0, {});
+		const int32 SwordTab = Page.Tabs.IndexOfByPredicate([](const FLoadoutSkillTab &Tab) { return Tab.Gear.Place == ELoadoutScreenPlace::Primary; });
+		if (!TestTrue(TEXT("the sword's list, with a slot"), Page.Tabs.IsValidIndex(SwordTab) && !Page.Tabs[SwordTab].Rows.IsEmpty())) return;
+		FText Refusal;
+		TestTrue(TEXT("picked"), WoRLoadoutSkills::PutSkill(Loadout, Class, Page.Tabs[SwordTab], Page.Tabs[SwordTab].Rows[0], Pick, Refusal));
+		const FLoadoutSlot *FirstSlot = Loadout.FindSlotAt(PRIMARY_INDEX);
+		TestTrue(TEXT("in the slot and the old entry, in step"), FirstSlot && FirstSlot->AssignedAbilities.Contains(Pick) &&
+																	 Loadout.PrimaryWeapon.WeaponEntry.SkillPicks.Contains(Pick) && InStep(Loadout, Class));
+
+		// A Caster's adapter loadout is no slot: the socket goes in its old entry, which the rebuild keeps.
+		FCombatLoadout Caster;
+		Caster.RingLoadout = {FRingLoadoutEntry()};
+		Caster.RingLoadout[0].RingEntry = OwnedAdapter();
+		FLoadoutScreenRow Hidden;
+		Hidden.Kind = ELoadoutScreenRowKind::Adapter;
+		Hidden.Place = ELoadoutScreenPlace::Adapter;
+		Hidden.AdapterIndex = 0;
+		Hidden.GearID = Caster.RingLoadout[0].RingEntry.PersistentID;
+		Hidden.Sockets.SetNum(LoadoutScreenSockets::STONE + 1);
+		TestTrue(TEXT("socketed"), WoRLoadoutScreen::PutSocketChoice(Caster, ECharacterClass::Caster, Hidden, LoadoutScreenSockets::CRYSTAL, Garnet));
+		TestTrue(TEXT("kept in the old entry"), Caster.RingLoadout.Num() == 1 && Caster.RingLoadout[0].RingEntry.AttachedItem.Crystal.Id == Garnet.Attachment.Crystal.Id);
 	});
 
 	It("puts a weapon over an evolution primary and moves a Generic's second weapon up with its picks (gear screen)", [this]()
