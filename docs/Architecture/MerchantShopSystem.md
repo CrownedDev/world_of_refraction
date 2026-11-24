@@ -67,7 +67,7 @@ is removed from the code; its stock line on each merchant now loads as an empty 
 |---|---|---|
 | `DA_Merchant_Blacksmith` | Blacksmith | 32 = 18 weapons + 12 crystals + 2 potions |
 | `DA_Merchant_Jewler` *(sic)* | Jeweler | 53 = 51 lines (rings per `Resources_Design.md` §5.1c, and the 12 crystal lines) + 2 potions |
-| `DA_Merchant_CombatMaster` | CombatMaster | 2 = Quick Strike + Force Strike (B-601: only the refined sword skills) |
+| `DA_Merchant_CombatMaster` | CombatMaster | 5 = Quick Strike + Force Strike + Over Under + Heavy Attack + WhirlWind (B-601: only the refined sword skills; B-595b/c/d add the last three) |
 | `DA_Merchant_Refractor` | SpellShop | 29 = 15 spells + 12 crystals + 2 potions |
 | `DA_Merchant_Evolutionist` | Spiritualist | 41 = 27 evolutions + 12 crystals + 2 potions |
 
@@ -234,3 +234,6 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 | 2026-11-22 | B-579 (assets): the five merchants got their two potion stock lines, at the end of each list; the table above corrected to the counts read in the editor (the Jeweler had 51, not 49). | `feature/B-579-merchant-stock` |
 | 2026-11-24 | B-595e: the Combat Master stocks Quick Strike and Force Strike (after Wrath Cut; 158 to 160 lines). Both are tier F, so 25 Gold + 10 Dormant Essence (Q-595, Q-595e); each later B-595 sword skill joins the same way. | `feature/B-595e-force-strike` |
 | 2026-11-24 | B-601 (Crown): the Combat Master sells only the refined skills, Quick Strike and Force Strike (160 to 2 lines). The other abilities, its crystals, its potions and the empty slot are out of its stock; no asset was deleted. Each later B-595 sword skill joins it. Its empty-slot line left `Scripts/ue/validation_baseline.txt`. | `chore/B-601-combat-master-refined-only` |
+| 2026-11-24 | B-595b: Over Under joins the Combat Master's stock after Quick Strike and Force Strike (2 to 3 lines); tier F, 25 Gold + 10 Dormant Essence (Q-595b). | `feature/B-595b-sword-over-under` |
+| 2026-11-24 | B-595c: Heavy Attack joins the Combat Master's stock after Quick Strike and Force Strike (2 to 3 lines; tier F, 25 Gold + 10 Dormant Essence, Q-595c). | `feature/B-595c-sword-heavy-attack` |
+| 2026-11-24 | B-595d: WhirlWind joins the Combat Master's stock after Quick Strike and Force Strike (2 to 3 lines; priced by its tier, Q-595d). | `feature/B-595d-sword-whirlwind` |
