@@ -49,6 +49,17 @@ void FQAKitSpec::Define()
 		TestFalse(TEXT("no weapon"), WoRQAKit::IsHPCostSkillFor(MakeAbility(5, EWeaponType::Sword, EWeaponWieldMode::Single, false), nullptr));
 	});
 
+	It("takes only the ability named, by asset name or shown name, in any case (B-595a)", [this]()
+	{
+		UAbilityData *QuickStrike = NewObject<UAbilityData>(GetTransientPackage(), TEXT("DA_Sword_Abilities_QuickStrike"));
+		QuickStrike->Name = TEXT("Quick Strike");
+		TestTrue(TEXT("no name takes any"), WoRQAKit::IsNamed(QuickStrike, FString()));
+		TestTrue(TEXT("its asset name, other case"), WoRQAKit::IsNamed(QuickStrike, TEXT("da_sword_abilities_quickstrike")));
+		TestTrue(TEXT("its shown name"), WoRQAKit::IsNamed(QuickStrike, TEXT("Quick Strike")));
+		TestFalse(TEXT("another ability's name"), WoRQAKit::IsNamed(QuickStrike, TEXT("DA_Sword_Abilities_HeavyStrike")));
+		TestFalse(TEXT("no ability"), WoRQAKit::IsNamed(nullptr, TEXT("Quick Strike")));
+	});
+
 	It("picks a Caster of the element asked, or any with its own element, never one in the party", [this]()
 	{
 		const auto MakeData = [](ECharacterClass Class, ESpellElement Element)

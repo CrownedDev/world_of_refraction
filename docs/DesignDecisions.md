@@ -1250,6 +1250,15 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### Q-595 — Quick Strike's numbers (the first of the four one-handed sword skills)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595a) · **Blocks:** nothing
+**Question:** Quick Strike had the placeholder 30 damage / 15 EP shared by most sword skills. What are its real numbers, between the basic Slash (20 damage, free) and Heavy Attack (80, 25 EP)?
+**Answer (default, built):** **35 damage, 10 EP, 5 status buildup, 1 action, no stat scaling** (no sword skill scales yet; they get it together when one does).
+- About 1.75x the free attack for the cheapest EP cost of the four. Heavy Attack stays the best damage per EP (+60 over Slash for 25 EP, against Quick Strike's +15 for 10), so the cheap skill is the safe filler and the big one the payoff.
+- Buildup 5, the same as the basic Slash: a light cut, not a status tool.
+- On the QA save it hit the test enemy for 96; the old 30-damage version hit it for 71.
+**Reference:** Honkai: Star Rail's basic attack is free and its Skill costs one point for about twice the damage; that cheap-filler / point-spender loop is widely praised for keeping every turn a choice. Expedition 33 also keeps its base attack free and puts its skills on a small AP cost. The deckbuilder has no per-card number to copy here (its costs are energy per card, not a ratio to an attack).
+
 ### Q-590 — The turn-order hexagons' small points
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-23 (B-590, from D-264) · **Blocks:** nothing
 **Question:** D-264 sets the hexagons' sizes and colours. What shows without portrait art? Are bonus turns marked? Where does the column sit next to Intel? How does Turns shown step?

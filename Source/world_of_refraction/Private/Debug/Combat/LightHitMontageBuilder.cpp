@@ -5,6 +5,7 @@
 //   wor.Editor.BuildLightHitFieldMontage (B-503b: the strike alone, for the field attack)
 //   wor.Editor.BuildFieldPulseMontage (B-503d: the field pulse's cast, the throw cut from AS_Cast_FireBall; it shares
 //   this file's montage helpers)
+//   wor.Editor.BuildQuickStrikeMontage (B-595a: the dash + the one-handed sword's slash, for Quick Strike)
 // Times are from docs/analysis/ShowcaseAnimAnalysis.md, "Travel without stretching".
 
 #if WITH_EDITOR
@@ -42,6 +43,15 @@ namespace LightHitMontageBuilder
 	constexpr float PULSE_CLIP_END = 5.2f;
 	/** In the montage's time: 4.5 s of the clip, the hand at full speed and nearly forward. */
 	constexpr float PULSE_RELEASE_TIME = 0.5f;
+
+	// ---- B-595a: Quick Strike, the light hit's dash with the one-handed sword's slash ----
+	constexpr const TCHAR *QUICK_STRIKE_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/QuickStrike");
+	constexpr const TCHAR *QUICK_STRIKE_MONTAGE = TEXT("AM_Sword_QuickStrike");
+	/** The slash, read only (vendor folder). Root motion: a 1.2 m step in, which the warp subtracts. */
+	constexpr const TCHAR *QUICK_STRIKE_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordV1/Manny_UE5/RootMotion/Attack/Anim_Sword_1H_Attack_Slash1.Anim_Sword_1H_Attack_Slash1");
+	/** In the slash's own time: weapon_r is fastest at frame 20 of 75 (60 fps) and slows sharply after
+	 *  (Scripts/ue/sample_bones.sh, one clear peak). */
+	constexpr float QUICK_STRIKE_IMPACT_TIME = 0.333f;
 
 	/** The airborne frames only: the feet never slide, the hop becomes the burst. */
 	constexpr float DASH_WARP_START = 0.18f;
@@ -218,6 +228,35 @@ namespace LightHitMontageBuilder
 		TEXT("EDITOR (B-503d): build AM_Field_Pulse (the field pulse's cast, Impact0 at the release) in ")
 			TEXT("/Game/Data/Skills/Field/Pulse. Doesn't save: save it in the editor, then uncomment FieldPulseMontage in DefaultGame.ini."),
 		FConsoleCommandDelegate::CreateStatic(&BuildFieldPulse));
+
+	/** B-595a: Quick Strike's approach, the light hit's dash (same warp window) then the slash with its Impact on the
+	 *  contact frame. Its return is the light hit's hop back (AM_SAS_LightHit_Return), set on the skill. */
+	void BuildQuickStrike()
+	{
+		UAnimSequenceBase *Dash = LoadObject<UAnimSequenceBase>(nullptr, DASH_CLIP);
+		UAnimSequenceBase *Slash = LoadObject<UAnimSequenceBase>(nullptr, QUICK_STRIKE_CLIP);
+		if (!Dash || !Slash)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing a clip (dash %d, slash %d)"), Dash != nullptr, Slash != nullptr);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(QUICK_STRIKE_FOLDER) / QUICK_STRIKE_MONTAGE + TEXT(".") + QUICK_STRIKE_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), QUICK_STRIKE_MONTAGE);
+			return;
+		}
+		UAnimMontage *Montage = MakeMontage(QUICK_STRIKE_MONTAGE, {Dash, Slash}, QUICK_STRIKE_FOLDER);
+		AddWarpWindow(Montage, DASH_WARP_START, DASH_WARP_END);
+		AddCombatNotify(Montage, Dash->GetPlayLength() + QUICK_STRIKE_IMPACT_TIME, ECombatNotifyFamily::Impact);
+		Finish(Montage);
+	}
+
+	static FAutoConsoleCommand GBuildQuickStrikeCommand(
+		TEXT("wor.Editor.BuildQuickStrikeMontage"),
+		TEXT("EDITOR (B-595a): build AM_Sword_QuickStrike (the light hit's dash + the one-handed slash, Impact0 on contact) in ")
+			TEXT("/Game/Data/Skills/Weapons/Sword/QuickStrike. Doesn't save: save it in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildQuickStrike));
 
 	static FAutoConsoleCommand GBuildCommand(
 		TEXT("wor.Editor.BuildLightHitMontages"),
