@@ -7,6 +7,7 @@
 //   this file's montage helpers)
 //   wor.Editor.BuildQuickStrikeMontage (B-595a: the dash + the one-handed sword's slash, for Quick Strike)
 //   wor.Editor.BuildForceStrikeMontage (B-595e: a standing slash, Cast0 on the cut, for Force Strike's projectile)
+//   wor.Editor.BuildOverUnderMontage (B-595b: the dash + a cut down and a cut up, Impact0 and Impact1)
 // Times are from docs/analysis/ShowcaseAnimAnalysis.md, "Travel without stretching".
 
 #if WITH_EDITOR
@@ -61,6 +62,19 @@ namespace LightHitMontageBuilder
 	constexpr const TCHAR *FORCE_STRIKE_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/DSAS_V1/Manny_UE5/InPlace/Attack/CommonAttack/Anim_SAS_Slash1_IP.Anim_SAS_Slash1_IP");
 	/** The flat cut: weapon_r is fastest at frame 38 of 80 (40 fps) and stops sharply by frame 41 (sample_bones.sh). */
 	constexpr float FORCE_STRIKE_RELEASE_TIME = 0.95f;
+
+	// ---- B-595b: Over Under, the light hit's dash then a cut down and a cut up (two Impacts) ----
+	constexpr const TCHAR *OVER_UNDER_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/OverUnder");
+	constexpr const TCHAR *OVER_UNDER_MONTAGE = TEXT("AM_Sword_OverUnder");
+	/** Root motion, read only (vendor folder): a three-swing combo; only its 2nd (down) and 3rd (rising) swings are used. */
+	constexpr const TCHAR *OVER_UNDER_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordV1/Manny_UE5/RootMotion/Attack/Anim_Sword_1H_Attack_Combo1.Anim_Sword_1H_Attack_Combo1");
+	/** In the clip's own time (sample_bones.sh, weapon_r at 60 fps): the sword is raised between swings at 0.65 s (the
+	 *  pose nearest the dash's end, closer than Quick Strike's join), settled after the rising cut by 1.65 s. */
+	constexpr float OVER_UNDER_CLIP_START = 0.65f;
+	constexpr float OVER_UNDER_CLIP_END = 1.65f;
+	/** In the segment's time: the down cut peaks at 0.883 s of the clip (z 139 -> 97), the rising cut at 1.383 s (z 106 -> 174). */
+	constexpr float OVER_UNDER_OVER_IMPACT_TIME = 0.233f;
+	constexpr float OVER_UNDER_UNDER_IMPACT_TIME = 0.733f;
 
 	/** The airborne frames only: the feet never slide, the hop becomes the burst. */
 	constexpr float DASH_WARP_START = 0.18f;
@@ -129,11 +143,11 @@ namespace LightHitMontageBuilder
 		Event.EndTriggerTimeOffset = GetTriggerTimeOffsetForType(Montage->CalculateOffsetForNotify(Event.EndLink.GetTime()));
 	}
 
-	void AddCombatNotify(UAnimMontage *Montage, float Time, ECombatNotifyFamily Family)
+	void AddCombatNotify(UAnimMontage *Montage, float Time, ECombatNotifyFamily Family, int32 Index = 0)
 	{
 		UCombatNotify *Notify = NewObject<UCombatNotify>(Montage, NAME_None, RF_Transactional);
 		Notify->Family = Family;
-		Notify->Index = 0;
+		Notify->Index = Index;
 		FAnimNotifyEvent &Event = AddEvent(Montage, Time);
 		Event.Notify = Notify;
 		Event.NotifyName = FName(*Notify->GetNotifyName());
@@ -292,6 +306,41 @@ namespace LightHitMontageBuilder
 		TEXT("EDITOR (B-595e): build AM_Sword_ForceStrike (a standing slash, Cast0 on the cut) in ")
 			TEXT("/Game/Data/Skills/Weapons/Sword/ForceStrike. Doesn't save: save it in the editor."),
 		FConsoleCommandDelegate::CreateStatic(&BuildForceStrike));
+
+	/** B-595b: Over Under's approach, the light hit's dash (same warp window) then the combo's down cut and rising cut,
+	 *  Impact0 and Impact1 on their contact frames. Its return is the light hit's hop back, set on the skill. */
+	void BuildOverUnder()
+	{
+		UAnimSequenceBase *Dash = LoadObject<UAnimSequenceBase>(nullptr, DASH_CLIP);
+		UAnimSequenceBase *Combo = LoadObject<UAnimSequenceBase>(nullptr, OVER_UNDER_CLIP);
+		if (!Dash || !Combo)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing a clip (dash %d, combo %d)"), Dash != nullptr, Combo != nullptr);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(OVER_UNDER_FOLDER) / OVER_UNDER_MONTAGE + TEXT(".") + OVER_UNDER_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), OVER_UNDER_MONTAGE);
+			return;
+		}
+		UAnimMontage *Montage = MakeMontage(OVER_UNDER_MONTAGE, {Dash, Combo}, OVER_UNDER_FOLDER);
+		FAnimSegment &Cuts = Montage->SlotAnimTracks[0].AnimTrack.AnimSegments[1];
+		Cuts.AnimStartTime = OVER_UNDER_CLIP_START;
+		Cuts.AnimEndTime = OVER_UNDER_CLIP_END;
+		const float CutsStart = Dash->GetPlayLength();
+		Montage->SetCompositeLength(CutsStart + Cuts.GetLength());
+		AddWarpWindow(Montage, DASH_WARP_START, DASH_WARP_END);
+		AddCombatNotify(Montage, CutsStart + OVER_UNDER_OVER_IMPACT_TIME, ECombatNotifyFamily::Impact, 0);
+		AddCombatNotify(Montage, CutsStart + OVER_UNDER_UNDER_IMPACT_TIME, ECombatNotifyFamily::Impact, 1);
+		Finish(Montage);
+	}
+
+	static FAutoConsoleCommand GBuildOverUnderCommand(
+		TEXT("wor.Editor.BuildOverUnderMontage"),
+		TEXT("EDITOR (B-595b): build AM_Sword_OverUnder (the light hit's dash + a cut down and a cut up, Impact0 and Impact1 ")
+			TEXT("on contact) in /Game/Data/Skills/Weapons/Sword/OverUnder. Doesn't save: save it in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildOverUnder));
 
 	static FAutoConsoleCommand GBuildCommand(
 		TEXT("wor.Editor.BuildLightHitMontages"),
