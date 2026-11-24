@@ -1271,10 +1271,10 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	const bool bRush = Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f; // B-403: the melee rush
 	if (bRush && MeasureApproach(Caster, FirstTarget, Skill, Strike, Burst))
 	{
-		if (FCombatCameraRules::ComputeArrivalShot(ShotStyle, Context, ShotTuning).IsSet())
+		if (FCombatCameraRules::ComputeArrivalShot(ShotStyle, bEnemy, Context, ShotTuning).IsSet())
 		{
-			// B-600c (Melee Rush): the rush holds behind the attacker's start (a camera timed to the dash got there first
-			// and the attacker ran through the lens); the cut to the side view comes as the dash ends, before the swing.
+			// B-600c (Melee Rush), B-604 (an enemy's rush): the rush holds behind the attacker's start (a camera timed to the
+			// dash got there first and the attacker ran through the lens); the cut to the side view comes as the dash ends.
 			if (UWorld *World = GetWorld())
 			{
 				World->GetTimerManager().SetTimer(ArrivalCutTimer, this, &UCombatCameraDirector::CutOnArrival, FMath::Max(Burst.WindowEnd, KINDA_SMALL_NUMBER), false);
@@ -1505,7 +1505,8 @@ void UCombatCameraDirector::CutOnArrival()
 	{
 		return;
 	}
-	const TOptional<FCameraShot> Arrival = FCombatCameraRules::ComputeArrivalShot(ShotStyle, BuildShotContext(false), ShotTuning);
+	const bool bEnemy = OpposingCombatants.Contains(ShotCaster.Get()); // B-604
+	const TOptional<FCameraShot> Arrival = FCombatCameraRules::ComputeArrivalShot(ShotStyle, bEnemy, BuildShotContext(false), ShotTuning);
 	if (Arrival.IsSet() && PlayShot(Camera, ECameraShotMoment::Impact, Arrival.GetValue()))
 	{
 		bArrivedOnSide = true;
