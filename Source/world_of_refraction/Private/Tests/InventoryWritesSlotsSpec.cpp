@@ -34,7 +34,7 @@ namespace
 	bool WritesInStep(const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		FCombatLoadout Fresh = Loadout;
-		Fresh.RebuildSlotsFromLegacy(Class);
+		Fresh.BuildSlotsFromOldFields(Class);
 		if (Fresh.Slots.Num() != Loadout.Slots.Num() || Fresh.ActiveWeaponSlot != Loadout.ActiveWeaponSlot || Fresh.ActiveAdapterSlot != Loadout.ActiveAdapterSlot)
 		{
 			return false;
@@ -43,7 +43,7 @@ namespace
 		{
 			const FLoadoutSlot &A = Fresh.Slots[Index];
 			const FLoadoutSlot &B = Loadout.Slots[Index];
-			if (A.Place != B.Place || A.GearID != B.GearID || A.OffHandID != B.OffHandID || A.LegacyOrigin != B.LegacyOrigin || A.LegacyIndex != B.LegacyIndex)
+			if (A.Place != B.Place || A.GearID != B.GearID || A.OffHandID != B.OffHandID || A.Kind() != B.Kind())
 			{
 				return false;
 			}
@@ -71,7 +71,7 @@ void FInventoryWritesSlotsSpec::Define()
 			Loadout.RingLoadout.AddDefaulted_GetRef().RingEntry = *Adapter;
 		}
 		Loadout.ActiveRingIndex = 2;
-		Loadout.RebuildSlotsFromLegacy(Class);
+		Loadout.BuildSlotsFromOldFields(Class);
 
 		TestTrue(TEXT("stripped"), UInventoryComponent::StripFromLoadout(Loadout, Middle.PersistentID, Class));
 		TestTrue(TEXT("the list closes up"), Loadout.RingLoadout.Num() == 2 && Loadout.RingLoadout[0].RingEntry.PersistentID == First.PersistentID &&
@@ -92,7 +92,7 @@ void FInventoryWritesSlotsSpec::Define()
 		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
 		Loadout.PrimaryWeapon.WeaponEntry = MainHand;
 		Loadout.PrimaryWeapon.OffHandEntry = OffHand;
-		Loadout.RebuildSlotsFromLegacy(Class);
+		Loadout.BuildSlotsFromOldFields(Class);
 
 		TestTrue(TEXT("the off hand stripped"), UInventoryComponent::StripFromLoadout(Loadout, OffHand.PersistentID, Class));
 		const FLoadoutSlot *Primary = Loadout.FindSlotAt(PRIMARY_INDEX);
@@ -116,7 +116,7 @@ void FInventoryWritesSlotsSpec::Define()
 		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
 		Loadout.PrimaryWeapon.WeaponEntry = Weapon;
 		Loadout.RingLoadout.AddDefaulted_GetRef().RingEntry = Adapter;
-		Loadout.RebuildSlotsFromLegacy(Class);
+		Loadout.BuildSlotsFromOldFields(Class);
 		TestEqual(TEXT("only the weapon is a slot"), Loadout.Slots.Num(), 1);
 
 		const FGuid NewWeaponID = FGuid::NewGuid();
@@ -158,7 +158,7 @@ void FInventoryWritesSlotsSpec::Define()
 		Loadout.PrimaryWeapon.WeaponEntry = Weapon;
 		Loadout.RingLoadout.AddDefaulted_GetRef().RingEntry = First;
 		Loadout.RingLoadout.AddDefaulted_GetRef().RingEntry = Second;
-		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Caster);
+		Loadout.BuildSlotsFromOldFields(ECharacterClass::Caster);
 		FCombatLoadout AsCaster = Loadout;
 
 		TestTrue(TEXT("stripped by default"), UInventoryComponent::StripFromLoadout(Loadout, First.PersistentID));

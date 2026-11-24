@@ -81,7 +81,7 @@ namespace LoadoutV2Build
 	int32 CellsUsed(const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		FCombatLoadout Mirror = Loadout;
-		Mirror.RebuildSlotsFromLegacy(Class);
+		Mirror.BuildSlotsFromOldFields(Class);
 		int32 Cells = Mirror.IsEvolutionLoadout() ? LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST : 0;
 		for (const FLoadoutSlot &Slot : Mirror.Slots)
 		{

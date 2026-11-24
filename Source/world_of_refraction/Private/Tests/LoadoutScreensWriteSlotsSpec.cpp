@@ -37,7 +37,7 @@ namespace
 	bool InStep(const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		FCombatLoadout Fresh = Loadout;
-		Fresh.RebuildSlotsFromLegacy(Class);
+		Fresh.BuildSlotsFromOldFields(Class);
 		if (Fresh.Slots.Num() != Loadout.Slots.Num() || Fresh.ActiveWeaponSlot != Loadout.ActiveWeaponSlot || Fresh.ActiveAdapterSlot != Loadout.ActiveAdapterSlot)
 		{
 			return false;
@@ -46,7 +46,7 @@ namespace
 		{
 			const FLoadoutSlot &A = Fresh.Slots[Index];
 			const FLoadoutSlot &B = Loadout.Slots[Index];
-			if (A.Place != B.Place || A.GearID != B.GearID || A.OffHandID != B.OffHandID || A.LegacyOrigin != B.LegacyOrigin || A.LegacyIndex != B.LegacyIndex)
+			if (A.Place != B.Place || A.GearID != B.GearID || A.OffHandID != B.OffHandID || A.Kind() != B.Kind())
 			{
 				return false;
 			}
@@ -195,7 +195,7 @@ void FLoadoutScreensWriteSlotsSpec::Define()
 		Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
 		Loadout.SecondaryWeapon.WeaponEntry = OwnedWeapon();
 		Loadout.bShowPrimary = true;
-		Loadout.RebuildSlotsFromLegacy(Class);
+		Loadout.BuildSlotsFromOldFields(Class);
 
 		FLoadoutScreenRow Secondary;
 		Secondary.Kind = ELoadoutScreenRowKind::Weapon;
