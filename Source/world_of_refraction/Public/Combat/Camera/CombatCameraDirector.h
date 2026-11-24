@@ -12,10 +12,12 @@
 #include "Engine/TimerHandle.h"
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "Combat/Camera/BossFraming.h"
+#include "Combat/Defense/EDefenseType.h"
 #include "CombatCameraDirector.generated.h"
 
 class UCombatCameraComponent;
 class UActionExecutor;
+class UDefenseSystem;
 class ULevelSequence;
 class ULevelSequencePlayer;
 class ALevelSequenceActor;
@@ -247,6 +249,10 @@ private:
 	UFUNCTION()
 	void HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
 
+	/** B-604c: a guarded or dodged impact lands without damage; it still ends the defend camera's wait for the hit. */
+	UFUNCTION()
+	void HandleDefenseResolved(AActor *Defender, AActor *Attacker, EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex, float AttackEnergyCost);
+
 	UFUNCTION()
 	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
 
@@ -417,6 +423,22 @@ private:
 	FTimerHandle ArrivalCutTimer;
 	bool bArrivedOnSide = false;
 	void CutOnArrival();
+
+	/** B-604c: the enemy whose defend camera is up, and when its first hit landed (< 0: not yet). The next turn's camera
+	 *  waits for that hit and its hold (FCombatCameraRules::GetDefendTurnWait). */
+	TWeakObjectPtr<AActor> DefendAttacker;
+	double DefendHitTime = -1.0;
+	/** B-604c: a turn start that came while the defend camera waited for its hit; played when the hold ends. */
+	FTimerHandle DeferredTurnTimer;
+	TWeakObjectPtr<AActor> DeferredTurnActor;
+	int32 DeferredTurnNumber = 0;
+	bool bTurnStartDeferred = false;
+	void SetDefendAttacker(AActor *Attacker);
+	/** The defend attacker's first impact landed (damage, guard or dodge): a deferred turn start waits only for the hold. */
+	void MarkDefendHit(AActor *Attacker);
+	TWeakObjectPtr<UDefenseSystem> BoundDefense;
+	void PlayDeferredTurnStart();
+	void ClearDefendWait();
 
 	// B-404: the wide beat and the party handover of the current turn start.
 	FTimerHandle WideBeatTimer;

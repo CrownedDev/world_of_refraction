@@ -18,6 +18,10 @@ namespace DefensePromptText
 	constexpr const TCHAR *Window = TEXT("DEFEND! Guard / Dodge");
 	constexpr const TCHAR *Missed = TEXT("Missed");
 	constexpr int32 NativeFontSize = 32; // TODO: style pass
+	// B-604c: readable on a bright sky and over a fighter (the defend camera puts both behind it): a dark outline and shadow.
+	constexpr int32 NativeOutlineSize = 2;
+	const FLinearColor NativeBackingColor(0.0f, 0.0f, 0.0f, 0.85f);
+	const FVector2D NativeShadowOffset(2.0f, 2.0f);
 }
 
 TSharedRef<SWidget> UDefensePromptWidget::RebuildWidget()
@@ -29,7 +33,11 @@ TSharedRef<SWidget> UDefensePromptWidget::RebuildWidget()
 		Text->SetJustification(ETextJustify::Center);
 		FSlateFontInfo Font = Text->GetFont();
 		Font.Size = DefensePromptText::NativeFontSize;
+		Font.OutlineSettings.OutlineSize = DefensePromptText::NativeOutlineSize;
+		Font.OutlineSettings.OutlineColor = DefensePromptText::NativeBackingColor;
 		Text->SetFont(Font);
+		Text->SetShadowOffset(DefensePromptText::NativeShadowOffset);
+		Text->SetShadowColorAndOpacity(DefensePromptText::NativeBackingColor);
 		WidgetTree->RootWidget = Text;
 		PromptText = Text;
 	}
