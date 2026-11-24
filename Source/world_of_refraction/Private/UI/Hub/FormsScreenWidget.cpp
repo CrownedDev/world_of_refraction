@@ -333,20 +333,10 @@ FReply UFormsScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FK
 
 int32 UFormsScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 {
-	// A row scrolled out of view keeps its geometry past the list's edge: only the list's own area counts.
-	if (!RowList || !RowList->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
-	{
-		return INDEX_NONE;
-	}
-	for (int32 Index = 0; Index < RowWidgets.Num() && Index < Page.Rows.Num(); ++Index)
-	{
-		const UBorder *Frame = RowWidgets[Index].Frame.Get();
-		if (Frame && Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
-		{
-			return Index;
-		}
-	}
-	return INDEX_NONE;
+	// B-602: the rows' places as scrolled now (a row scrolled out of view keeps its last drawn place).
+	return WoRMenuStyle::FindScrolledRowUnder(RowList, FMath::Min(RowWidgets.Num(), Page.Rows.Num()),
+											  [this](int32 Index) -> const UWidget * { return RowWidgets[Index].Frame.Get(); },
+											  MouseEvent.GetScreenSpacePosition());
 }
 
 FReply UFormsScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)

@@ -543,20 +543,10 @@ int32 UJournalScreenWidget::FindUnder(const TArray<TObjectPtr<UBorder>> &Boxes, 
 
 int32 UJournalScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 {
-	// A row scrolled out of view keeps its geometry past the list's edge: only the list's own area counts.
-	if (!RowScroll || !RowScroll->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
-	{
-		return INDEX_NONE;
-	}
-	for (int32 Index = 0; Index < RowWidgets.Num() && Index < View.Rows.Num(); ++Index)
-	{
-		const UBorder *Frame = RowWidgets[Index].Frame.Get();
-		if (Frame && Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
-		{
-			return Index;
-		}
-	}
-	return INDEX_NONE;
+	// B-602: the rows' places as scrolled now (a row scrolled out of view keeps its last drawn place).
+	return WoRMenuStyle::FindScrolledRowUnder(RowScroll, FMath::Min(RowWidgets.Num(), View.Rows.Num()),
+											  [this](int32 Index) -> const UWidget * { return RowWidgets[Index].Frame.Get(); },
+											  MouseEvent.GetScreenSpacePosition());
 }
 
 FReply UJournalScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
