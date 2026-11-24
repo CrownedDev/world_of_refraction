@@ -1313,13 +1313,14 @@ The queue of questions only Crown can answer.
   - Rejected as magic-looking: Mythforge Air Magic VFX, the fiery MohmmadAslam slash pack.
 **Open:** B-596 (player-picked trail look) assumed every swing trails; Crown to say whether it stays as a style pick or is dropped.
 
-### D-272 — The player picks the weapon glow's style (was: the trail's look)
+### D-272 — The player picks the weapon glow's style and the trail's style (on trial)
 **Status:** ANSWERED (Crown, 2026-11-24; changed the same day) · **Raised:** 2026-11-24 (Crown, while choosing weapon VFX) · **Blocks:** B-596
 **Crown:** first, a customisable weapon trail. Then (after D-273 made the trail show only while infused): the L2 blade infusion stays fixed, but the glow can be changed, e.g. energy flowers floating around the weapon.
 **Ruled:**
 - The **glow around an infused weapon** has a **player-picked style** (a cosmetic, no stats), for example floating flower petals. The element always sets its **colour**.
 - The **L2 blade infusion** (D-273) is fixed per element; the player cannot change it.
-- The **trail** is not customisable: element look only, shown only while infused (D-273).
+- The **trail** also has a **player-picked style** (Crown, same day: "test it out first, then remove when needed"); the element sets its colour and it shows only while infused (D-273).
+- **On trial:** both picks stay until play-testing; either is removed if it does not earn its place.
 - **Default (reference-backed, Crown may change):** one pick per character; the style shows at both levels, small at L1 and bigger at L2; on two weapons it shows on both; a shield shows none. Reference: picked weapon effects (Destiny 2 ornaments, Warframe weapon energy colours) are well-liked cosmetics.
 **Notes for Claude:** styles come from the glow pack's effects recoloured, plus new ones later.
 
