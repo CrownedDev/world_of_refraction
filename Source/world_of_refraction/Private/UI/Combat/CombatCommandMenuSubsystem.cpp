@@ -1704,6 +1704,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
         if (UInfusionVFXComponent *VFX = GetInfusionVFXComponent())
         {
             VFX->SetImmuneToInfusion(IsInfusionLockedForPendingAction());
+            VFX->SetWeaponInfusion(ActionCategory != EPieMenuCategory::Spell); // an attack's or skill's glow rides the weapon
 
             VFX->CacheAvailableSources(); // refresh available sources
             SetPendingInfusionLevel(0);   // reset to L0 (no VFX)
