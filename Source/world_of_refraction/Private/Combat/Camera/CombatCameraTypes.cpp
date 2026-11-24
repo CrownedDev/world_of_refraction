@@ -6,7 +6,6 @@
 #include "Combat/CombatNotify.h"
 #include "Animation/AnimMontage.h"
 #include "Combat/Camera/CameraFramingChecks.h"
-#include "Combat/Actions/ApproachWarp.h"
 
 namespace CombatCameraOffsets
 {
@@ -879,33 +878,6 @@ TOptional<FCameraShot> FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle 
 	Side.FieldOfView = DefaultFieldOfView;
 	Side.ShakeScale = 0.0f;
 	return Side;
-}
-
-bool FCombatCameraRules::MeasureApproach(const FVector &Caster, const FVector &Target, const USkillDataBase *Skill, FVector &OutStrike,
-										 FApproachBurst &OutBurst)
-{
-	if (!Skill || !Skill->SkillMontage || Skill->RitualCastMontage)
-	{
-		return false;
-	}
-	OutStrike = ApproachWarp::GetStrikePosition(Caster, Target, Skill->ExecutionRange);
-	// TODO: B-424: the action's play rate (Action Speed); the camera reads the montage at 1.0.
-	OutBurst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(Caster, OutStrike)), 1.0f, ApproachWarp::GetApproachBurstSeconds());
-	return OutBurst.bHasWindow;
-}
-
-ERushOpening FCombatCameraRules::PlanRushOpening(ESkillCameraStyle Style, bool bCasterIsEnemy, bool bRush, bool bHasDash)
-{
-	if (!bRush)
-	{
-		return ERushOpening::Plain;
-	}
-	const bool bCutsOnArrival = Style == ESkillCameraStyle::MeleeRush || bCasterIsEnemy; // as ComputeArrivalShot
-	if (bHasDash)
-	{
-		return bCutsOnArrival ? ERushOpening::HoldThenCut : ERushOpening::TimedRush;
-	}
-	return bCasterIsEnemy ? ERushOpening::SideViewNow : ERushOpening::Plain;
 }
 
 ECameraShotMoment FCombatCameraRules::OpeningMomentFor(const FSkillCameraTuning &Tuning, bool bCasterIsEnemy)

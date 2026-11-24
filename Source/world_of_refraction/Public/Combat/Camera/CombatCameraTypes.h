@@ -255,17 +255,6 @@ struct WORLD_OF_REFRACTION_API FSameTurnReturnPlan
 	float BlendSeconds = 0.0f;
 };
 
-/** B-604b: how the director plays a melee rush's opening (FCombatCameraRules::PlanRushOpening). */
-enum class ERushOpening : uint8
-{
-	Plain,		 // the opening shot as computed (not a rush, or a party rush with no dash to time to)
-	TimedRush,	 // B-424: the rush follows the measured dash
-	HoldThenCut, // B-600c / B-604: the rush holds behind the start; the dash's end cuts to the side view
-	SideViewNow	 // B-604b: an enemy swinging in place: the side view from the first frame
-};
-
-struct FApproachBurst;
-
 struct WORLD_OF_REFRACTION_API FCombatCameraRules
 {
 	/** D-162 / Q-370: the least time between the window's end and the first defendable moment.
@@ -399,15 +388,6 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  for a party member's Standard skill (it keeps its timed rush). */
 	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, bool bCasterIsEnemy, const FCameraShotContext &Context,
 													 const FSkillCameraTuning &Tuning);
-
-	/** B-424: the skill montage's approach burst toward Target (the dash), and where it ends. False without one (an
-	 *  in-place swing: no Motion Warping window) or with a ritual lead-in (its own timing comes first). */
-	static bool MeasureApproach(const FVector &Caster, const FVector &Target, const USkillDataBase *Skill, FVector &OutStrike,
-								FApproachBurst &OutBurst);
-	/** B-604b: how a rush opening plays. bRush: the wind-up is the melee rush; bHasDash: MeasureApproach found a dash.
-	 *  An enemy's swing in place (the test trial's Wrath Cut and Lunge have no warp window) opens on the arrival's side
-	 *  view at once: the rush behind it pushed in and its in-place lunge filled the lens. */
-	static ERushOpening PlanRushOpening(ESkillCameraStyle Style, bool bCasterIsEnemy, bool bRush, bool bHasDash);
 
 	/** B-600d (Q-600d): the skill's attacker starts its leap home. A party member's shots end there and the camera
 	 *  follows it home (PlanLeapHome), never holding on the target alone. An enemy's shots hold on the party member it
