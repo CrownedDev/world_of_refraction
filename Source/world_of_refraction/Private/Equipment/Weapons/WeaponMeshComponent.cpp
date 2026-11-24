@@ -250,6 +250,7 @@ void UWeaponMeshComponent::UpdateWeaponMesh()
     if (!CharacterDataComponent)
     {
         ClearWeaponMesh();
+        OnWeaponMeshRebuilt.Broadcast();
         return;
     }
 

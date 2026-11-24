@@ -6,6 +6,7 @@
 #include "EngineUtils.h"
 #include "Equipment/Weapons/WeaponMeshComponent.h"
 #include "HAL/IConsoleManager.h"
+#include "NiagaraComponent.h"
 #include "TimerManager.h"
 #include "WoRLog.h"
 
@@ -56,18 +57,18 @@ namespace WeaponTrailDebug
 					return;
 				}
 				UE_LOG(LogWoR, Display, TEXT("[WeaponTrail] %s"), *WeaponTrail::GetTrailString(Actor));
-				if (!WeaponTrail::Start(Actor, Element))
+				UNiagaraComponent *Trail = WeaponTrail::Start(Actor, Element);
+				if (!Trail)
 				{
 					UE_LOG(LogWoR, Display, TEXT("[WeaponTrail] nothing to play (no trail kind or an empty slot)"));
 					return;
 				}
-				const TWeakObjectPtr<AActor> WeakActor = Actor;
 				FTimerHandle StopHandle;
-				World->GetTimerManager().SetTimer(StopHandle, FTimerDelegate::CreateLambda([WeakActor]()
+				World->GetTimerManager().SetTimer(StopHandle, FTimerDelegate::CreateLambda([WeakTrail = TWeakObjectPtr<UNiagaraComponent>(Trail)]()
 				{
-					if (AActor *Still = WeakActor.Get())
+					if (UNiagaraComponent *Still = WeakTrail.Get())
 					{
-						WeaponTrail::Stop(Still);
+						Still->Deactivate();
 					}
 				}), PLAY_SECONDS, false);
 			}));

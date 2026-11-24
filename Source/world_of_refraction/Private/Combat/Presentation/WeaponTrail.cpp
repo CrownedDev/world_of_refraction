@@ -20,6 +20,9 @@
 
 namespace
 {
+	/** The slowest play rate the timings divide by (the telegraph scan's floor too). */
+	constexpr float MIN_PLAY_RATE = 0.1f;
+
 	UMeshComponent *FindWeaponMesh(const AActor *Owner)
 	{
 		const UWeaponMeshComponent *Weapons = Owner ? Owner->FindComponentByClass<UWeaponMeshComponent>() : nullptr;
@@ -193,7 +196,7 @@ void WeaponTrail::ScheduleFallback(AActor *Owner, const UAnimMontage *Montage, f
 	{
 		return;
 	}
-	const float Rate = FMath::Max(0.1f, PlayRate);
+	const float Rate = FMath::Max(MIN_PLAY_RATE, PlayRate);
 	TArray<float> Times = GetImpactTimes(*Montage);
 	for (float &Time : Times)
 	{
@@ -209,16 +212,18 @@ void WeaponTrail::ScheduleFallback(AActor *Owner, const UAnimMontage *Montage, f
 	const FTimerDelegate Begin = FTimerDelegate::CreateLambda([WeakOwner, Duration]()
 	{
 		AActor *Actor = WeakOwner.Get();
-		if (!Actor || !Start(Actor))
+		UNiagaraComponent *Trail = Actor ? Start(Actor) : nullptr;
+		if (!Trail)
 		{
 			return;
 		}
+		// Stops this trail only, so a later one isn't cut short.
 		FTimerHandle StopHandle;
-		Actor->GetWorldTimerManager().SetTimer(StopHandle, FTimerDelegate::CreateLambda([WeakOwner]()
+		Actor->GetWorldTimerManager().SetTimer(StopHandle, FTimerDelegate::CreateLambda([WeakTrail = TWeakObjectPtr<UNiagaraComponent>(Trail)]()
 		{
-			if (AActor *Still = WeakOwner.Get())
+			if (UNiagaraComponent *Still = WeakTrail.Get())
 			{
-				Stop(Still);
+				Still->Deactivate();
 			}
 		}), Duration, false);
 	});
