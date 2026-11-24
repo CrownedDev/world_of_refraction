@@ -1250,6 +1250,13 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### Q-598 — What counts as a hover feature
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-598) · **Blocks:** nothing
+**Question:** Crown: "remove any hover features, we don't need them". Which go?
+**Answer (default, built):** every hover pop-up on the menu screens goes: the loadout's details card follows the picked line or tile (not the mouse), and the icon-name and tier tooltips are gone from every icon (inventory, vendor, loadout, hub HUD). The lit row under a moving mouse stays: it is not a pop-up, it shows where a click will land, and every mouse-driven menu has it.
+**Left for Crown:** the battle HUD's two tooltips (a party card's gear: loadout, weapon, adapter; a greyed command's reason, e.g. why Flee is greyed in a boss fight). The second is the only place that reason shows, so removing it needs a visible line instead. Icons whose label was hidden behind the icon (inventory detail lines, the loadout's filter tabs) now have no words on hover; the picture alone names them.
+**Reference:** console-first menus (Persona 5, Expedition 33, Final Fantasy XVI) show details for the selected item in a fixed panel and use no hover tooltips; the mouse only moves the selection.
+
 ### Q-595e — Force Strike's numbers (the ranged air slash)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595e) · **Blocks:** nothing
 **Question:** Force Strike swings from where the fighter stands and sends the cut through the air (D-273). What are its numbers next to Quick Strike's 35 damage / 10 EP?
