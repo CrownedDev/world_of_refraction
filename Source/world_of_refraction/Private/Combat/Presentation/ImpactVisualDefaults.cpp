@@ -48,9 +48,10 @@ FString UImpactVisualDefaults::GetDefaultsString() const
 	{
 		Out += FString::Printf(TEXT("\n  %s glow: %s"), *UEnum::GetValueAsString(Row.Key), Row.Value.IsNull() ? TEXT("(none)") : *Row.Value.GetAssetName());
 	}
-	Out += FString::Printf(TEXT("\n  Physical glow: %s, Raw glow: %s"),
+	Out += FString::Printf(TEXT("\n  Physical glow: %s, Raw glow: %s, Ice glow: %s"),
 						   PhysicalInfusionGlowVFX.IsNull() ? TEXT("(none)") : *PhysicalInfusionGlowVFX.GetAssetName(),
-						   RawInfusionGlowVFX.IsNull() ? TEXT("(none)") : *RawInfusionGlowVFX.GetAssetName());
+						   RawInfusionGlowVFX.IsNull() ? TEXT("(none)") : *RawInfusionGlowVFX.GetAssetName(),
+						   IceInfusionGlowVFX.IsNull() ? TEXT("(none)") : *IceInfusionGlowVFX.GetAssetName());
 	for (int32 Row = 0; Row < InfusionLevelVisuals.Num(); ++Row)
 	{
 		Out += FString::Printf(TEXT("\n  Level %d: intensity x%.2f, size x%.2f"), Row + 1, InfusionLevelVisuals[Row].Intensity, InfusionLevelVisuals[Row].Size);
@@ -74,11 +75,15 @@ UImpactVisualDefaults::UImpactVisualDefaults()
 	InfusionLevelVisuals = {LevelOne, LevelTwo};
 }
 
-TSoftObjectPtr<UNiagaraSystem> UImpactVisualDefaults::GetInfusionGlowVFX(ESpellElement Element, bool bRaw) const
+TSoftObjectPtr<UNiagaraSystem> UImpactVisualDefaults::GetInfusionGlowVFX(ESpellElement Element, bool bRaw, bool bIce) const
 {
 	if (bRaw)
 	{
 		return RawInfusionGlowVFX;
+	}
+	if (bIce && Element == ESpellElement::Water)
+	{
+		return IceInfusionGlowVFX;
 	}
 	if (Element == ESpellElement::None || Element == ESpellElement::Generic)
 	{

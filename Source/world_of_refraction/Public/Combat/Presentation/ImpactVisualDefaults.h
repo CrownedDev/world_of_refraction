@@ -116,6 +116,11 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
 	TSoftObjectPtr<UNiagaraSystem> RawInfusionGlowVFX;
 
+	/** An Ice infusion's default glow: a Water infusion whose hit deals Ice (Crown 2026-11-24; Ice is Water's damage
+	 *  type, ED-04). TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TSoftObjectPtr<UNiagaraSystem> IceInfusionGlowVFX;
+
 	/** Each infusion level's look, level 1 first; a level past the end uses the last row. Every glow (all elements,
 	 *  Physical, Raw) and the weapon trail's tint use the same table. TODO: tune. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
@@ -123,9 +128,9 @@ public:
 
 	UImpactVisualDefaults();
 
-	/** The default glow slot: Raw's when bRaw, Physical's with no element (None or Generic), else the element's row;
-	 *  empty when that slot has none. */
-	TSoftObjectPtr<UNiagaraSystem> GetInfusionGlowVFX(ESpellElement Element, bool bRaw = false) const;
+	/** The default glow slot: Raw's when bRaw, Ice's for a Water infusion when bIce, Physical's with no element (None
+	 *  or Generic), else the element's row; empty when that slot has none. */
+	TSoftObjectPtr<UNiagaraSystem> GetInfusionGlowVFX(ESpellElement Element, bool bRaw = false, bool bIce = false) const;
 
 	/** Level's row in InfusionLevelVisuals; plain (x1) at level 0 or with no rows. */
 	FInfusionLevelVisual GetInfusionLevelVisual(int32 Level) const;

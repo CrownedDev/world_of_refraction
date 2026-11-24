@@ -51,6 +51,23 @@ void FWeaponTrailSpec::Define()
 		TestEqual(TEXT("fire keeps fire's"), Defaults->GetInfusionGlowVFX(ESpellElement::Fire).ToSoftObjectPath(), FireGlow);
 	});
 
+	It("gives a Water infusion that deals Ice the Ice glow, and only Water", [this]()
+	{
+		UImpactVisualDefaults *Defaults = NewObject<UImpactVisualDefaults>();
+		const FSoftObjectPath WaterGlow(TEXT("/Game/Test/NS_WaterGlow.NS_WaterGlow"));
+		const FSoftObjectPath FireGlow(TEXT("/Game/Test/NS_FireGlow.NS_FireGlow"));
+		const FSoftObjectPath IceGlow(TEXT("/Game/Test/NS_IceGlow.NS_IceGlow"));
+		const FSoftObjectPath RawGlow(TEXT("/Game/Test/NS_RawGlow.NS_RawGlow"));
+		Defaults->ElementInfusionGlowVFX.Add(ESpellElement::Water, TSoftObjectPtr<UNiagaraSystem>(WaterGlow));
+		Defaults->ElementInfusionGlowVFX.Add(ESpellElement::Fire, TSoftObjectPtr<UNiagaraSystem>(FireGlow));
+		Defaults->IceInfusionGlowVFX = TSoftObjectPtr<UNiagaraSystem>(IceGlow);
+		Defaults->RawInfusionGlowVFX = TSoftObjectPtr<UNiagaraSystem>(RawGlow);
+		TestEqual(TEXT("Water dealing Ice is Ice's"), Defaults->GetInfusionGlowVFX(ESpellElement::Water, false, true).ToSoftObjectPath(), IceGlow);
+		TestEqual(TEXT("plain Water keeps Water's"), Defaults->GetInfusionGlowVFX(ESpellElement::Water).ToSoftObjectPath(), WaterGlow);
+		TestEqual(TEXT("Ice needs Water"), Defaults->GetInfusionGlowVFX(ESpellElement::Fire, false, true).ToSoftObjectPath(), FireGlow);
+		TestEqual(TEXT("Raw wins"), Defaults->GetInfusionGlowVFX(ESpellElement::Water, true, true).ToSoftObjectPath(), RawGlow);
+	});
+
 	It("plays a higher infusion level brighter and bigger, from one table", [this]()
 	{
 		const UImpactVisualDefaults *Defaults = NewObject<UImpactVisualDefaults>();
