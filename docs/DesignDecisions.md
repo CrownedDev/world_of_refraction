@@ -1277,6 +1277,12 @@ The queue of questions only Crown can answer.
 - **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
+### Q-603 — The test trial's enemy mirrors the party's Generic
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-603, Crown: mirror our Generic's pillars and stat spread) · **Blocks:** nothing
+**Question:** the test enemy (`DA_Enemy_Generic`) already had the same sub-stats as the Generic assets (Mind 1 / Body 7 / Spirit 1), but a new game's Generic plays at the class table's levels (Mind 0 / Body 0 / Spirit 0, `DA_Loadout_ClassDefaults`) with an F sword, while the enemy wore a D sword. Mirror only the pillars, or the sword tier too?
+**Answer (default, built):** both. Pillars 0 / 0 / 0 (as the class table's Generic row) and the always-has sword at F (as the Generic's class kit). Pillars alone leave its weapon part at 68 against the party's 40 (D power, no scaling), still about a one-shot (its Heavy Strike rolled 192 before). Sub-stats unchanged (already the same). Side effect: an F sword has one skill slot, so the enemy now rolls one sword skill per fight (Quick Strike in the check) instead of three.
+**Reference:** a mirror match (the same build on both sides) is the usual fair baseline, as fighting games use it to test balance; `docs/Design/BalanceSimulator.md` targets 3-5 hits to kill a same-tier Normal enemy, which a same-numbers enemy meets from both sides.
+
 ### Q-604b — Attack camera and defend camera
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-604b, Crown: "shouldn't it be attack camera and defend camera?") · **Blocks:** nothing
 **Question:** how is an enemy's attack on a party member framed?
