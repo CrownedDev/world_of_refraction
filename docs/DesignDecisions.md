@@ -1303,6 +1303,7 @@ The queue of questions only Crown can answer.
 **Ruled:**
 - **One plain physical look** for weapon effects: a thin pale crescent, a heat-haze ripple, wind streaks, dust and debris where it lands. No embers, runes or magic sparkle.
 - **Elements tint it** (colour, brightness, size by infusion level); the shape stays the same. Physical (normal / enhanced) is the plain look.
+- **Infusion levels look different (Crown, 2026-11-24):** **L1** = a glow on the weapon in the element colour. **L2** = the Sword VFX pack's **blade infusion** (the blade itself filled with the element) **plus a bigger glow**. Both recoloured per element.
 - **No trail on a plain swing**; the trail shows only while infused, in the element's colour (with the blade glow).
 - **Weapon projectiles** follow the three damage types: Slash (a flying air crescent), Pierce (a straight air thrust), Impact (a shockwave). Each lands with a plain hit burst.
 - **Assets (Crown picked after a full Fab sweep, 2026-11-24; all "Generated with AI: No"; Crown buys):**
