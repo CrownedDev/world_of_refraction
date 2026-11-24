@@ -24,6 +24,26 @@ D-273 says the shape stays the same and the element only tints it. So the cleane
 
 ## 1. VFX (Niagara)
 
+### 1a. Air pressure first (Crown: shockwave, air burst, pressure ring; D-273's compressed air)
+
+The pack has **no standalone shockwave or pressure-ring Niagara system**: there is no `NS_Shockwave` or similar. The air-pressure pieces live in the **Distortion** style and the shockwave **materials**, so a shockwave would be built from them (D-273 already says so). All of these read as pushed air, not magic. They come from the names; look at them in `Map/Overview_3` before choosing.
+
+| Piece | Path | What it is | Fits |
+|---|---|---|---|
+| **Wind projectile slash** (in use) | `Niagara/Wind/NS_Slash_Projectile_Horizontal_Wind` | A pale crescent of pushed air with wind streaks (seen in B-595e) | **Force Strike** (since B-595e); the reference look for D-273 |
+| **Wind hit** (in use) | `Niagara/Wind/NS_Hit_Slash_Wind` | A pale burst on the target | Force Strike's hit; any plain hit |
+| **Distortion hit** | `Niagara/Distortion/NS_Hit_Slash_Distort_` (uses `Material/M_slash_impact_Distortion`) | A clear heat-haze ripple where the blow lands: the closest thing to an **air burst** | The plain **hit** for heavy blows; **Heavy Attack**'s landing |
+| **Distortion slash / projectile** | `Niagara/Distortion/NS_Slash_Distort_`, `NS_Slash_Projectile_Horizontal_Distort_`, `NS_Slash_Projectile_rotate_Distort_` | A see-through crescent that bends the view behind it | A clearer air cut than Wind; **WhirlWind**'s spin (rotate) |
+| **Distortion charge** | `Niagara/Distortion/NS_Charge_Energy_Distortion` | Air pulling in and warping around a point | A **physical** wind-up for **Heavy Attack** (less magic than the Basic charge) |
+| **Distortion parry** | `Niagara/Distortion/NS_Hit_Parrying_Distort_` | A ripple on a blocked blow | **Guard / parry** in the plain look |
+| **Shockwave materials** | `Material/M_Shockwave_`, `Material/M_shokW_basic`, `Material/M_SW_distort_Sprite` | An expanding ring, a basic shockwave and a distortion sprite: the parts of a **pressure ring** | D-273's **Impact** shockwave; **WhirlWind's slam**. They need a small Niagara system (a ring sprite or the half-sphere mesh, scaled out over about 0.3 s) |
+| **Shockwave meshes** | `Resource/Mesh/SM_HalfSphere`, `SM_swiring`, `SM_Wind_Highpoly` / `_Lowpoly` | A dome (an expanding air dome), a swirl, and wind ribbons | A dome-shaped **pressure ring** on a slam; WhirlWind's swirl |
+| **Ground crack** | `Material/M_Crack` | Cracks on the ground | With the shockwave on a **slam** |
+
+**So, for "air pressure":** use `NS_Hit_Slash_Distort_` as the air burst, and add a pressure ring built from `M_Shockwave_` / `M_SW_distort_Sprite` on `SM_HalfSphere` for slams (a small new Niagara system, not in the pack). The Wind slash stays the Force Strike look.
+
+### 1b. Everything else
+
 Paths are under `Content/SlashFX_SoftTofu/Niagara/`. Each row is one effect type; `<S>` is the style (`Basic/…`, `Wind/…_Wind`, etc.).
 
 | Effect | Path (Basic / Wind) | What it is | Fits |
