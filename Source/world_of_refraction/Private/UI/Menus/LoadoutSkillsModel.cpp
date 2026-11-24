@@ -289,7 +289,8 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(UWorld *World, 
 	return BuildSkillChoices(Page, Tab, Row, Abilities, Spells, TArray<UAbilityData *>());
 }
 
-bool WoRLoadoutSkills::PutSkill(FCombatLoadout &Loadout, const FLoadoutSkillTab &Tab, const FLoadoutScreenRow &Row, USkillDataBase *Skill, FText &OutRefusal)
+bool WoRLoadoutSkills::PutSkill(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutSkillTab &Tab, const FLoadoutScreenRow &Row,
+								USkillDataBase *Skill, FText &OutRefusal)
 {
 	const FText NothingToTakeOff = LOCTEXT("NothingToTakeOff", "This slot is empty.");
 	if (Tab.List == ELoadoutSkillList::Innate)
@@ -325,28 +326,34 @@ bool WoRLoadoutSkills::PutSkill(FCombatLoadout &Loadout, const FLoadoutSkillTab 
 		return true;
 	}
 
-	FWeaponLoadoutEntry *Weapon = nullptr;
-	FRingLoadoutEntry *Adapter = nullptr;
-	WoRLoadoutScreen::FindRowGear(Loadout, Tab.Gear, Weapon, Adapter);
 	if (!Skill && !Row.bPick)
 	{
 		OutRefusal = Row.Skill ? LOCTEXT("BuiltInStays", "It's the piece's own skill: Change puts another in its place.") : NothingToTakeOff;
 		return false;
 	}
-	bool bDone = false;
-	if (Tab.List == ELoadoutSkillList::WeaponSkills && Weapon)
+	bool bHeldRefused = false;
+	const bool bDone = WoRLoadoutScreen::EditRowGear(Loadout, Class, Tab.Gear, [&](FWeaponLoadoutEntry *Weapon, FRingLoadoutEntry *Adapter)
 	{
-		UAbilityData *Ability = Cast<UAbilityData>(Skill);
-		if (Ability && !Weapon->CanHoldSkill(Row.SkillSlot, Ability, &OutRefusal)) // B-410: the gem's element
+		if (Tab.List == ELoadoutSkillList::WeaponSkills && Weapon)
 		{
-			return false;
+			UAbilityData *Ability = Cast<UAbilityData>(Skill);
+			if (Ability && !Weapon->CanHoldSkill(Row.SkillSlot, Ability, &OutRefusal)) // B-410: the gem's element
+			{
+				bHeldRefused = true;
+				return false;
+			}
+			return Skill ? Ability && Weapon->ReplaceSkill(Row.SkillSlot, Ability) : Weapon->RestoreSkill(Row.SkillSlot);
 		}
-		bDone = Skill ? Ability && Weapon->ReplaceSkill(Row.SkillSlot, Ability) : Weapon->RestoreSkill(Row.SkillSlot);
-	}
-	else if (Tab.List == ELoadoutSkillList::AdapterSpells && Adapter)
+		if (Tab.List == ELoadoutSkillList::AdapterSpells && Adapter)
+		{
+			USpellData *Spell = Cast<USpellData>(Skill);
+			return Skill ? Spell && Adapter->ReplaceSpell(Row.SkillSlot, Spell) : Adapter->RestoreSpell(Row.SkillSlot);
+		}
+		return false;
+	});
+	if (bHeldRefused)
 	{
-		USpellData *Spell = Cast<USpellData>(Skill);
-		bDone = Skill ? Spell && Adapter->ReplaceSpell(Row.SkillSlot, Spell) : Adapter->RestoreSpell(Row.SkillSlot);
+		return false;
 	}
 	if (!bDone)
 	{
@@ -366,14 +373,14 @@ FText WoRLoadoutSkills::ApplySkill(UWorld *World, const FLoadoutScreenMember &Me
 	const int32 Index = Inventory->ActiveLoadoutIndex;
 	FText Refusal;
 	FCombatLoadout Probe = Inventory->SavedLoadouts[Index];
-	if (!PutSkill(Probe, Tab, Row, Skill, Refusal))
+	if (!PutSkill(Probe, Member.Class, Tab, Row, Skill, Refusal))
 	{
 		return Refusal;
 	}
 	const bool bChanged = Loadout->TryChangeGear(Index, [&](FCombatLoadout &Changed)
 												 {
 													 FText Ignored;
-													 PutSkill(Changed, Tab, Row, Skill, Ignored);
+													 PutSkill(Changed, Member.Class, Tab, Row, Skill, Ignored);
 												 },
 												 Refusal);
 	if (bChanged)
