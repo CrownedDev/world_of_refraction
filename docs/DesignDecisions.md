@@ -1273,7 +1273,7 @@ The queue of questions only Crown can answer.
 **Answer (default, built):** **1 turn of wind-up; 80 damage, 25 EP (paid on the wind-up turn), buildup 10, striking range 160 cm; Heavy Wind-Up camera.**
 - One turn: the enemy gets one turn to see it coming; longer makes a single-target hit easy to waste. 80 / 25 stay as Q-595 set them (the best damage per EP of the four, paid for by the turn of warning).
 - Buildup 10, double the light cuts: a heavy blow staggers more.
-- Wind-up turn: the one-handed sword's power-up gesture in place, the camera's slow push. Release turn: the dash, a cut to the low hero angle as the dash ends (B-595c adds this arrival cut to Heavy Wind-Up), the overhead lunge lands there.
+- Wind-up turn: the one-handed sword's power-up gesture in place, the camera's slow push. Release turn: the dash, the overhead lunge (the low hero angle as the dash ends is with the Writer: `wip/B-595c-camera-notes`).
 - **Price:** tier F, 25 Gold + 10 Dormant Essence in the Combat Master.
 - **Also changes:** the Resonator's starting inventory has this same Heavy Attack, so it winds up too.
 **Reference:** Final Fantasy X's Delay attacks and Octopath Traveler's charged Break moves telegraph a big hit a turn ahead, and Expedition 33's charged skills (e.g. Monoco's) pay up front for a bigger hit later; players like reading the threat and answering it. Persona 5 cuts to a low angle for heavy physical skills.
