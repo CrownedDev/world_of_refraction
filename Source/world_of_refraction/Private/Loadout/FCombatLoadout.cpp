@@ -768,6 +768,29 @@ void FCombatLoadout::RefreshActiveSlots(ECharacterClass CharacterClass)
     ComputeActiveSlotIndices(*this, CharacterClass);
 }
 
+void FCombatLoadout::EnsureSlotsInStep(ECharacterClass CharacterClass)
+{
+    int32 Walked = 0;
+    bool bInStep = true;
+    ForEachReadLegacySlot(*this, CharacterClass,
+                          [this, &Walked, &bInStep](int32 Place, const FWeaponLoadoutEntry *Weapon, const FRingLoadoutEntry *Ring)
+                          {
+                              const UObject *Asset = Weapon ? static_cast<const UObject *>(Weapon->WeaponEntry.Weapon)
+                                                            : static_cast<const UObject *>(Ring->RingEntry.Ring);
+                              const FGuid &GearID = Weapon ? Weapon->WeaponEntry.PersistentID : Ring->RingEntry.PersistentID;
+                              const FLoadoutSlot *Slot = Slots.IsValidIndex(Walked) ? &Slots[Walked] : nullptr;
+                              bInStep = bInStep && Slot && Slot->Place == Place && Slot->Kind() == (Weapon ? EGearKind::Weapon : EGearKind::Adapter) &&
+                                        Slot->Gear.Asset == Asset && Slot->GearID == GearID;
+                              ++Walked;
+                          });
+    if (!bInStep || Walked != Slots.Num())
+    {
+        BuildSlotsFromOldFields(CharacterClass);
+        return;
+    }
+    ComputeActiveSlotIndices(*this, CharacterClass);
+}
+
 void FCombatLoadout::RebuildLegacyFromSlots(ECharacterClass CharacterClass)
 {
     using namespace WornGearLayout;

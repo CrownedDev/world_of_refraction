@@ -2839,7 +2839,7 @@ FCombatLoadout *ULoadoutComponent::GetActiveLoadoutInStep() const
         return nullptr;
     }
     FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    Loadout.RefreshActiveSlots(GetCharacterClass()); // B-309d4: the slots are kept by the writers; bShowPrimary may have moved
+    Loadout.EnsureSlotsInStep(GetCharacterClass()); // a loadout authored in the old fields (a preset, a spec) reads right
     return &Loadout;
 }
 

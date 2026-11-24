@@ -265,6 +265,12 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** B-309d4: the two active indices again from Slots (bShowPrimary or ActiveRingIndex moved); Slots unchanged. */
     void RefreshActiveSlots(ECharacterClass CharacterClass);
 
+    /** B-304, by place since B-309d4: the active loadout's read-side guard. Builds the slots again (BuildSlotsFromOldFields)
+     *  only if they no longer hold the old fields' items (same place, kind, asset and GUID, in place order), else
+     *  refreshes the active indices. Cheap: no copies when in step. TODO: goes with BuildSlotsFromOldFields; until then
+     *  a loadout authored in the old fields (91 spec cases, the presets) reads right (B-309d4 measured). */
+    void EnsureSlotsInStep(ECharacterClass CharacterClass);
+
     /** B-309d: the way back, the old fields rebuilt from Slots by each slot's Place (one direction, for the writers
      *  that move onto the slots): the primary weapon or adapter, the secondary weapon, the adapter loadout by index
      *  (an empty place before a ring stays empty; empty places after the last ring go, and an ActiveRingIndex there
