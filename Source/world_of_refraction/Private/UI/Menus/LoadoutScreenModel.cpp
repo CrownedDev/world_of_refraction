@@ -190,20 +190,14 @@ namespace LoadoutScreenBuild
 		return Row;
 	}
 
-	ELoadoutScreenPlace PlaceOf(ELegacySlotOrigin Origin)
+	/** B-309d4: the screen place of a slot's WornGearLayout place. */
+	ELoadoutScreenPlace PlaceOf(int32 Place)
 	{
-		switch (Origin)
-		{
-		case ELegacySlotOrigin::PrimaryWeapon:
-		case ELegacySlotOrigin::PrimaryRing:
-			return ELoadoutScreenPlace::Primary;
-		case ELegacySlotOrigin::SecondaryWeapon:
-			return ELoadoutScreenPlace::Secondary;
-		case ELegacySlotOrigin::RingLoadout:
-			return ELoadoutScreenPlace::Adapter;
-		default:
-			return ELoadoutScreenPlace::None;
-		}
+		using namespace WornGearLayout;
+		return Place == PRIMARY_INDEX ? ELoadoutScreenPlace::Primary
+			   : Place == SECONDARY_INDEX ? ELoadoutScreenPlace::Secondary
+			   : Place >= FIRST_ADAPTER_INDEX ? ELoadoutScreenPlace::Adapter
+											  : ELoadoutScreenPlace::None;
 	}
 
 	FLoadoutScreenRow MakeEmptyGearRow(const FText &Name, ELoadoutScreenPlace Place)
@@ -246,7 +240,7 @@ namespace LoadoutScreenBuild
 	TSet<FGuid> GearInLoadout(const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		FCombatLoadout Mirror = Loadout;
-		Mirror.RebuildSlotsFromLegacy(Class);
+		Mirror.BuildSlotsFromOldFields(Class);
 		TSet<FGuid> InLoadout;
 		for (const FLoadoutSlot &Slot : Mirror.Slots)
 		{
@@ -290,7 +284,7 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(const FCombatLoadout &Loadout
 
 	// The slots the fight reads, never stale (as FLoadoutRules::NonAdapterCost).
 	FCombatLoadout Mirror = Loadout;
-	Mirror.RebuildSlotsFromLegacy(Class);
+	Mirror.BuildSlotsFromOldFields(Class);
 
 	FLoadoutScreenPage Page;
 	Page.Budget = LoadoutClassTable::Get(Class).Budget;
@@ -325,8 +319,8 @@ FLoadoutScreenPage WoRLoadoutScreen::BuildGearPage(const FCombatLoadout &Loadout
 			continue;
 		}
 		FLoadoutScreenRow Row = MakeGearRow(Slot);
-		Row.Place = PlaceOf(Slot.LegacyOrigin);
-		Row.AdapterIndex = Slot.LegacyOrigin == ELegacySlotOrigin::RingLoadout ? Slot.LegacyIndex : INDEX_NONE;
+		Row.Place = PlaceOf(Slot.Place);
+		Row.AdapterIndex = Row.Place == ELoadoutScreenPlace::Adapter ? Slot.Place - WornGearLayout::FIRST_ADAPTER_INDEX : INDEX_NONE;
 		Row.GearID = Slot.GearID;
 		if (Row.Kind == ELoadoutScreenRowKind::Weapon && WeaponCount > 1)
 		{

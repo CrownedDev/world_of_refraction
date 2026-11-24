@@ -1297,7 +1297,7 @@ bool ULoadoutComponent::TryChangeGear(int32 LoadoutIndex, TFunctionRef<void(FCom
     {
         return false;
     }
-    GetInventoryComponent()->SavedLoadouts[LoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass()); // TryChangeLoadout checked both
+    GetInventoryComponent()->SavedLoadouts[LoadoutIndex].RefreshActiveSlots(GetCharacterClass()); // B-309d4: the change wrote the slots
     SwapGearEffects(OldGearEffects);
     if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
     {
@@ -2152,12 +2152,12 @@ void ULoadoutComponent::NotifyApparelChanged()
 
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
-    // B-302: every gear change announces here, so the unified slot mirror (D-110) is rebuilt first.
+    // B-302: every gear change announces here; B-309d4: the writers changed the slots, so only the active ones move.
     if (UInventoryComponent *Inv = GetInventoryComponent())
     {
         if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         {
-            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass());
+            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RefreshActiveSlots(GetCharacterClass());
         }
     }
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
@@ -2839,7 +2839,7 @@ FCombatLoadout *ULoadoutComponent::GetActiveLoadoutInStep() const
         return nullptr;
     }
     FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    Loadout.EnsureSlotsInStep(GetCharacterClass());
+    Loadout.RefreshActiveSlots(GetCharacterClass()); // B-309d4: the slots are kept by the writers; bShowPrimary may have moved
     return &Loadout;
 }
 
@@ -2907,7 +2907,7 @@ const FLoadoutSlot *ULoadoutComponent::GetActiveSlotIn(const FCombatLoadout &Loa
             return false;
         }
         const FLoadoutSlot &Slot = Loadout.Slots[Index];
-        if (bAdapterLoadoutOnly && Slot.LegacyOrigin != ELegacySlotOrigin::RingLoadout)
+        if (bAdapterLoadoutOnly && Slot.Place < WornGearLayout::FIRST_ADAPTER_INDEX)
         {
             return false;
         }
