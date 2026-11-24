@@ -853,13 +853,18 @@ void FCombatLoadout::RebuildLegacyFromSlots(ECharacterClass CharacterClass)
 void FCombatLoadout::EditSlots(ECharacterClass CharacterClass, TFunctionRef<void(FCombatLoadout &)> Edit)
 {
     RebuildSlotsFromLegacy(CharacterClass);
+    // B-309d3: an entry its type would mirror but no slot held (no gear, only picks) is kept too, as the old writers left it.
+    const auto HeldBySlot = [this](ELegacySlotOrigin Origin) { return Slots.ContainsByPredicate([Origin](const FLoadoutSlot &Slot) { return Slot.LegacyOrigin == Origin; }); };
+    const bool bPrimaryWeaponHeld = HeldBySlot(ELegacySlotOrigin::PrimaryWeapon);
+    const bool bPrimaryRingHeld = HeldBySlot(ELegacySlotOrigin::PrimaryRing);
+    const bool bSecondaryHeld = HeldBySlot(ELegacySlotOrigin::SecondaryWeapon);
     Edit(*this);
     // What the class's mirror never holds stays as the edit left it, as the old writers kept it: a weapon under a Ring or
     // Evolution primary, an adapter under a Weapon one, a second weapon not mirrored, a Caster's adapter loadout.
-    const bool bWeaponPrimary = PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None;
+    const bool bWeaponPrimary = (PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None) && bPrimaryWeaponHeld;
     const FWeaponLoadoutEntry HiddenPrimaryWeapon = bWeaponPrimary ? FWeaponLoadoutEntry() : PrimaryWeapon;
-    const FRingLoadoutEntry HiddenPrimaryRing = PrimarySlotType == EPrimarySlotType::Ring ? FRingLoadoutEntry() : PrimaryRing;
-    const bool bSecondaryMirrored = CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon;
+    const FRingLoadoutEntry HiddenPrimaryRing = PrimarySlotType == EPrimarySlotType::Ring && bPrimaryRingHeld ? FRingLoadoutEntry() : PrimaryRing;
+    const bool bSecondaryMirrored = CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon && bSecondaryHeld;
     const FWeaponLoadoutEntry HiddenSecondary = bSecondaryMirrored ? FWeaponLoadoutEntry() : SecondaryWeapon;
     const bool bAdaptersMirrored = CharacterClass == ECharacterClass::Resonator || CharacterClass == ECharacterClass::Generic;
     const TArray<FRingLoadoutEntry> HiddenAdapters = bAdaptersMirrored ? TArray<FRingLoadoutEntry>() : RingLoadout;
