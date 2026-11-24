@@ -1467,10 +1467,17 @@ void UCombatCameraDirector::HandleReturnStarted(AActor *Actor, FVector Home)
 	{
 		return;
 	}
+	if (bCameraMovementOff)
+	{
+		ShowTurnView(); // the static view, as before
+		return;
+	}
 	// B-600e (B-600d QA): framed from where it lands, not where it struck (a turn view from the strike spot sat between
 	// the fighters: the leap passed the lens, then the shot held the enemy alone).
 	UCombatCameraComponent *Viewed = ShotCamera.Get(); // the side view's camera, before StopShotPattern drops it
 	StopShotPattern();
+	bTargetViewShowing = false; // as ShowTurnView: no target or Intel view survives the leap
+	bIntelViewShowing = false;
 	const FTurnChangePlan Beat = FCombatCameraRules::PlanLeapHome(TurnViewStyle, BuildFrame(Actor, Home));
 	CurrentMode = ECombatCameraMode::NotYourTurn; // the wide; the next turn's beat or a same-turn return takes it from here
 	APlayerController *Viewer = GetViewer();

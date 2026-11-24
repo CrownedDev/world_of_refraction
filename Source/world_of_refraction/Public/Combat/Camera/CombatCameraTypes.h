@@ -391,7 +391,7 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  hit, as before. False when no shot of this attacker is playing. */
 	static bool FollowsLeapHome(bool bShotPlaying, bool bIsShotCaster, bool bEnemyCaster);
 
-	/** B-600e (Q-600e): where a party member's leap home goes: the wide beat's view and blend (PlanTurnChange), framed
+	/** B-600e (Q-600d): where a party member's leap home goes: the wide beat's view and blend (PlanTurnChange), framed
 	 *  from the attacker's home spot (HomeFrame.Focus), not where it struck. Both sides in frame, the attacker lands in
 	 *  it, and the leap never passes the lens; the next turn's beat starts from the same kind of view. */
 	static FTurnChangePlan PlanLeapHome(ETurnViewStyle Style, const FCombatCameraFrame &HomeFrame);
