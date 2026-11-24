@@ -267,6 +267,22 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  cleared. Then the two active indices. */
     void RebuildLegacyFromSlots(ECharacterClass CharacterClass);
 
+    /** B-309d2: the writers' way in. Brings Slots fully in step with the old fields (a full rebuild: an in-place edit of
+     *  an old entry is not something EnsureSlotsInStep sees), runs Edit, which changes the slots (and the fields that are
+     *  not slots: the evolution primary, bShowPrimary, the type fields), then rebuilds the old fields from the slots.
+     *  B-309d4 drops the first rebuild once nothing writes the old fields. */
+    void EditSlots(ECharacterClass CharacterClass, TFunctionRef<void(FCombatLoadout &)> Edit);
+
+    /** B-309d2: the slot in a WornGearLayout place, or null. */
+    FLoadoutSlot *FindSlotAt(int32 Place);
+    const FLoadoutSlot *FindSlotAt(int32 Place) const;
+
+    /** B-309d2: puts Slot in Place, replacing what is there, Slots kept in place order (the mirror's order). */
+    FLoadoutSlot &PutSlotAt(int32 Place, const FLoadoutSlot &Slot);
+
+    /** B-309d2: takes the slot out of Place; false when the place was empty. */
+    bool ClearSlotAt(int32 Place);
+
     /** B-304: rebuilds the mirror only if it no longer holds the old fields' items (same items by asset and GUID, in
      *  slot order), then refreshes the two active indices (bShowPrimary / ActiveRingIndex may have moved). Cheap:
      *  a walk of at most the primary, the secondary and the adapters, no copies when in step. */

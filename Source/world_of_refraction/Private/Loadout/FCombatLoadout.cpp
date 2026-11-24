@@ -2,6 +2,7 @@
 // Full combat loadout implementation
 
 #include "Loadout/FCombatLoadout.h"
+#include "Algo/BinarySearch.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/ElementHelpers.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -847,6 +848,37 @@ void FCombatLoadout::RebuildLegacyFromSlots(ECharacterClass CharacterClass)
         SecondarySlotType = ESecondarySlotType::Weapon;
     }
     ComputeActiveSlotIndices(*this, CharacterClass);
+}
+
+void FCombatLoadout::EditSlots(ECharacterClass CharacterClass, TFunctionRef<void(FCombatLoadout &)> Edit)
+{
+    RebuildSlotsFromLegacy(CharacterClass);
+    Edit(*this);
+    RebuildLegacyFromSlots(CharacterClass);
+}
+
+FLoadoutSlot *FCombatLoadout::FindSlotAt(int32 Place)
+{
+    return Slots.FindByPredicate([Place](const FLoadoutSlot &Slot) { return Slot.Place == Place; });
+}
+
+const FLoadoutSlot *FCombatLoadout::FindSlotAt(int32 Place) const
+{
+    return Slots.FindByPredicate([Place](const FLoadoutSlot &Slot) { return Slot.Place == Place; });
+}
+
+FLoadoutSlot &FCombatLoadout::PutSlotAt(int32 Place, const FLoadoutSlot &Slot)
+{
+    ClearSlotAt(Place);
+    const int32 Index = Algo::LowerBoundBy(Slots, Place, [](const FLoadoutSlot &Existing) { return Existing.Place; });
+    FLoadoutSlot &Put = Slots.Insert_GetRef(Slot, Index);
+    Put.Place = Place;
+    return Put;
+}
+
+bool FCombatLoadout::ClearSlotAt(int32 Place)
+{
+    return Slots.RemoveAll([Place](const FLoadoutSlot &Slot) { return Slot.Place == Place; }) > 0;
 }
 
 void FCombatLoadout::EnsureSlotsInStep(ECharacterClass CharacterClass)
