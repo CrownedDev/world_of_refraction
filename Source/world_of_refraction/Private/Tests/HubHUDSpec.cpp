@@ -126,9 +126,9 @@ void FHubHUDSpec::Define()
 		TestTrue(TEXT("four cards and the widest chip fit"), WoRHubHUD::GetPartyStripMaxWidth(PartyConstants::MAX_PARTY_MEMBERS) <= Room);
 	});
 
-	It("shows the trial level on any map but the hub, run or not (B-503j, D-216; B-503m)", [this]()
+	It("shows the trial level on every map, run or not (B-503j, B-503m; B-597)", [this]()
 	{
-		TestTrue(TEXT("no world: the hub's cards (names only)"), WoRHubHUD::GetCardLevel(nullptr) == EBattleCardLevel::Hub);
+		TestTrue(TEXT("no world: the trial's cards (B-597)"), WoRHubHUD::GetCardLevel(nullptr) == EBattleCardLevel::Trial);
 		TestTrue(TEXT("not the hub map, no run (a trial map played straight from the editor): the trial's cards"),
 				 WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Trial);
 		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
@@ -140,10 +140,10 @@ void FHubHUDSpec::Define()
 		TestTrue(TEXT("in a run: the trial's cards (HP, EP, build-up)"), WoRHubHUD::GetCardLevel(TestWorld->GetWorld()) == EBattleCardLevel::Trial);
 	});
 
-	It("puts the field attack strip above the played member's card, in a trial only (B-503k, D-217)", [this]()
+	It("puts the field attack strip above the played member's card, at the Trial level (B-503k, D-217; B-597)", [this]()
 	{
-		TestFalse(TEXT("none in the hub"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Hub));
-		TestTrue(TEXT("in a trial"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Trial));
+		TestFalse(TEXT("none on a name-only card"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Hub));
+		TestTrue(TEXT("at the Trial level (trials and, B-597, the hub)"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Trial));
 		TestFalse(TEXT("not the battle's (its card has the gear tooltip)"), WoRHubHUD::ShowsFieldAttackStrip(EBattleCardLevel::Battle));
 
 		UParty *Party = NewObject<UParty>(GetTransientPackage());
@@ -158,7 +158,7 @@ void FHubHUDSpec::Define()
 		TestEqual(TEXT("no pawn"), WoRHubHUD::FindFieldAttackCard(nullptr), INDEX_NONE);
 	});
 
-	It("opens the quick strip in the hub too, with no card strip (B-528, D-218)", [this]()
+	It("opens the quick strip in the hub too, with the trial's cards and card strip (B-528, D-218; B-597)", [this]()
 	{
 		UWorld *World = TestWorld->GetWorld();
 		UTrialRunSubsystem *Run = TestWorld->GetSubsystem<UTrialRunSubsystem>();
@@ -170,8 +170,8 @@ void FHubHUDSpec::Define()
 		FSoftObjectPtr *HubLevelValue = HubLevel->ContainerPtrToValuePtr<FSoftObjectPtr>(Run);
 		const FSoftObjectPtr AuthoredHub = *HubLevelValue;
 		*HubLevelValue = FSoftObjectPtr(World); // this test world plays the hub
-		TestTrue(TEXT("the hub's cards"), WoRHubHUD::GetCardLevel(World) == EBattleCardLevel::Hub);
-		TestFalse(TEXT("no card strip in the hub (D-216)"), WoRHubHUD::ShowsFieldAttackStrip(WoRHubHUD::GetCardLevel(World)));
+		TestTrue(TEXT("B-597: the hub shows the trial's cards (HP, EP)"), WoRHubHUD::GetCardLevel(World) == EBattleCardLevel::Trial);
+		TestTrue(TEXT("B-597: and the weapon strip above the played card"), WoRHubHUD::ShowsFieldAttackStrip(WoRHubHUD::GetCardLevel(World)));
 		UHubHUDWidget *HUD = CreateWidget<UHubHUDWidget>(World, UHubHUDWidget::StaticClass());
 		if (TestNotNull(TEXT("HUD created"), HUD))
 		{

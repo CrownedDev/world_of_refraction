@@ -16,7 +16,6 @@
 #include "GameFramework/PlayerController.h"
 #include "HAL/IConsoleManager.h"
 #include "Hub/HubInteract.h"
-#include "Trial/TrialRunSubsystem.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
 #include "UI/Menus/PauseMenuModel.h"
 #include "UI/WoRIconTable.h"
@@ -140,11 +139,8 @@ TArray<FBattleHUDCard> WoRHubHUD::BuildPartyStrip(const UParty *Party, int32 Pla
 
 EBattleCardLevel WoRHubHUD::GetCardLevel(const UWorld *World)
 {
-	// B-503m: the map decides, not the run: a map played straight from the editor has no run, and the hub's first
-	// frame can still hold a closed run's restore (USaveSubsystem::SettleClosedRun ends it a tick later).
-	const UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
-	const UTrialRunSubsystem *TrialRun = GameInstance ? GameInstance->GetSubsystem<UTrialRunSubsystem>() : nullptr;
-	return TrialRun && !TrialRun->IsHubWorld(World) ? EBattleCardLevel::Trial : EBattleCardLevel::Hub;
+	// B-597 (Crown, 2026-11-24): the hub shows the trial's card too (weapon strip, name, HP, EP), not the name-only tag.
+	return EBattleCardLevel::Trial;
 }
 
 int32 WoRHubHUD::GetFieldAttackCardIndex(const UParty *Party, int32 MemberSlot)
@@ -230,17 +226,17 @@ FString WoRHubHUD::GetHubHUDString(const UWorld *World)
 	}
 	if (!Party.IsEmpty())
 	{
-		Party += GetCardLevel(World) == EBattleCardLevel::Trial ? TEXT(" (trial cards: HP, EP)") : TEXT(" (hub cards: names only)");
+		Party += TEXT(" (trial cards: HP, EP)");
 	}
 	const APawn *Pawn = PC ? PC->GetPawn() : nullptr;
 	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
 	FString FieldAttack = TEXT("none");
 	if (FieldMovement)
 	{
-		// B-503k: the strip's text, the card it sits above, and whether this map shows it.
+		// B-503k: the strip's text and the card it sits above (B-597: every map shows it).
 		const FFieldAttackEntry Entry = FieldMovement->GetFieldAttackEntry();
-		FieldAttack = FString::Printf(TEXT("'%s' (%s) above card %d%s"), *Entry.Name.ToString(), Entry.IsSwing() ? TEXT("swing") : TEXT("pulse"),
-									  FindFieldAttackCard(Pawn), ShowsFieldAttackStrip(GetCardLevel(World)) ? TEXT("") : TEXT(", hidden in the hub"));
+		FieldAttack = FString::Printf(TEXT("'%s' (%s) above card %d"), *Entry.Name.ToString(), Entry.IsSwing() ? TEXT("swing") : TEXT("pulse"),
+									  FindFieldAttackCard(Pawn));
 	}
 	return FString::Printf(TEXT("[HubHUD] prompt: %s; near a vendor: %s; money: %s %s; quest: %s; party: %s; field attack: %s"),
 						   Prompt.bShown ? *FString::Printf(TEXT("%s %s"), *Prompt.Verb.ToString(), *Prompt.What.ToString()) : TEXT("none"),

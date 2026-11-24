@@ -97,12 +97,12 @@ namespace WoRHubHUD
 	/** B-503m4: the party slot of the member Pawn plays (INDEX_NONE: none). */
 	WORLD_OF_REFRACTION_API int32 FindPlayedMemberSlot(const APawn *Pawn);
 
-	/** B-503j (D-216): the strip's cards show the Hub level on the hub map (DefaultGame.ini HubLevel) or with no world,
-	 *  else the Trial level. B-503m: by the map, run or not (a trial map played straight from the editor has none). */
+	/** The strip's card level. B-597 (Crown, 2026-11-24): the Trial level on every map, the hub included (it was the
+	 *  name-only Hub level there, D-216). */
 	WORLD_OF_REFRACTION_API EBattleCardLevel GetCardLevel(const UWorld *World);
 
 	/** B-503k (D-217): the field attack strip above a card (FFieldAttackEntry::Name: "Sword", "Fire Sword", "Fire")
-	 *  shows in a trial only; the hub shows no strip, as it shows no HP (D-216). */
+	 *  shows with the Trial level (B-597: the hub too). */
 	inline bool ShowsFieldAttackStrip(EBattleCardLevel Level) { return Level == EBattleCardLevel::Trial; }
 
 	/** B-503k: the party strip's card (BuildPartyStrip's order) of the member in MemberSlot, played: B-503m4 (D-217)
