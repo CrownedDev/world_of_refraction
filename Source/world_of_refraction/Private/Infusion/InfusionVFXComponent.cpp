@@ -22,8 +22,9 @@
 
 namespace
 {
-    /** The display's own glow, else the element's default glow on DA_ImpactVisualDefaults; null with neither. */
-    UNiagaraSystem *FindGlowSystem(const UInfusionDisplayData *Display, ESpellElement Element)
+    /** The display's own glow, else the default glow on DA_ImpactVisualDefaults (Raw's, Physical's or the element's);
+     *  null with neither. */
+    UNiagaraSystem *FindGlowSystem(const UInfusionDisplayData *Display, ESpellElement Element, bool bRaw)
     {
         if (Display && Display->HasVFX())
         {
@@ -31,7 +32,7 @@ namespace
         }
         const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
         // shortcut: loads the default glow on first use, which may hitch once; preload with the fight's assets when the art lands.
-        return Defaults ? Defaults->GetInfusionGlowVFX(Element).LoadSynchronous() : nullptr;
+        return Defaults ? Defaults->GetInfusionGlowVFX(Element, bRaw).LoadSynchronous() : nullptr;
     }
 }
 
@@ -127,14 +128,20 @@ void UInfusionVFXComponent::SetInfusionLevel(int32 Level)
         ActivateCurrentSource();
     }
 
-    // Scale based on level
-    float ScaleMultiplier = (CurrentInfusionLevel >= 2) ? L2ScaleMultiplier : L1ScaleMultiplier;
+    ApplyLevelToVFX();
+}
 
-    if (ActiveVFXComponent)
+void UInfusionVFXComponent::ApplyLevelToVFX()
+{
+    if (!ActiveVFXComponent)
     {
-        ActiveVFXComponent->SetVariableFloat(ScaleParameterName, ScaleMultiplier);
-        UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Level %d - Scale: %.2f"), CurrentInfusionLevel, ScaleMultiplier);
+        return;
     }
+    const FInfusionLevelVisual Visual = UImpactVisualDefaults::ForInfusionLevel(CurrentInfusionLevel);
+    ActiveVFXComponent->SetVariableInt(InfusionLevelParameterName, CurrentInfusionLevel);
+    ActiveVFXComponent->SetVariableFloat(ScaleParameterName, Visual.Size);
+    ApplyColorToVFX(Visual.Brighten(CurrentGlowColor));
+    UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Level %d - intensity x%.2f, size x%.2f"), CurrentInfusionLevel, Visual.Intensity, Visual.Size);
 }
 
 void UInfusionVFXComponent::CycleInfusionLevel()
@@ -215,10 +222,12 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     // The display's own glow, else the element's default (Crown 2026-11-24)
     UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
     const ESpellElement Element = GetElementForSource(Source);
-    UNiagaraSystem *Glow = FindGlowSystem(InfusionDisplay, Element);
+    const bool bRaw = Source == EInfusionSourceOption::Raw;
+    UNiagaraSystem *Glow = FindGlowSystem(InfusionDisplay, Element, bRaw);
     if (!Glow)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No glow: the display has no VFX and %s has no default glow"), *UEnum::GetValueAsString(Element));
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No glow: the display has no VFX and %s has no default glow"),
+               bRaw ? TEXT("Raw") : *UEnum::GetValueAsString(Element));
         return;
     }
 
@@ -233,17 +242,9 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
 
     SpawnVFX(Glow, InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
 
-    // Apply element color
-    FLinearColor Color;
-    if (InfusionDisplay && InfusionDisplay->bOverrideElementColor)
-    {
-        Color = InfusionDisplay->ColorOverride;
-    }
-    else
-    {
-        Color = GetElementColor(CurrentElement);
-    }
-    ApplyColorToVFX(Color);
+    // Element color, brightened and sized by the level
+    CurrentGlowColor = (InfusionDisplay && InfusionDisplay->bOverrideElementColor) ? InfusionDisplay->ColorOverride : GetElementColor(CurrentElement);
+    ApplyLevelToVFX();
 
     bIsInfusionActive = true;
 
@@ -513,8 +514,9 @@ void UInfusionVFXComponent::DebugActivateWithElement(ESpellElement TestElement)
     CurrentElement = TestElement;
 
     UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
-    SpawnVFX(FindGlowSystem(InfusionDisplay, TestElement), InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
-    ApplyColorToVFX(GetElementColor(TestElement));
+    SpawnVFX(FindGlowSystem(InfusionDisplay, TestElement, false), InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
+    CurrentGlowColor = GetElementColor(TestElement);
+    ApplyLevelToVFX();
 
     bIsInfusionActive = true;
 

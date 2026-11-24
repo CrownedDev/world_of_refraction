@@ -244,12 +244,15 @@ protected:
     /** Get color for element */
     FLinearColor GetElementColor(ESpellElement Element) const;
 
-    /** Scale multiplier for L1 */
-    float L1ScaleMultiplier = 1.25f;
+    /** The level's size, brightness and InfusionLevel parameter on the active glow (DA_ImpactVisualDefaults' level table). */
+    void ApplyLevelToVFX();
 
-    /** Scale multiplier for L2 */
-    float L2ScaleMultiplier = 1.5f;
+    /** The glow's tint before the level brightens it. */
+    FLinearColor CurrentGlowColor = FLinearColor::White;
 
-    /** Niagara parameter name for scale */
+    /** Niagara parameter name for scale (the level's Size) */
     FName ScaleParameterName = TEXT("Scale_All");
+
+    /** Niagara int user parameter carrying the infusion level (0/1/2) */
+    FName InfusionLevelParameterName = TEXT("InfusionLevel");
 };
