@@ -1339,7 +1339,8 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastEvolutionWear(
-					Caster, LC, Spell->Tier, Action.SpellInfusionLevel, /*bIsSpell=*/true);
+					Caster, LC, Spell->Tier, Action.SpellInfusionLevel, /*bIsSpell=*/true,
+					GetIceInfusionCostMultiplier(Action, GetActionHitElement(Caster, Action))); // B-593b: Ice wears more
 			}
 		}
 	}

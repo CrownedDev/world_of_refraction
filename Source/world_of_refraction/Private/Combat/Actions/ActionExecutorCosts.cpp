@@ -585,6 +585,7 @@ int32 UActionExecutor::ApplySourceCommitCost(AActor *Actor, const FAction &Actio
 		const bool bIsSpell = (Action.ActionType == EActionType::Spell);
 		// B-245 (Q-245): wear reads the action's own tier, as tier-gap damage does (ResolveActionTier).
 		const EItemTier ActionTier = ResolveActionTier(Actor, Action);
+		const float IceWearMult = GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action)); // B-593b
 
 		// A gear-attached evolution provides the weapon's spells (so WeaponCrystal infusion is
 		// offered), but ProcessPostCastWear skips evolution — route it to the gear-evolution wear
@@ -592,12 +593,12 @@ int32 UActionExecutor::ApplySourceCommitCost(AActor *Actor, const FAction &Actio
 		if (Attachment->IsEvolution())
 		{
 			CrystalMgr->ProcessPostCastGearEvolutionWear(
-				Actor, *Attachment, ActionTier, Level, bIsSpell);
+				Actor, *Attachment, ActionTier, Level, bIsSpell, IceWearMult);
 		}
 		else
 		{
 			CrystalMgr->ProcessPostCastWear(
-				Actor, Weapon, *Attachment, ActionTier, Level, bIsSpell);
+				Actor, Weapon, *Attachment, ActionTier, Level, bIsSpell, TOptional<EItemTier>(), IceWearMult);
 		}
 
 		// Per-action stat modifiers live on the execution context (action-start), not here.
@@ -656,7 +657,8 @@ int32 UActionExecutor::ApplySourceCommitCost(AActor *Actor, const FAction &Actio
 												  : nullptr)
 			{
 				CrystalMgr->ProcessPostCastEvolutionWear(
-					Actor, LC, ActionTier, Level, /*bIsSpell=*/false);
+					Actor, LC, ActionTier, Level, /*bIsSpell=*/false,
+					GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action))); // B-593b
 			}
 		}
 
@@ -728,5 +730,6 @@ void UActionExecutor::ApplyCrystalWearOn(AActor *Actor, URingData *Ring, const F
 	// as the channel does, so one gap drives a ring cast's damage and wear (a weapon crystal's wear keeps its own
 	// tier, the plan's "keep" row, Q-519).
 	CrystalMgr->ProcessPostCastWear(Actor, Ring, *Attachment, ResolveActionTier(Actor, Action), Level,
-									Action.ActionType == EActionType::Spell, LC->GetBuiltTierOfSocket(Attachment));
+									Action.ActionType == EActionType::Spell, LC->GetBuiltTierOfSocket(Attachment),
+									GetIceInfusionCostMultiplier(Action, GetActionHitElement(Actor, Action))); // B-593b
 }
