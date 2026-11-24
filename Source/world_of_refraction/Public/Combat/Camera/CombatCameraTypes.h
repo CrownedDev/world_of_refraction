@@ -386,6 +386,11 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  Melee Rush: the side two-shot, still, no punch (the hit punches in it). Unset for every other style. */
 	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning);
 
+	/** B-600d (Q-600d): the skill's attacker starts its leap home. A party member's shots end there and the camera
+	 *  blends to its turn view as it goes, never holding on the target alone. An enemy's shots hold on the party member
+	 *  it hit, as before. False when no shot of this attacker is playing. */
+	static bool ReturnsToTurnViewOnLeapHome(bool bShotPlaying, bool bIsShotCaster, bool bEnemyCaster);
+
 	/** B-371: the moment an impact plays: Spread for several targets, else Impact. */
 	static ECameraShotMoment ImpactMomentFor(int32 TargetCount);
 
