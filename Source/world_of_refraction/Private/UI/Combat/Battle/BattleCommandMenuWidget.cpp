@@ -895,7 +895,8 @@ bool UBattleCommandMenuWidget::ShowRefusal(const FPieMenuButtonData &Row)
 bool UBattleCommandMenuWidget::ShowRefusalForKey(EPieMenuCategory Key)
 {
 	// Mirrors PressMenuKey's lookup: in a target step 2 / X and 3 / Y press the panel's lines; the category keys
-	// press main-menu buttons only.
+	// press main-menu buttons only. The Position picker's greyed rows are frame rows (their reason is under them), so
+	// ShowRefusal turns them down, as any other non-hint match.
 	const EPieMenuCategory PanelButton = bAtMainMenu ? EPieMenuCategory::None : CommandMenuRules::TargetPanelButtonForKey(Key);
 	const EPieMenuCategory Presses = PanelButton == EPieMenuCategory::None ? Key : PanelButton;
 	if (!bAtMainMenu && PanelButton == EPieMenuCategory::None && CommandMenuRules::IsMainMenuKey(Key))
