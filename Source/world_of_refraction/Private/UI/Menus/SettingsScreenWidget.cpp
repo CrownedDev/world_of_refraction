@@ -347,12 +347,19 @@ int32 USettingsScreenWidget::FindUnder(const TArray<TObjectPtr<UBorder>> &Boxes,
 	return INDEX_NONE;
 }
 
+int32 USettingsScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
+{
+	// B-602: the rows' places as scrolled now (a row scrolled out of view keeps its last drawn place).
+	return WoRMenuStyle::FindScrolledRowUnder(RowList, RowBoxes.Num(), [this](int32 Index) -> const UWidget * { return RowBoxes[Index]; },
+											  MouseEvent.GetScreenSpacePosition());
+}
+
 FReply USettingsScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
 	// Only a moving mouse picks a row, so a resting cursor doesn't fight the keys.
 	if (!InMouseEvent.GetCursorDelta().IsZero())
 	{
-		SelectRow(FindUnder(RowBoxes, InMouseEvent));
+		SelectRow(FindRowUnder(InMouseEvent));
 	}
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
@@ -369,7 +376,7 @@ FReply USettingsScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometr
 		MovePage(Tab - static_cast<int32>(Page));
 		return FReply::Handled();
 	}
-	const int32 Row = FindUnder(RowBoxes, InMouseEvent);
+	const int32 Row = FindRowUnder(InMouseEvent);
 	if (Rows.IsValidIndex(Row)) // a hidden row keeps its old place on screen
 	{
 		SelectRow(Row);

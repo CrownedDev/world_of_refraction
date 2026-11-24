@@ -60,6 +60,8 @@ private:
 	/** The page's rows, read fresh from the model, and the focused row's panel. */
 	void Refresh();
 	int32 FindUnder(const TArray<TObjectPtr<UBorder>> &Boxes, const FPointerEvent &MouseEvent) const;
+	/** B-602: the settings row under the mouse, as the list is scrolled now. */
+	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
 
 	ESettingsPage Page = ESettingsPage::Gameplay;
 	TArray<FSettingsRow> Rows;

@@ -2100,20 +2100,9 @@ void ULoadoutV2ScreenWidget::CycleGridFilter(int32 Delta)
 
 int32 ULoadoutV2ScreenWidget::FindTileUnder(const FVector2D &ScreenPosition) const
 {
-	// A tile scrolled out of the panel is not under the mouse.
-	if (!GridScroll || !GridScroll->GetCachedGeometry().IsUnderLocation(ScreenPosition))
-	{
-		return INDEX_NONE;
-	}
+	// B-602: the tiles' places as scrolled now (a tile scrolled out of the panel keeps its last drawn place).
 	const int32 Count = FMath::Min(IsGridOpen() ? Items.Num() : InvPage.Tiles.Num(), GridTiles.Num()); // a slot's choices, or the inventory's tab
-	for (int32 Index = 0; Index < Count; ++Index)
-	{
-		if (GridTiles[Index] && GridTiles[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
-		{
-			return Index;
-		}
-	}
-	return INDEX_NONE;
+	return WoRMenuStyle::FindScrolledRowUnder(GridScroll, Count, [this](int32 Index) -> const UWidget * { return GridTiles[Index]; }, ScreenPosition);
 }
 
 int32 ULoadoutV2ScreenWidget::FindGridTabUnder(const FVector2D &ScreenPosition) const
@@ -2754,21 +2743,14 @@ void ULoadoutV2ScreenWidget::ClickLine(int32 Line)
 
 int32 ULoadoutV2ScreenWidget::FindLineUnder(const FVector2D &ScreenPosition) const
 {
-	// A line scrolled out of the panel is not under the mouse, wherever its own place would be; nor is any line while
-	// the loadout is out (D-249: its list is not drawn, its last place is stale).
-	if (!bLoadoutOpen || (ListScroll && !ListScroll->GetCachedGeometry().IsUnderLocation(ScreenPosition)))
+	// No line while the loadout is out (D-249: its list is not drawn, its last place is stale). B-602: the lines' places
+	// as scrolled now (a line scrolled out of the panel keeps its last drawn place).
+	if (!bLoadoutOpen)
 	{
 		return INDEX_NONE;
 	}
 	const int32 Count = FMath::Min(IsGridOpen() ? Slots.Num() : GetLineCount(), LineRows.Num()); // beside the grid the rows are the slots
-	for (int32 Index = 0; Index < Count; ++Index)
-	{
-		if (LineRows[Index] && LineRows[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
-		{
-			return Index;
-		}
-	}
-	return INDEX_NONE;
+	return WoRMenuStyle::FindScrolledRowUnder(ListScroll, Count, [this](int32 Index) -> const UWidget * { return LineRows[Index]; }, ScreenPosition);
 }
 
 bool ULoadoutV2ScreenWidget::SetHovered(int32 MemberChip, int32 TabChip, int32 Line)

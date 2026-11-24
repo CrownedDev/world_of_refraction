@@ -839,20 +839,10 @@ FReply UInventoryScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 
 int32 UInventoryScreenWidget::FindTileUnder(const FPointerEvent &MouseEvent) const
 {
-	// A tile scrolled out of view keeps its geometry past the grid's edge: only the grid's own area counts.
-	if (!TileScroll || !TileScroll->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
-	{
-		return INDEX_NONE;
-	}
-	for (int32 Index = 0; Index < TileWidgets.Num() && Index < Page.Tiles.Num(); ++Index)
-	{
-		const UBorder *Frame = TileWidgets[Index].Frame.Get();
-		if (Frame && Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
-		{
-			return Index;
-		}
-	}
-	return INDEX_NONE;
+	// B-602: the tiles' places as scrolled now (a tile scrolled out of view keeps its last drawn place).
+	return WoRMenuStyle::FindScrolledRowUnder(TileScroll, FMath::Min(TileWidgets.Num(), Page.Tiles.Num()),
+											  [this](int32 Index) -> const UWidget * { return TileWidgets[Index].Frame.Get(); },
+											  MouseEvent.GetScreenSpacePosition());
 }
 
 int32 UInventoryScreenWidget::FindChoiceUnder(const FPointerEvent &MouseEvent) const

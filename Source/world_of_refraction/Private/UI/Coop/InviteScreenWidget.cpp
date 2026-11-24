@@ -339,18 +339,14 @@ FReply UInviteScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 bool UInviteScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent, bool &bOutSeats, int32 &OutRow) const
 {
 	const FVector2D Where = MouseEvent.GetScreenSpacePosition();
-	if (FriendList && FriendList->GetCachedGeometry().IsUnderLocation(Where))
+	// B-602: the friends' places as scrolled now (a row scrolled out of view keeps its last drawn place).
+	const int32 Friend = WoRMenuStyle::FindScrolledRowUnder(FriendList, FMath::Min(FriendWidgets.Num(), Page.Friends.Num()),
+															 [this](int32 Index) -> const UWidget * { return FriendWidgets[Index].Frame.Get(); }, Where);
+	if (Friend != INDEX_NONE)
 	{
-		for (int32 Index = 0; Index < FriendWidgets.Num() && Index < Page.Friends.Num(); ++Index)
-		{
-			const UBorder *Frame = FriendWidgets[Index].Frame.Get();
-			if (Frame && Frame->GetCachedGeometry().IsUnderLocation(Where))
-			{
-				bOutSeats = false;
-				OutRow = Index;
-				return true;
-			}
-		}
+		bOutSeats = false;
+		OutRow = Friend;
+		return true;
 	}
 	for (int32 Index = 0; Index < SeatWidgets.Num() && Index <= Page.Seats.Num(); ++Index)
 	{
