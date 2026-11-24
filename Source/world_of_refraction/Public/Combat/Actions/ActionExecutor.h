@@ -1039,10 +1039,13 @@ private:
 	UFUNCTION(BlueprintPure, Category = "Action Executor|Async")
 	bool IsAsyncActionInProgress() const;
 
+public:
 	/**
-	 * Get the current async execution context (if any)
+	 * Get the current async execution context (if any). Public, read-only: the weapon trail reads the running action's infusion.
 	 */
 	const FActionExecutionContext *GetCurrentExecutionContext() const;
+
+private:
 
 	/**
 	 * Cancel current async action (applies full damage, fires callback)

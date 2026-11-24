@@ -170,6 +170,19 @@ public:
     UFUNCTION(BlueprintPure, Category = "InfusionVFX")
     bool IsImmuneToInfusion() const { return bSuppressForImmuneAction; }
 
+    /** Crown 2026-11-24: an attack's or a weapon skill's infusion. Its glow rides the weapon in hand's own mesh,
+     *  whatever the display's DisplayLocation says, and follows swaps; a spell's keeps the display's place. */
+    void SetWeaponInfusion(bool bWeapon);
+    bool IsWeaponInfusion() const { return bWeaponInfusion; }
+
+    /** Crown 2026-11-24: the infused hit deals Ice (a Water infusion on a Deals Ice skill): a Water glow plays Ice's
+     *  default glow and colour. Set per action by the executor; the picker clears it. */
+    void SetDealsIce(bool bIce);
+    bool DealsIce() const { return bDealsIce; }
+
+    /** The element of the infusion showing now; None with none (and for Physical or Raw). */
+    ESpellElement GetActiveElement() const { return bIsInfusionActive ? CurrentElement : ESpellElement::None; }
+
 protected:
     // ==================== CACHED REFERENCES ====================
 
@@ -205,7 +218,17 @@ protected:
     UPROPERTY()
     bool bSuppressForImmuneAction = false;
 
+    bool bWeaponInfusion = false;
+
+    bool bDealsIce = false;
+
     // ==================== INTERNAL ====================
+
+    /** The weapon meshes were rebuilt (a swap): a weapon glow moves onto the new piece. */
+    void HandleWeaponMeshRebuilt();
+
+    /** Re-spawn the glow where it belongs now, keeping its level's scale. */
+    void RespawnKeepingLevel();
 
     /** Spawn VFX at location specified by weapon's display data */
     void SpawnVFX(UNiagaraSystem *VFXSystem, EInfusionDisplayLocation Location);
@@ -228,12 +251,15 @@ protected:
     /** Get color for element */
     FLinearColor GetElementColor(ESpellElement Element) const;
 
-    /** Scale multiplier for L1 */
-    float L1ScaleMultiplier = 1.25f;
+    /** The level's size, brightness and InfusionLevel parameter on the active glow (DA_ImpactVisualDefaults' level table). */
+    void ApplyLevelToVFX();
 
-    /** Scale multiplier for L2 */
-    float L2ScaleMultiplier = 1.5f;
+    /** The glow's tint before the level brightens it. */
+    FLinearColor CurrentGlowColor = FLinearColor::White;
 
-    /** Niagara parameter name for scale */
+    /** Niagara parameter name for scale (the level's Size) */
     FName ScaleParameterName = TEXT("Scale_All");
+
+    /** Niagara int user parameter carrying the infusion level (0/1/2) */
+    FName InfusionLevelParameterName = TEXT("InfusionLevel");
 };

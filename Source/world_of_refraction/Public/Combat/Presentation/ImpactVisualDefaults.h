@@ -23,6 +23,26 @@ namespace ImpactVisualDefaultsAsset
 	inline const TCHAR *PATH = TEXT("/Game/Data/Combat/DA_ImpactVisualDefaults.DA_ImpactVisualDefaults");
 }
 
+/** One infusion level's look (Crown 2026-11-24): how much brighter (the glow's and trail's tint) and bigger (the
+ *  glow's Scale_All) it plays. The glow also gets the level itself as the int user parameter InfusionLevel. */
+USTRUCT(BlueprintType)
+struct WORLD_OF_REFRACTION_API FInfusionLevelVisual
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows", meta = (ClampMin = "0.0"))
+	float Intensity = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows", meta = (ClampMin = "0.0"))
+	float Size = 1.0f;
+
+	/** Color with its RGB scaled by Intensity; alpha kept. */
+	FLinearColor Brighten(const FLinearColor &Color) const
+	{
+		return FLinearColor(Color.R * Intensity, Color.G * Intensity, Color.B * Intensity, Color.A);
+	}
+};
+
 UCLASS(BlueprintType)
 class WORLD_OF_REFRACTION_API UImpactVisualDefaults : public UPrimaryDataAsset
 {
@@ -65,4 +85,56 @@ public:
 	/** D-170: the Generic class's preference when it wears both a weapon and an adapter (Q-394: Adapter). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cast Visuals")
 	ECastVFXPreference GenericCastVFXPreference = ECastVFXPreference::Adapter;
+
+	// ==================== WEAPON TRAILS (Crown 2026-11-24, WeaponTrail.h) ====================
+
+	/** Every trailing weapon's swing trail (not bows, guns, shields). A ribbon between the user vectors TrailStart and
+	 *  TrailEnd (local space), tinted by ElementColor. TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
+	TSoftObjectPtr<UNiagaraSystem> WeaponTrailVFX;
+
+	/** The tint with no infusion, a Physical or a Raw one. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
+	FLinearColor PlainTrailColor = FLinearColor::White;
+
+	/** A montage with no trail window starts its trail this long (seconds) before its first Impact. TODO: tune. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails", meta = (ClampMin = "0.0"))
+	float TrailWindUpSeconds = 0.25f;
+
+	// ==================== INFUSION GLOWS (Crown 2026-11-24) ====================
+
+	/** Each element's default infusion glow, used when the infusion's display data has no VFXSystem of its own.
+	 *  Tinted by ElementColor like any glow. TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TMap<ESpellElement, TSoftObjectPtr<UNiagaraSystem>> ElementInfusionGlowVFX;
+
+	/** A Physical infusion's default glow: a source with no element (it deals None). TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TSoftObjectPtr<UNiagaraSystem> PhysicalInfusionGlowVFX;
+
+	/** A Raw infusion's default glow (enhanced physical, paid in HP). TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TSoftObjectPtr<UNiagaraSystem> RawInfusionGlowVFX;
+
+	/** An Ice infusion's default glow: a Water infusion whose hit deals Ice (Crown 2026-11-24; Ice is Water's damage
+	 *  type, ED-04). TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TSoftObjectPtr<UNiagaraSystem> IceInfusionGlowVFX;
+
+	/** Each infusion level's look, level 1 first; a level past the end uses the last row. Every glow (all elements,
+	 *  Physical, Raw) and the weapon trail's tint use the same table. TODO: tune. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TArray<FInfusionLevelVisual> InfusionLevelVisuals;
+
+	UImpactVisualDefaults();
+
+	/** The default glow slot: Raw's when bRaw, Ice's for a Water infusion when bIce (Water's while Ice's is empty),
+	 *  Physical's with no element (None or Generic), else the element's row; empty when that slot has none. */
+	TSoftObjectPtr<UNiagaraSystem> GetInfusionGlowVFX(ESpellElement Element, bool bRaw = false, bool bIce = false) const;
+
+	/** Level's row in InfusionLevelVisuals; plain (x1) at level 0 or with no rows. */
+	FInfusionLevelVisual GetInfusionLevelVisual(int32 Level) const;
+
+	/** Level's look from the authored asset, else the built-in table. */
+	static FInfusionLevelVisual ForInfusionLevel(int32 Level);
 };

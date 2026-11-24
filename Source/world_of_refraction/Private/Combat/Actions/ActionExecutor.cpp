@@ -944,10 +944,14 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 
 	// Activate infusion VFX if applicable
 	int32 MaxInfusionLevel = FMath::Max(Action.SpellInfusionLevel, Action.AbilityInfusionLevel);
-	if (MaxInfusionLevel > 0)
+	if (UInfusionVFXComponent *InfusionVFX = Actor->FindComponentByClass<UInfusionVFXComponent>())
 	{
-		if (UInfusionVFXComponent *InfusionVFX = Actor->FindComponentByClass<UInfusionVFXComponent>())
+		// Set on every action, so an Ice cast's flag never carries into the next glow (AI and charge paths included)
+		const ESpellElement GlowElement = GetElementForSourceOption(Actor, Action.SelectedSource);
+		InfusionVFX->SetDealsIce(Action.SpellData && Action.SpellData->GetDealtTypeOverride(GlowElement) == EWoRDamageType::Ice);
+		if (MaxInfusionLevel > 0)
 		{
+			InfusionVFX->SetWeaponInfusion(Action.ActionType == EActionType::Ability);
 			InfusionVFX->SetInfusionLevel(MaxInfusionLevel);
 		}
 	}

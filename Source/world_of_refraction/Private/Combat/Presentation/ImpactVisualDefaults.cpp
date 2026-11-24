@@ -42,7 +42,70 @@ FString UImpactVisualDefaults::GetDefaultsString() const
 	{
 		Out += FString::Printf(TEXT("\n  %s cast: %s"), *UEnum::GetDisplayValueAsText(Row.Key).ToString(), Row.Value.IsNull() ? TEXT("(none)") : *Row.Value.GetAssetName());
 	}
+	Out += FString::Printf(TEXT("\n  Weapon trail: %s, plain colour %s, wind-up %.2fs"),
+						   WeaponTrailVFX.IsNull() ? TEXT("(none)") : *WeaponTrailVFX.GetAssetName(), *PlainTrailColor.ToString(), TrailWindUpSeconds);
+	for (const TPair<ESpellElement, TSoftObjectPtr<UNiagaraSystem>> &Row : ElementInfusionGlowVFX)
+	{
+		Out += FString::Printf(TEXT("\n  %s glow: %s"), *UEnum::GetValueAsString(Row.Key), Row.Value.IsNull() ? TEXT("(none)") : *Row.Value.GetAssetName());
+	}
+	Out += FString::Printf(TEXT("\n  Physical glow: %s, Raw glow: %s, Ice glow: %s"),
+						   PhysicalInfusionGlowVFX.IsNull() ? TEXT("(none)") : *PhysicalInfusionGlowVFX.GetAssetName(),
+						   RawInfusionGlowVFX.IsNull() ? TEXT("(none)") : *RawInfusionGlowVFX.GetAssetName(),
+						   IceInfusionGlowVFX.IsNull() ? TEXT("(none)") : *IceInfusionGlowVFX.GetAssetName());
+	for (int32 Row = 0; Row < InfusionLevelVisuals.Num(); ++Row)
+	{
+		Out += FString::Printf(TEXT("\n  Level %d: intensity x%.2f, size x%.2f"), Row + 1, InfusionLevelVisuals[Row].Intensity, InfusionLevelVisuals[Row].Size);
+	}
 	return Out;
+}
+
+UImpactVisualDefaults::UImpactVisualDefaults()
+{
+	// TODO: tune. Level 1 keeps the old 1.25x size at plain brightness; level 2 the old 1.5x, brighter.
+	constexpr float LEVEL_ONE_INTENSITY = 1.0f;
+	constexpr float LEVEL_ONE_SIZE = 1.25f;
+	constexpr float LEVEL_TWO_INTENSITY = 1.5f;
+	constexpr float LEVEL_TWO_SIZE = 1.5f;
+	FInfusionLevelVisual LevelOne;
+	LevelOne.Intensity = LEVEL_ONE_INTENSITY;
+	LevelOne.Size = LEVEL_ONE_SIZE;
+	FInfusionLevelVisual LevelTwo;
+	LevelTwo.Intensity = LEVEL_TWO_INTENSITY;
+	LevelTwo.Size = LEVEL_TWO_SIZE;
+	InfusionLevelVisuals = {LevelOne, LevelTwo};
+}
+
+TSoftObjectPtr<UNiagaraSystem> UImpactVisualDefaults::GetInfusionGlowVFX(ESpellElement Element, bool bRaw, bool bIce) const
+{
+	if (bRaw)
+	{
+		return RawInfusionGlowVFX;
+	}
+	if (bIce && Element == ESpellElement::Water && !IceInfusionGlowVFX.IsNull())
+	{
+		return IceInfusionGlowVFX;
+	}
+	if (Element == ESpellElement::None || Element == ESpellElement::Generic)
+	{
+		return PhysicalInfusionGlowVFX;
+	}
+	const TSoftObjectPtr<UNiagaraSystem> *Glow = ElementInfusionGlowVFX.Find(Element);
+	return Glow ? *Glow : TSoftObjectPtr<UNiagaraSystem>();
+}
+
+FInfusionLevelVisual UImpactVisualDefaults::GetInfusionLevelVisual(int32 Level) const
+{
+	if (Level <= 0 || InfusionLevelVisuals.IsEmpty())
+	{
+		return FInfusionLevelVisual();
+	}
+	return InfusionLevelVisuals[FMath::Min(Level, InfusionLevelVisuals.Num()) - 1];
+}
+
+FInfusionLevelVisual UImpactVisualDefaults::ForInfusionLevel(int32 Level)
+{
+	const UImpactVisualDefaults *Defaults = Get();
+	return (Defaults ? Defaults : GetDefault<UImpactVisualDefaults>())->GetInfusionLevelVisual(Level);
 }
 
 #if WITH_EDITOR
