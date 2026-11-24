@@ -26,6 +26,10 @@ namespace
 	const TCHAR *const STYLE_TEST_LUNGE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_Lunge.DA_Sword_Abilities_Lunge");
 	const TCHAR *const STYLE_TEST_HEAVY_STRIKE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_HeavyStrike.DA_Sword_Abilities_HeavyStrike");
 	constexpr float STYLE_TEST_TURN_BEFORE_HIT = 0.25f; // B-604b check: the next turn started up to 0.25 s before the hit
+	// B-604d: the defend camera stands this far off the fighters' line at least; a fighter's height and its weapon's reach (cm).
+	constexpr float STYLE_TEST_SIDE_ON_DEGREES = 45.0f;
+	constexpr float STYLE_TEST_BODY_HEIGHT = 180.0f;
+	constexpr float STYLE_TEST_WEAPON_REACH = 120.0f;
 
 	FCameraShotContext StyleTestContext()
 	{
@@ -175,11 +179,12 @@ void FSkillCameraStyleSpec::Define()
 				 FMath::IsNearlyZero(FCombatCameraRules::GetDefendTurnWait(false, false, 0.0f).Get(-1.0f)));
 	});
 
-	It("B-604b: the enemy's real Wrath Cut and Lunge play the defend camera: behind the defender, the enemy in front, clear of the lens", [this]()
+	It("B-604d (Q-604d): the enemy's real Wrath Cut and Lunge play the defend camera side-on: both whole bodies and the weapon in view, clear of the lens", [this]()
 	{
 		// The enemy at its start (StyleTestContext's caster), the one party member it attacks at STYLE_TEST_TARGET.
 		const FVector Enemy = StyleTestContext().Caster;
 		const FVector Defender = STYLE_TEST_TARGET;
+		const FVector Axis = (Enemy - Defender).GetSafeNormal2D();
 		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_LUNGE})
 		{
 			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
@@ -187,33 +192,61 @@ void FSkillCameraStyleSpec::Define()
 			{
 				continue;
 			}
-			// StartShotPattern's path for an enemy caster with one party target.
+			// StartShotPattern's path for an enemy caster with party targets only.
 			const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(Skill->CameraTuning, /*bCasterIsEnemy=*/true);
 			TestTrue(FString::Printf(TEXT("%s: the enemy's attack plays the defend camera"), *Skill->Name),
-					 FCombatCameraRules::UsesDefendCamera(/*bCasterIsEnemy=*/true, Opening, /*bOnePartyTarget=*/true));
+					 FCombatCameraRules::UsesDefendCamera(/*bCasterIsEnemy=*/true, Opening, /*bOnlyPartyTargets=*/true));
 
-			const FCameraShot Shot = FCombatCameraRules::ComputeDefendShot(Defender, Enemy);
+			const FCameraShot Shot = FCombatCameraRules::ComputeDefendShot({Defender}, Enemy);
 			const FVector Lens = Shot.End.GetLocation();
 			const FVector Strike = ApproachWarp::GetStrikePosition(Enemy, Defender, Skill->ExecutionRange); // where a dash would end
 			const FString Name = Skill->Name;
 			TestTrue(Name + TEXT(": a cut that holds (through the hit), no rush blur"), Shot.bCut && IsStill(Shot) && FMath::IsNearlyZero(Shot.MotionBlur));
-			TestTrue(Name + TEXT(": behind the defender: the defender stands between the lens and the enemy"),
-					 FVector::DotProduct(Defender - Lens, (Enemy - Lens).GetSafeNormal2D()) > 0.0f &&
-						 FVector::Dist2D(Lens, Defender) < FVector::Dist2D(Lens, Strike));
+			const FVector FromMiddle = (Lens - (Defender + Strike) * 0.5f).GetSafeNormal2D();
+			TestTrue(FString::Printf(TEXT("%s: side-on, not behind either fighter (at least %.0f degrees off their line)"), *Name, STYLE_TEST_SIDE_ON_DEGREES),
+					 FMath::Abs(FVector::DotProduct(FromMiddle, Axis)) < FMath::Cos(FMath::DegreesToRadians(STYLE_TEST_SIDE_ON_DEGREES)));
 			TestTrue(FString::Printf(TEXT("%s: low (below %.0f cm over the defender)"), *Name, STYLE_TEST_LOW_CAMERA_HEIGHT), Lens.Z < Defender.Z + STYLE_TEST_LOW_CAMERA_HEIGHT);
 			for (const FVector &EnemyAt : {Enemy, Strike})
 			{
+				const FVector Weapon = EnemyAt - Axis * STYLE_TEST_WEAPON_REACH + FVector::UpVector * STYLE_TEST_BODY_HEIGHT * 0.5f; // swung at the defender
 				TestTrue(FString::Printf(TEXT("%s: the enemy at %s at least %.0f cm from the lens"), *Name, *EnemyAt.ToCompactString(), STYLE_TEST_MIN_LENS_DISTANCE),
 						 FVector::Dist(Lens, EnemyAt) >= STYLE_TEST_MIN_LENS_DISTANCE);
-				TestTrue(FString::Printf(TEXT("%s: the enemy at %s and the defender both in frame"), *Name, *EnemyAt.ToCompactString()),
-						 CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, EnemyAt) &&
-							 CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Defender));
+				bool bWhole = CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Weapon);
+				for (const FVector &Feet : {EnemyAt, Defender})
+				{
+					bWhole &= CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet) &&
+							  CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet + FVector::UpVector * STYLE_TEST_BODY_HEIGHT);
+				}
+				TestTrue(FString::Printf(TEXT("%s: the enemy at %s, its weapon and the defender all whole in frame"), *Name, *EnemyAt.ToCompactString()), bWhole);
 			}
 		}
 		TestFalse(TEXT("a party member's attack keeps the attack camera (its style)"),
 				  FCombatCameraRules::UsesDefendCamera(false, ECameraShotMoment::WindUp, true));
 		TestFalse(TEXT("an enemy's named attack keeps its front shot (B-406)"), FCombatCameraRules::UsesDefendCamera(true, ECameraShotMoment::NamedAttack, true));
-		TestFalse(TEXT("an enemy at several targets, or at its own side: today's shots"), FCombatCameraRules::UsesDefendCamera(true, ECameraShotMoment::WindUp, false));
+		TestFalse(TEXT("an enemy at its own side: today's shots"), FCombatCameraRules::UsesDefendCamera(true, ECameraShotMoment::WindUp, false));
+	});
+
+	It("B-604d (Q-604d): an enemy's hit on the whole party goes wide: every party member and the enemy whole in frame", [this]()
+	{
+		const FVector Enemy = StyleTestContext().Caster;
+		const TArray<FVector> Party = {STYLE_TEST_TARGET, STYLE_TEST_SECOND_TARGET, STYLE_TEST_TARGET - (STYLE_TEST_SECOND_TARGET - STYLE_TEST_TARGET)};
+		const FCameraShot Wide = FCombatCameraRules::ComputeDefendShot(Party, Enemy);
+		const FCameraShot Two = FCombatCameraRules::ComputeDefendShot({Party[0]}, Enemy);
+		TestTrue(TEXT("a cut that holds"), Wide.bCut && IsStill(Wide));
+		TestTrue(TEXT("the Defence hand-off's own wide view (one framing for the whole attack)"),
+				 Wide.End.Equals(FCombatCameraRules::ComputeDefenceView(Party, Enemy)));
+		bool bWhole = true;
+		TArray<FVector> Fighters = Party;
+		Fighters.Add(Enemy);
+		for (const FVector &Feet : Fighters)
+		{
+			bWhole &= CameraFraming::IsOnScreen(Wide.End, Wide.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet) &&
+					  CameraFraming::IsOnScreen(Wide.End, Wide.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet + FVector::UpVector * STYLE_TEST_BODY_HEIGHT);
+		}
+		TestTrue(TEXT("every party member and the enemy whole in frame"), bWhole);
+		const FVector Middle = (Party[0] + Enemy) * 0.5f;
+		TestTrue(TEXT("further back than the one-defender two-shot"),
+				 FVector::Dist(Wide.End.GetLocation(), Middle) > FVector::Dist(Two.End.GetLocation(), Middle));
 	});
 
 	It("B-600d: a party member's leap home leaves its shot; an enemy's keeps its shot", [this]()
