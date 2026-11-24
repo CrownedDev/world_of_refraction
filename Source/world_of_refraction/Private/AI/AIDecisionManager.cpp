@@ -2488,11 +2488,13 @@ int32 UAIDecisionManager::ClampInfusionLevelForHP(AActor *Attacker, UCharacterDa
                                   : UInventoryComponent::ResolveAbilityTier(Attacker, Action.SkillData);
     const float PowerMult = TierPowerScaling::GetTierPowerMultiplier(OwnTier);
     const float TierGapCostMult = ActionExec->GetTierGapCostMultiplier(Attacker, Action);
+    // B-593b: an Ice infusion's extra cost reaches the HP basis, as in ComputePreEffInfusedEP.
+    const float IceMult = UActionExecutor::GetIceInfusionCostMultiplier(Infused, ActionExec->GetActionHitElement(Attacker, Infused));
     // D-126 (B-334): only L2 pays HP, so the drop stops at the first level that pays none (L1).
     while (InfusionConstants::LevelPaysHP(Level))
     {
         const int32 PreEffEP = FMath::RoundToInt(
-            BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp) * PowerMult * TierGapCostMult);
+            BaseEnergyCost * ActionExec->ComputeInfusionCostMultiplier(Level, bIsSpell, Comp) * IceMult * PowerMult * TierGapCostMult);
         if (UInfusionCostHelper::WouldKill(Attacker, PreEffEP * HPSources))
         {
             Level--;

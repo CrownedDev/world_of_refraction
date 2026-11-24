@@ -298,8 +298,9 @@ public:
 	 *  or for an Ice infusion (B-593); None otherwise. Every hit-kind reader goes through this. */
 	static EWoRDamageType GetActionDealtTypeOverride(const FAction &Action, ESpellElement Element);
 
-	/** D-271: an Ice infusion's cost factor, ICE_INFUSION_COST_MULTIPLIER; x1 on a spell marked Deals Ice or when
-	 *  Action is no Ice infusion. */
+	/** D-271: an Ice infusion's cost factor (EP, the HP basis and crystal wear), ICE_INFUSION_COST_MULTIPLIER; x1 on a
+	 *  spell marked Deals Ice, on a spell with no damage and no status buildup (B-593b), or when Action is no Ice
+	 *  infusion. */
 	static float GetIceInfusionCostMultiplier(const FAction &Action, ESpellElement Element);
 
 	/** The element Action's infused hit resolves to: a spell's cast element (Generic resolved, a BD / Reality caster's

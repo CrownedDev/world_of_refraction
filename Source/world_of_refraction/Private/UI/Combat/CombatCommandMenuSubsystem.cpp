@@ -1737,6 +1737,13 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                 }
             }
 
+            // B-593b: a Deals Ice spell already deals Ice from its Water entry, at the normal cost; its Ice twin adds nothing.
+            if (const USpellData *DealsIceSpell = Cast<USpellData>(PendingActionData.Get());
+                ActionCategory == EPieMenuCategory::Spell && DealsIceSpell && DealsIceSpell->bDealsIce)
+            {
+                VFX->DropIceEntries();
+            }
+
             // For Spell action category, source is intrinsic — read from
             // ActiveSubmenuSource (set by OpenSpellSubmenu) to know which
             // spell submenu the player navigated through.

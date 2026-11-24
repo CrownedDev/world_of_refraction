@@ -85,6 +85,9 @@ public:
     bool IsCurrentSourceIce() const { return IsSourceIce(CurrentSourceIndex); }
     bool HasIceEntry() const { return CachedSourceIsIce.Contains(true); }
 
+    /** B-593b: remove every Ice entry (a Deals Ice spell's Water entry already deals Ice). Resets CurrentSourceIndex to 0. */
+    void DropIceEntries();
+
     /** Set source index directly (used when picker pre-selects a spell's intrinsic source). */
     UFUNCTION(BlueprintCallable, Category = "Infusion VFX")
     void SetSourceIndex(int32 Index) { CurrentSourceIndex = FMath::Clamp(Index, 0, FMath::Max(0, CachedSources.Num() - 1)); }

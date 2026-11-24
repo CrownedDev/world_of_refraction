@@ -606,6 +606,19 @@ void UInfusionVFXComponent::RestrictCachedSources(const TArray<EInfusionSourceOp
     UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] Restricted to %d sources"), CachedSources.Num());
 }
 
+void UInfusionVFXComponent::DropIceEntries()
+{
+    for (int32 Index = CachedSourceIsIce.Num() - 1; Index >= 0; --Index)
+    {
+        if (CachedSourceIsIce[Index])
+        {
+            CachedSources.RemoveAt(Index);
+            CachedSourceIsIce.RemoveAt(Index);
+        }
+    }
+    CurrentSourceIndex = 0;
+}
+
 void UInfusionVFXComponent::CycleToNextSource()
 {
     if (CachedSources.Num() == 0)

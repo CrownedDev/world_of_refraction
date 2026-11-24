@@ -29,16 +29,21 @@ float UBreakCalculator::CalculateWearPercentOfMax(
 	}
 
 	// Infusion wear (different scale for spells vs ability/attack)
+	return TotalPct + GetInfusionWearPercent(InfusionLevel, bIsSpell);
+}
+
+float UBreakCalculator::GetInfusionWearPercent(int32 InfusionLevel, bool bIsSpell)
+{
+	using namespace DurabilityConstants;
 	if (InfusionLevel == 1)
 	{
-		TotalPct += bIsSpell ? SPELL_L1_INFUSION_PCT : ABILITY_L1_INFUSION_PCT;
+		return bIsSpell ? SPELL_L1_INFUSION_PCT : ABILITY_L1_INFUSION_PCT;
 	}
-	else if (InfusionLevel >= 2)
+	if (InfusionLevel >= 2)
 	{
-		TotalPct += bIsSpell ? SPELL_L2_INFUSION_PCT : ABILITY_L2_INFUSION_PCT;
+		return bIsSpell ? SPELL_L2_INFUSION_PCT : ABILITY_L2_INFUSION_PCT;
 	}
-
-	return TotalPct;
+	return 0.0f;
 }
 
 int32 UBreakCalculator::CalculateDurabilityWear(
@@ -75,15 +80,7 @@ FDurabilityWearResult UBreakCalculator::CalculateDurabilityWearDetailed(
 		MismatchPct = Result.TierGap * (bIsSpell ? SPELL_WEAR_PCT_PER_GAP : ABILITY_WEAR_PCT_PER_GAP);
 	}
 
-	float InfusionPct = 0.0f;
-	if (InfusionLevel == 1)
-	{
-		InfusionPct = bIsSpell ? SPELL_L1_INFUSION_PCT : ABILITY_L1_INFUSION_PCT;
-	}
-	else if (InfusionLevel >= 2)
-	{
-		InfusionPct = bIsSpell ? SPELL_L2_INFUSION_PCT : ABILITY_L2_INFUSION_PCT;
-	}
+	const float InfusionPct = GetInfusionWearPercent(InfusionLevel, bIsSpell);
 
 	// TotalWear single-rounds the combined percent (identical to CalculateDurabilityWear).
 	// TierMismatchWear rounds its own component; InfusionWear takes the residual so the
@@ -135,10 +132,11 @@ FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateDurabilityWearWithS
 }
 
 int32 UBreakCalculator::CalculateGapDurabilityWear(EItemTier CrystalTier, EItemTier GapTier, EItemTier ActionTier,
-												   int32 InfusionLevel, bool bIsSpell)
+												   int32 InfusionLevel, bool bIsSpell, float InfusionWearMultiplier)
 {
 	// The percent reads only the gap (GapTier vs ActionTier); the durability it is a percent of is the crystal's.
-	const float TotalPct = CalculateWearPercentOfMax(GapTier, ActionTier, InfusionLevel, bIsSpell);
+	const float TotalPct = CalculateWearPercentOfMax(GapTier, ActionTier, InfusionLevel, bIsSpell) +
+						   (InfusionWearMultiplier - 1.0f) * GetInfusionWearPercent(InfusionLevel, bIsSpell);
 	return FMath::RoundToInt(TotalPct * static_cast<float>(DurabilityConstants::GetMaxDurabilityForTier(CrystalTier)));
 }
 
@@ -151,13 +149,15 @@ FDurabilityWearWithSubstatsResult UBreakCalculator::CalculateGapWearWithSubstats
 	float SpellDamageFrac,
 	float StatusMultiplierFrac,
 	float EfficiencyFrac,
-	float ResistanceFrac)
+	float ResistanceFrac,
+	float InfusionWearMultiplier)
 {
 	using namespace DurabilityConstants;
 
 	FDurabilityWearWithSubstatsResult Result;
-	Result.BaseWear = CalculateGapDurabilityWear(CrystalTier, GapTier, ActionTier, InfusionLevel, bIsSpell);
-	Result.WearPercentOfMax = CalculateWearPercentOfMax(GapTier, ActionTier, InfusionLevel, bIsSpell);
+	Result.BaseWear = CalculateGapDurabilityWear(CrystalTier, GapTier, ActionTier, InfusionLevel, bIsSpell, InfusionWearMultiplier);
+	Result.WearPercentOfMax = CalculateWearPercentOfMax(GapTier, ActionTier, InfusionLevel, bIsSpell) +
+							  (InfusionWearMultiplier - 1.0f) * GetInfusionWearPercent(InfusionLevel, bIsSpell);
 	Result.TierGap = TierHelpers::GetTierGap(GapTier, ActionTier);
 
 	// No overdrive and no infusion — substats cannot manufacture wear out of nothing.

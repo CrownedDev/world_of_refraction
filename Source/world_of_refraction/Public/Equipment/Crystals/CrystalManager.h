@@ -49,7 +49,8 @@ public:
      *  @param ActionTier    Tier of the action being wear-applied
      *  @param InfusionLevel L0/L1/L2 charge level
      *  @param bIsSpell      True if the action is a spell (affects wear math)
-     *  @param GapTier       D-224: the tier the wear gap reads (a ring's built tier); unset = the crystal's own */
+     *  @param GapTier       D-224: the tier the wear gap reads (a ring's built tier); unset = the crystal's own
+     *  @param InfusionWearMultiplier B-593b: scales only the infusion add-on (an Ice infusion's cost factor) */
     void ProcessPostCastWear(
         AActor *Actor,
         UObject *Holder,
@@ -57,14 +58,15 @@ public:
         EItemTier ActionTier,
         int32 InfusionLevel,
         bool bIsSpell,
-        TOptional<EItemTier> GapTier = TOptional<EItemTier>());
+        TOptional<EItemTier> GapTier = TOptional<EItemTier>(),
+        float InfusionWearMultiplier = 1.0f);
 
     /** B-242: the durability wear one cast costs a crystal, primary-slot evolution or gear evolution of WearTier:
      *  the caster's composed spell damage / status multiplier / efficiency / resistance feed
      *  UBreakCalculator::CalculateDurabilityWearWithSubstats; without character data, the base formula. D-224: GapTier,
      *  when set, is the tier the gap reads (a ring's built tier); max durability stays WearTier's. */
     static int32 ComputeCastWear(const AActor *Actor, EItemTier WearTier, EItemTier ActionTier, int32 InfusionLevel, bool bIsSpell,
-                                 TOptional<EItemTier> GapTier = TOptional<EItemTier>());
+                                 TOptional<EItemTier> GapTier = TOptional<EItemTier>(), float InfusionWearMultiplier = 1.0f);
 
     /** Apply post-cast wear to the active loadout's standalone primary-slot
      *  evolution (PrimarySlotType==Evolution, e.g. Broken Darkness). Reads
@@ -79,7 +81,8 @@ public:
         ULoadoutComponent *LC,
         EItemTier ActionTier,
         int32 InfusionLevel,
-        bool bIsSpell);
+        bool bIsSpell,
+        float InfusionWearMultiplier = 1.0f);
 
     /** Apply post-cast wear to a GEAR-attached evolution (weapon/ring socket) — the
      *  WeaponCrystal-path sibling of ProcessPostCastEvolutionWear (which only wears the primary
@@ -92,7 +95,8 @@ public:
         FRuntimeAttachedItem &Attachment,
         EItemTier ActionTier,
         int32 InfusionLevel,
-        bool bIsSpell);
+        bool bIsSpell,
+        float InfusionWearMultiplier = 1.0f);
 
     // ========================================
     // EVENTS

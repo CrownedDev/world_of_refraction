@@ -10,6 +10,8 @@
 #include "Character/CharacterData.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/CombatPickRequest.h"
+#include "Equipment/Durability/BreakCalculator.h"
+#include "Equipment/Durability/DurabilityConstants.h"
 #include "Infusion/InfusionConstants.h"
 #include "Infusion/InfusionVFXComponent.h"
 #include "Skills/Definitions/AbilityData.h"
@@ -22,6 +24,8 @@ namespace
 	constexpr int32 ICE_TEST_L0 = 0;
 	/** Rounding of the EP total may move it by one point. */
 	constexpr int32 ICE_TEST_ROUNDING = 1;
+	constexpr int32 ICE_TEST_DAMAGE = 20;
+	constexpr int32 ICE_TEST_BUILDUP = 10;
 
 	FAction IceTestAbility(UAbilityData *Ability, int32 Level, bool bIce)
 	{
@@ -75,8 +79,10 @@ void FIceInfusionSpec::Define()
 		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
 		USpellData *WaterSpell = NewObject<USpellData>(GetTransientPackage());
 		WaterSpell->Element = ESpellElement::Water;
+		WaterSpell->BaseDamage = ICE_TEST_DAMAGE;
 		USpellData *IceSpell = NewObject<USpellData>(GetTransientPackage());
 		IceSpell->Element = ESpellElement::Water;
+		IceSpell->BaseDamage = ICE_TEST_DAMAGE;
 		IceSpell->bDealsIce = true;
 		const float Ice = InfusionConstants::ICE_INFUSION_COST_MULTIPLIER;
 		TestTrue(TEXT("Ice costs more than Water"), Ice > 1.0f);
@@ -84,6 +90,39 @@ void FIceInfusionSpec::Define()
 		TestEqual(TEXT("a plain Water spell infused Ice"), UActionExecutor::GetIceInfusionCostMultiplier(IceTestSpell(WaterSpell, true), ESpellElement::Water), Ice);
 		TestEqual(TEXT("a Deals Ice spell infused Ice: normal"), UActionExecutor::GetIceInfusionCostMultiplier(IceTestSpell(IceSpell, true), ESpellElement::Water), 1.0f);
 		TestEqual(TEXT("a Water pick: normal"), UActionExecutor::GetIceInfusionCostMultiplier(IceTestAbility(Ability, ICE_TEST_L1, false), ESpellElement::Water), 1.0f);
+	});
+
+	It("charges no Ice price on a Water spell with no damage and no status buildup (B-593b)", [this]()
+	{
+		const float Ice = InfusionConstants::ICE_INFUSION_COST_MULTIPLIER;
+		USpellData *Heal = NewObject<USpellData>(GetTransientPackage());
+		Heal->Element = ESpellElement::Water;
+		TestEqual(TEXT("no damage, no buildup: normal"), UActionExecutor::GetIceInfusionCostMultiplier(IceTestSpell(Heal, true), ESpellElement::Water), 1.0f);
+		USpellData *Chill = NewObject<USpellData>(GetTransientPackage());
+		Chill->Element = ESpellElement::Water;
+		Chill->StatusBuildup = ICE_TEST_BUILDUP;
+		TestEqual(TEXT("buildup only: Ice fills the Ice bar, so it pays"), UActionExecutor::GetIceInfusionCostMultiplier(IceTestSpell(Chill, true), ESpellElement::Water), Ice);
+	});
+
+	It("scales only the infusion wear add-on by the Ice factor (B-593b)", [this]()
+	{
+		const float Ice = InfusionConstants::ICE_INFUSION_COST_MULTIPLIER;
+		const EItemTier Matched = EItemTier::C_Tier;
+		const float MaxDur = static_cast<float>(DurabilityConstants::GetMaxDurabilityForTier(Matched));
+		const float InfusionPct = UBreakCalculator::GetInfusionWearPercent(ICE_TEST_L1, true);
+		TestTrue(TEXT("an L1 spell infusion wears"), InfusionPct > 0.0f);
+		const int32 IceMatched = UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Matched, ICE_TEST_L1, true, Ice);
+		TestTrue(FString::Printf(TEXT("matched tier: all of it is the add-on, x the factor (%d)"), IceMatched),
+				 FMath::Abs(IceMatched - InfusionPct * Ice * MaxDur) <= ICE_TEST_ROUNDING);
+		TestEqual(TEXT("the default factor leaves wear as it was"), UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Matched, ICE_TEST_L1, true),
+				  UBreakCalculator::CalculateDurabilityWear(Matched, Matched, ICE_TEST_L1, true));
+		const EItemTier Above = EItemTier::A_Tier;
+		TestEqual(TEXT("uninfused tier-gap wear is not scaled"), UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Above, ICE_TEST_L0, true, Ice),
+				  UBreakCalculator::CalculateDurabilityWear(Matched, Above, ICE_TEST_L0, true));
+		const int32 GapWater = UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Above, ICE_TEST_L1, true);
+		const int32 GapIce = UBreakCalculator::CalculateGapDurabilityWear(Matched, Matched, Above, ICE_TEST_L1, true, Ice);
+		TestTrue(FString::Printf(TEXT("tier gap plus infusion: Ice adds only the add-on's extra (%d vs %d)"), GapIce, GapWater),
+				 FMath::Abs(GapIce - GapWater - (Ice - 1.0f) * InfusionPct * MaxDur) <= ICE_TEST_ROUNDING && GapIce > GapWater);
 	});
 
 	It("carries the Ice pick through a co-op pick request", [this]()
@@ -122,6 +161,9 @@ void FIceInfusionSpec::Define()
 		TestFalse(TEXT("Raw has no Ice entry"), VFX->IsSourceIce(Sources.IndexOfByKey(EInfusionSourceOption::Raw)));
 		VFX->RestrictCachedSources({EInfusionSourceOption::Innate});
 		TestTrue(TEXT("narrowed to the innate, its Ice entry stays"), VFX->GetCachedSources().Num() == 2 && VFX->IsSourceIce(1));
+		VFX->DropIceEntries(); // B-593b: a Deals Ice spell's picker
+		TestTrue(TEXT("a Deals Ice spell lists the innate once, with no Ice entry"),
+				 VFX->GetCachedSources().Num() == 1 && VFX->GetCachedSources()[0] == EInfusionSourceOption::Innate && !VFX->HasIceEntry());
 
 		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
 		Ability->BaseEnergyCost = ICE_TEST_BASE_EP;

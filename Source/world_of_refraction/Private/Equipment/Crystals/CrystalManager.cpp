@@ -42,7 +42,7 @@ void UCrystalManager::NotifyCrystalBroken(AActor *Actor, UObject *Holder, const 
 }
 
 int32 UCrystalManager::ComputeCastWear(const AActor *Actor, EItemTier WearTier, EItemTier ActionTier, int32 InfusionLevel,
-                                      bool bIsSpell, TOptional<EItemTier> GapTier)
+                                      bool bIsSpell, TOptional<EItemTier> GapTier, float InfusionWearMultiplier)
 {
     const EItemTier GapAgainst = GapTier.Get(WearTier);
     // B-242 (DRY audit A5): the one wear formula for a crystal, a primary-slot evolution and a gear evolution.
@@ -52,7 +52,8 @@ int32 UCrystalManager::ComputeCastWear(const AActor *Actor, EItemTier WearTier, 
     const UCharacterDataComponent *CasterCharComp = Actor ? Actor->FindComponentByClass<UCharacterDataComponent>() : nullptr;
     if (!CasterCharComp || !CasterCharComp->CharacterData)
     {
-        return UBreakCalculator::CalculateGapDurabilityWear(WearTier, GapAgainst, ActionTier, InfusionLevel, bIsSpell);
+        return UBreakCalculator::CalculateGapDurabilityWear(WearTier, GapAgainst, ActionTier, InfusionLevel, bIsSpell,
+                                                            InfusionWearMultiplier);
     }
     // Snapshot the wear-input stats in one call. All four substats are the FULL composed values (innate +
     // equipment + stone + transient) via GetEffectiveStats; wear is a POWER term, so a geared/buffed caster
@@ -63,7 +64,8 @@ int32 UCrystalManager::ComputeCastWear(const AActor *Actor, EItemTier WearTier, 
     const float EfficiencyFrac = 1.0f - Stats.EfficiencyMultiplier;
     const float ResistanceFrac = Stats.Resistance;
     return UBreakCalculator::CalculateGapWearWithSubstatsDetailed(WearTier, GapAgainst, ActionTier, InfusionLevel, bIsSpell,
-                                                                  SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac)
+                                                                  SpellDmgFrac, StatusMultFrac, EfficiencyFrac, ResistanceFrac,
+                                                                  InfusionWearMultiplier)
         .FinalWear;
 }
 
@@ -74,7 +76,8 @@ void UCrystalManager::ProcessPostCastWear(
     EItemTier ActionTier,
     int32 InfusionLevel,
     bool bIsSpell,
-    TOptional<EItemTier> GapTier)
+    TOptional<EItemTier> GapTier,
+    float InfusionWearMultiplier)
 {
     if (!Actor || Attachment.IsEmpty())
     {
@@ -121,7 +124,7 @@ void UCrystalManager::ProcessPostCastWear(
     // wear tracks real power output (gear-inclusive via crystal-modified
     // pillar accessors). Falls back to the base formula if the asset is
     // missing rather than crashing.
-    const int32 Wear = ComputeCastWear(Actor, WearTier, ActionTier, InfusionLevel, bIsSpell, GapTier);
+    const int32 Wear = ComputeCastWear(Actor, WearTier, ActionTier, InfusionLevel, bIsSpell, GapTier, InfusionWearMultiplier);
 
     if (Wear <= 0)
     {
@@ -212,7 +215,8 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     ULoadoutComponent *LC,
     EItemTier ActionTier,
     int32 InfusionLevel,
-    bool bIsSpell)
+    bool bIsSpell,
+    float InfusionWearMultiplier)
 {
     if (!Actor || !LC)
     {
@@ -228,7 +232,7 @@ void UCrystalManager::ProcessPostCastEvolutionWear(
     const EItemTier EvoTier = Seat.Tier;
 
     UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>(); // luck skip and force wear below
-    const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell);
+    const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell, TOptional<EItemTier>(), InfusionWearMultiplier);
 
     if (Wear <= 0)
     {
@@ -290,7 +294,8 @@ void UCrystalManager::ProcessPostCastGearEvolutionWear(
     FRuntimeAttachedItem &Attachment,
     EItemTier ActionTier,
     int32 InfusionLevel,
-    bool bIsSpell)
+    bool bIsSpell,
+    float InfusionWearMultiplier)
 {
     // Gear-attached evolution wear (weapon/ring socket) — mirrors ProcessPostCastEvolutionWear but
     // wears the passed runtime attachment directly (the primary path goes through LC; the gear
@@ -310,7 +315,7 @@ void UCrystalManager::ProcessPostCastGearEvolutionWear(
     const EItemTier EvoTier = Attachment.Evolution.Tier;
 
     UCharacterDataComponent *CasterCharComp = Actor->FindComponentByClass<UCharacterDataComponent>(); // luck skip and force wear below
-    const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell);
+    const int32 Wear = ComputeCastWear(Actor, EvoTier, ActionTier, InfusionLevel, bIsSpell, TOptional<EItemTier>(), InfusionWearMultiplier);
 
     if (Wear <= 0)
     {
