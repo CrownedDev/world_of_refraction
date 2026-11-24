@@ -277,9 +277,9 @@ void FSkillCameraStyleSpec::Define()
 		{
 			const FString Name = UEnum::GetValueAsString(Style);
 			const FTurnChangePlan Leap = FCombatCameraRules::PlanLeapHome(Style, HomeFrame);
-			const FTurnChangePlan Beat = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, Style, HomeFrame);
-			TestTrue(Name + TEXT(": the next beat's own view and blend"),
-					 Leap.WideView.Equals(Beat.WideView) && FMath::IsNearlyEqual(Leap.BeatBlendSeconds, Beat.BeatBlendSeconds) && Leap.BeatBlendSeconds > 0.0f);
+			const FTurnChangePlan Beat = FCombatCameraRules::PlanTurnChange(true, ECombatCameraMode::Turn, Style, HomeFrame);
+			TestTrue(Name + TEXT(": the next beat's own view, a hard cut (B-600g, E33)"),
+					 Leap.WideView.Equals(Beat.WideView) && FMath::IsNearlyZero(Leap.BeatBlendSeconds) && FMath::IsNearlyZero(Beat.BeatBlendSeconds));
 			const FTransform &View = Leap.WideView;
 			TestTrue(Name + TEXT(": the lens behind the home spot (the leap comes toward it but never past it)"),
 					 FVector::DotProduct(Home - View.GetLocation(), HomeFrame.TowardEnemies) > STYLE_TEST_MIN_LENS_DISTANCE);
