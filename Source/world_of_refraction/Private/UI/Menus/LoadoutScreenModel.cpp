@@ -229,10 +229,13 @@ namespace LoadoutScreenBuild
 		return Place == ELoadoutScreenPlace::Adapter || (Place == ELoadoutScreenPlace::Primary && Class != ECharacterClass::Resonator);
 	}
 
-	/** Inside FCombatLoadout::EditSlots: the primary place emptied, and the evolution seat with it. */
+	/** Inside FCombatLoadout::EditSlots: the primary place emptied, and the evolution seat with it; also a weapon or
+	 *  adapter hidden under the primary's other type, which EditSlots would otherwise keep (as the old clear dropped it). */
 	void ClearPrimary(FCombatLoadout &Loadout)
 	{
 		Loadout.ClearSlotAt(WornGearLayout::PRIMARY_INDEX);
+		Loadout.PrimaryWeapon.Clear();
+		Loadout.PrimaryRing.Clear();
 		Loadout.PrimaryEvolution = FEvolutionAttachment();
 		Loadout.PrimaryEvolutionInstance = FGuid();
 		Loadout.EvolutionSpells.Reset();
@@ -559,9 +562,15 @@ bool WoRLoadoutScreen::TakeOffGear(FCombatLoadout &Loadout, ECharacterClass Clas
 	{
 		Loadout.EditSlots(Class, [](FCombatLoadout &Edited)
 		{
-			const FLoadoutSlot Second = *Edited.FindSlotAt(WornGearLayout::SECONDARY_INDEX); // the mirror holds a Generic's valid second weapon
+			const FLoadoutSlot *Found = Edited.FindSlotAt(WornGearLayout::SECONDARY_INDEX); // the mirror holds a Generic's valid second weapon
+			if (!ensure(Found))
+			{
+				return;
+			}
+			const FLoadoutSlot Second = *Found;
 			ClearPrimary(Edited);
 			Edited.ClearSlotAt(WornGearLayout::SECONDARY_INDEX);
+			Edited.SecondaryWeapon.Clear(); // its type goes to None below, so EditSlots would keep it as hidden
 			Edited.PutSlotAt(WornGearLayout::PRIMARY_INDEX, Second);
 			Edited.PrimarySlotType = EPrimarySlotType::Weapon;
 			Edited.SecondarySlotType = ESecondarySlotType::None;

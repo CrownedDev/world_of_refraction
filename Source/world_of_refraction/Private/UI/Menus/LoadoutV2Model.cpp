@@ -828,6 +828,8 @@ namespace LoadoutV2Replace
 		Loadout.EditSlots(Class, [](FCombatLoadout &Edited) // as WoRLoadoutScreen's ClearPrimary
 		{
 			Edited.ClearSlotAt(WornGearLayout::PRIMARY_INDEX);
+			Edited.PrimaryWeapon.Clear(); // and one hidden under the other type, which EditSlots would keep
+			Edited.PrimaryRing.Clear();
 			Edited.PrimaryEvolution = FEvolutionAttachment();
 			Edited.PrimaryEvolutionInstance = FGuid();
 			Edited.EvolutionSpells.Reset();
@@ -1103,13 +1105,15 @@ int32 WoRLoadoutV2::RemoveAllGear(FCombatLoadout &Loadout, ECharacterClass Class
 	int32 Removed = 0;
 	Loadout.EditSlots(Class, [&Removed](FCombatLoadout &Edited)
 	{
-		if (Edited.ClearSlotAt(WornGearLayout::SECONDARY_INDEX))
+		if (Edited.SecondaryWeapon.IsValid()) // any class's, as before (a non-Generic's isn't in the mirror)
 		{
+			Edited.ClearSlotAt(WornGearLayout::SECONDARY_INDEX);
+			Edited.SecondaryWeapon.Clear();
 			Edited.SecondarySlotType = ESecondarySlotType::None;
 			++Removed;
 		}
 		Edited.bShowPrimary = true;
-		// The mirror holds no Caster adapter loadout, so this takes adapters off a Resonator or a Generic only.
+		// The mirror holds no Caster adapter loadout (EditSlots keeps it), so this takes adapters off a Resonator or a Generic only.
 		Removed += Edited.Slots.RemoveAll([](const FLoadoutSlot &Slot) { return Slot.Place >= WornGearLayout::FIRST_ADAPTER_INDEX; });
 	});
 	return Removed; // D-116: the first entry stays
