@@ -387,9 +387,14 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning);
 
 	/** B-600d (Q-600d): the skill's attacker starts its leap home. A party member's shots end there and the camera
-	 *  blends to its turn view as it goes, never holding on the target alone. An enemy's shots hold on the party member
-	 *  it hit, as before. False when no shot of this attacker is playing. */
-	static bool ReturnsToTurnViewOnLeapHome(bool bShotPlaying, bool bIsShotCaster, bool bEnemyCaster);
+	 *  follows it home (PlanLeapHome), never holding on the target alone. An enemy's shots hold on the party member it
+	 *  hit, as before. False when no shot of this attacker is playing. */
+	static bool FollowsLeapHome(bool bShotPlaying, bool bIsShotCaster, bool bEnemyCaster);
+
+	/** B-600e (Q-600e): where a party member's leap home goes: the wide beat's view and blend (PlanTurnChange), framed
+	 *  from the attacker's home spot (HomeFrame.Focus), not where it struck. Both sides in frame, the attacker lands in
+	 *  it, and the leap never passes the lens; the next turn's beat starts from the same kind of view. */
+	static FTurnChangePlan PlanLeapHome(ETurnViewStyle Style, const FCombatCameraFrame &HomeFrame);
 
 	/** B-371: the moment an impact plays: Spread for several targets, else Impact. */
 	static ECameraShotMoment ImpactMomentFor(int32 TargetCount);

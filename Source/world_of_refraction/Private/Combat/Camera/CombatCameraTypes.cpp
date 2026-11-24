@@ -605,9 +605,14 @@ bool FCombatCameraRules::PlaysStandardShots(ESkillCameraStyle Style)
 	return Style == ESkillCameraStyle::Standard || Style == ESkillCameraStyle::Cinematic;
 }
 
-bool FCombatCameraRules::ReturnsToTurnViewOnLeapHome(bool bShotPlaying, bool bIsShotCaster, bool bEnemyCaster)
+bool FCombatCameraRules::FollowsLeapHome(bool bShotPlaying, bool bIsShotCaster, bool bEnemyCaster)
 {
 	return bShotPlaying && bIsShotCaster && !bEnemyCaster;
+}
+
+FTurnChangePlan FCombatCameraRules::PlanLeapHome(ETurnViewStyle Style, const FCombatCameraFrame &HomeFrame)
+{
+	return PlanTurnChange(/*bSomeoneActed=*/true, /*bSameActor=*/false, ECombatCameraMode::Turn, Style, HomeFrame);
 }
 
 ESkillCameraStyle FCombatCameraRules::GetCameraStyle(const USkillDataBase *Skill, bool bCasterIsEnemy)

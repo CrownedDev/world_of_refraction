@@ -106,15 +106,48 @@ void FSkillCameraStyleSpec::Define()
 		}
 	});
 
-	It("B-600d: a party member's leap home goes back to the turn view; an enemy's keeps its shot", [this]()
+	It("B-600d: a party member's leap home leaves its shot; an enemy's keeps its shot", [this]()
 	{
-		TestTrue(TEXT("a party member leaving its own shot: the turn view, never the target alone"),
-				 FCombatCameraRules::ReturnsToTurnViewOnLeapHome(/*bShotPlaying=*/true, /*bIsShotCaster=*/true, /*bEnemyCaster=*/false));
-		TestFalse(TEXT("an enemy leaving: the shot holds on the party member it hit, as before"),
-				  FCombatCameraRules::ReturnsToTurnViewOnLeapHome(true, true, true));
-		TestFalse(TEXT("someone else's return: not this shot's"), FCombatCameraRules::ReturnsToTurnViewOnLeapHome(true, false, false));
+		TestTrue(TEXT("a party member leaving its own shot: the camera follows it, never the target alone"),
+				 FCombatCameraRules::FollowsLeapHome(/*bShotPlaying=*/true, /*bIsShotCaster=*/true, /*bEnemyCaster=*/false));
+		TestFalse(TEXT("an enemy leaving: the shot holds on the party member it hit, as before"), FCombatCameraRules::FollowsLeapHome(true, true, true));
+		TestFalse(TEXT("someone else's return: not this shot's"), FCombatCameraRules::FollowsLeapHome(true, false, false));
 		TestFalse(TEXT("no shot playing (cinematics off, a sequence): the view is the turn view's or the sequence's already"),
-				  FCombatCameraRules::ReturnsToTurnViewOnLeapHome(false, true, false));
+				  FCombatCameraRules::FollowsLeapHome(false, true, false));
+	});
+
+	It("B-600e: the leap home goes to the wide beat's view from the home spot: the whole leap and both sides in frame", [this]()
+	{
+		const FVector Home = FVector::ZeroVector; // StyleTestContext's caster
+		const FVector Ally(0.0f, -300.0f, 0.0f);
+		FCombatCameraFrame HomeFrame;
+		HomeFrame.Focus = Home;
+		HomeFrame.TowardEnemies = (STYLE_TEST_TARGET - Home).GetSafeNormal2D();
+		HomeFrame.EnemyCentre = STYLE_TEST_TARGET;
+		HomeFrame.ArenaCentre = (Home + STYLE_TEST_TARGET) * 0.5f;
+		for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+		{
+			const FString Name = UEnum::GetValueAsString(Style);
+			const FTurnChangePlan Leap = FCombatCameraRules::PlanLeapHome(Style, HomeFrame);
+			const FTurnChangePlan Beat = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, Style, HomeFrame);
+			TestTrue(Name + TEXT(": the next beat's own view and blend"),
+					 Leap.WideView.Equals(Beat.WideView) && FMath::IsNearlyEqual(Leap.BeatBlendSeconds, Beat.BeatBlendSeconds) && Leap.BeatBlendSeconds > 0.0f);
+			const FTransform &View = Leap.WideView;
+			TestTrue(Name + TEXT(": the lens behind the home spot (the leap comes toward it but never past it)"),
+					 FVector::DotProduct(Home - View.GetLocation(), HomeFrame.TowardEnemies) > STYLE_TEST_MIN_LENS_DISTANCE);
+			bool bLeapInFrame = true;
+			constexpr float LEAP_SAMPLE_STEP = 0.25f; // strike spot, three points on the way, home
+			for (float Alpha = 0.0f; Alpha <= 1.0f; Alpha += LEAP_SAMPLE_STEP)
+			{
+				const FVector Leaping = FMath::Lerp(STYLE_TEST_STRIKE_SPOT, Home, Alpha);
+				bLeapInFrame &= CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Leaping) &&
+								FVector::Dist(View.GetLocation(), Leaping) >= STYLE_TEST_MIN_LENS_DISTANCE;
+			}
+			TestTrue(Name + TEXT(": the attacker in frame from the strike spot to home"), bLeapInFrame);
+			TestTrue(Name + TEXT(": both sides in frame (the enemy and the other party member), never the enemy alone"),
+					 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET) &&
+						 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Ally));
+		}
 	});
 
 	It("Ranged Release: a held shoulder shot, a cut to a still two-shot at the release, a punch in place on the hit", [this, Tuning]()
