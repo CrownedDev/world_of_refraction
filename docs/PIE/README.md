@@ -676,6 +676,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-397](B-397.md) | `feature/B-397-hidden-quests-shown` (in dev) | A found hidden quest is announced to its player and listed with its current goal only | Pending |
 | [B-405](B-405.md) | `feature/B-405-boss-framing-kill-shots` (in dev, built 2026-11-12) | A boss or mini-boss turn view sits low and looks up; a won fight holds on a kill shot before the rewards (normal: wide and darkened ~1.5 s; boss: close, breaks apart, ~5 s); `wor.Camera.KillShot 0/1` | Pending |
 | [B-403](B-403.md) | `feature/B-403-shot-pattern-tuning` (in dev, built 2026-11-12) | Shot-pattern feel: a melee confirm rushes in with blur, a normal hit is a low side-on two-shot with a small punch, an area skill's pull-out holds still; compare with the study | Pending |
+| [B-309c](B-309c.md) | `refactor/B-309c-save-slots` (built 2026-11-24) | Q-309c: save v46 (older saves wiped): a custom loadout is saved as its slots in the worn-gear places (weapon sets with off hands, adapters, an evolution beside them) and rebuilt on load; B-408b drops the old drop-fight list | Pending |
 
 Move rows to **Done** when every check passes.
 
