@@ -1291,6 +1291,12 @@ Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wi
 **Not built:** the hit's ~40 ms freeze (there is no hit-stop in the game yet; its own job if wanted). The hold after the hit and the blend back are the existing return to the turn view.
 **Reference:** Persona 5 and Expedition 33 cut between a few fixed angles per move rather than zooming along one line, and both are widely praised for readable, punchy turns; our study `docs/analysis/MaelleCombatPresentationStudy.md` R5 (melee rush), R6 (side two-shot on the hit) and R8 (a still camera for big effects).
 
+### Q-600d — Where the camera goes when the attacker leaps home
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-600d) · **Blocks:** nothing
+**Question:** after a party member's melee skill the attacker jumps home out of the side view. Follow the attacker, or cut to the turn view as the leap starts?
+**Answer (default, built):** as the leap starts, the camera blends (0.6 s, the turn view's usual blend) from the side view to the attacker's turn view, so it moves home with the attacker and the attacker lands in frame. No empty shot of the enemy. An enemy's attack keeps its current shot on the party member it hit.
+**Reference:** Expedition 33 swings the camera back to the party view while the character jumps back after a melee skill, a move players praised as smooth; Persona 5 also never holds on the target once the attacker leaves and goes straight to the next view. A blend reads like E33's, and costs no new shot.
+
 ### Q-595 — Quick Strike's numbers (the first of the four one-handed sword skills)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595a) · **Blocks:** nothing
 **Question:** Quick Strike had the placeholder 30 damage / 15 EP shared by most sword skills. What are its real numbers, between the basic Slash (20 damage, free) and Heavy Attack (80, 25 EP)?
