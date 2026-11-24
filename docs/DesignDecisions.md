@@ -1257,6 +1257,16 @@ The queue of questions only Crown can answer.
 **Left for Crown:** the battle HUD's two tooltips (a party card's gear: loadout, weapon, adapter; a greyed command's reason, e.g. why Flee is greyed in a boss fight). The second is the only place that reason shows, so removing it needs a visible line instead. Icons whose label was hidden behind the icon (inventory detail lines, the loadout's filter tabs) now have no words on hover; the picture alone names them.
 **Reference:** console-first menus (Persona 5, Expedition 33, Final Fantasy XVI) show details for the selected item in a fixed panel and use no hover tooltips; the mouse only moves the selection.
 
+### Q-598b — How a greyed command says why, without a pop-up
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-598b) · **Blocks:** nothing
+**Question:** Crown removed the battle HUD's hover tooltips ("things like this should be subtle"). The greyed command's tooltip was the only place its reason showed. When does the quiet line show it, and for which commands?
+**Answer (default, built):**
+- **When:** the player picks the greyed command: a click on its corner hint, or its key (Flee's key). Hovering shows nothing. The line clears on the next move (W / S), the next press, or when the menu changes.
+- **Where:** the Act panel's existing second line (the target step's summary line), dim like the header; on the main menu too.
+- **Which:** only the corner hints (Flee, Defend, the steps, End Turn, Back). A greyed frame row (Attack, Skills, Items, a skill in a list) already says why in small text under its name, so it doesn't repeat it.
+- **The party card's gear tooltip** just goes; the gear names stay in the loadout screen.
+**Reference:** Persona 5 and Expedition 33 show a short line in a fixed place when you try a command you can't use, instead of a pop-up; Final Fantasy X's help bar is the same idea. All three read as part of the menu, not on top of it.
+
 ### Q-595e — Force Strike's numbers (the ranged air slash)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595e) · **Blocks:** nothing
 **Question:** Force Strike swings from where the fighter stands and sends the cut through the air (D-273). What are its numbers next to Quick Strike's 35 damage / 10 EP?
