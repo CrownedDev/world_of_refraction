@@ -30,8 +30,8 @@ namespace
 	/** Test-world ticks are 0.01s; spans the executor's 10s timeout, which covers the defense window's 8s
 	 *  failsafe a montage-less ability waits on (as CombatRitualFireSpec). */
 	constexpr int32 MULTI_ACTION_SETTLE_FRAMES = 1100;
-	/** A default character: no Reflex (regain 1), no action points (Max 2). */
-	constexpr int32 MULTI_ACTION_REGAIN = 1;
+	/** Every fighter's fight-start bank (D-274); a default character has no action points (Max 2). */
+	constexpr int32 MULTI_ACTION_FIGHT_START = ActionPipsConstants::ACTIONS_AT_FIGHT_START;
 	constexpr int32 MULTI_ACTION_MAX = 2;
 	/** B-605: a focused Reflex build (two steps and a bit at Body level 0): regain 3. */
 	constexpr int32 MULTI_ACTION_FOCUSED_REFLEX = 31;
@@ -110,8 +110,8 @@ BEGIN_DEFINE_SPEC(FMultiActionTurnSpec, "WoR.Turns.MultiAction",
 	}
 
 	/** Spawns the duel (Hero with a loadout when asked) and starts the fight on Hero's turn, with both recorders
-	 *  listening. False (recorded) when the setup didn't hold. */
-	/** Reflex: both fighters' Reflex points (B-605: a build whose regain is above the fight-start bank). */
+	 *  listening. False (recorded) when the setup didn't hold. Reflex: both fighters' Reflex points (B-605: a build
+	 *  whose regain is above the fight-start bank). */
 	bool StartDuel(bool bHeroLoadout = false, int32 Reflex = 0)
 	{
 		if (!Orchestrator || !TurnManager)
@@ -156,7 +156,7 @@ BEGIN_DEFINE_SPEC(FMultiActionTurnSpec, "WoR.Turns.MultiAction",
 		{
 			return false;
 		}
-		Data->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_REGAIN, /*bMayPassMax=*/false);
+		Data->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_FIGHT_START, /*bMayPassMax=*/false);
 		return TestEqual(TEXT("Hero holds Max"), Data->CurrentActions, MULTI_ACTION_MAX);
 	}
 
@@ -302,7 +302,7 @@ void FMultiActionTurnSpec::Define()
 			{
 				return;
 			}
-			DataOf(Foe)->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_REGAIN + MULTI_ACTION_BONUS, /*bMayPassMax=*/true);
+			DataOf(Foe)->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_FIGHT_START + MULTI_ACTION_BONUS, /*bMayPassMax=*/true);
 			TestEqual(TEXT("Foe holds bonus actions above Max during Hero's turn"), ActionsOf(Foe), MULTI_ACTION_MAX + MULTI_ACTION_BONUS);
 			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
 			if (!TestTrue(TEXT("Foe's turn"), Orchestrator->GetCurrentActor() == Foe))
@@ -326,7 +326,7 @@ void FMultiActionTurnSpec::Define()
 			{
 				return;
 			}
-			DataOf(Foe)->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_REGAIN, /*bMayPassMax=*/false);
+			DataOf(Foe)->GainActions(MULTI_ACTION_MAX - MULTI_ACTION_FIGHT_START, /*bMayPassMax=*/false);
 			const FActiveSkillEffect MaxDown = FActiveSkillEffect::CreateBuff(TEXT("Max Actions Down"), MULTI_ACTION_MAX_DOWN_ID,
 				ESkillEffectType::MaxActionsDebuff, static_cast<float>(MULTI_ACTION_MAX_DOWN), MULTI_ACTION_MAX_DOWN_TURNS);
 			Effects->ApplyEffect(Foe, MaxDown, Hero, TEXT("MultiActionTurnSpec"));
@@ -354,7 +354,7 @@ void FMultiActionTurnSpec::Define()
 				return;
 			}
 			const int32 Bank = ActionPipsConstants::SKILLS_PER_TURN_MAX + 1;
-			DataOf(Hero)->GainActions(Bank - MULTI_ACTION_REGAIN, /*bMayPassMax=*/true);
+			DataOf(Hero)->GainActions(Bank - MULTI_ACTION_FIGHT_START, /*bMayPassMax=*/true);
 			if (!TestEqual(TEXT("Hero holds one more action than the skill limit"), ActionsOf(Hero), Bank))
 			{
 				return;
@@ -403,7 +403,7 @@ void FMultiActionTurnSpec::Define()
 			SubmitAndSettle(AboveMax);
 			TestEqual(TEXT("It never ran"), CountHeroActions(EActionType::Ability), 0);
 			TestTrue(TEXT("Still Hero's turn (asked again)"), Orchestrator->GetCurrentActor() == Hero);
-			TestEqual(TEXT("Nothing spent"), ActionsOf(Hero), MULTI_ACTION_REGAIN);
+			TestEqual(TEXT("Nothing spent"), ActionsOf(Hero), MULTI_ACTION_FIGHT_START);
 
 			const FAction CostTwo = AbilityOn(Foe, NewAbility(MULTI_ACTION_COST_TWO));
 			const FText NeedsReason = Orchestrator->GetActionCostRefusedReason(Hero, CostTwo);
@@ -452,7 +452,7 @@ void FMultiActionTurnSpec::Define()
 			TestTrue(TEXT("First switch"), Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
 			TestTrue(TEXT("Second switch in the same turn"), Loadout->TrySwitchActiveSlot(EGearKind::Weapon, Reason));
 			TestTrue(TEXT("Never refused"), Loadout->GetTurnSwitchRefusedReason().IsEmpty());
-			TestEqual(TEXT("No action spent"), ActionsOf(Hero), MULTI_ACTION_REGAIN);
+			TestEqual(TEXT("No action spent"), ActionsOf(Hero), MULTI_ACTION_FIGHT_START);
 			TestTrue(TEXT("Still Hero's turn"), Orchestrator->GetCurrentActor() == Hero);
 		});
 
@@ -462,13 +462,13 @@ void FMultiActionTurnSpec::Define()
 			{
 				return;
 			}
-			TestEqual(TEXT("First turn: the fight-start bank, no extra regain"), ActionsOf(Hero), MULTI_ACTION_REGAIN);
+			TestEqual(TEXT("First turn: the fight-start bank, no extra regain"), ActionsOf(Hero), MULTI_ACTION_FIGHT_START);
 			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
 			if (!TestTrue(TEXT("Foe's turn"), Orchestrator->GetCurrentActor() == Foe))
 			{
 				return;
 			}
-			TestEqual(TEXT("Foe's first turn plays its fight-start bank too"), ActionsOf(Foe), MULTI_ACTION_REGAIN);
+			TestEqual(TEXT("Foe's first turn plays its fight-start bank too"), ActionsOf(Foe), MULTI_ACTION_FIGHT_START);
 			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
 			TestTrue(TEXT("Hero's turn again"), Orchestrator->GetCurrentActor() == Hero);
 			TestEqual(TEXT("The banked action plus the regain, up to Max"), ActionsOf(Hero), MULTI_ACTION_MAX);

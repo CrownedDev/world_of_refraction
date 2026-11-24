@@ -36,6 +36,8 @@ namespace
 	/** A default character (no Reflex points, so B-170i's regain is the base; no action points): regain 1, Max 2. */
 	constexpr int32 AI_PIPS_REGAIN = ActionPipsConstants::ACTIONS_REGAIN_BASE;
 	constexpr int32 AI_PIPS_MAX = ActionPipsConstants::MAX_ACTIONS_BASE;
+	/** Every fighter's fight-start bank (D-274). */
+	constexpr int32 AI_PIPS_FIGHT_START = ActionPipsConstants::ACTIONS_AT_FIGHT_START;
 	constexpr int32 AI_PIPS_COST_ONE = 1;
 	constexpr int32 AI_PIPS_COST_TWO = 2;
 	constexpr int32 AI_PIPS_COST_ABOVE_MAX = 3;
@@ -402,7 +404,7 @@ void FAIActionPipsSpec::Define()
 			{
 				return;
 			}
-			DataOf(Foe)->GainActions(AI_PIPS_MAX - AI_PIPS_REGAIN, /*bMayPassMax=*/false);
+			DataOf(Foe)->GainActions(AI_PIPS_MAX - AI_PIPS_FIGHT_START, /*bMayPassMax=*/false);
 			if (!TestEqual(TEXT("Foe banks 2"), DataOf(Foe)->CurrentActions, AI_PIPS_MAX) || !PlayFoeTurn())
 			{
 				return;
@@ -420,7 +422,7 @@ void FAIActionPipsSpec::Define()
 			}
 			TestEqual(TEXT("Foe didn't strike"), CountFoeActions(EActionType::Ability), 0);
 			TestEqual(TEXT("Nor defend"), CountFoeActions(EActionType::Defend), 0);
-			TestEqual(TEXT("Its action stays banked, plus nothing (no regain on a first turn)"), DataOf(Foe)->CurrentActions, AI_PIPS_REGAIN);
+			TestEqual(TEXT("Its action stays banked, plus nothing (no regain on a first turn)"), DataOf(Foe)->CurrentActions, AI_PIPS_FIGHT_START);
 			TestTrue(TEXT("The debug line says it banked"), AI->GetLastSpendOrBankString().Contains(TEXT(": bank")));
 		});
 	});
