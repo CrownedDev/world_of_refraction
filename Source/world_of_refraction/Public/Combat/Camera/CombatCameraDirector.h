@@ -250,6 +250,10 @@ private:
 	UFUNCTION()
 	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
 
+	/** B-600d: a party member's leap home ends its shots: the turn view, as it goes (ReturnsToTurnViewOnLeapHome). */
+	UFUNCTION()
+	void HandleReturnStarted(AActor *Actor);
+
 	UFUNCTION()
 	void HandleBossPhaseReached(AActor *Boss, int32 PhaseIndex);
 

@@ -142,6 +142,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 		Executor->OnActionStarted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleActionStarted);
 		Executor->OnDamageDealt.AddUniqueDynamic(this, &UCombatCameraDirector::HandleDamageDealt);
 		Executor->OnProjectileLaunched.AddUniqueDynamic(this, &UCombatCameraDirector::HandleProjectileLaunched);
+		Executor->OnReturnStarted.AddUniqueDynamic(this, &UCombatCameraDirector::HandleReturnStarted); // B-600d
 		BoundExecutor = Executor;
 	}
 	// B-399: the command menu's depth, whichever HUD draws it. Looked up per fight, not cached across PIE.
@@ -223,6 +224,7 @@ void UCombatCameraDirector::EndCombat()
 		Executor->OnActionStarted.RemoveDynamic(this, &UCombatCameraDirector::HandleActionStarted);
 		Executor->OnDamageDealt.RemoveDynamic(this, &UCombatCameraDirector::HandleDamageDealt);
 		Executor->OnProjectileLaunched.RemoveDynamic(this, &UCombatCameraDirector::HandleProjectileLaunched);
+		Executor->OnReturnStarted.RemoveDynamic(this, &UCombatCameraDirector::HandleReturnStarted);
 	}
 	BoundExecutor.Reset();
 	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get())
@@ -1449,6 +1451,18 @@ void UCombatCameraDirector::StepShot()
 		}
 		bSameTurnReturnPending = false;
 	}
+}
+
+void UCombatCameraDirector::HandleReturnStarted(AActor *Actor)
+{
+	const bool bIsShotCaster = Actor && Actor == ShotCaster.Get();
+	if (!bInCombat || CurrentMode == ECombatCameraMode::KillShot ||
+		!FCombatCameraRules::ReturnsToTurnViewOnLeapHome(IsShotPlaying(), bIsShotCaster, OpposingCombatants.Contains(Actor)))
+	{
+		return;
+	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s leaps home: back to the turn view"), *GetNameSafe(Actor));
+	ShowTurnView(); // stops the pattern; blends from the side view as the attacker goes
 }
 
 void UCombatCameraDirector::CutOnArrival()
