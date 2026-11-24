@@ -1250,6 +1250,20 @@ The queue of questions only Crown can answer.
 **For Crown, if (c) should change:** making the run's kit reuse the owned starting pieces (no second copy) touches D-221's rule that the kit is per run and never sold or dismantled. Say so and it becomes its own job.
 **Not changed:** a Refractor's innate spells stay innate (not known skills), so they can't be dismantled or levelled like a learned spell. **Only the player's own new character** gets the starting skills: a co-op guest's skills are its own save's (and are handed to the host's copy and back, B-564), and a hub recruit keeps its fixed row. **A consequence:** the starting skill is now an owned skill, so a lost run treats it as D-224 treats any owned skill (its hub copy can drop a tier), where before it was a run-only find.
 
+### Q-600 — Which camera styles skills pick from
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-600) · **Blocks:** nothing
+**Question:** Crown likes the standard attack camera and the enemy-attack camera, and wants a fixed set of camera styles each skill picks instead of a camera tuned per skill. Which styles?
+**Answer (default, built):** six, in `ESkillCameraStyle`:
+- **Standard:** today's attack camera, the default for every skill (no asset changes).
+- **Melee Rush** (Quick Strike): the rush timed to the dash, a cut to the side two-shot on the hit, held; no Cast pull-back.
+- **Ranged Release** (Force Strike): a cut to a low over-the-right-shoulder shot about 250 cm back that holds (creeps at most 30 cm), FOV 90; at the release a cut to the side two-shot, dead still, so the projectile crosses the screen; on the hit FOV 90 to 85 to 90 in 0.1 s and a small shake in the same shot.
+- **Heavy Wind-Up** (Heavy Attack): a slow one-way push during the charge, a cut to a low hero angle at the hit (the side two-shot at shin height, looking up), held.
+- **Area Sweep** (WhirlWind): one wide, higher shot holding the attacker and every target, still.
+- **Cinematic:** the skill's CameraSequence (signature moves); Standard's shots when it has none.
+Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wind-Up or Area Sweep plays that style even if it also has a CameraSequence (the style wins); Standard and Cinematic still play a sequence when there is one. The rule under all of them: never change a shot's size along one axis, change size only with a cut to a new angle, each shot moves one way or holds, big effects get a still camera, one blend back to the turn view.
+**Not built:** the hit's ~40 ms freeze (there is no hit-stop in the game yet; its own job if wanted). The hold after the hit and the blend back are the existing return to the turn view.
+**Reference:** Persona 5 and Expedition 33 cut between a few fixed angles per move rather than zooming along one line, and both are widely praised for readable, punchy turns; our study `docs/analysis/MaelleCombatPresentationStudy.md` R5 (melee rush), R6 (side two-shot on the hit) and R8 (a still camera for big effects).
+
 ### Q-595 — Quick Strike's numbers (the first of the four one-handed sword skills)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595a) · **Blocks:** nothing
 **Question:** Quick Strike had the placeholder 30 damage / 15 EP shared by most sword skills. What are its real numbers, between the basic Slash (20 damage, free) and Heavy Attack (80, 25 EP)?
