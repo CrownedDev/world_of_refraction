@@ -17,6 +17,23 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Infusion/InfusionChargeManager.h"
+#include "Combat/Presentation/ImpactVisualDefaults.h"
+#include "NiagaraSystem.h"
+
+namespace
+{
+    /** The display's own glow, else the element's default glow on DA_ImpactVisualDefaults; null with neither. */
+    UNiagaraSystem *FindGlowSystem(const UInfusionDisplayData *Display, ESpellElement Element)
+    {
+        if (Display && Display->HasVFX())
+        {
+            return Display->VFXSystem;
+        }
+        const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
+        // shortcut: loads the default glow on first use, which may hitch once; preload with the fight's assets when the art lands.
+        return Defaults ? Defaults->GetInfusionGlowVFX(Element).LoadSynchronous() : nullptr;
+    }
+}
 
 UInfusionVFXComponent::UInfusionVFXComponent()
 {
@@ -195,11 +212,13 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
         return;
     }
 
-    // Check for infusion display
+    // The display's own glow, else the element's default (Crown 2026-11-24)
     UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
-    if (!InfusionDisplay || !InfusionDisplay->HasVFX())
+    const ESpellElement Element = GetElementForSource(Source);
+    UNiagaraSystem *Glow = FindGlowSystem(InfusionDisplay, Element);
+    if (!Glow)
     {
-        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No InfusionDisplay or VFX assigned"));
+        UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No glow: the display has no VFX and %s has no default glow"), *UEnum::GetValueAsString(Element));
         return;
     }
 
@@ -210,14 +229,13 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     }
 
     CurrentSource = Source;
-    CurrentElement = GetElementForSource(Source);
+    CurrentElement = Element;
 
-    // Spawn VFX at location specified by display data
-    SpawnVFX(InfusionDisplay->VFXSystem, InfusionDisplay->DisplayLocation);
+    SpawnVFX(Glow, InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
 
     // Apply element color
     FLinearColor Color;
-    if (InfusionDisplay->bOverrideElementColor)
+    if (InfusionDisplay && InfusionDisplay->bOverrideElementColor)
     {
         Color = InfusionDisplay->ColorOverride;
     }
@@ -495,10 +513,7 @@ void UInfusionVFXComponent::DebugActivateWithElement(ESpellElement TestElement)
     CurrentElement = TestElement;
 
     UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
-    if (InfusionDisplay)
-    {
-        SpawnVFX(InfusionDisplay->VFXSystem, InfusionDisplay->DisplayLocation);
-    }
+    SpawnVFX(FindGlowSystem(InfusionDisplay, TestElement), InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
     ApplyColorToVFX(GetElementColor(TestElement));
 
     bIsInfusionActive = true;

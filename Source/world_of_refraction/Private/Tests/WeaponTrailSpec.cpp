@@ -1,8 +1,10 @@
 // WeaponTrailSpec.cpp
-// Crown 2026-11-24: the weapon trail's rules: which kind each weapon type plays, its tint, the fallback window
-// (first Impact's wind-up to the last Impact) and the long-axis ends when the weapon has no trail sockets.
+// Crown 2026-11-24: the weapon trail's rules: which weapon types trail, its tint, the fallback window (first Impact's
+// wind-up to the last Impact), the long-axis ends when the weapon has no trail sockets, and the per-element glow lookup.
 
 #include "Combat/Presentation/WeaponTrail.h"
+#include "Combat/Presentation/ImpactVisualDefaults.h"
+#include "NiagaraSystem.h"
 #include "Infusion/ElementColors.h"
 #include "Misc/AutomationTest.h"
 
@@ -12,20 +14,25 @@ END_DEFINE_SPEC(FWeaponTrailSpec)
 
 void FWeaponTrailSpec::Define()
 {
-	It("gives slashing, thrusting and blunt weapons their own trail, and none to bows, guns and shields", [this]()
+	It("gives every melee weapon the one trail, and none to bows, guns and shields", [this]()
 	{
-		TestEqual(TEXT("sword"), WeaponTrail::KindFor(EWeaponType::Sword), EWeaponTrailKind::Slash);
-		TestEqual(TEXT("greatsword"), WeaponTrail::KindFor(EWeaponType::Greatsword), EWeaponTrailKind::Slash);
-		TestEqual(TEXT("axe"), WeaponTrail::KindFor(EWeaponType::Axe), EWeaponTrailKind::Slash);
-		TestEqual(TEXT("scythe"), WeaponTrail::KindFor(EWeaponType::Scythe), EWeaponTrailKind::Slash);
-		TestEqual(TEXT("spear"), WeaponTrail::KindFor(EWeaponType::Spear), EWeaponTrailKind::Thrust);
-		TestEqual(TEXT("dagger"), WeaponTrail::KindFor(EWeaponType::Dagger), EWeaponTrailKind::Thrust);
-		TestEqual(TEXT("hammer"), WeaponTrail::KindFor(EWeaponType::Hammer), EWeaponTrailKind::Smash);
-		TestEqual(TEXT("staff"), WeaponTrail::KindFor(EWeaponType::Staff), EWeaponTrailKind::Smash);
-		TestEqual(TEXT("gauntlets"), WeaponTrail::KindFor(EWeaponType::Gauntlets), EWeaponTrailKind::Smash);
-		TestEqual(TEXT("bow"), WeaponTrail::KindFor(EWeaponType::Bow), EWeaponTrailKind::None);
-		TestEqual(TEXT("gun"), WeaponTrail::KindFor(EWeaponType::Gun), EWeaponTrailKind::None);
-		TestEqual(TEXT("shield"), WeaponTrail::KindFor(EWeaponType::Shield), EWeaponTrailKind::None);
+		for (const EWeaponType Type : {EWeaponType::Sword, EWeaponType::Greatsword, EWeaponType::Axe, EWeaponType::Scythe, EWeaponType::Spear,
+									   EWeaponType::Dagger, EWeaponType::Hammer, EWeaponType::Staff, EWeaponType::Gauntlets})
+		{
+			TestTrue(UEnum::GetValueAsString(Type), WeaponTrail::HasTrail(Type));
+		}
+		TestFalse(TEXT("bow"), WeaponTrail::HasTrail(EWeaponType::Bow));
+		TestFalse(TEXT("gun"), WeaponTrail::HasTrail(EWeaponType::Gun));
+		TestFalse(TEXT("shield"), WeaponTrail::HasTrail(EWeaponType::Shield));
+	});
+
+	It("finds an element's default infusion glow, and none for an element without one", [this]()
+	{
+		UImpactVisualDefaults *Defaults = NewObject<UImpactVisualDefaults>();
+		const FSoftObjectPath FireGlow(TEXT("/Game/Test/NS_FireGlow.NS_FireGlow"));
+		Defaults->ElementInfusionGlowVFX.Add(ESpellElement::Fire, TSoftObjectPtr<UNiagaraSystem>(FireGlow));
+		TestEqual(TEXT("fire's glow"), Defaults->GetInfusionGlowVFX(ESpellElement::Fire).ToSoftObjectPath(), FireGlow);
+		TestTrue(TEXT("water has none"), Defaults->GetInfusionGlowVFX(ESpellElement::Water).IsNull());
 	});
 
 	It("tints by the infusion's element, and plain with no infusion, a Physical or a Raw one", [this]()

@@ -42,29 +42,19 @@ FString UImpactVisualDefaults::GetDefaultsString() const
 	{
 		Out += FString::Printf(TEXT("\n  %s cast: %s"), *UEnum::GetDisplayValueAsText(Row.Key).ToString(), Row.Value.IsNull() ? TEXT("(none)") : *Row.Value.GetAssetName());
 	}
-	for (const EWeaponTrailKind Kind : {EWeaponTrailKind::Slash, EWeaponTrailKind::Thrust, EWeaponTrailKind::Smash})
+	Out += FString::Printf(TEXT("\n  Weapon trail: %s, plain colour %s, wind-up %.2fs"),
+						   WeaponTrailVFX.IsNull() ? TEXT("(none)") : *WeaponTrailVFX.GetAssetName(), *PlainTrailColor.ToString(), TrailWindUpSeconds);
+	for (const TPair<ESpellElement, TSoftObjectPtr<UNiagaraSystem>> &Row : ElementInfusionGlowVFX)
 	{
-		const TSoftObjectPtr<UNiagaraSystem> &Trail = GetTrailVFX(Kind);
-		Out += FString::Printf(TEXT("\n  %s trail: %s"), *UEnum::GetDisplayValueAsText(Kind).ToString(), Trail.IsNull() ? TEXT("(none)") : *Trail.GetAssetName());
+		Out += FString::Printf(TEXT("\n  %s glow: %s"), *UEnum::GetValueAsString(Row.Key), Row.Value.IsNull() ? TEXT("(none)") : *Row.Value.GetAssetName());
 	}
-	Out += FString::Printf(TEXT("\n  Trail plain colour %s, wind-up %.2fs"), *PlainTrailColor.ToString(), TrailWindUpSeconds);
 	return Out;
 }
 
-const TSoftObjectPtr<UNiagaraSystem> &UImpactVisualDefaults::GetTrailVFX(EWeaponTrailKind Kind) const
+TSoftObjectPtr<UNiagaraSystem> UImpactVisualDefaults::GetInfusionGlowVFX(ESpellElement Element) const
 {
-	static const TSoftObjectPtr<UNiagaraSystem> NoTrail;
-	switch (Kind)
-	{
-	case EWeaponTrailKind::Slash:
-		return SlashTrailVFX;
-	case EWeaponTrailKind::Thrust:
-		return ThrustTrailVFX;
-	case EWeaponTrailKind::Smash:
-		return SmashTrailVFX;
-	default:
-		return NoTrail;
-	}
+	const TSoftObjectPtr<UNiagaraSystem> *Glow = ElementInfusionGlowVFX.Find(Element);
+	return Glow ? *Glow : TSoftObjectPtr<UNiagaraSystem>();
 }
 
 #if WITH_EDITOR
