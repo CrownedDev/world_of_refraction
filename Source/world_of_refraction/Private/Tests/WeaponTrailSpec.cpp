@@ -66,6 +66,9 @@ void FWeaponTrailSpec::Define()
 		TestEqual(TEXT("plain Water keeps Water's"), Defaults->GetInfusionGlowVFX(ESpellElement::Water).ToSoftObjectPath(), WaterGlow);
 		TestEqual(TEXT("Ice needs Water"), Defaults->GetInfusionGlowVFX(ESpellElement::Fire, false, true).ToSoftObjectPath(), FireGlow);
 		TestEqual(TEXT("Raw wins"), Defaults->GetInfusionGlowVFX(ESpellElement::Water, true, true).ToSoftObjectPath(), RawGlow);
+
+		Defaults->IceInfusionGlowVFX.Reset();
+		TestEqual(TEXT("no Ice row yet: Water's"), Defaults->GetInfusionGlowVFX(ESpellElement::Water, false, true).ToSoftObjectPath(), WaterGlow);
 	});
 
 	It("plays a higher infusion level brighter and bigger, from one table", [this]()

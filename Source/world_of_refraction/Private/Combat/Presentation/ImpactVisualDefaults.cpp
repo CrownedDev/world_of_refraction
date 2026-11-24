@@ -81,7 +81,7 @@ TSoftObjectPtr<UNiagaraSystem> UImpactVisualDefaults::GetInfusionGlowVFX(ESpellE
 	{
 		return RawInfusionGlowVFX;
 	}
-	if (bIce && Element == ESpellElement::Water)
+	if (bIce && Element == ESpellElement::Water && !IceInfusionGlowVFX.IsNull())
 	{
 		return IceInfusionGlowVFX;
 	}

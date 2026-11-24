@@ -128,8 +128,8 @@ public:
 
 	UImpactVisualDefaults();
 
-	/** The default glow slot: Raw's when bRaw, Ice's for a Water infusion when bIce, Physical's with no element (None
-	 *  or Generic), else the element's row; empty when that slot has none. */
+	/** The default glow slot: Raw's when bRaw, Ice's for a Water infusion when bIce (Water's while Ice's is empty),
+	 *  Physical's with no element (None or Generic), else the element's row; empty when that slot has none. */
 	TSoftObjectPtr<UNiagaraSystem> GetInfusionGlowVFX(ESpellElement Element, bool bRaw = false, bool bIce = false) const;
 
 	/** Level's row in InfusionLevelVisuals; plain (x1) at level 0 or with no rows. */
