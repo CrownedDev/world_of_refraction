@@ -11,9 +11,11 @@
 
 #include "CoreMinimal.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "Combat/Camera/CombatCameraTypes.h"
 #include "CombatCameraDebug.generated.h"
 
 class UCombatCameraDirector;
+class USkillDataBase;
 
 UCLASS()
 class WORLD_OF_REFRACTION_API UCombatCameraDebug : public UBlueprintFunctionLibrary
@@ -30,4 +32,15 @@ public:
 	/** Logs GetCameraStateString and shows it on screen. */
 	UFUNCTION(BlueprintCallable, Category = "Debug|Combat", meta = (WorldContext = "WorldContextObject"))
 	static void PrintCameraState(const UObject *WorldContextObject);
+
+	/** B-600: Style's shots in order for the sample fight: per moment, cut or blend, still or moving, FOV punch, or
+	 *  "holds" where the style plays nothing. */
+	static FString GetCameraStyleShotOrderString(ESkillCameraStyle Style);
+
+	/** B-600: "<skill>: style <Style>" and its shot order. */
+	static FString GetSkillCameraStyleString(const USkillDataBase *Skill);
+
+	/** B-600: logs GetSkillCameraStyleString. Console: wor.Camera.StylePreview prints every style's order. */
+	UFUNCTION(BlueprintCallable, Category = "Debug|Combat")
+	static void PrintSkillCameraStyle(const USkillDataBase *Skill);
 };
