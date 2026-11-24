@@ -180,8 +180,11 @@ public:
 
 	// ==================== SETTINGS (B-398) ====================
 
-	/** The player's turn-view setting (default Centred Wide, D-074); an unknown saved value reads as the default. */
+	/** The player's turn-view setting (default Over the Shoulder since B-600g, Q-600g); an unknown saved value, or one
+	 *  stored before B-600g (not picked since), reads as the default. */
 	ETurnViewStyle GetTurnViewStyle() const;
+	/** B-600g: GetTurnViewStyle's rule on any settings, e.g. an older save's. */
+	static ETurnViewStyle ReadTurnViewStyle(const FSavedSettings &Settings);
 	/** Kept in memory at once (it survives a fight restart and level loads); written to disk with the next save. */
 	void SetTurnViewStyle(ETurnViewStyle Style);
 

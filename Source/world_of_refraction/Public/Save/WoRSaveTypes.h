@@ -1038,9 +1038,14 @@ struct WORLD_OF_REFRACTION_API FSavedSettings
 {
 	GENERATED_BODY()
 
-	/** ETurnViewStyle; 0 = Centred Wide, the default (D-074). */
+	/** ETurnViewStyle; 1 = Over the Shoulder, the default since B-600g (Q-600g; it was 0, Centred Wide, D-074). */
 	UPROPERTY()
-	uint8 TurnViewStyle = 0;
+	uint8 TurnViewStyle = 1;
+
+	/** B-600g: the player picked TurnViewStyle since B-600g. An older save has no such field and reads false, so its
+	 *  stored style (the old default) gives way to the new one until the player picks again: no save version bump. */
+	UPROPERTY()
+	bool bTurnViewStylePicked = false;
 
 	/** B-170e (Crown, 2026-11-12): hide the End Turn button; false = shown, the default. An older save has no such field
 	 *  and reads false, which is the default: no save version bump. */
