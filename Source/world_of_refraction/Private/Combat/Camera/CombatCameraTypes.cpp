@@ -12,25 +12,21 @@ namespace CombatCameraOffsets
 	// TODO: tune in PIE (B-157 camera rig pass). Distances in cm.
 	constexpr float CentredWideBack = 650.0f;
 	constexpr float CentredWideHeight = 320.0f;
-	// B-398 (R1): over-the-shoulder offsets as parts of the character-to-enemy-centre distance, so the layout (character
-	// lower-left third, enemy centre in the middle) holds at any range. TODO: tune in PIE.
-	constexpr float ShoulderBackPerRange = 0.35f;
-	constexpr float ShoulderSidePerRange = 0.25f;
-	// B-600g (Q-600g): lowered from 0.2 toward E33's hip-to-chest camera: about head height at 8 m, the lowest that
-	// keeps the character's centre in the lower third (lower, it drifts into the middle band unless the camera comes in).
-	constexpr float ShoulderHeightPerRange = 0.12f;
-	/** The shortest range the offsets scale from, so a close enemy doesn't put the camera inside the character.
-	 *  TODO: tune in PIE. */
-	constexpr float ShoulderMinRange = 500.0f;
+	// B-600g (§6, E33): the over-the-shoulder camera a fixed distance from the acting character (B-398 scaled it by the
+	// range): over the right shoulder at about chest height (above the actor's centre), so the character sits in the
+	// left third, about 60% of the frame tall, at 5 to 14 m from the enemy centre. TODO: tune in PIE.
+	constexpr float ShoulderBack = 250.0f;
+	constexpr float ShoulderSide = 150.0f;
+	constexpr float ShoulderHeight = 45.0f;
 	// B-399 (R2): a sub-menu's step in, as parts of the turn camera's horizontal distance from the acting character
 	// and of its height above it. TODO: tune in PIE.
 	constexpr float MenuStepCloser = 0.25f;
 	constexpr float MenuStepLower = 0.3f;
 	constexpr float TacticalSide = 1400.0f;
 	constexpr float TacticalHeight = 550.0f;
-	// The view of everyone (ComputeWideView; the NotYourTurn view until B-600g).
-	constexpr float WideViewBack = 1300.0f;
-	constexpr float WideViewHeight = 750.0f;
+	// B-600g (§6): E33's hand-over wide (ComputeWideView), behind and a little above the viewer's side's centre.
+	constexpr float HomeWideBack = 600.0f;
+	constexpr float HomeWideHeight = 120.0f;
 	constexpr float StaticBack = 1600.0f;
 	constexpr float StaticHeight = 950.0f;
 }
@@ -224,11 +220,9 @@ FTransform FCombatCameraRules::ComputeView(ECombatCameraMode Mode, ETurnViewStyl
 		return ComputeTurnView(Style, Frame, MenuDepth);
 	case ECombatCameraMode::NotYourTurn:
 	{
-		// B-600g: the viewer's frame turned round to the acting fighter's side: it faces the viewer's side's centre.
-		FCombatCameraFrame FighterFrame = Frame;
-		FighterFrame.TowardEnemies = -Forward;
-		FighterFrame.EnemyCentre = Frame.ArenaCentre * 2.0f - Frame.EnemyCentre;
-		return ComputeTurnView(Style, FighterFrame);
+		// B-600g (§6): the end of the enemy turn's slow push-in from the hand-over wide toward the acting enemy.
+		const FVector Wide = ComputeWideView(Frame).GetLocation();
+		return LookFrom(FMath::Lerp(Wide, Frame.Focus, EnemyPushInFraction), Frame.Focus);
 	}
 	case ECombatCameraMode::Static:
 		return LookFrom(Frame.ArenaCentre - Forward * StaticBack + FVector::UpVector * StaticHeight, Frame.ArenaCentre);
@@ -243,12 +237,8 @@ FTransform FCombatCameraRules::ComputeWideView(const FCombatCameraFrame &Frame)
 {
 	using namespace CombatCameraOffsets;
 	const FVector Forward = Frame.TowardEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
-	return LookFrom(Frame.Focus - Forward * WideViewBack + FVector::UpVector * WideViewHeight, Frame.ArenaCentre);
-}
-
-bool FCombatCameraRules::IsWideAction(int32 TargetCount)
-{
-	return TargetCount >= MinTargetsForWideBeat;
+	const FVector ViewerSide = Frame.ArenaCentre * 2.0f - Frame.EnemyCentre; // BuildFrame: the arena centre is the sides' midpoint
+	return LookFrom(ViewerSide - Forward * HomeWideBack + FVector::UpVector * HomeWideHeight, Frame.EnemyCentre);
 }
 
 FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth)
@@ -263,14 +253,11 @@ FTransform FCombatCameraRules::ComputeTurnView(ETurnViewStyle Style, const FComb
 	{
 	case ETurnViewStyle::OverTheShoulder:
 	{
-		// Aimed along this character's own line to the enemy centre (not the party's), and scaled by its length, so the
-		// character lands in the same screen spot whoever acts. Behind and right of it: it sits left, below the aim.
-		const FVector ToEnemies = Frame.EnemyCentre - Frame.Focus;
-		const FVector Aim = ToEnemies.GetSafeNormal2D(UE_SMALL_NUMBER, Forward);
+		// Along this character's own line to the enemy centre (not the party's). Behind and right of it, aimed at the
+		// enemy centre: it sits left, a little below the aim.
+		const FVector Aim = (Frame.EnemyCentre - Frame.Focus).GetSafeNormal2D(UE_SMALL_NUMBER, Forward);
 		const FVector AimRight = FVector::CrossProduct(FVector::UpVector, Aim);
-		const float Range = FMath::Max(static_cast<float>(ToEnemies.Size2D()), ShoulderMinRange);
-		const FVector Offset = -Aim * ShoulderBackPerRange + AimRight * ShoulderSidePerRange + FVector::UpVector * ShoulderHeightPerRange;
-		Location = Frame.Focus + Offset * Range;
+		Location = Frame.Focus - Aim * ShoulderBack + AimRight * ShoulderSide + FVector::UpVector * ShoulderHeight;
 		break;
 	}
 	case ETurnViewStyle::Tactical:
@@ -682,7 +669,7 @@ bool FCombatCameraRules::FollowsLeapHome(bool bShotPlaying, bool bIsShotCaster, 
 
 FTurnChangePlan FCombatCameraRules::PlanLeapHome(ETurnViewStyle Style, const FCombatCameraFrame &HomeFrame)
 {
-	return PlanTurnChange(/*bSomeoneActed=*/true, /*bSameActor=*/false, ECombatCameraMode::Turn, Style, HomeFrame);
+	return PlanTurnChange(/*bSomeoneActed=*/true, ECombatCameraMode::Turn, Style, HomeFrame);
 }
 
 float FCombatCameraRules::GetFollowHomeSeconds(const UAnimMontage *ReturnMontage, float PlayRate)
@@ -996,38 +983,22 @@ FCameraShot FCombatCameraRules::FollowApproachBurst(const FCameraShot &Rush, con
 	return Out;
 }
 
-namespace CombatCameraTurnChange
+FTurnChangePlan FCombatCameraRules::PlanTurnChange(bool bSomeoneActed, ECombatCameraMode NextMode, ETurnViewStyle Style, const FCombatCameraFrame &Frame,
+												   float SecondsOnWide)
 {
-	// B-404 (Q-404, study §9: Expedition 33 goes wide, then blends to the next hero within about 0.5 s).
-	// TODO: tune in PIE (B-157). Times in s.
-	constexpr float WideBeatBlendSeconds = 0.3f;
-	constexpr float WideBeatHoldSeconds = 0.2f;
-	constexpr float HandoverBlendSeconds = 0.5f;
-}
-
-FTurnChangePlan FCombatCameraRules::PlanTurnChange(bool bWideActionSinceTurnStart, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
-												   const FCombatCameraFrame &Frame)
-{
-	using namespace CombatCameraTurnChange;
 	FTurnChangePlan Plan;
 	Plan.TurnView = ComputeView(NextMode, Style, Frame);
 	const bool bNextIsTurnView = NextMode == ECombatCameraMode::Turn || NextMode == ECombatCameraMode::NotYourTurn;
-	Plan.bWideBeat = bWideActionSinceTurnStart && !bSameActor && bNextIsTurnView;
+	Plan.bWideBeat = bSomeoneActed && bNextIsTurnView;
 	if (Plan.bWideBeat)
 	{
+		// B-600g (§6): a hard cut to the hand-over wide, a hold, then the sweep (or an enemy's slow push-in).
 		Plan.WideView = ComputeWideView(Frame);
-		Plan.BeatBlendSeconds = WideBeatBlendSeconds;
-		Plan.BeatSeconds = WideBeatBlendSeconds + WideBeatHoldSeconds;
-		Plan.HandoverBlendSeconds = HandoverBlendSeconds;
+		Plan.BeatBlendSeconds = 0.0f;
+		Plan.BeatSeconds = FMath::Max(0.0f, WideMinSeconds - FMath::Max(0.0f, SecondsOnWide));
+		Plan.HandoverBlendSeconds = NextMode == ECombatCameraMode::NotYourTurn ? EnemyPushInSeconds : SweepSeconds;
 	}
 	return Plan;
-}
-
-namespace CombatCameraSameTurn
-{
-	// B-401 (Q-401, study R4): Expedition 33 settles straight back behind the same hero between that hero's actions;
-	// shorter than the turn blend (0.6 s) and the handover (0.5 s). TODO: tune in PIE (B-157).
-	constexpr float ReturnBlendSeconds = 0.35f;
 }
 
 FSameTurnReturnPlan FCombatCameraRules::PlanSameTurnReturn(bool bActedSinceAsked, ECombatCameraMode Mode, ETurnViewStyle Style,
@@ -1036,6 +1007,7 @@ FSameTurnReturnPlan FCombatCameraRules::PlanSameTurnReturn(bool bActedSinceAsked
 	FSameTurnReturnPlan Plan;
 	Plan.TurnView = ComputeView(Mode, Style, Frame);
 	Plan.bReturn = bActedSinceAsked && Mode == ECombatCameraMode::Turn;
-	Plan.BlendSeconds = Plan.bReturn ? CombatCameraSameTurn::ReturnBlendSeconds : 0.0f;
+	// B-401; B-600g (§6): the director plays it as a turn change back to the same fighter (the wide, then the sweep).
+	Plan.BlendSeconds = Plan.bReturn ? SweepSeconds : 0.0f;
 	return Plan;
 }

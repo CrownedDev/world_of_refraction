@@ -20,7 +20,8 @@ enum class ECombatCameraMode : uint8
 	Turn UMETA(DisplayName = "Turn"),
 	/** A skill's Level Sequence is playing. */
 	Action UMETA(DisplayName = "Action"),
-	/** Someone else's turn. B-600g: behind that fighter, as a turn view (it was a wide pan-out). */
+	/** Someone else's turn. B-600g: E33's hand-over wide, pushing in slowly toward the acting enemy (it was a high
+	 *  pan-out). The director also tags the hand-over wide with it (HandleWideBeatEnd's bStillWide relies on that). */
 	NotYourTurn UMETA(DisplayName = "Not Your Turn"),
 	/** Camera movement off: one fixed wide view. */
 	Static UMETA(DisplayName = "Static"),
@@ -232,8 +233,8 @@ struct WORLD_OF_REFRACTION_API FCinematicWindowTiming
 };
 
 /** B-404 (study R12, R16, Q-404): how the camera reaches a new turn's view. With a wide beat: into WideView over
- *  BeatBlendSeconds, held until BeatSeconds, then the handover blend to TurnView over HandoverBlendSeconds. Without
- *  one: straight to TurnView, as before. */
+ *  BeatBlendSeconds (B-600g: 0, a cut), held until BeatSeconds, then the handover blend to TurnView over
+ *  HandoverBlendSeconds (B-600g: the sweep, or an enemy's push-in). Without one: straight to TurnView. */
 struct WORLD_OF_REFRACTION_API FTurnChangePlan
 {
 	bool bWideBeat = false;
@@ -278,28 +279,35 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static ECameraTemplateKind TemplateKindFor(const USkillDataBase *Skill, EActionType ActionType);
 
 	/** Camera transform for a mode. Action has no transform of its own (the sequence owns the view). Defence uses
-	 *  ComputeDefenceView. Turn is ComputeTurnView (MenuDepth is read only there). NotYourTurn (B-600g, Q-600g): the
-	 *  same turn view behind the other side's acting fighter, facing the viewer's side (Frame is the viewer's, as
-	 *  BuildFrame makes it); the view of everyone is ComputeWideView. */
+	 *  ComputeDefenceView. Turn is ComputeTurnView (MenuDepth is read only there). NotYourTurn (B-600g, Q-600g, E33):
+	 *  ComputeWideView pushed in toward the acting enemy (Frame's focus), the end of the enemy turn's slow push-in. */
 	static FTransform ComputeView(ECombatCameraMode Mode, ETurnViewStyle Style, const FCombatCameraFrame &Frame, int32 MenuDepth = 0);
 
-	/** B-600g: the view of everyone (the wide beat between turns): behind and high above Frame's focus, aimed at the
-	 *  arena centre. Before B-600g it was the NotYourTurn view. */
+	/** B-600g (Q-600g, TurnBasedCameraComparison.md §6): E33's hand-over wide, cut to after every action: low, behind
+	 *  the viewer's side's centre, the party small in the near left and right, the enemy side whole in the middle. It
+	 *  does not depend on Frame's focus. Before B-600g the NotYourTurn view was a high wide behind the focus. */
 	static FTransform ComputeWideView(const FCombatCameraFrame &Frame);
 
-	/** B-600g (Q-600g): the fewest targets an action needs for the wide beat to play before the next turn; a single-
-	 *  target action goes straight to the next fighter's turn view. */
-	static constexpr int32 MinTargetsForWideBeat = 2;
-	static bool IsWideAction(int32 TargetCount);
+	// B-600g (§6, E33 hand-over). TODO: tune in PIE. Times in s.
+	/** The least time on the hand-over wide before the sweep out of it (E33: cut, the attacker lands ~0.4 s later, the
+	 *  sweep ~0.1 s after that). */
+	static constexpr float WideMinSeconds = 0.5f;
+	/** The fast sweep from the wide into the next fighter's over-the-shoulder view (E33: 0.3 to 0.4 s). */
+	static constexpr float SweepSeconds = 0.35f;
+	/** An enemy's turn: no sweep; the wide pushes in slowly toward the enemy over this long (E33: 2 to 3 s). */
+	static constexpr float EnemyPushInSeconds = 2.5f;
+	/** How far along the wide's line to the acting enemy the push-in ends. */
+	static constexpr float EnemyPushInFraction = 0.3f;
 
 	/** B-399: the deepest menu step the turn view takes (a sub-menu); deeper menus hold it. */
 	static constexpr int32 MaxMenuDepth = 1;
 
 	/** B-398 (study R1): the turn view for each turn-view setting; the one place a turn view is framed.
 	 *  CentredWide: behind and above the character, facing the enemy centre (D-074's default until B-600g).
-	 *  OverTheShoulder: the acting character in the lower-left third, back to the camera, the enemy centre in the
-	 *  middle of the frame; scaled to the character's distance from the enemy centre, so every party member at any
-	 *  range gets the same layout. Tactical: side-on, both teams in view.
+	 *  OverTheShoulder (B-600g, §6, E33): a fixed distance behind and over the right shoulder of the acting character
+	 *  at about chest height, aimed at the enemy centre: the character in the left third, about 60% of the frame tall
+	 *  at any range, the whole enemy in the middle. (B-398 scaled it by the range instead.) Tactical: side-on, both
+	 *  teams in view.
 	 *  B-399 (study R2): MenuDepth 1 (a sub-menu is open, UCombatCommandMenuSubsystem::OnMenuDepthChanged) steps the
 	 *  camera in toward the character and lower, aimed at the same point; 0 is the base view; clamped to
 	 *  0..MaxMenuDepth. */
@@ -431,12 +439,13 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	/** B-600f (Q-600f): the camera follows a party member's leap home into its own turn view at the home spot (low and
 	 *  behind it, facing the enemies; the leap comes toward the lens but stops short of it). The blend lasts the return
 	 *  montage (its length at PlayRate), so the camera arrives as the attacker lands; FollowHomeFallbackSeconds with no
-	 *  montage. */
+	 *  montage. Obsolete since B-600g (the leap home cuts to ComputeWideView); remove after PIE. */
 	static float GetFollowHomeSeconds(const UAnimMontage *ReturnMontage, float PlayRate);
 	static constexpr float FollowHomeFallbackSeconds = 0.5f;
 	/** B-600f (Q-600f): after a party member's skill played its shots, the next turn's camera waits this long after the
-	 *  action ends (the return montage's end, or the recovery's for a skill with no return). TODO: tune in PIE. */
-	static constexpr float ActionEndHoldSeconds = 0.5f;
+	 *  action ends (the return montage's end, or the recovery's for a skill with no return). B-600g (§6): 0.5 to 0.1, E33
+	 *  sweeps about 0.1 s after the landing. TODO: tune in PIE. */
+	static constexpr float ActionEndHoldSeconds = 0.1f;
 	/** B-600f: the next turn's wait after an action: ActionEndHoldSeconds for a party member's skill that played its
 	 *  shots, else 0 (an enemy's skill, an item, End Turn, cinematics or camera movement off). */
 	static float GetActionEndHold(bool bPartyCaster, bool bPlayedShots);
@@ -461,12 +470,14 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  framing as the burst ends, so the travel is never followed on screen. */
 	static FCameraShot FollowApproachBurst(const FCameraShot &Rush, const FCameraShot &WindUpAtStrike, float WindowStart, float WindowEnd, bool bCut);
 
-	/** B-404 (study R12, R16, Q-404): the camera's way into a new turn. A wide beat (ComputeWideView) plays only between
-	 *  turns: B-600g (Q-600g), an action since the last turn start hit several targets (IsWideAction), the turn passes
-	 *  to another actor, and the new view is a turn view (Turn, or NotYourTurn behind an enemy). Never between actions
-	 *  of one actor (B-401), never with movement off (Static). Otherwise the next turn view comes straight away. */
-	static FTurnChangePlan PlanTurnChange(bool bWideActionSinceTurnStart, bool bSameActor, ECombatCameraMode NextMode, ETurnViewStyle Style,
-										  const FCombatCameraFrame &Frame);
+	/** B-404 (study R12, R16, Q-404) as B-600g (Q-600g, §6, E33) changes it: the camera's way to the next view after
+	 *  an action. Someone acted and the next view is a turn view (Turn, or an enemy's NotYourTurn): a cut to
+	 *  ComputeWideView (unless it already shows), held until WideMinSeconds have passed on it (SecondsOnWide: how long
+	 *  it already showed, < 0 when it doesn't), then the sweep into the next fighter's view over SweepSeconds, or, for
+	 *  an enemy, the push-in over EnemyPushInSeconds. The same fighter acting again (banked actions) gets the same, back
+	 *  over its own shoulder. Nobody acted (the first turn) or movement off (Static): straight to the next view. */
+	static FTurnChangePlan PlanTurnChange(bool bSomeoneActed, ECombatCameraMode NextMode, ETurnViewStyle Style, const FCombatCameraFrame &Frame,
+										  float SecondsOnWide = -1.0f);
 	/** B-406: the first shot of a skill's pattern: an enemy's named attack opens on the NamedAttack front shot, every
 	 *  other skill on the over-the-shoulder WindUp. */
 	static ECameraShotMoment OpeningMomentFor(const FSkillCameraTuning &Tuning, bool bCasterIsEnemy);
