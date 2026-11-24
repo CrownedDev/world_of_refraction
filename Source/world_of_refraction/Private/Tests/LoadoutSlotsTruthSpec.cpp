@@ -67,7 +67,7 @@ namespace
 	FCombatLoadout ThroughTheSlots(const FCombatLoadout &Loadout, ECharacterClass Class)
 	{
 		FCombatLoadout Mirrored = Loadout;
-		Mirrored.RebuildSlotsFromLegacy(Class);
+		Mirrored.BuildSlotsFromOldFields(Class);
 		FCombatLoadout Back = Mirrored;
 		Back.PrimaryWeapon = FWeaponLoadoutEntry();
 		Back.SecondaryWeapon = FWeaponLoadoutEntry();
@@ -116,21 +116,21 @@ void FLoadoutSlotsTruthSpec::Define()
 		TestTrue(TEXT("the adapter with its picks"), Back.RingLoadout.Num() == 1 && SameRingEntry(Back.RingLoadout[0], Loadout.RingLoadout[0]));
 		TestTrue(TEXT("both types kept"), Back.PrimarySlotType == EPrimarySlotType::Weapon && Back.SecondarySlotType == ESecondarySlotType::Weapon);
 		FCombatLoadout Mirrored = Loadout;
-		Mirrored.RebuildSlotsFromLegacy(ECharacterClass::Generic);
+		Mirrored.BuildSlotsFromOldFields(ECharacterClass::Generic);
 		TestEqual(TEXT("the bow still in hand"), Back.ActiveWeaponSlot, Mirrored.ActiveWeaponSlot);
 		TestEqual(TEXT("the adapter still in use"), Back.ActiveAdapterSlot, Mirrored.ActiveAdapterSlot);
 		using namespace WornGearLayout;
 		TestTrue(TEXT("each slot in its place"), Mirrored.Slots.Num() == 3 && Mirrored.Slots[0].Place == PRIMARY_INDEX &&
 													 Mirrored.Slots[1].Place == SECONDARY_INDEX && Mirrored.Slots[2].Place == FIRST_ADAPTER_INDEX);
 		FCombatLoadout Remirrored = Back;
-		Remirrored.RebuildSlotsFromLegacy(ECharacterClass::Generic);
+		Remirrored.BuildSlotsFromOldFields(ECharacterClass::Generic);
 		bool bSameSlots = Remirrored.Slots.Num() == Mirrored.Slots.Num();
 		for (int32 Index = 0; bSameSlots && Index < Mirrored.Slots.Num(); ++Index)
 		{
 			const FLoadoutSlot &A = Remirrored.Slots[Index];
 			const FLoadoutSlot &B = Mirrored.Slots[Index];
 			bSameSlots = A.Place == B.Place && A.GearID == B.GearID && A.OffHandID == B.OffHandID && A.Gear.Asset == B.Gear.Asset &&
-						 A.LegacyOrigin == B.LegacyOrigin && A.LegacyIndex == B.LegacyIndex && A.AssignedAbilities == B.AssignedAbilities &&
+						 A.Gear.Kind == B.Gear.Kind && A.AssignedAbilities == B.AssignedAbilities &&
 						 A.SpellOverrides == B.SpellOverrides;
 		}
 		TestTrue(TEXT("the rebuilt fields mirror into the same slots, in the same places"), bSameSlots);

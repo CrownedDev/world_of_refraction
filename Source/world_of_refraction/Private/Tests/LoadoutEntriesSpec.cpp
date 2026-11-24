@@ -98,7 +98,7 @@ void FLoadoutEntriesSpec::Define()
 	{
 		FCombatLoadout Loadout = EntriesTestGeneric();
 		TestEqual(TEXT("no finding"), EntriesFindings(Loadout, ECharacterClass::Generic).Num(), 0);
-		Loadout.RebuildSlotsFromLegacy(ECharacterClass::Generic);
+		Loadout.BuildSlotsFromOldFields(ECharacterClass::Generic);
 		TestEqual(TEXT("three slots: two weapons and the adapter"), Loadout.Slots.Num(), 3);
 		const FRingLoadoutEntry *InUse = Loadout.GetLegacyRingEntry(Loadout.ActiveAdapterSlot);
 		TestTrue(TEXT("the adapter entry is the adapter in use"), InUse == &Loadout.RingLoadout[0]);
@@ -130,7 +130,7 @@ void FLoadoutEntriesSpec::Define()
 
 		FCombatLoadout Refractor = Resonator;
 		TestEqual(TEXT("Refractor: only its one entry is read"), FLoadoutRules::CollectClassLimitFindings(Refractor, ECharacterClass::Caster).Num(), 0);
-		Refractor.RebuildSlotsFromLegacy(ECharacterClass::Caster);
+		Refractor.BuildSlotsFromOldFields(ECharacterClass::Caster);
 		TestEqual(TEXT("Refractor: one slot"), Refractor.Slots.Num(), 1);
 	});
 
