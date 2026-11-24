@@ -1266,10 +1266,11 @@ FString UCombatCameraDirector::GetTurnLayoutString() const
 namespace
 {
 	/** B-424: the skill montage's approach burst toward Target (the dash), and where it ends. False without one, or with a
-	 *  ritual lead-in (its own timing comes first). */
-	bool MeasureApproach(const AActor *Caster, const AActor *Target, const USkillDataBase *Skill, FVector &OutStrike, FApproachBurst &OutBurst)
+	 *  ritual lead-in still to play (its own timing comes first); a ritual's fire turn starts at the skill montage (B-595c). */
+	bool MeasureApproach(const AActor *Caster, const AActor *Target, const USkillDataBase *Skill, bool bRitualPlayed, FVector &OutStrike,
+						 FApproachBurst &OutBurst)
 	{
-		if (!Caster || !Target || !Skill || !Skill->SkillMontage || Skill->RitualCastMontage)
+		if (!Caster || !Target || !Skill || !Skill->SkillMontage || (Skill->RitualCastMontage && !bRitualPlayed))
 		{
 			return false;
 		}
@@ -1343,8 +1344,9 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	}
 	FVector Strike;
 	FApproachBurst Burst;
-	const bool bRush = Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f; // B-403: the melee rush
-	if (bRush && MeasureApproach(Caster, FirstTarget, Skill, Strike, Burst))
+	// B-403: the melee rush; B-595c: a Heavy Wind-Up blow has no rush blur, but a dash still gets its arrival cut.
+	const bool bRush = Opening == ECameraShotMoment::WindUp && (OpeningShot.MotionBlur > 0.0f || ShotStyle == ESkillCameraStyle::HeavyWindUp);
+	if (bRush && MeasureApproach(Caster, FirstTarget, Skill, Action.bIsDeferredFire, Strike, Burst))
 	{
 		if (FCombatCameraRules::ComputeArrivalShot(ShotStyle, bEnemy, Context, ShotTuning).IsSet())
 		{
