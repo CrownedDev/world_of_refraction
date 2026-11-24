@@ -99,3 +99,35 @@ Official combat clip (Gustave and Lune vs Évêque, 4:43). Stepped every 2 s, th
 1. **Cut, then sweep.** On the hit's end it hard-cuts to a low wide from behind the party (0:12.1). The attacker lands ~0.4 s later (0:12.5). About 0.1 s after that, a fast blurred sweep (~0.3–0.4 s) carries the camera into the next hero's shoulder view (0:12.6 → 0:13.0). Same at 1:01–1:02. Total from hit end to the next menu is about 1 s.
 2. **Next hero's view:** hero in the left third, seen from behind at about chest height, camera over the right shoulder. The enemy is fully in frame, centre to centre-right (0:13, 1:02).
 3. **Whole party and field:** not only for all-target attacks. The wide from behind the party is the **hand-over shot after every action**, single-target too (Lune's single spell, 0:17.5). It is also the base of every enemy turn (0:41–0:44, 3:32–3:35). Only the menu, aim, rush and hit shots are close.
+
+## 7. Expedition 33 skills by type — `j32WmbafGF8`
+
+"ALL Party Skills Showcase" (13:16), one chapter per hero: Gustave 0:00, Verso 0:48, Maelle 2:42, Lune 4:49, Sciel 6:56, Monoco 8:47. Each chapter was stepped every 2–5 s, then every 0.5–0.75 s around one or two skills of each type. Added 2026-11-24.
+
+**Limit:** the uploader trimmed most clips, so the walk back home is usually cut out. Use §6 for the return and the hand-over: hard cut to a low wide behind the party, then a sweep to the next hero.
+
+| Type | Shot order, with timings | Example(s) |
+|---|---|---|
+| **Melee, single target** | Low wide behind the hero at home (~0.5 s) → **rush**: camera follows from behind, pushing in (~0.5–1 s) → **cut** to a close three-quarter on the target as the blow lands, with a big number → **hold** ~1 s → (return: §6) | Maelle 2:57.5–3:00; Gustave 0:07–0:08 |
+| **Melee, multi-hit / combo** | Rush as above, then **a new camera angle on almost every hit**, about one cut each 0.5–1 s (behind, side, front of the enemy, close on its face). A timed-press ring sits on the target. Last hit gets the biggest number and ~1 s hold | Verso 1:14–1:18.5; Maelle 3:01–3:05; Sciel 7:04.5–7:05.5 |
+| **Ranged physical (thrown / bolt)** | **Behind the hero at home, low, held.** The projectile flies away from the camera; the hit and its number are seen **in the same shot**, with no cut. Repeat throws reuse the shot (~1 s each) | Sciel cards 7:06–7:09.5; Gustave 0:30.5–0:33.5 |
+| **Spell, single target** | Over the caster's shoulder at home → slow **push-in** while it charges (~1–1.5 s, ring on screen) → **cut** to a medium shot of the target for the hit → hold ~0.5–1 s. Beam spells skip the cut and stay behind the caster | Lune fire 4:55.5–4:58; Lune ice beam 4:58.5–5:00.5; Lune 5:12–5:14 (front of her, then cut to target) |
+| **Spell, area / all enemies** | **One wide shot**, low to mid height, behind and beside the caster. The caster is small in the near-left, every target in frame. Held **still** for the whole effect (~3–4 s); numbers over each enemy | Lune 5:07–5:11, 5:15–5:18; Lune chain 5:01–5:04 (slow drift, same shot); Verso 1:19–1:23 |
+| **Buff / heal** | **Front shot of the caster at home**, medium-close, ~1–2 s, with a slight orbit. Self-buff: stays on the caster. **Party buff:** then a **cut to a wide of the party** showing the effect on each ally (~1 s). No enemy in frame | Gustave 0:24.5–0:27.5 (party), 0:28–0:30 (self); Lune 5:20 |
+| **Big finisher / ultimate** | Close on the hero → **blur whip** → **colour drains to black and white** → rapid cuts every ~0.5–0.75 s between close angles → white flash on impact → huge number held ~1.5 s → colour returns. Charged ones open with a wide behind, then a push-in during the charge, a front close-up, and a side shot of the leap | Monoco 12:39.5–12:52; Gustave 0:43–0:48.5; Sciel leap seen **from high overhead** 7:02.5–7:04 |
+
+**Common thread:** physical skills move the camera *with* the hero (rush, then cuts at the target). Spells keep the camera at the caster's home spot and either cut once to the target (single) or hold one wide (area). Buffs never look at the enemy.
+
+### Mapping to our `ESkillCameraStyle`
+
+| E33 type | Our style | Fit and gaps |
+|---|---|---|
+| Melee, single target | **Melee Rush** | Good fit. E33's hit shot is a close three-quarter on the target, not a wide side two-shot; tune the Impact offset closer |
+| Melee, multi-hit / combo | **Melee Rush**, plus something new | Gap: E33 re-cuts the angle on each hit. **New:** a "re-cut per hit" option on Melee Rush (cycle 2–3 offsets each hit) or a new **Melee Combo** style |
+| Ranged physical | **Ranged Release** | Partial. Ours cuts at release to a side two-shot the projectile crosses. E33 **stays behind the thrower** and shows the hit in the same shot. Add a "hold over-shoulder through the hit" option |
+| Spell, single target | **Standard** (short charge) or **Heavy Wind-Up** (long charge) | Good fit: push-in during the charge, then one cut to the target. Heavy Wind-Up cuts to a low *hero* angle at the hit; E33 cuts to the *target* |
+| Spell, area / all | **Area Sweep** | Good fit, held still. Our description says "higher"; E33 is low to mid height behind the caster. Lower the height |
+| Buff / heal | **none fits** | **New style needed: "Support"** — front shot of the caster at home; for a party target, a cut to a wide of the allies; no enemy framing. Today these would wrongly aim at an enemy or the ally from the enemy side |
+| Finisher / ultimate | **Cinematic** | Good fit: hand-made CameraSequence. The colour drain and fast cuts belong in the sequence. The high overhead leap is a sequence shot, not a style |
+
+**So:** five of seven types map to existing styles with small tuning. Two need something new: **Support** (buffs/heals) and a **per-hit re-cut** for combos.
