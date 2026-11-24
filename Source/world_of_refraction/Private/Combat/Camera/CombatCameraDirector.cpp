@@ -1340,11 +1340,12 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	FVector Strike;
 	FApproachBurst Burst;
 	const bool bDashes = Opening == ECameraShotMoment::WindUp && MeasureApproach(Caster, FirstTarget, Skill, Action.bIsDeferredFire, Strike, Burst);
-	ShotStyle = FCombatCameraRules::GetStyleForDash(FCombatCameraRules::GetCameraStyle(Skill, bEnemy), bDashes); // B-600, B-600h
-	if (ShotStyle != FCombatCameraRules::GetCameraStyle(Skill, bEnemy))
+	const ESkillCameraStyle SkillStyle = FCombatCameraRules::GetCameraStyle(Skill, bEnemy); // B-600
+	ShotStyle = FCombatCameraRules::GetStyleForDash(SkillStyle, bDashes);					   // B-600h
+	if (ShotStyle != SkillStyle)
 	{
-		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's %s dashes in (%s): plays as Melee Rush"), *GetNameSafe(Caster), *GetNameSafe(Skill),
-			   Action.bIsDeferredFire ? TEXT("its ritual's fire turn") : TEXT("no ritual"));
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's %s dashes in%s: plays as Melee Rush"), *GetNameSafe(Caster), *GetNameSafe(Skill),
+			   Action.bIsDeferredFire ? TEXT(" on its ritual's fire turn") : TEXT(""));
 	}
 	const FCameraShotContext Context = BuildShotContext(false);
 	FCameraShot OpeningShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Opening, Context, ShotTuning)
