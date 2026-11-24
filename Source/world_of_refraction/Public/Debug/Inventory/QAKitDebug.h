@@ -27,8 +27,8 @@ class UWorld;
 
 namespace WoRQAKit
 {
-	/** Ability can show an infusion HP cost on Weapon: it costs EP, isn't the weapon's attack, and fits the weapon's
-	 *  type and wield mode. */
+	/** Ability can show an infusion HP cost on Weapon: it costs EP, isn't the weapon's attack, has a SkillMontage (it
+	 *  plays in a fight), and fits the weapon's type and wield mode. */
 	WORLD_OF_REFRACTION_API bool IsHPCostSkillFor(const UAbilityData *Ability, const UWeaponData *Weapon);
 
 	/** The first Caster in Candidates not in the party (InParty), of Element when it isn't None; null if none. */

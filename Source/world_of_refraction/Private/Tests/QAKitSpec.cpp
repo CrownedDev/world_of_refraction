@@ -6,6 +6,7 @@
 
 #if WITH_DEV_AUTOMATION_TESTS
 
+#include "Animation/AnimMontage.h"
 #include "Character/CharacterData.h"
 #include "Debug/Inventory/QAKitDebug.h"
 #include "Equipment/Weapons/WeaponData.h"
@@ -18,20 +19,25 @@ END_DEFINE_SPEC(FQAKitSpec)
 
 void FQAKitSpec::Define()
 {
-	It("takes an ability that costs EP and fits the weapon's type and wield mode", [this]()
+	It("takes an ability that costs EP, has a SkillMontage and fits the weapon's type and wield mode", [this]()
 	{
 		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
 		Sword->WeaponType = EWeaponType::Sword;
 		Sword->WieldMode = EWeaponWieldMode::Single;
-		const auto MakeAbility = [](int32 EnergyCost, EWeaponType Type, EWeaponWieldMode Wield, bool bAttack)
+		UAnimMontage *Swing = NewObject<UAnimMontage>(GetTransientPackage());
+		const auto MakeAbility = [Swing](int32 EnergyCost, EWeaponType Type, EWeaponWieldMode Wield, bool bAttack)
 		{
 			UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
 			Ability->BaseEnergyCost = EnergyCost;
 			Ability->RequiredWeaponType = Type;
 			Ability->RequiredWieldMode = Wield;
 			Ability->bIsAttack = bAttack;
+			Ability->SkillMontage = Swing;
 			return Ability;
 		};
+		UAbilityData *NoMontage = MakeAbility(5, EWeaponType::Sword, EWeaponWieldMode::Single, false);
+		NoMontage->SkillMontage = nullptr;
+		TestFalse(TEXT("one with no SkillMontage can't play in a fight"), WoRQAKit::IsHPCostSkillFor(NoMontage, Sword));
 		TestTrue(TEXT("a sword skill that costs EP"), WoRQAKit::IsHPCostSkillFor(MakeAbility(5, EWeaponType::Sword, EWeaponWieldMode::Single, false), Sword));
 		TestFalse(TEXT("a free one shows no HP cost"), WoRQAKit::IsHPCostSkillFor(MakeAbility(0, EWeaponType::Sword, EWeaponWieldMode::Single, false), Sword));
 		TestFalse(TEXT("another weapon type's"), WoRQAKit::IsHPCostSkillFor(MakeAbility(5, EWeaponType::Bow, EWeaponWieldMode::Single, false), Sword));

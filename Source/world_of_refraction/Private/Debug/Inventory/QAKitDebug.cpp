@@ -49,7 +49,8 @@ namespace
 		return Loaded;
 	}
 
-	/** The weapon in hand's skill list on Page (its tab), else the first weapon's; INDEX_NONE without one. */
+	/** The fight's weapon's skill list on Page: the active loadout's primary (Crown's QA pass: the fight holds it), else
+	 *  the first weapon's; INDEX_NONE without one. */
 	int32 FindWeaponTab(const FLoadoutSkillsPage &Page)
 	{
 		int32 First = INDEX_NONE;
@@ -59,13 +60,81 @@ namespace
 			{
 				continue;
 			}
-			if (Page.Tabs[Tab].Gear.bActive)
+			if (Page.Tabs[Tab].Gear.Place == ELoadoutScreenPlace::Primary)
 			{
 				return Tab;
 			}
 			First = First == INDEX_NONE ? Tab : First;
 		}
 		return First;
+	}
+
+	/** The gear page's primary row; false with none. */
+	bool FindPrimaryRow(UWorld &World, const FLoadoutScreenMember &Member, FLoadoutScreenPage &OutPage, int32 &OutRow)
+	{
+		OutPage = WoRLoadoutScreen::BuildGearPage(&World, Member);
+		OutRow = OutPage.Rows.IndexOfByPredicate([](const FLoadoutScreenRow &Row) { return Row.Place == ELoadoutScreenPlace::Primary; });
+		return OutRow != INDEX_NONE;
+	}
+
+	/** The primary has no skill that fits and plays: puts an owned weapon that has one in the primary place. Empty when
+	 *  none is owned. */
+	FString PutPrimaryWithSkill(UWorld &World, const FLoadoutScreenMember &Member, TFunctionRef<bool(const UWeaponData *)> HasSkill)
+	{
+		FLoadoutScreenPage Page;
+		int32 PrimaryRow = INDEX_NONE;
+		if (!FindPrimaryRow(World, Member, Page, PrimaryRow))
+		{
+			return FString();
+		}
+		const FLoadoutScreenRow &Primary = Page.Rows[PrimaryRow];
+		for (const FLoadoutScreenChoice &Choice : WoRLoadoutScreen::BuildGearChoices(&World, Member, Primary))
+		{
+			const UWeaponData *Candidate = Choice.Weapon.WeaponEntry.Weapon;
+			if (Choice.Refusal.IsEmpty() && HasSkill(Candidate))
+			{
+				const FText Refusal = WoRLoadoutScreen::ApplyGearChoice(&World, Member, Primary, Choice);
+				return Refusal.IsEmpty() ? FString::Printf(TEXT("primary: %s put in place of %s (it has no skill with a montage)"), *Candidate->GetName(), *Primary.Name.ToString())
+										 : FString::Printf(TEXT("primary: %s refused (%s)"), *Candidate->GetName(), *Refusal.ToString());
+			}
+		}
+		return FString();
+	}
+
+	/** The primary is the weapon in hand, so the fight starts with it. Empty when it already is. */
+	FString PutPrimaryInHand(UWorld &World, const FLoadoutScreenMember &Member)
+	{
+		FLoadoutScreenPage Page;
+		int32 PrimaryRow = INDEX_NONE;
+		const bool bOtherInHand = FindPrimaryRow(World, Member, Page, PrimaryRow) && !Page.Rows[PrimaryRow].bActive &&
+								  Page.Rows.ContainsByPredicate([](const FLoadoutScreenRow &Row) { return Row.bActive; });
+		if (!bOtherInHand)
+		{
+			return FString();
+		}
+		const FText Refusal = WoRLoadoutScreen::SetRowActive(&World, Member, Page.Rows[PrimaryRow]);
+		return Refusal.IsEmpty() ? FString::Printf(TEXT("in hand: %s"), *Page.Rows[PrimaryRow].Name.ToString())
+								 : FString::Printf(TEXT("in hand: %s refused (%s)"), *Page.Rows[PrimaryRow].Name.ToString(), *Refusal.ToString());
+	}
+
+	/** What the fight reads: the active loadout, the weapon in hand, the primary, and the primary's skill slots. */
+	FString DescribeFightLoadout(UWorld &World, const ULoadoutComponent &Loadout, const FLoadoutScreenMember &Member)
+	{
+		const FLoadoutSkillsPage Page = WoRLoadoutSkills::BuildSkillsPage(&World, Member);
+		const int32 Tab = FindWeaponTab(Page);
+		TArray<FString> Slots;
+		for (int32 Row = 0; Tab != INDEX_NONE && Row < Page.Tabs[Tab].Rows.Num(); ++Row)
+		{
+			const FLoadoutScreenRow &SlotRow = Page.Tabs[Tab].Rows[Row];
+			if (SlotRow.SkillSlot != INDEX_NONE)
+			{
+				Slots.Add(FString::Printf(TEXT("[%d] %s"), SlotRow.SkillSlot, SlotRow.Skill ? *SlotRow.Skill->GetName() : TEXT("-")));
+			}
+		}
+		return FString::Printf(TEXT("fight loadout: %s (%d of %d), in hand %s, primary %s; %s slots %s"), *Loadout.GetActiveLoadout().LoadoutName,
+							   Loadout.GetActiveLoadoutIndex() + 1, Loadout.GetLoadoutCount(), *GetNameSafe(Loadout.GetActiveWeapon()),
+							   *GetNameSafe(Loadout.GetPrimaryWeapon()), Tab == INDEX_NONE ? TEXT("(no weapon list)") : *Page.Tabs[Tab].Title.ToString(),
+							   Slots.IsEmpty() ? TEXT("(none)") : *FString::Join(Slots, TEXT(" ")));
 	}
 
 	/** Puts an HP-cost skill the weapon's list offers in one of its slots (empty slots first). Empty when none is offered. */
@@ -109,14 +178,28 @@ namespace
 
 	FString GiveHPCostSkill(UWorld &World, const ULoadoutComponent &Loadout, UPoolSubsystem &Pool, FName CharacterKey, const FLoadoutScreenMember &Member)
 	{
-		const UWeaponData *Weapon = Loadout.GetActiveWeapon();
+		const TArray<UAbilityData *> Abilities = LoadAll<UAbilityData>();
+		const auto HasFittingSkill = [&Abilities](const UWeaponData *Weapon)
+		{
+			return Abilities.ContainsByPredicate([Weapon](const UAbilityData *Ability) { return WoRQAKit::IsHPCostSkillFor(Ability, Weapon); });
+		};
+		TArray<FString> Steps;
+		if (!HasFittingSkill(Loadout.GetPrimaryWeapon()))
+		{
+			Steps.Add(PutPrimaryWithSkill(World, Member, HasFittingSkill));
+		}
+		Steps.Add(PutPrimaryInHand(World, Member));
+		Steps.RemoveAll([](const FString &Step) { return Step.IsEmpty(); });
+		const FString Prefix = Steps.IsEmpty() ? FString() : FString::Join(Steps, TEXT("; ")) + TEXT("; ");
+
+		const UWeaponData *Weapon = Loadout.GetPrimaryWeapon();
 		if (!Weapon)
 		{
-			return TEXT("skill: no weapon in hand");
+			return Prefix + TEXT("skill: the active loadout's primary is not a weapon");
 		}
 		FString Line = PutOfferedSkill(World, Member, *Weapon);
 		TArray<FString> Learned;
-		for (const UAbilityData *Ability : LoadAll<UAbilityData>())
+		for (const UAbilityData *Ability : Abilities)
 		{
 			if (!Line.IsEmpty() || Learned.Num() >= MAX_SKILLS_LEARNED)
 			{
@@ -130,10 +213,11 @@ namespace
 		}
 		if (Line.IsEmpty())
 		{
-			return FString::Printf(TEXT("skill: no ability that costs EP fits %s (%s, %s)%s"), *Weapon->GetName(), *UEnum::GetValueAsString(Weapon->WeaponType),
-								   *UEnum::GetValueAsString(Weapon->WieldMode), Learned.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("; learned %s"), *FString::Join(Learned, TEXT(", "))));
+			return Prefix + FString::Printf(TEXT("skill: no ability that costs EP and has a SkillMontage fits %s (%s, %s), nor any owned weapon%s"), *Weapon->GetName(),
+											*UEnum::GetValueAsString(Weapon->WeaponType), *UEnum::GetValueAsString(Weapon->WieldMode),
+											Learned.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("; learned %s"), *FString::Join(Learned, TEXT(", "))));
 		}
-		return Learned.IsEmpty() ? Line : FString::Printf(TEXT("%s (learned %s first)"), *Line, *FString::Join(Learned, TEXT(", ")));
+		return Prefix + (Learned.IsEmpty() ? Line : FString::Printf(TEXT("%s (learned %s first)"), *Line, *FString::Join(Learned, TEXT(", "))));
 	}
 
 	FString AddCaster(UWorld &World, const APawn &Pawn, UPartySessionSubsystem &Session, ESpellElement Element)
@@ -190,8 +274,9 @@ namespace
 
 	FAutoConsoleCommandWithWorldAndArgs GQAKitCmd(
 		TEXT("wor.Debug.QAKit"),
-		TEXT("DEBUG (QA setup): [skill] the weapon in hand gets an ability that costs EP (B-592b's HP ghost); [caster [element]] a Caster joins as your seat "
-			 "(the selector colour). No argument: both. Hub only, through the real API."),
+		TEXT("DEBUG (QA setup): [skill] the active loadout's primary (put in hand, the weapon the fight holds) gets an ability that costs EP and has a "
+			 "SkillMontage (B-592b's HP ghost), another owned weapon taking the primary place when it has none; ends on the fight loadout and its slots. "
+			 "[caster [element]] a Caster joins as your seat (the selector colour). No argument: both. Hub only, through the real API."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &Args, UWorld *World)
 			{
@@ -206,7 +291,7 @@ namespace
 
 bool WoRQAKit::IsHPCostSkillFor(const UAbilityData *Ability, const UWeaponData *Weapon)
 {
-	return Ability && Weapon && !Ability->bIsAttack && Ability->BaseEnergyCost > 0 && Ability->RequiredWeaponType == Weapon->WeaponType &&
+	return Ability && Weapon && !Ability->bIsAttack && Ability->BaseEnergyCost > 0 && Ability->SkillMontage && Ability->RequiredWeaponType == Weapon->WeaponType &&
 		   Ability->RequiredWieldMode == Weapon->WieldMode;
 }
 
@@ -260,24 +345,29 @@ FString WoRQAKit::RunQAKit(UWorld *World, const TArray<FString> &Args)
 	}
 
 	TArray<FString> Lines;
-	if (bAll || Args.ContainsByPredicate([](const FString &Arg) { return Arg.Equals(TEXT("skill"), ESearchCase::IgnoreCase); }))
+	const bool bSkill = bAll || Args.ContainsByPredicate([](const FString &Arg) { return Arg.Equals(TEXT("skill"), ESearchCase::IgnoreCase); });
+	const FLoadoutScreenMember *Played = nullptr;
+	const TArray<FLoadoutScreenMember> Members = WoRLoadoutScreen::BuildMembers(World);
+	for (const FLoadoutScreenMember &Member : Members)
+	{
+		UInventoryComponent *Inventory = nullptr;
+		if (WoRLoadoutScreen::FindMemberLoadout(World, Member, Inventory) == Loadout)
+		{
+			Played = &Member;
+		}
+	}
+	if (bSkill)
 	{
 		const FName CharacterKey = UPoolSubsystem::GetCharacterKey(DataComponent);
-		const FLoadoutScreenMember *Played = nullptr;
-		const TArray<FLoadoutScreenMember> Members = WoRLoadoutScreen::BuildMembers(World);
-		for (const FLoadoutScreenMember &Member : Members)
-		{
-			UInventoryComponent *Inventory = nullptr;
-			if (WoRLoadoutScreen::FindMemberLoadout(World, Member, Inventory) == Loadout)
-			{
-				Played = &Member;
-			}
-		}
 		Lines.Add(Played ? GiveHPCostSkill(*World, *Loadout, *Pool, CharacterKey, *Played) : FString(TEXT("skill: the played character is not a party member here")));
 	}
 	if (bAll || CasterArg != INDEX_NONE)
 	{
 		Lines.Add(AddCaster(*World, *Pawn, *Session, Element));
+	}
+	if (bSkill && Played)
+	{
+		Lines.Add(DescribeFightLoadout(*World, *Loadout, *Played)); // last, so the report ends on what the fight will read
 	}
 	return Lines.IsEmpty() ? FString(TEXT("nothing asked: skill | caster [element] (or no argument for both)")) : FString::Join(Lines, TEXT("\n"));
 }
