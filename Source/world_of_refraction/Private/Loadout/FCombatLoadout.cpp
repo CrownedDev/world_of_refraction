@@ -882,6 +882,64 @@ void FCombatLoadout::EditSlots(ECharacterClass CharacterClass, TFunctionRef<void
     }
 }
 
+void FCombatLoadout::EditGearEntries(ECharacterClass CharacterClass, TFunctionRef<void(int32, FWeaponLoadoutEntry *, FRingLoadoutEntry *)> Edit)
+{
+    using namespace WornGearLayout;
+    EditSlots(CharacterClass, [&Edit](FCombatLoadout &Edited)
+    {
+        bool bPrimaryWeaponSlot = false;
+        bool bPrimaryAdapterSlot = false;
+        bool bSecondarySlot = false;
+        TSet<int32> AdapterSlots;
+        for (FLoadoutSlot &Slot : Edited.Slots)
+        {
+            const int32 Place = Slot.Place;
+            if (Slot.Kind() == EGearKind::Weapon)
+            {
+                (Place == PRIMARY_INDEX ? bPrimaryWeaponSlot : bSecondarySlot) = true;
+                FWeaponLoadoutEntry Entry = Slot.ToWeaponLoadoutEntry();
+                Edit(Place, &Entry, nullptr);
+                Slot = FLoadoutSlot::FromWeaponLoadoutEntry(Entry);
+            }
+            else
+            {
+                if (Place == PRIMARY_INDEX)
+                {
+                    bPrimaryAdapterSlot = true;
+                }
+                else
+                {
+                    AdapterSlots.Add(Place - FIRST_ADAPTER_INDEX);
+                }
+                FRingLoadoutEntry Entry = Slot.ToRingLoadoutEntry();
+                Edit(Place, nullptr, &Entry);
+                Slot = FLoadoutSlot::FromRingLoadoutEntry(Entry);
+            }
+            Slot.Place = Place;
+        }
+        Edited.Slots.RemoveAll([](const FLoadoutSlot &Slot) { return Slot.IsEmpty(); });
+        if (!bPrimaryWeaponSlot)
+        {
+            Edit(PRIMARY_INDEX, &Edited.PrimaryWeapon, nullptr);
+        }
+        if (!bSecondarySlot)
+        {
+            Edit(SECONDARY_INDEX, &Edited.SecondaryWeapon, nullptr);
+        }
+        if (!bPrimaryAdapterSlot)
+        {
+            Edit(PRIMARY_INDEX, nullptr, &Edited.PrimaryRing);
+        }
+        for (int32 RingIndex = 0; RingIndex < Edited.RingLoadout.Num(); ++RingIndex)
+        {
+            if (!AdapterSlots.Contains(RingIndex))
+            {
+                Edit(FIRST_ADAPTER_INDEX + RingIndex, nullptr, &Edited.RingLoadout[RingIndex]);
+            }
+        }
+    });
+}
+
 FLoadoutSlot *FCombatLoadout::FindSlotAt(int32 Place)
 {
     return Slots.FindByPredicate([Place](const FLoadoutSlot &Slot) { return Slot.Place == Place; });

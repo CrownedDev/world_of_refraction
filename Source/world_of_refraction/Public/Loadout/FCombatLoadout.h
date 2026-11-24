@@ -275,6 +275,11 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  B-309d4 drops the first rebuild once nothing writes the old fields. */
     void EditSlots(ECharacterClass CharacterClass, TFunctionRef<void(FCombatLoadout &)> Edit);
 
+    /** B-309d3: Edit on each weapon and adapter entry the loadout holds, with its WornGearLayout place (one of the two
+     *  pointers set), inside EditSlots: a slot's entry is edited and put back in its place (an entry left empty leaves
+     *  the place); an old entry no slot mirrors (empty ones too) is edited where it is, which EditSlots keeps. */
+    void EditGearEntries(ECharacterClass CharacterClass, TFunctionRef<void(int32 Place, FWeaponLoadoutEntry *, FRingLoadoutEntry *)> Edit);
+
     /** B-309d2: the slot in a WornGearLayout place, or null. */
     FLoadoutSlot *FindSlotAt(int32 Place);
     const FLoadoutSlot *FindSlotAt(int32 Place) const;
