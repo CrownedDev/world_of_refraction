@@ -29,11 +29,11 @@ class WORLD_OF_REFRACTION_API UInfusionCostHelper : public UBlueprintFunctionLib
 
 public:
     /**
-     * HP integer that would be deducted for an infused action (rework 6-2-3c).
+     * HP integer that would be deducted for an infused action (rework 6-2-3c, D-271).
      * Derived from the infused EP cost: (InfusedEnergyCost / MaxEP) × MaxHP, then
-     * reduced by Resistance. InfusedEnergyCost MUST be the PRE-Efficiency, stat-
-     * scaled EP (Base × charge-mult × (1 + stat surcharge), WITHOUT the Efficiency
-     * multiplier) so Efficiency mitigates EP only and Resistance mitigates HP only.
+     * ScaleHPBacklash (× HP_BACKLASH_MULTIPLIER, Efficiency capped at 50%, Resistance).
+     * InfusedEnergyCost MUST be the PRE-Efficiency, stat-scaled EP (WITHOUT the
+     * Efficiency multiplier): Efficiency's HP cut is applied here, under its own cap.
      *
      * NOT floored — infusion CAN kill the caster. The full cost is returned here and
      * deducted at FinalizeAsyncAction (after the infused effect resolves). Use
@@ -60,6 +60,10 @@ public:
      */
     UFUNCTION(BlueprintPure, Category = "Infusion|Cost")
     static bool WouldKill(AActor *Actor, int32 InfusedEnergyCost);
+
+    /** D-271: BaseHP × HP_BACKLASH_MULTIPLIER × (1 − EfficiencyReduction capped to [0, EFFICIENCY_MAX])
+     *  × max(0, 1 − Resistance). Unrounded. */
+    static float ScaleHPBacklash(float BaseHP, float EfficiencyReduction, float Resistance);
 
     /**
      * Durability wear that would be applied to a crystal for an infused action.

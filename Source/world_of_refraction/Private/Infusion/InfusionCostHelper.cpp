@@ -5,14 +5,14 @@
 #include "Infusion/InfusionConstants.h"
 #include "Equipment/Durability/BreakCalculator.h"
 #include "Character/CharacterDataComponent.h"
+#include "Combat/CombatConstants.h"
 
 namespace
 {
-    /** Unrounded EP-derived infusion HP cost (rework 6-2-3c). The infused EP cost as a
-     *  fraction of max EP, applied to max HP, then reduced by Resistance — the sole HP
-     *  mitigation (Efficiency is already excluded because InfusedEnergyCost is PRE-
-     *  Efficiency). Returns 0 when the component is null, has no EP pool, or the cost
-     *  is non-positive. Shared by CalculateHPCost (rounds it) and WouldKill (compares). */
+    /** Unrounded EP-derived infusion HP cost (rework 6-2-3c, D-271): the infused EP cost as a
+     *  fraction of max EP, applied to max HP, then ScaleHPBacklash. Returns 0 when the component
+     *  is null, has no EP pool, or the cost is non-positive. Shared by CalculateHPCost (rounds it)
+     *  and WouldKill (compares). */
     float ComputeRawInfusionHPCost(const UCharacterDataComponent *CharComp, int32 InfusedEnergyCost)
     {
         if (!CharComp || InfusedEnergyCost <= 0 || CharComp->MaxEP <= 0)
@@ -22,13 +22,18 @@ namespace
 
         const float EPFraction = static_cast<float>(InfusedEnergyCost) / static_cast<float>(CharComp->MaxEP);
         const float BaseHP = EPFraction * static_cast<float>(CharComp->MaxHP);
-
-        // Resistance reduces the HP cost. Max(0, ...) guards against inversion (a
-        // resistance >= 1 zeroes the cost rather than healing); a negative ("cursed")
-        // resistance amplifies it, matching how negative stats behave elsewhere.
-        const float ResistanceFraction = CharComp->GetEffectiveStats().Resistance;
-        return BaseHP * FMath::Max(0.0f, 1.0f - ResistanceFraction);
+        return UInfusionCostHelper::ScaleHPBacklash(BaseHP, CharComp->GetEffectiveEfficiencyReduction(),
+                                                    CharComp->GetEffectiveStats().Resistance);
     }
+}
+
+float UInfusionCostHelper::ScaleHPBacklash(float BaseHP, float EfficiencyReduction, float Resistance)
+{
+    // D-271: Efficiency's cut on HP stops at the stats-only max even with gear (EP keeps its gear ceiling).
+    const float EfficiencyCut = FMath::Clamp(EfficiencyReduction, 0.0f, CombatConstants::EFFICIENCY_MAX);
+    // Max(0, ...) guards against inversion (a resistance >= 1 zeroes the cost rather than healing); a negative
+    // ("cursed") resistance amplifies it, matching how negative stats behave elsewhere.
+    return BaseHP * InfusionConstants::HP_BACKLASH_MULTIPLIER * (1.0f - EfficiencyCut) * FMath::Max(0.0f, 1.0f - Resistance);
 }
 
 int32 UInfusionCostHelper::CalculateHPCost(AActor *Actor, int32 InfusedEnergyCost)
