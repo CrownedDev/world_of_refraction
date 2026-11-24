@@ -558,6 +558,13 @@ namespace
         }
         return Saved.EquippedRings.ContainsByPredicate([&LeftHome](const FResonatorRingSlot &Slot) { return LeftHome(Slot.RingInstance); });
     }
+
+    /** B-309d3: the owner's class, for FCombatLoadout::EditSlots; Generic (the widest mirror) with no character data. */
+    ECharacterClass LoadoutClassOf(const AActor *Owner)
+    {
+        const UCharacterDataComponent *CharComp = Owner ? Owner->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+        return CharComp && CharComp->CharacterData ? CharComp->CharacterData->CharacterClass : ECharacterClass::Generic;
+    }
 }
 
 void UInventoryComponent::PushCustomLoadoutsToPool()
@@ -1012,7 +1019,7 @@ TArray<int32> UInventoryComponent::GetLoadoutsUsing(const FGuid &PersistentID) c
     for (int32 Index = 0; Index < SavedLoadouts.Num(); ++Index)
     {
         FCombatLoadout Copy = SavedLoadouts[Index];
-        if (StripFromLoadout(Copy, PersistentID))
+        if (StripFromLoadout(Copy, PersistentID, LoadoutClassOf(GetOwner())))
         {
             Result.Add(Index);
         }
@@ -1025,7 +1032,7 @@ int32 UInventoryComponent::RemoveFromSavedLoadouts(const FGuid &PersistentID)
     int32 Changed = 0;
     for (FCombatLoadout &Loadout : SavedLoadouts)
     {
-        Changed += StripFromLoadout(Loadout, PersistentID) ? 1 : 0;
+        Changed += StripFromLoadout(Loadout, PersistentID, LoadoutClassOf(GetOwner())) ? 1 : 0;
     }
     if (Changed > 0)
     {
@@ -1037,12 +1044,61 @@ int32 UInventoryComponent::RemoveFromSavedLoadouts(const FGuid &PersistentID)
     return Changed;
 }
 
-bool UInventoryComponent::StripFromLoadout(FCombatLoadout &Loadout, const FGuid &PersistentID)
+namespace InventoryStrip
+{
+    /** B-309d3: takes the piece out of the slots: an off hand alone, else its slot; the adapter loadout closes up. */
+    bool StripSlots(FCombatLoadout &Loadout, const FGuid &PersistentID)
+    {
+        bool bRemoved = false;
+        for (int32 Index = Loadout.Slots.Num() - 1; Index >= 0; --Index)
+        {
+            FLoadoutSlot &Slot = Loadout.Slots[Index];
+            if (Slot.OffHandID == PersistentID)
+            {
+                Slot.OffHandID.Invalidate();
+                Slot.OffHand = FGearInstance();
+                bRemoved = true;
+            }
+            if (Slot.GearID != PersistentID)
+            {
+                continue;
+            }
+            const int32 Place = Slot.Place;
+            Loadout.Slots.RemoveAt(Index);
+            bRemoved = true;
+            if (Place < WornGearLayout::FIRST_ADAPTER_INDEX)
+            {
+                continue;
+            }
+            for (FLoadoutSlot &Later : Loadout.Slots)
+            {
+                Later.Place -= Later.Place > Place ? 1 : 0; // as the old RemoveAt moved the later adapters up
+            }
+        }
+        return bRemoved;
+    }
+
+    /** The old fields' strip, for what no slot mirrors (EditSlots keeps it), and the type fields and the active ring. */
+    bool StripOldFields(FCombatLoadout &Loadout, const FGuid &PersistentID);
+}
+
+bool UInventoryComponent::StripFromLoadout(FCombatLoadout &Loadout, const FGuid &PersistentID, ECharacterClass Class)
 {
     if (!PersistentID.IsValid())
     {
         return false;
     }
+    bool bRemoved = false;
+    Loadout.EditSlots(Class, [&PersistentID, &bRemoved](FCombatLoadout &Edited)
+    {
+        bRemoved = InventoryStrip::StripOldFields(Edited, PersistentID);
+        bRemoved |= InventoryStrip::StripSlots(Edited, PersistentID);
+    });
+    return bRemoved;
+}
+
+bool InventoryStrip::StripOldFields(FCombatLoadout &Loadout, const FGuid &PersistentID)
+{
     bool bRemoved = false;
     // B-477 (D-209): an off hand that goes leaves its set's main hand alone.
     for (FWeaponLoadoutEntry *Set : {&Loadout.PrimaryWeapon, &Loadout.SecondaryWeapon})
@@ -1153,6 +1209,22 @@ namespace InventoryGearSync
         {
             RingFunc(Ring.RingEntry);
         }
+    }
+
+    /** B-309d3: ForEachGearSlot for a writer, through the slots (FCombatLoadout::EditGearEntries). */
+    template <typename FWeaponFunc, typename FRingFunc>
+    void EditGearSlots(FCombatLoadout &Loadout, ECharacterClass Class, FWeaponFunc &&WeaponFunc, FRingFunc &&RingFunc)
+    {
+        Loadout.EditGearEntries(Class, [&WeaponFunc, &RingFunc](int32, FWeaponLoadoutEntry *Weapon, FRingLoadoutEntry *Ring)
+        {
+            if (Weapon)
+            {
+                WeaponFunc(Weapon->WeaponEntry);
+                WeaponFunc(Weapon->OffHandEntry);
+                return;
+            }
+            RingFunc(Ring->RingEntry);
+        });
     }
 
     /** The owned entry onto the slot; the slot keeps its own spell picks (a Resonator ring slot's). */
@@ -1268,7 +1340,7 @@ int32 UInventoryComponent::LinkLoadoutsToOwned()
         ForEachGearSlot(Loadout,
                         [this, &UsedHere](const FWeaponInventoryEntry &Slot) { if (FindOwned(Weapons, Slot.PersistentID)) { UsedHere.Add(Slot.PersistentID); } },
                         [this, &UsedHere](const FRingInventoryEntry &Slot) { if (FindOwned(Rings, Slot.PersistentID)) { UsedHere.Add(Slot.PersistentID); } });
-        ForEachGearSlot(Loadout,
+        EditGearSlots(Loadout, LoadoutClassOf(GetOwner()),
                         [this, &UsedHere, &Linked](FWeaponInventoryEntry &Slot) { Linked += LinkSlot(Slot, Weapons, UsedHere) ? 1 : 0; },
                         [this, &UsedHere, &Linked](FRingInventoryEntry &Slot) { Linked += LinkSlot(Slot, Rings, UsedHere) ? 1 : 0; });
 
@@ -1314,7 +1386,7 @@ int32 UInventoryComponent::RefreshLoadoutsFromOwned(const FGuid &GearID)
     int32 Changed = 0;
     for (FCombatLoadout &Loadout : SavedLoadouts)
     {
-        ForEachGearSlot(Loadout,
+        EditGearSlots(Loadout, LoadoutClassOf(GetOwner()),
                         [&GearID, OwnedWeapon, &Changed](FWeaponInventoryEntry &Slot)
                         {
                             if (OwnedWeapon && Slot.PersistentID == GearID)
@@ -1560,24 +1632,32 @@ namespace InventoryGearSync
         }
         Preset.LoadoutName = RUN_PRESET_NAME;
         const FWeaponInventoryEntry *Weapon = FindOwned(Weapons, Member.RunWeapon);
-        if (Weapon)
+        const FRingInventoryEntry *Ring = FindOwned(Rings, Member.RunRing);
+        Preset.EditSlots(Class, [Class, Weapon, Ring](FCombatLoadout &Edited) // B-309d3: through the slots
         {
-            Preset.PrimarySlotType = EPrimarySlotType::Weapon;
-            Preset.PrimaryWeapon.WeaponEntry = *Weapon;
-        }
-        if (const FRingInventoryEntry *Ring = FindOwned(Rings, Member.RunRing))
-        {
+            using namespace WornGearLayout;
+            if (Weapon)
+            {
+                Edited.PrimarySlotType = EPrimarySlotType::Weapon;
+                FWeaponLoadoutEntry Entry;
+                Entry.WeaponEntry = *Weapon;
+                Edited.PutSlotAt(PRIMARY_INDEX, FLoadoutSlot::FromWeaponLoadoutEntry(Entry));
+            }
+            if (!Ring || (Class != ECharacterClass::Resonator && Weapon))
+            {
+                return;
+            }
+            FRingLoadoutEntry Entry;
+            Entry.RingEntry = *Ring;
             if (Class == ECharacterClass::Resonator)
             {
-                Preset.RingLoadout.AddDefaulted_GetRef().RingEntry = *Ring;
-                Preset.ActiveRingIndex = 0;
+                Edited.PutSlotAt(FIRST_ADAPTER_INDEX, FLoadoutSlot::FromRingLoadoutEntry(Entry));
+                Edited.ActiveRingIndex = 0;
+                return;
             }
-            else if (!Weapon)
-            {
-                Preset.PrimarySlotType = EPrimarySlotType::Ring;
-                Preset.PrimaryRing.RingEntry = *Ring;
-            }
-        }
+            Edited.PrimarySlotType = EPrimarySlotType::Ring;
+            Edited.PutSlotAt(PRIMARY_INDEX, FLoadoutSlot::FromRingLoadoutEntry(Entry));
+        });
         return Preset;
     }
 
@@ -1970,7 +2050,7 @@ int32 UInventoryComponent::AdoptPresetOnlyGear(const UPoolSubsystem &Pool)
             }
             UsedHere.Add(Slot.PersistentID);
         };
-        ForEachGearSlot(Loadout,
+        EditGearSlots(Loadout, LoadoutClassOf(GetOwner()),
                         [this, &Adopt](FWeaponInventoryEntry &Slot) { Adopt(Slot, Weapons); },
                         [this, &Adopt](FRingInventoryEntry &Slot) { Adopt(Slot, Rings); });
     }
@@ -2001,12 +2081,12 @@ int32 UInventoryComponent::StripUnownedGear()
                 Unowned.Add(Slot.PersistentID);
             }
         };
-        ForEachGearSlot(Loadout,
+        EditGearSlots(Loadout, LoadoutClassOf(GetOwner()),
                         [this, &Collect](FWeaponInventoryEntry &Slot) { Collect(Slot, Weapons); },
                         [this, &Collect](FRingInventoryEntry &Slot) { Collect(Slot, Rings); });
         for (const FGuid &ID : Unowned)
         {
-            Stripped += StripFromLoadout(Loadout, ID) ? 1 : 0;
+            Stripped += StripFromLoadout(Loadout, ID, LoadoutClassOf(GetOwner())) ? 1 : 0;
         }
         const bool bEvolutionSlot = Loadout.PrimarySlotType == EPrimarySlotType::Evolution && Loadout.PrimaryEvolution.Item;
         if (bEvolutionSlot && !FindOwnedEvolution(GetOwner(), Loadout.PrimaryEvolutionInstance))
@@ -2026,8 +2106,8 @@ bool UInventoryComponent::RefillActivePrimary(const FGuid &Excluded)
     {
         return false;
     }
-    const UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr;
-    const bool bTakesAdapterPrimary = !(CharComp && CharComp->CharacterData && CharComp->CharacterData->CharacterClass == ECharacterClass::Resonator);
+    const ECharacterClass Class = LoadoutClassOf(GetOwner());
+    const bool bTakesAdapterPrimary = Class != ECharacterClass::Resonator;
     const TMap<FName, const UCharacterData *> Party = GetPartyMembersByKey();
     FCombatLoadout &Loadout = SavedLoadouts[ActiveLoadoutIndex];
     {
@@ -2040,33 +2120,35 @@ bool UInventoryComponent::RefillActivePrimary(const FGuid &Excluded)
             return GetGearAsset(Entry) && Entry.PersistentID.IsValid() && Entry.PersistentID != Excluded &&
                    !InLoadout.Contains(Entry.PersistentID) && !IsWornByOtherMemberOf(Entry.PersistentID, Party);
         };
-        FString Filler;
-        if (const FWeaponInventoryEntry *Weapon = Weapons.FindByPredicate(Usable))
-        {
-            Loadout.PrimaryRing.Clear();
-            Loadout.PrimaryEvolution = FEvolutionAttachment();
-            Loadout.PrimaryEvolutionInstance = FGuid();
-            Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
-            Loadout.PrimaryWeapon.Clear(); // no picks carried over from an old slot
-            Loadout.PrimaryWeapon.WeaponEntry = *Weapon;
-            Loadout.PrimaryWeapon.InitializeFromWeapon();
-            Filler = GetNameSafe(Weapon->Weapon);
-        }
-        else if (const FRingInventoryEntry *Ring = bTakesAdapterPrimary ? Rings.FindByPredicate(Usable) : nullptr)
-        {
-            Loadout.PrimaryWeapon.Clear();
-            Loadout.PrimaryEvolution = FEvolutionAttachment();
-            Loadout.PrimaryEvolutionInstance = FGuid();
-            Loadout.PrimarySlotType = EPrimarySlotType::Ring;
-            Loadout.PrimaryRing.Clear();
-            Loadout.PrimaryRing.RingEntry = *Ring;
-            Loadout.PrimaryRing.InitializeFromRing();
-            Filler = GetNameSafe(Ring->Ring);
-        }
-        else
+        const FWeaponInventoryEntry *Weapon = Weapons.FindByPredicate(Usable);
+        const FRingInventoryEntry *Ring = !Weapon && bTakesAdapterPrimary ? Rings.FindByPredicate(Usable) : nullptr;
+        if (!Weapon && !Ring)
         {
             return false; // nothing usable owned: the empty-primary fallback (Q-304) stays the guard
         }
+        // B-309d3: the new primary goes in its slot; the old entries and the evolution go, so no picks carry over.
+        Loadout.EditSlots(Class, [Weapon, Ring](FCombatLoadout &Edited)
+        {
+            Edited.PrimaryWeapon.Clear();
+            Edited.PrimaryRing.Clear();
+            Edited.PrimaryEvolution = FEvolutionAttachment();
+            Edited.PrimaryEvolutionInstance = FGuid();
+            if (Weapon)
+            {
+                Edited.PrimarySlotType = EPrimarySlotType::Weapon;
+                FWeaponLoadoutEntry Entry;
+                Entry.WeaponEntry = *Weapon;
+                Entry.InitializeFromWeapon();
+                Edited.PutSlotAt(WornGearLayout::PRIMARY_INDEX, FLoadoutSlot::FromWeaponLoadoutEntry(Entry));
+                return;
+            }
+            Edited.PrimarySlotType = EPrimarySlotType::Ring;
+            FRingLoadoutEntry Entry;
+            Entry.RingEntry = *Ring;
+            Entry.InitializeFromRing();
+            Edited.PutSlotAt(WornGearLayout::PRIMARY_INDEX, FLoadoutSlot::FromRingLoadoutEntry(Entry));
+        });
+        const FString Filler = Weapon ? GetNameSafe(Weapon->Weapon) : GetNameSafe(Ring->Ring);
         UE_LOG(LogTemp, Warning, TEXT("[Inventory] %s: loadout '%s' had no primary - filled with %s (D-116)"),
                *GetNameSafe(GetOwner()), *Loadout.LoadoutName, *Filler);
     }
@@ -2135,7 +2217,7 @@ int32 UInventoryComponent::MoveLoadoutSlots(const FGuid &From, const FGuid &To)
         }
         if (bHoldsTo)
         {
-            StripFromLoadout(Loadout, To); // the kept copy leaves its other slot to become the primary (D-116)
+            StripFromLoadout(Loadout, To, LoadoutClassOf(GetOwner())); // the kept copy leaves its other slot to become the primary (D-116)
         }
         const auto Repoint = [&From, &To, &Moved](auto &Slot)
         {
@@ -2145,7 +2227,8 @@ int32 UInventoryComponent::MoveLoadoutSlots(const FGuid &From, const FGuid &To)
                 ++Moved;
             }
         };
-        ForEachGearSlot(Loadout, [&Repoint](FWeaponInventoryEntry &Slot) { Repoint(Slot); }, [&Repoint](FRingInventoryEntry &Slot) { Repoint(Slot); });
+        EditGearSlots(Loadout, LoadoutClassOf(GetOwner()), [&Repoint](FWeaponInventoryEntry &Slot) { Repoint(Slot); },
+                      [&Repoint](FRingInventoryEntry &Slot) { Repoint(Slot); });
     }
     if (Moved > 0)
     {
@@ -2233,7 +2316,7 @@ TArray<FText> UInventoryComponent::ClaimActiveSharedGear()
         }
         else
         {
-            StripFromLoadout(Active, Piece.Key);
+            StripFromLoadout(Active, Piece.Key, LoadoutClassOf(GetOwner()));
         }
         FPoolGearClash &Clash = Clashes.AddDefaulted_GetRef();
         Clash.GearID = Piece.Key;
