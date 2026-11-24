@@ -1255,7 +1255,7 @@ The queue of questions only Crown can answer.
 **Question:** Force Strike swings from where the fighter stands and sends the cut through the air (D-273). What are its numbers next to Quick Strike's 35 damage / 10 EP?
 **Answer (default, built):** **30 damage, 12 EP, 5 status buildup, 1 action, no stat scaling, Ranged.**
 - A little less damage than Quick Strike for a little more EP: you pay for not having to close the distance (no dash in, no counter window up close).
-- Buildup 5 like Quick Strike: a plain cut, not a status tool. Projectile speed 1500.
+- Buildup 5 like Quick Strike: a plain cut, not a status tool. Projectile speed 1500: about 0.5 s of flight across the usual 7 m gap, the same time to read it and Guard or Dodge as a spell bolt.
 - On the QA save it hit the test enemy for 71 (Quick Strike: 96).
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
