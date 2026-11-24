@@ -118,7 +118,23 @@ ESpellElement WeaponTrail::GetInfusedElement(AActor *Owner)
 	return Executor->GetElementForSourceOption(Owner, Context->Action.SelectedSource);
 }
 
-UNiagaraComponent *WeaponTrail::Start(AActor *Owner, ESpellElement Element)
+int32 WeaponTrail::GetInfusedLevel(AActor *Owner)
+{
+	UActionExecutor *Executor = Owner ? WoRFight::Get<UActionExecutor>(Owner) : nullptr;
+	const FActionExecutionContext *Context = Executor ? Executor->GetCurrentExecutionContext() : nullptr;
+	if (!Context || Context->Executor.Get() != Owner)
+	{
+		return 0;
+	}
+	return FMath::Max(0, FMath::Max(Context->Action.SpellInfusionLevel, Context->Action.AbilityInfusionLevel));
+}
+
+FLinearColor WeaponTrail::TintFor(ESpellElement Element, int32 Level, const FLinearColor &Plain)
+{
+	return UImpactVisualDefaults::ForInfusionLevel(Level).Brighten(ColorFor(Element, Plain));
+}
+
+UNiagaraComponent *WeaponTrail::Start(AActor *Owner, ESpellElement Element, int32 Level)
 {
 	UMeshComponent *Mesh = FindWeaponMesh(Owner);
 	const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
@@ -143,14 +159,14 @@ UNiagaraComponent *WeaponTrail::Start(AActor *Owner, ESpellElement Element)
 	Trail->ComponentTags.Add(COMPONENT_TAG);
 	Trail->SetVariableVec3(START_PARAM, TrailStart);
 	Trail->SetVariableVec3(END_PARAM, TrailEnd);
-	Trail->SetVariableLinearColor(COLOR_PARAM, ColorFor(Element, Defaults->PlainTrailColor));
-	UE_LOG(LogWoRCombat, Verbose, TEXT("[WeaponTrail] %s plays %s (%s)"), *GetNameSafe(Owner), *System->GetName(), *UEnum::GetValueAsString(Element));
+	Trail->SetVariableLinearColor(COLOR_PARAM, TintFor(Element, Level, Defaults->PlainTrailColor));
+	UE_LOG(LogWoRCombat, Verbose, TEXT("[WeaponTrail] %s plays %s (%s, level %d)"), *GetNameSafe(Owner), *System->GetName(), *UEnum::GetValueAsString(Element), Level);
 	return Trail;
 }
 
 UNiagaraComponent *WeaponTrail::Start(AActor *Owner)
 {
-	return Start(Owner, GetInfusedElement(Owner));
+	return Start(Owner, GetInfusedElement(Owner), GetInfusedLevel(Owner));
 }
 
 void WeaponTrail::Stop(AActor *Owner)
@@ -229,11 +245,11 @@ FString WeaponTrail::GetTrailString(AActor *Owner)
 	const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
 	FVector TrailStart, TrailEnd;
 	const bool bSockets = GetTrailPoints(*Mesh, TrailStart, TrailEnd);
-	return FString::Printf(TEXT("%s: mesh %s, %s, system %s, ends %s to %s (%s), element %s"), *GetNameSafe(Owner),
+	return FString::Printf(TEXT("%s: mesh %s, %s, system %s, ends %s to %s (%s), element %s, level %d"), *GetNameSafe(Owner),
 						   *Mesh->GetName(), WeaponShownHasTrail(Owner) ? TEXT("has a trail") : TEXT("no trail (bow, gun or shield)"),
 						   !Defaults ? TEXT("(no defaults asset)") : (Defaults->WeaponTrailVFX.IsNull() ? TEXT("(empty slot)") : *Defaults->WeaponTrailVFX.GetAssetName()),
 						   *TrailStart.ToCompactString(), *TrailEnd.ToCompactString(), bSockets ? TEXT("sockets") : TEXT("long axis"),
-						   *UEnum::GetValueAsString(GetInfusedElement(Owner)));
+						   *UEnum::GetValueAsString(GetInfusedElement(Owner)), GetInfusedLevel(Owner));
 }
 
 void UWeaponTrailWindow::NotifyBegin(USkeletalMeshComponent *MeshComp, UAnimSequenceBase *Animation, float TotalDuration,

@@ -54,9 +54,15 @@ namespace WeaponTrail
 	/** The element of Owner's running action's infusion; None when it isn't acting or isn't infused. */
 	ESpellElement GetInfusedElement(AActor *Owner);
 
-	/** Play the trail on Owner's weapon in hand, tinted by Element; null with no weapon shown, no trail kind or no
-	 *  trail system authored. */
-	UNiagaraComponent *Start(AActor *Owner, ESpellElement Element);
+	/** The infusion level of Owner's running action (the higher of its spell and ability levels); 0 when not acting. */
+	int32 GetInfusedLevel(AActor *Owner);
+
+	/** The trail's tint: ColorFor, brightened by the level's intensity (DA_ImpactVisualDefaults' level table). */
+	FLinearColor TintFor(ESpellElement Element, int32 Level, const FLinearColor &Plain);
+
+	/** Play the trail on Owner's weapon in hand, tinted by Element at Level; null with no weapon shown, no trail kind
+	 *  or no trail system authored. */
+	UNiagaraComponent *Start(AActor *Owner, ESpellElement Element, int32 Level = 0);
 	UNiagaraComponent *Start(AActor *Owner);
 
 	/** Fade out Owner's playing trails. */

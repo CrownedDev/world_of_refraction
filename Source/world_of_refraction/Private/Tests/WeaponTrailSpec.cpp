@@ -1,6 +1,7 @@
 // WeaponTrailSpec.cpp
 // Crown 2026-11-24: the weapon trail's rules: which weapon types trail, its tint, the fallback window (first Impact's
-// wind-up to the last Impact), the long-axis ends when the weapon has no trail sockets, and the per-element glow lookup.
+// wind-up to the last Impact), the long-axis ends when the weapon has no trail sockets, the per-element, Physical and Raw
+// glow lookup, and the per-level look (brighter and bigger at higher levels).
 
 #include "Combat/Presentation/WeaponTrail.h"
 #include "Combat/Presentation/ImpactVisualDefaults.h"
@@ -33,6 +34,50 @@ void FWeaponTrailSpec::Define()
 		Defaults->ElementInfusionGlowVFX.Add(ESpellElement::Fire, TSoftObjectPtr<UNiagaraSystem>(FireGlow));
 		TestEqual(TEXT("fire's glow"), Defaults->GetInfusionGlowVFX(ESpellElement::Fire).ToSoftObjectPath(), FireGlow);
 		TestTrue(TEXT("water has none"), Defaults->GetInfusionGlowVFX(ESpellElement::Water).IsNull());
+	});
+
+	It("gives Physical and Raw infusions their own default glows", [this]()
+	{
+		UImpactVisualDefaults *Defaults = NewObject<UImpactVisualDefaults>();
+		const FSoftObjectPath FireGlow(TEXT("/Game/Test/NS_FireGlow.NS_FireGlow"));
+		const FSoftObjectPath PhysicalGlow(TEXT("/Game/Test/NS_PhysicalGlow.NS_PhysicalGlow"));
+		const FSoftObjectPath RawGlow(TEXT("/Game/Test/NS_RawGlow.NS_RawGlow"));
+		Defaults->ElementInfusionGlowVFX.Add(ESpellElement::Fire, TSoftObjectPtr<UNiagaraSystem>(FireGlow));
+		Defaults->PhysicalInfusionGlowVFX = TSoftObjectPtr<UNiagaraSystem>(PhysicalGlow);
+		Defaults->RawInfusionGlowVFX = TSoftObjectPtr<UNiagaraSystem>(RawGlow);
+		TestEqual(TEXT("no element is Physical"), Defaults->GetInfusionGlowVFX(ESpellElement::None).ToSoftObjectPath(), PhysicalGlow);
+		TestEqual(TEXT("an unresolved Generic is Physical"), Defaults->GetInfusionGlowVFX(ESpellElement::Generic).ToSoftObjectPath(), PhysicalGlow);
+		TestEqual(TEXT("Raw is Raw's, whatever the element"), Defaults->GetInfusionGlowVFX(ESpellElement::Fire, true).ToSoftObjectPath(), RawGlow);
+		TestEqual(TEXT("fire keeps fire's"), Defaults->GetInfusionGlowVFX(ESpellElement::Fire).ToSoftObjectPath(), FireGlow);
+	});
+
+	It("plays a higher infusion level brighter and bigger, from one table", [this]()
+	{
+		const UImpactVisualDefaults *Defaults = NewObject<UImpactVisualDefaults>();
+		const FInfusionLevelVisual Off = Defaults->GetInfusionLevelVisual(0);
+		const FInfusionLevelVisual One = Defaults->GetInfusionLevelVisual(1);
+		const FInfusionLevelVisual Two = Defaults->GetInfusionLevelVisual(2);
+		TestEqual(TEXT("level 0 is plain brightness"), Off.Intensity, 1.0f);
+		TestEqual(TEXT("level 0 is plain size"), Off.Size, 1.0f);
+		TestTrue(TEXT("level 1 is bigger than none"), One.Size > Off.Size);
+		TestTrue(TEXT("level 2 is brighter than level 1"), Two.Intensity > One.Intensity);
+		TestTrue(TEXT("level 2 is bigger than level 1"), Two.Size > One.Size);
+		TestEqual(TEXT("a level past the table uses the last row"), Defaults->GetInfusionLevelVisual(5).Size, Two.Size);
+
+		UImpactVisualDefaults *Empty = NewObject<UImpactVisualDefaults>();
+		Empty->InfusionLevelVisuals.Empty();
+		TestEqual(TEXT("no rows: plain size"), Empty->GetInfusionLevelVisual(2).Size, 1.0f);
+
+		const FLinearColor Brightened = Two.Brighten(FLinearColor(0.2f, 0.4f, 0.1f, 0.5f));
+		TestEqual(TEXT("brightens red by the intensity"), Brightened.R, 0.2f * Two.Intensity);
+		TestEqual(TEXT("keeps the alpha"), Brightened.A, 0.5f);
+	});
+
+	It("tints the trail at level 0 exactly as its element's colour", [this]()
+	{
+		const FLinearColor Plain(0.5f, 0.6f, 0.7f, 1.0f);
+		TestEqual(TEXT("fire at level 0"), WeaponTrail::TintFor(ESpellElement::Fire, 0, Plain), WeaponTrail::ColorFor(ESpellElement::Fire, Plain));
+		TestEqual(TEXT("plain at level 0"), WeaponTrail::TintFor(ESpellElement::None, 0, Plain), Plain);
 	});
 
 	It("tints by the infusion's element, and plain with no infusion, a Physical or a Raw one", [this]()
