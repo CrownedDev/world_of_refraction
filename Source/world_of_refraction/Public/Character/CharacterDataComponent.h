@@ -513,7 +513,7 @@ public:
     // Server only, like the EP functions (B-131): plain calls run on the authority. Each broadcasts
     // OnActionsChanged when the count changes.
 
-    /** Fight start: the regain amount, capped at Max (Q-170). */
+    /** Fight start: 1 action, capped at Max (D-274; was the regain, Q-170). */
     UFUNCTION(BlueprintCallable, Category = "Combat|Actions")
     void ResetActionsForFight();
 

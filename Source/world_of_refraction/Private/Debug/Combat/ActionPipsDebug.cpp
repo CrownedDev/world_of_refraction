@@ -54,7 +54,7 @@ namespace
 
 	FAutoConsoleCommandWithWorld GResetActionsCmd(
 		TEXT("wor.Actions.Reset"),
-		TEXT("DEBUG: set every combatant to its fight-start actions (the regain, capped at Max)."),
+		TEXT("DEBUG: set every combatant to its fight-start actions (1, capped at Max; D-274)."),
 		FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World) { UActionPipsDebug::ResetActionsForFight(World); }));
 
 	FAutoConsoleCommandWithWorldAndArgs GHideEndTurnCmd(

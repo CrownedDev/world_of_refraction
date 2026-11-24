@@ -3,7 +3,7 @@
 // = 2 + one per whole 100 action points (progress shown), Reflex sets the regain (B-170i, Q-170i: 1 + one per
 // whole step of Reflex value, Body levels cancel, Body boosts count), the regain never fills past Max, a gain may pass
 // Max when it says so and the extra is lost at turn end (Q-170f2), a fight
-// starts with the regain capped at Max, and OnActionsChanged reports each change. Nothing reads the bank
+// starts with 1 action whatever the regain (D-274), and OnActionsChanged reports each change. Nothing reads the bank
 // for turns yet (B-170b / B-170c).
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -154,11 +154,12 @@ void FActionPipsSpec::Define()
 			TestFalse(TEXT("Three used: the turn ends"), ActionPipsRules::HasSkillsLeftThisTurn(SKILLS_PER_TURN_MAX));
 		});
 
-		It("starts a fight with the regain, capped at Max", [this]()
+		It("starts a fight with 1 action, whatever the regain (D-274)", [this]()
 		{
-			TestEqual(TEXT("Regain 1"), ActionPipsRules::ActionsAtFightStart(ACTIONS_REGAIN_BASE, MAX_ACTIONS_BASE), ACTIONS_REGAIN_BASE);
-			TestEqual(TEXT("Regain 3, Max 2"), ActionPipsRules::ActionsAtFightStart(ACTION_PIPS_REGAIN_THREE, MAX_ACTIONS_BASE),
-					  MAX_ACTIONS_BASE);
+			TestEqual(TEXT("One action"), ACTIONS_AT_FIGHT_START, 1);
+			TestEqual(TEXT("Max 2"), ActionPipsRules::ActionsAtFightStart(MAX_ACTIONS_BASE), ACTIONS_AT_FIGHT_START);
+			TestEqual(TEXT("Max 5"), ActionPipsRules::ActionsAtFightStart(MAX_ACTIONS_CAP), ACTIONS_AT_FIGHT_START);
+			TestEqual(TEXT("Never past Max (a Max of 0)"), ActionPipsRules::ActionsAtFightStart(0), 0);
 		});
 	});
 
@@ -244,12 +245,14 @@ void FActionPipsSpec::Define()
 			TestEqual(TEXT("The Body buff lifts it past one step"), GearedChar->GetActionRegain(), ACTIONS_REGAIN_BASE + 1);
 		});
 
-		It("starts a fight with the regain capped at Max, and regains up to Max only", [this]()
+		It("starts a fight with 1 action even with a big regain (D-274), and regains up to Max only", [this]()
 		{
 			if (!Char) return;
 			Data->Reflex = ACTION_PIPS_HUGE_REFLEX;
 			Char->ResetActionsForFight();
-			TestEqual(TEXT("The capped regain, capped again at Max 2"), Char->CurrentActions, MAX_ACTIONS_BASE);
+			TestEqual(TEXT("One action at fight start, not the regain"), Char->CurrentActions, ACTIONS_AT_FIGHT_START);
+			Char->RegainActions();
+			TestEqual(TEXT("The second turn's regain fills to Max 2"), Char->CurrentActions, MAX_ACTIONS_BASE);
 
 			TestTrue(TEXT("Spent 2"), Char->SpendActions(MAX_ACTIONS_BASE));
 			Data->Reflex = 0;
@@ -264,11 +267,11 @@ void FActionPipsSpec::Define()
 		{
 			if (!Char) return;
 			Char->ResetActionsForFight();
-			TestEqual(TEXT("Fight start, no Reflex"), Char->CurrentActions, ACTIONS_REGAIN_BASE);
-			TestFalse(TEXT("A cost above the bank is refused"), Char->SpendActions(ACTIONS_REGAIN_BASE + 1));
-			TestEqual(TEXT("Nothing spent"), Char->CurrentActions, ACTIONS_REGAIN_BASE);
+			TestEqual(TEXT("Fight start"), Char->CurrentActions, ACTIONS_AT_FIGHT_START);
+			TestFalse(TEXT("A cost above the bank is refused"), Char->SpendActions(ACTIONS_AT_FIGHT_START + 1));
+			TestEqual(TEXT("Nothing spent"), Char->CurrentActions, ACTIONS_AT_FIGHT_START);
 			TestFalse(TEXT("A cost of 0 is refused"), Char->SpendActions(0));
-			Char->LoseActions(ACTIONS_REGAIN_BASE + 1);
+			Char->LoseActions(ACTIONS_AT_FIGHT_START + 1);
 			TestEqual(TEXT("Never below 0"), Char->CurrentActions, 0);
 		});
 
@@ -297,13 +300,13 @@ void FActionPipsSpec::Define()
 			Char->OnActionsChanged.AddDynamic(Recorder, &UActionsChangedRecorder::Record);
 
 			Char->ResetActionsForFight();
-			Char->SpendActions(ACTIONS_REGAIN_BASE);
+			Char->SpendActions(ACTIONS_AT_FIGHT_START);
 			Char->LoseActions(1); // already 0: no change
 			Char->SpendActions(1); // refused: no change
 
 			if (TestEqual(TEXT("Two broadcasts"), Recorder->Broadcasts.Num(), 2))
 			{
-				TestEqual(TEXT("Fight start: current"), Recorder->Broadcasts[0].Key, ACTIONS_REGAIN_BASE);
+				TestEqual(TEXT("Fight start: current"), Recorder->Broadcasts[0].Key, ACTIONS_AT_FIGHT_START);
 				TestEqual(TEXT("Fight start: max"), Recorder->Broadcasts[0].Value, MAX_ACTIONS_BASE);
 				TestEqual(TEXT("Spent: current"), Recorder->Broadcasts[1].Key, 0);
 			}
