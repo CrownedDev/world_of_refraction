@@ -1267,6 +1267,17 @@ The queue of questions only Crown can answer.
 - **The party card's gear tooltip** just goes; the gear names stay in the loadout screen.
 **Reference:** Persona 5 and Expedition 33 show a short line in a fixed place when you try a command you can't use, instead of a pop-up; Final Fantasy X's help bar is the same idea. All three read as part of the menu, not on top of it.
 
+### Q-595b — Over Under's numbers and camera (two hits)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595b) · **Blocks:** nothing
+**Question:** Over Under had the placeholder 30 damage / 15 EP and a vendor execution montage. What are its numbers, how is the damage split over its two cuts, and which camera style?
+**Answer (default, built):** **50 damage, 15 EP, 5 status buildup, 1 action, no stat scaling; split 40% / 60%; Melee Rush.**
+- Between Quick Strike (35 / 10) and Heavy Attack (80 / 25): +30 over Slash for 15 EP, so the damage per EP climbs a little with each step up.
+- The down cut takes 40%, the rising cut 60%: the second hit lands harder, the payoff of the combo. A dodge or guard is judged per hit (QA: the first dodged, the second hit for 54 of 90).
+- Melee Rush, like Quick Strike: it dashes in, so it gets the rush shot and the cut to the side view on arrival; both hits land in that shot.
+- Montage: Quick Strike's dash, then `Sword_1H_Attack_Combo1` 0.65 to 1.65 s (a cut down, a cut up), Impact0 and Impact1 on the two contact frames (`wor.Editor.BuildOverUnderMontage`).
+- **Price:** tier F, 25 Gold + 10 Dormant Essence in the Combat Master, like Quick Strike.
+**Reference:** Expedition 33's multi-hit skills put the biggest hit last, and Honkai: Star Rail's multi-hit attacks also weight the final hit; players read the last hit as the finisher. Persona 5 keeps one camera through a multi-hit melee move instead of cutting per hit.
+
 ### Q-595e — Force Strike's numbers (the ranged air slash)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595e) · **Blocks:** nothing
 **Question:** Force Strike swings from where the fighter stands and sends the cut through the air (D-273). What are its numbers next to Quick Strike's 35 damage / 10 EP?
