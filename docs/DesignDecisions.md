@@ -1267,6 +1267,39 @@ The queue of questions only Crown can answer.
 - **The party card's gear tooltip** just goes; the gear names stay in the loadout screen.
 **Reference:** Persona 5 and Expedition 33 show a short line in a fixed place when you try a command you can't use, instead of a pop-up; Final Fantasy X's help bar is the same idea. All three read as part of the menu, not on top of it.
 
+### Q-595b — Over Under's numbers and camera (two hits)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595b) · **Blocks:** nothing
+**Question:** Over Under had the placeholder 30 damage / 15 EP and a vendor execution montage. What are its numbers, how is the damage split over its two cuts, and which camera style?
+**Answer (default, built):** **50 damage, 15 EP, 5 status buildup, 1 action, no stat scaling; split 40% / 60%; Melee Rush.**
+- Between Quick Strike (35 / 10) and Heavy Attack (80 / 25): +30 over Slash for 15 EP, so the damage per EP climbs a little with each step up.
+- The down cut takes 40%, the rising cut 60%: the second hit lands harder, the payoff of the combo. A dodge or guard is judged per hit (QA: the first dodged, the second hit for 54 of 90).
+- Melee Rush, like Quick Strike: it dashes in, so it gets the rush shot and the cut to the side view on arrival; both hits land in that shot.
+- Montage: Quick Strike's dash, then `Sword_1H_Attack_Combo1` 0.65 to 1.65 s (a cut down, a cut up), Impact0 and Impact1 on the two contact frames (`wor.Editor.BuildOverUnderMontage`).
+- **Price:** tier F, 25 Gold + 10 Dormant Essence in the Combat Master, like Quick Strike.
+**Reference:** Expedition 33's multi-hit skills put the biggest hit last, and Honkai: Star Rail's multi-hit attacks also weight the final hit; players read the last hit as the finisher. Persona 5 keeps one camera through a multi-hit melee move instead of cutting per hit.
+
+### Q-595c — Heavy Attack's wind-up and numbers
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595c) · **Blocks:** nothing
+**Question:** Heavy Attack fires on a later turn (the ritual path). How long is the wind-up, what does it cost, and how is it framed?
+**Answer (default, built):** **1 turn of wind-up; 80 damage, 25 EP (paid on the wind-up turn), buildup 10, striking range 160 cm; Heavy Wind-Up camera.**
+- One turn: the enemy gets one turn to see it coming; longer makes a single-target hit easy to waste. 80 / 25 stay as Q-595 set them (the best damage per EP of the four, paid for by the turn of warning).
+- Buildup 10, double the light cuts: a heavy blow staggers more.
+- Wind-up turn: the one-handed sword's power-up gesture in place, the camera's slow push. Release turn: the dash, the overhead lunge (the low hero angle as the dash ends is with the Writer: `wip/B-595c-camera-notes`).
+- **Price:** tier F, 25 Gold + 10 Dormant Essence in the Combat Master.
+- **Also changes:** the Resonator's starting inventory has this same Heavy Attack, so it winds up too.
+**Reference:** Final Fantasy X's Delay attacks and Octopath Traveler's charged Break moves telegraph a big hit a turn ahead, and Expedition 33's charged skills (e.g. Monoco's) pay up front for a bigger hit later; players like reading the threat and answering it. Persona 5 cuts to a low angle for heavy physical skills.
+
+### Q-595d — WhirlWind's numbers, wind-up and camera
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595d) · **Blocks:** nothing
+**Question:** WhirlWind hits every enemy. What does it cost, does it wind up a turn first, and how is it framed? (The backlog row said a wind-up and its own `CameraSequence`; the brain's brief said the Area Sweep camera style.)
+**Answer (default, built):** **35 damage to each enemy, 25 EP, buildup 5, striking range 150 cm; fires the same turn (no wind-up); Area Sweep camera.**
+- Each enemy takes Quick Strike's damage for the cost of Heavy Attack: worth it from two enemies up, weaker than Quick Strike on one.
+- No wind-up turn: Heavy Attack is the sword's wind-up skill; two delayed skills in a four-skill kit is one too many, and the spin itself is the build-up.
+- Area Sweep (the high wide view) instead of a hand-made cinematic: it keeps every enemy in shot and hands back on time; a `CameraSequence` can come later if Crown wants one.
+- The move: a dash in, a full spin with the sword out, ending in a slam; the hit lands on the slam (Impact0).
+- **Price:** priced by its tier in the Combat Master, like the other sword skills.
+**Reference:** Final Fantasy's Cyclone/Whirlwind-type skills and Octopath Traveler's all-enemy attacks hit everyone for less than a single-target skill at a higher cost; Persona 5 frames all-enemy physicals from a wide, high camera.
+
 ### Q-595e — Force Strike's numbers (the ranged air slash)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595e) · **Blocks:** nothing
 **Question:** Force Strike swings from where the fighter stands and sends the cut through the air (D-273). What are its numbers next to Quick Strike's 35 damage / 10 EP?

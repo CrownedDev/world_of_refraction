@@ -7,6 +7,9 @@
 //   this file's montage helpers)
 //   wor.Editor.BuildQuickStrikeMontage (B-595a: the dash + the one-handed sword's slash, for Quick Strike)
 //   wor.Editor.BuildForceStrikeMontage (B-595e: a standing slash, Cast0 on the cut, for Force Strike's projectile)
+//   wor.Editor.BuildOverUnderMontage (B-595b: the dash + a cut down and a cut up, Impact0 and Impact1)
+//   wor.Editor.BuildHeavyAttackMontages (B-595c: Heavy Attack's wind-up turn, and its dash + overhead lunge)
+//   wor.Editor.BuildWhirlWindMontage (B-595d: the dash + a spin ending in a slam, for WhirlWind)
 // Times are from docs/analysis/ShowcaseAnimAnalysis.md, "Travel without stretching".
 
 #if WITH_EDITOR
@@ -61,6 +64,43 @@ namespace LightHitMontageBuilder
 	constexpr const TCHAR *FORCE_STRIKE_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/DSAS_V1/Manny_UE5/InPlace/Attack/CommonAttack/Anim_SAS_Slash1_IP.Anim_SAS_Slash1_IP");
 	/** The flat cut: weapon_r is fastest at frame 38 of 80 (40 fps) and stops sharply by frame 41 (sample_bones.sh). */
 	constexpr float FORCE_STRIKE_RELEASE_TIME = 0.95f;
+
+	// ---- B-595b: Over Under, the light hit's dash then a cut down and a cut up (two Impacts) ----
+	constexpr const TCHAR *OVER_UNDER_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/OverUnder");
+	constexpr const TCHAR *OVER_UNDER_MONTAGE = TEXT("AM_Sword_OverUnder");
+	/** Root motion, read only (vendor folder): a three-swing combo; only its 2nd (down) and 3rd (rising) swings are used. */
+	constexpr const TCHAR *OVER_UNDER_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordV1/Manny_UE5/RootMotion/Attack/Anim_Sword_1H_Attack_Combo1.Anim_Sword_1H_Attack_Combo1");
+	/** In the clip's own time (sample_bones.sh, weapon_r at 60 fps): the sword is raised between swings at 0.65 s (the
+	 *  pose nearest the dash's end, closer than Quick Strike's join), settled after the rising cut by 1.65 s. */
+	constexpr float OVER_UNDER_CLIP_START = 0.65f;
+	constexpr float OVER_UNDER_CLIP_END = 1.65f;
+	/** In the segment's time: the down cut peaks at 0.883 s of the clip (z 139 -> 97), the rising cut at 1.383 s (z 106 -> 174). */
+	constexpr float OVER_UNDER_OVER_IMPACT_TIME = 0.233f;
+	constexpr float OVER_UNDER_UNDER_IMPACT_TIME = 0.733f;
+
+	// ---- B-595c: Heavy Attack, a wind-up turn (the ritual leg), then the dash and one lunging overhead cut ----
+	constexpr const TCHAR *HEAVY_ATTACK_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/HeavyAttack");
+	constexpr const TCHAR *HEAVY_ATTACK_MONTAGE = TEXT("AM_Sword_HeavyAttack");
+	constexpr const TCHAR *HEAVY_WIND_UP_MONTAGE = TEXT("AM_Sword_HeavyAttack_WindUp");
+	/** Read only (vendor folder): a cut, the sword raised overhead, a lunging cut down (root motion 2.5 m). */
+	constexpr const TCHAR *HEAVY_ATTACK_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordV2/Manny_UE5/RootMotion/Attack/CommonAttack/Anim_SwordV2_HeavyAttack.Anim_SwordV2_HeavyAttack");
+	/** Read only (vendor folder): the one-handed sword's in-place power-up gesture, 2.17 s: the arm turn. */
+	constexpr const TCHAR *HEAVY_WIND_UP_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordAndShield/SwordAnimations/Buff/Anim_HSAS_Buff.Anim_HSAS_Buff");
+	/** In the clip's own time (sample_bones.sh, weapon_r): 0.78 s is after the first cut, closest to the dash's end pose
+	 *  (65 cm); the sword rises overhead to 1.0 s; the lunge reaches furthest forward at 1.133 s; settled by 1.75 s. */
+	constexpr float HEAVY_ATTACK_CLIP_START = 0.78f;
+	constexpr float HEAVY_ATTACK_CLIP_END = 1.75f;
+	constexpr float HEAVY_ATTACK_IMPACT_TIME = 1.133f - HEAVY_ATTACK_CLIP_START;
+
+	// ---- B-595d: WhirlWind, the light hit's dash then a full spin that ends in a slam (one hit on every target) ----
+	constexpr const TCHAR *WHIRLWIND_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/WhirlWind");
+	constexpr const TCHAR *WHIRLWIND_MONTAGE = TEXT("AM_Sword_WhirlWind");
+	/** Read only (vendor folder): a 360-degree spinning cut (0.5 s), then a leaping slam down; root motion 3.1 m. Its
+	 *  first frame is 16 cm from the dash's end pose. */
+	constexpr const TCHAR *WHIRLWIND_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordV2/Manny_UE5/RootMotion/Attack/CommonAttack/Anim_SwordV2_Slash3.Anim_SwordV2_Slash3");
+	/** In the clip's own time (sample_bones.sh, weapon_r): the slam reaches the ground at 0.9 s (z 173 to 56 cm). The
+	 *  spinning cut is earlier but the clip still travels 2 m after it, so it would land short. */
+	constexpr float WHIRLWIND_IMPACT_TIME = 0.9f;
 
 	/** The airborne frames only: the feet never slide, the hop becomes the burst. */
 	constexpr float DASH_WARP_START = 0.18f;
@@ -129,11 +169,11 @@ namespace LightHitMontageBuilder
 		Event.EndTriggerTimeOffset = GetTriggerTimeOffsetForType(Montage->CalculateOffsetForNotify(Event.EndLink.GetTime()));
 	}
 
-	void AddCombatNotify(UAnimMontage *Montage, float Time, ECombatNotifyFamily Family)
+	void AddCombatNotify(UAnimMontage *Montage, float Time, ECombatNotifyFamily Family, int32 Index = 0)
 	{
 		UCombatNotify *Notify = NewObject<UCombatNotify>(Montage, NAME_None, RF_Transactional);
 		Notify->Family = Family;
-		Notify->Index = 0;
+		Notify->Index = Index;
 		FAnimNotifyEvent &Event = AddEvent(Montage, Time);
 		Event.Notify = Notify;
 		Event.NotifyName = FName(*Notify->GetNotifyName());
@@ -292,6 +332,110 @@ namespace LightHitMontageBuilder
 		TEXT("EDITOR (B-595e): build AM_Sword_ForceStrike (a standing slash, Cast0 on the cut) in ")
 			TEXT("/Game/Data/Skills/Weapons/Sword/ForceStrike. Doesn't save: save it in the editor."),
 		FConsoleCommandDelegate::CreateStatic(&BuildForceStrike));
+
+	/** B-595b: Over Under's approach, the light hit's dash (same warp window) then the combo's down cut and rising cut,
+	 *  Impact0 and Impact1 on their contact frames. Its return is the light hit's hop back, set on the skill. */
+	void BuildOverUnder()
+	{
+		UAnimSequenceBase *Dash = LoadObject<UAnimSequenceBase>(nullptr, DASH_CLIP);
+		UAnimSequenceBase *Combo = LoadObject<UAnimSequenceBase>(nullptr, OVER_UNDER_CLIP);
+		if (!Dash || !Combo)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing a clip (dash %d, combo %d)"), Dash != nullptr, Combo != nullptr);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(OVER_UNDER_FOLDER) / OVER_UNDER_MONTAGE + TEXT(".") + OVER_UNDER_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), OVER_UNDER_MONTAGE);
+			return;
+		}
+		UAnimMontage *Montage = MakeMontage(OVER_UNDER_MONTAGE, {Dash, Combo}, OVER_UNDER_FOLDER);
+		FAnimSegment &Cuts = Montage->SlotAnimTracks[0].AnimTrack.AnimSegments[1];
+		Cuts.AnimStartTime = OVER_UNDER_CLIP_START;
+		Cuts.AnimEndTime = OVER_UNDER_CLIP_END;
+		const float CutsStart = Dash->GetPlayLength();
+		Montage->SetCompositeLength(CutsStart + Cuts.GetLength());
+		AddWarpWindow(Montage, DASH_WARP_START, DASH_WARP_END);
+		AddCombatNotify(Montage, CutsStart + OVER_UNDER_OVER_IMPACT_TIME, ECombatNotifyFamily::Impact, 0);
+		AddCombatNotify(Montage, CutsStart + OVER_UNDER_UNDER_IMPACT_TIME, ECombatNotifyFamily::Impact, 1);
+		Finish(Montage);
+	}
+
+	static FAutoConsoleCommand GBuildOverUnderCommand(
+		TEXT("wor.Editor.BuildOverUnderMontage"),
+		TEXT("EDITOR (B-595b): build AM_Sword_OverUnder (the light hit's dash + a cut down and a cut up, Impact0 and Impact1 ")
+			TEXT("on contact) in /Game/Data/Skills/Weapons/Sword/OverUnder. Doesn't save: save it in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildOverUnder));
+
+	/** B-595c: Heavy Attack's two montages. The wind-up is the arm turn's RitualCastMontage (no notifies); the strike is
+	 *  the light hit's dash then the heavy cut, trimmed to the overhead lunge, Impact0 on contact. */
+	void BuildHeavyAttack()
+	{
+		UAnimSequenceBase *Dash = LoadObject<UAnimSequenceBase>(nullptr, DASH_CLIP);
+		UAnimSequenceBase *Cut = LoadObject<UAnimSequenceBase>(nullptr, HEAVY_ATTACK_CLIP);
+		UAnimSequenceBase *WindUpClip = LoadObject<UAnimSequenceBase>(nullptr, HEAVY_WIND_UP_CLIP);
+		if (!Dash || !Cut || !WindUpClip)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing a clip (dash %d, cut %d, wind-up %d)"), Dash != nullptr, Cut != nullptr,
+				   WindUpClip != nullptr);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		for (const TCHAR *Name : {HEAVY_ATTACK_MONTAGE, HEAVY_WIND_UP_MONTAGE})
+		{
+			if (LoadObject<UAnimMontage>(nullptr, *(FString(HEAVY_ATTACK_FOLDER) / Name + TEXT(".") + Name), nullptr, LOAD_NoWarn | LOAD_Quiet))
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete both to rebuild"), Name);
+				return;
+			}
+		}
+		UAnimMontage *Strike = MakeMontage(HEAVY_ATTACK_MONTAGE, {Dash, Cut}, HEAVY_ATTACK_FOLDER);
+		FAnimSegment &CutSegment = Strike->SlotAnimTracks[0].AnimTrack.AnimSegments[1];
+		CutSegment.AnimStartTime = HEAVY_ATTACK_CLIP_START;
+		CutSegment.AnimEndTime = HEAVY_ATTACK_CLIP_END;
+		const float CutStart = Dash->GetPlayLength();
+		Strike->SetCompositeLength(CutStart + CutSegment.GetLength());
+		AddWarpWindow(Strike, DASH_WARP_START, DASH_WARP_END);
+		AddCombatNotify(Strike, CutStart + HEAVY_ATTACK_IMPACT_TIME, ECombatNotifyFamily::Impact);
+		Finish(Strike);
+
+		Finish(MakeMontage(HEAVY_WIND_UP_MONTAGE, {WindUpClip}, HEAVY_ATTACK_FOLDER));
+	}
+
+	static FAutoConsoleCommand GBuildHeavyAttackCommand(
+		TEXT("wor.Editor.BuildHeavyAttackMontages"),
+		TEXT("EDITOR (B-595c): build AM_Sword_HeavyAttack (dash + the overhead lunge, Impact0 on contact) and AM_Sword_HeavyAttack_WindUp ")
+			TEXT("(the arm turn) in /Game/Data/Skills/Weapons/Sword/HeavyAttack. Doesn't save: save them in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildHeavyAttack));
+
+	/** B-595d: WhirlWind's approach, the light hit's dash then the spin and slam, Impact0 on the slam (every target). */
+	void BuildWhirlWind()
+	{
+		UAnimSequenceBase *Dash = LoadObject<UAnimSequenceBase>(nullptr, DASH_CLIP);
+		UAnimSequenceBase *Spin = LoadObject<UAnimSequenceBase>(nullptr, WHIRLWIND_CLIP);
+		if (!Dash || !Spin)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing a clip (dash %d, spin %d)"), Dash != nullptr, Spin != nullptr);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(WHIRLWIND_FOLDER) / WHIRLWIND_MONTAGE + TEXT(".") + WHIRLWIND_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), WHIRLWIND_MONTAGE);
+			return;
+		}
+		UAnimMontage *Montage = MakeMontage(WHIRLWIND_MONTAGE, {Dash, Spin}, WHIRLWIND_FOLDER);
+		AddWarpWindow(Montage, DASH_WARP_START, DASH_WARP_END);
+		AddCombatNotify(Montage, Dash->GetPlayLength() + WHIRLWIND_IMPACT_TIME, ECombatNotifyFamily::Impact);
+		Finish(Montage);
+	}
+
+	static FAutoConsoleCommand GBuildWhirlWindCommand(
+		TEXT("wor.Editor.BuildWhirlWindMontage"),
+		TEXT("EDITOR (B-595d): build AM_Sword_WhirlWind (the light hit's dash + a spin ending in a slam, Impact0 on the slam) in ")
+			TEXT("/Game/Data/Skills/Weapons/Sword/WhirlWind. Doesn't save: save it in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildWhirlWind));
 
 	static FAutoConsoleCommand GBuildCommand(
 		TEXT("wor.Editor.BuildLightHitMontages"),
