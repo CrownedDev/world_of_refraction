@@ -51,7 +51,7 @@ BEGIN_DEFINE_SPEC(FActionEffectsSpec, "WoR.Combat.ActionEffects",
 	AActor *Foe = nullptr;
 	UCharacterDataComponent *Char = nullptr;
 
-	/** Hero and Foe; Hero starts with the fight-start bank (1 with no Reflex). */
+	/** Hero and Foe; Hero starts with the fight-start bank (1, D-274). */
 	bool SpawnPair()
 	{
 		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
@@ -62,7 +62,7 @@ BEGIN_DEFINE_SPEC(FActionEffectsSpec, "WoR.Combat.ActionEffects",
 			return false;
 		}
 		Char->ResetActionsForFight();
-		return TestEqual(TEXT("Fight start = the regain"), Char->CurrentActions, ActionPipsConstants::ACTIONS_REGAIN_BASE);
+		return TestEqual(TEXT("Fight start = 1 action"), Char->CurrentActions, ActionPipsConstants::ACTIONS_AT_FIGHT_START);
 	}
 
 	EEffectApplicationResult Apply(ESkillEffectType Type, int32 Value, int32 Duration)

@@ -33,6 +33,9 @@ namespace
 	/** A default character: no Reflex (regain 1), no action points (Max 2). */
 	constexpr int32 MULTI_ACTION_REGAIN = 1;
 	constexpr int32 MULTI_ACTION_MAX = 2;
+	/** B-605: a focused Reflex build (two steps and a bit at Body level 0): regain 3. */
+	constexpr int32 MULTI_ACTION_FOCUSED_REFLEX = 31;
+	constexpr int32 MULTI_ACTION_FOCUSED_REGAIN = 3;
 	constexpr int32 MULTI_ACTION_COST_ONE = 1;
 	constexpr int32 MULTI_ACTION_COST_TWO = 2;
 	constexpr int32 MULTI_ACTION_COST_ABOVE_MAX = 3;
@@ -108,23 +111,28 @@ BEGIN_DEFINE_SPEC(FMultiActionTurnSpec, "WoR.Turns.MultiAction",
 
 	/** Spawns the duel (Hero with a loadout when asked) and starts the fight on Hero's turn, with both recorders
 	 *  listening. False (recorded) when the setup didn't hold. */
-	bool StartDuel(bool bHeroLoadout = false)
+	/** Reflex: both fighters' Reflex points (B-605: a build whose regain is above the fight-start bank). */
+	bool StartDuel(bool bHeroLoadout = false, int32 Reflex = 0)
 	{
 		if (!Orchestrator || !TurnManager)
 		{
 			AddError(TEXT("Setup incomplete"));
 			return false;
 		}
+		UCharacterData *HeroData = FWoRTestWorld::NewCharacterData();
+		UCharacterData *FoeData = FWoRTestWorld::NewCharacterData();
+		HeroData->Reflex = Reflex;
+		FoeData->Reflex = Reflex;
 		if (bHeroLoadout)
 		{
-			const ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(FWoRTestWorld::NewCharacterData());
+			const ULoadoutComponent *Loadout = TestWorld->SpawnCombatantWithLoadout(HeroData);
 			Hero = Loadout ? Loadout->GetOwner() : nullptr;
 		}
 		else
 		{
-			Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+			Hero = TestWorld->SpawnCombatant(HeroData);
 		}
-		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		Foe = TestWorld->SpawnCombatant(FoeData);
 		if (!TestTrue(TEXT("Combatants spawned"), Hero && Foe))
 		{
 			return false;
@@ -140,11 +148,11 @@ BEGIN_DEFINE_SPEC(FMultiActionTurnSpec, "WoR.Turns.MultiAction",
 		return TestTrue(TEXT("Hero opens the duel"), Orchestrator->GetCurrentActor() == Hero);
 	}
 
-	/** Gives Hero a second action (fight start = the regain, 1), for the cases that need two. */
+	/** Gives Hero a second action (fight start = 1, D-274), for the cases that need two. */
 	bool GiveHeroTwoActions()
 	{
 		UCharacterDataComponent *Data = DataOf(Hero);
-		if (!TestNotNull(TEXT("Hero data"), Data) || !TestEqual(TEXT("A fight starts with the regain"), Data->CurrentActions, MULTI_ACTION_REGAIN))
+		if (!TestNotNull(TEXT("Hero data"), Data) || !TestEqual(TEXT("A fight starts with 1 action"), Data->CurrentActions, ActionPipsConstants::ACTIONS_AT_FIGHT_START))
 		{
 			return false;
 		}
@@ -464,6 +472,29 @@ void FMultiActionTurnSpec::Define()
 			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
 			TestTrue(TEXT("Hero's turn again"), Orchestrator->GetCurrentActor() == Hero);
 			TestEqual(TEXT("The banked action plus the regain, up to Max"), ActionsOf(Hero), MULTI_ACTION_MAX);
+		});
+
+		It("B-605 (D-274): starts party and enemy with 1 action even with a Reflex regain of 3; the regain from the second turn", [this]()
+		{
+			if (!StartDuel(false, MULTI_ACTION_FOCUSED_REFLEX))
+			{
+				return;
+			}
+			const UCharacterDataComponent *HeroData = DataOf(Hero);
+			if (!TestNotNull(TEXT("Hero data"), HeroData) || !TestEqual(TEXT("Precondition: a regain of 3"), HeroData->GetActionRegain(), MULTI_ACTION_FOCUSED_REGAIN))
+			{
+				return;
+			}
+			TestEqual(TEXT("Hero's first turn: 1 action, not the regain"), ActionsOf(Hero), ActionPipsConstants::ACTIONS_AT_FIGHT_START);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			if (!TestTrue(TEXT("Foe's turn"), Orchestrator->GetCurrentActor() == Foe))
+			{
+				return;
+			}
+			TestEqual(TEXT("The enemy's first turn: 1 action too"), ActionsOf(Foe), ActionPipsConstants::ACTIONS_AT_FIGHT_START);
+			Orchestrator->SubmitActionAsync(Plain(EActionType::EndTurn));
+			TestTrue(TEXT("Hero's turn again"), Orchestrator->GetCurrentActor() == Hero);
+			TestEqual(TEXT("Second turn: the banked action plus the regain, up to Max (unchanged)"), ActionsOf(Hero), MULTI_ACTION_MAX);
 		});
 	});
 }
