@@ -1456,7 +1456,8 @@ void UCombatCameraDirector::StepShot()
 void UCombatCameraDirector::HandleReturnStarted(AActor *Actor)
 {
 	const bool bIsShotCaster = Actor && Actor == ShotCaster.Get();
-	if (!bInCombat || CurrentMode == ECombatCameraMode::KillShot ||
+	// A sequence, a Defence hand-off or a kill shot owns the view; a projectile still flying is seen to its hit.
+	if (!bInCombat || PlayingSequence || DefenceHandOffTimer.IsValid() || CurrentMode == ECombatCameraMode::KillShot || ShotProjectile.IsValid() ||
 		!FCombatCameraRules::ReturnsToTurnViewOnLeapHome(IsShotPlaying(), bIsShotCaster, OpposingCombatants.Contains(Actor)))
 	{
 		return;
