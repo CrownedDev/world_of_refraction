@@ -2152,12 +2152,13 @@ void ULoadoutComponent::NotifyApparelChanged()
 
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
-    // B-302: every gear change announces here; B-309d4: the writers changed the slots, so only the active ones move.
+    // B-302: every gear change announces here. B-309d4: the writers change the slots; the in-step check (not a full
+    // rebuild) catches a loadout authored in the old fields, for the readers of Slots that skip GetActiveLoadoutInStep.
     if (UInventoryComponent *Inv = GetInventoryComponent())
     {
         if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         {
-            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RefreshActiveSlots(GetCharacterClass());
+            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].EnsureSlotsInStep(GetCharacterClass());
         }
     }
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
