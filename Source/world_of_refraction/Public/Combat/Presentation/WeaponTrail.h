@@ -1,6 +1,6 @@
 // WeaponTrail.h
-// Crown 2026-11-24: a weapon's swing trail on attacks and weapon skills. One trail per weapon kind (Slash, Thrust,
-// Smash), each a slot on UImpactVisualDefaults, empty until the art lands. It plays inside a Weapon Trail window on the
+// Crown 2026-11-24: a weapon's swing trail on attacks and weapon skills. One universal trail (WeaponTrailVFX on
+// UImpactVisualDefaults, empty until the art lands); bows, guns and shields have none. It plays inside a Weapon Trail window on the
 // attack montage (UWeaponTrailWindow); a montage with none runs it from the first Impact's wind-up to the last Impact
 // (ScheduleFallback). The ribbon runs between the TrailStart and TrailEnd sockets on the weapon mesh, else along the
 // mesh's long axis, and is tinted by the infusion's element (plain with none, Physical or Raw). Impact VFX are B-369's.
@@ -17,15 +17,6 @@ class UAnimMontage;
 class UMeshComponent;
 class UNiagaraComponent;
 
-UENUM(BlueprintType)
-enum class EWeaponTrailKind : uint8
-{
-	None,
-	Slash,
-	Thrust,
-	Smash
-};
-
 namespace WeaponTrail
 {
 	/** Sockets on the weapon mesh the ribbon runs between. */
@@ -41,9 +32,8 @@ namespace WeaponTrail
 	/** Tag on a playing trail, so Stop finds it. */
 	inline const FName COMPONENT_TAG = TEXT("WoRWeaponTrail");
 
-	/** Swords, axes and scythes slash; spears and daggers thrust (no rapier type yet); hammers, staves and gauntlets
-	 *  smash; bows, guns and shields have none. */
-	EWeaponTrailKind KindFor(EWeaponType Type);
+	/** Every weapon type trails except bows, guns and shields. */
+	bool HasTrail(EWeaponType Type);
 
 	/** The element's tint; None and Generic (no infusion, Physical, Raw) take Plain. */
 	FLinearColor ColorFor(ESpellElement Element, const FLinearColor &Plain);

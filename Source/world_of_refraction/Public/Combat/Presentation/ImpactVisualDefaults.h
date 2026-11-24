@@ -12,7 +12,6 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Equipment/Rings/EAdapterForm.h"
 #include "Combat/Presentation/CastVisuals.h"
-#include "Combat/Presentation/WeaponTrail.h"
 #include "ImpactVisualDefaults.generated.h"
 
 class UNiagaraSystem;
@@ -69,18 +68,10 @@ public:
 
 	// ==================== WEAPON TRAILS (Crown 2026-11-24, WeaponTrail.h) ====================
 
-	/** Swords, axes, scythes. A ribbon between the user vectors TrailStart and TrailEnd (local space), tinted by
-	 *  ElementColor. TODO: art. */
+	/** Every trailing weapon's swing trail (not bows, guns, shields). A ribbon between the user vectors TrailStart and
+	 *  TrailEnd (local space), tinted by ElementColor. TODO: art. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
-	TSoftObjectPtr<UNiagaraSystem> SlashTrailVFX;
-
-	/** Spears, daggers. TODO: art. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
-	TSoftObjectPtr<UNiagaraSystem> ThrustTrailVFX;
-
-	/** Hammers, staves, gauntlets. TODO: art. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
-	TSoftObjectPtr<UNiagaraSystem> SmashTrailVFX;
+	TSoftObjectPtr<UNiagaraSystem> WeaponTrailVFX;
 
 	/** The tint with no infusion, a Physical or a Raw one. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
@@ -90,6 +81,13 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails", meta = (ClampMin = "0.0"))
 	float TrailWindUpSeconds = 0.25f;
 
-	/** The slot for a trail kind; empty for None. */
-	const TSoftObjectPtr<UNiagaraSystem> &GetTrailVFX(EWeaponTrailKind Kind) const;
+	// ==================== INFUSION GLOWS (Crown 2026-11-24) ====================
+
+	/** Each element's default infusion glow, used when the infusion's display data has no VFXSystem of its own.
+	 *  Tinted by ElementColor like any glow. TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
+	TMap<ESpellElement, TSoftObjectPtr<UNiagaraSystem>> ElementInfusionGlowVFX;
+
+	/** The element's default glow slot; empty when it has none. */
+	TSoftObjectPtr<UNiagaraSystem> GetInfusionGlowVFX(ESpellElement Element) const;
 };

@@ -4,6 +4,7 @@
 #include "Animation/AnimMontage.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/Actions/ActionStructs.h"
+#include "Combat/Camera/CombatCameraTypes.h"
 #include "Combat/CombatNotify.h"
 #include "Combat/Presentation/ImpactVisualDefaults.h"
 #include "Combat/WoRFightSubsystem.h"
@@ -20,20 +21,17 @@
 
 namespace
 {
-	/** The slowest play rate the timings divide by (the telegraph scan's floor too). */
-	constexpr float MIN_PLAY_RATE = 0.1f;
-
 	UMeshComponent *FindWeaponMesh(const AActor *Owner)
 	{
 		const UWeaponMeshComponent *Weapons = Owner ? Owner->FindComponentByClass<UWeaponMeshComponent>() : nullptr;
 		return Weapons ? Weapons->GetWeaponVFXMesh() : nullptr;
 	}
 
-	EWeaponTrailKind KindOfWeaponShown(const AActor *Owner)
+	bool WeaponShownHasTrail(const AActor *Owner)
 	{
 		const UWeaponMeshComponent *Weapons = Owner ? Owner->FindComponentByClass<UWeaponMeshComponent>() : nullptr;
 		const UWeaponData *Weapon = Weapons ? Weapons->GetDisplayedWeapon() : nullptr;
-		return Weapon ? WeaponTrail::KindFor(Weapon->WeaponType) : EWeaponTrailKind::None;
+		return Weapon && WeaponTrail::HasTrail(Weapon->WeaponType);
 	}
 
 	/** The ribbon's ends in the mesh's local space; true when both came from the sockets. */
@@ -50,25 +48,9 @@ namespace
 	}
 }
 
-EWeaponTrailKind WeaponTrail::KindFor(EWeaponType Type)
+bool WeaponTrail::HasTrail(EWeaponType Type)
 {
-	switch (Type)
-	{
-	case EWeaponType::Sword:
-	case EWeaponType::Greatsword:
-	case EWeaponType::Axe:
-	case EWeaponType::Scythe:
-		return EWeaponTrailKind::Slash;
-	case EWeaponType::Spear:
-	case EWeaponType::Dagger:
-		return EWeaponTrailKind::Thrust;
-	case EWeaponType::Hammer:
-	case EWeaponType::Staff:
-	case EWeaponType::Gauntlets:
-		return EWeaponTrailKind::Smash;
-	default:
-		return EWeaponTrailKind::None;
-	}
+	return Type != EWeaponType::Bow && Type != EWeaponType::Gun && Type != EWeaponType::Shield;
 }
 
 FLinearColor WeaponTrail::ColorFor(ESpellElement Element, const FLinearColor &Plain)
@@ -140,12 +122,12 @@ UNiagaraComponent *WeaponTrail::Start(AActor *Owner, ESpellElement Element)
 {
 	UMeshComponent *Mesh = FindWeaponMesh(Owner);
 	const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
-	if (!Mesh || !Defaults)
+	if (!Mesh || !Defaults || !WeaponShownHasTrail(Owner))
 	{
 		return nullptr;
 	}
 	// shortcut: loads the slot on first use, which may hitch once; preload with the fight's assets when the art lands.
-	UNiagaraSystem *System = Defaults->GetTrailVFX(KindOfWeaponShown(Owner)).LoadSynchronous();
+	UNiagaraSystem *System = Defaults->WeaponTrailVFX.LoadSynchronous();
 	if (!System)
 	{
 		return nullptr;
@@ -196,7 +178,7 @@ void WeaponTrail::ScheduleFallback(AActor *Owner, const UAnimMontage *Montage, f
 	{
 		return;
 	}
-	const float Rate = FMath::Max(MIN_PLAY_RATE, PlayRate);
+	const float Rate = FMath::Max(FCombatCameraRules::MinPlayRate, PlayRate);
 	TArray<float> Times = GetImpactTimes(*Montage);
 	for (float &Time : Times)
 	{
@@ -244,14 +226,12 @@ FString WeaponTrail::GetTrailString(AActor *Owner)
 	{
 		return FString::Printf(TEXT("%s: no weapon mesh shown"), *GetNameSafe(Owner));
 	}
-	const EWeaponTrailKind Kind = KindOfWeaponShown(Owner);
 	const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
-	const TSoftObjectPtr<UNiagaraSystem> *Slot = Defaults ? &Defaults->GetTrailVFX(Kind) : nullptr;
 	FVector TrailStart, TrailEnd;
 	const bool bSockets = GetTrailPoints(*Mesh, TrailStart, TrailEnd);
-	return FString::Printf(TEXT("%s: mesh %s, %s trail, system %s, ends %s to %s (%s), element %s"), *GetNameSafe(Owner),
-						   *Mesh->GetName(), *UEnum::GetDisplayValueAsText(Kind).ToString(),
-						   !Defaults ? TEXT("(no defaults asset)") : (Slot->IsNull() ? TEXT("(empty slot)") : *Slot->GetAssetName()),
+	return FString::Printf(TEXT("%s: mesh %s, %s, system %s, ends %s to %s (%s), element %s"), *GetNameSafe(Owner),
+						   *Mesh->GetName(), WeaponShownHasTrail(Owner) ? TEXT("has a trail") : TEXT("no trail (bow, gun or shield)"),
+						   !Defaults ? TEXT("(no defaults asset)") : (Defaults->WeaponTrailVFX.IsNull() ? TEXT("(empty slot)") : *Defaults->WeaponTrailVFX.GetAssetName()),
 						   *TrailStart.ToCompactString(), *TrailEnd.ToCompactString(), bSockets ? TEXT("sockets") : TEXT("long axis"),
 						   *UEnum::GetValueAsString(GetInfusedElement(Owner)));
 }
