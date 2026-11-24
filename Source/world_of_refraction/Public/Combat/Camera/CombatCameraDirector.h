@@ -316,9 +316,9 @@ private:
 	bool IsViewerDefending() const;
 
 	/** B-404: the turn start's camera move (FCombatCameraRules::PlanTurnChange): a wide beat, then the handover
-	 *  blend on WideBeatTimer; or the turn view at once. bWideAction (B-600g): a multi-target action since the last
-	 *  turn start. bBroadcast false for a preview. */
-	void StartTurnChange(AActor *From, AActor *To, bool bWideAction, bool bBroadcast);
+	 *  blend on WideBeatTimer; or the turn view at once. bBroadcast false for a preview and, B-600g, for a same-turn
+	 *  return (no turn started). */
+	void StartTurnChange(AActor *From, AActor *To, bool bSomeoneActed, bool bBroadcast);
 	/** B-404: the beat's end: the handover blend (unless something else took the view) and the event. */
 	void HandleWideBeatEnd();
 	/** B-404: a pending handover runs now (an action or a new turn comes before the beat ends): once per turn start. */
@@ -452,8 +452,12 @@ private:
 	bool bHandoverPending = false;
 	bool bHandoverBroadcasts = false;
 	bool bActedSinceTurnStart = false;
-	/** B-600g: an action since the last turn start hit several targets (FCombatCameraRules::IsWideAction): the wide beat. */
-	bool bWideActionSinceTurnStart = false;
+	/** B-600g (§6): the world time the hand-over wide was cut to (the leap home, or a turn change); < 0 when another view
+	 *  shows. The sweep out of it waits until it has shown FCombatCameraRules::WideMinSeconds. */
+	double WideShownAt = -1.0;
+	float GetSecondsOnWide() const;
+	/** B-600g: cut to the hand-over wide (FCombatCameraRules::ComputeWideView) on Camera, framed from Frame. */
+	void CutToWide(UCombatCameraComponent *Camera, const FCombatCameraFrame &Frame);
 	int32 HandoverCount = 0;
 	// B-406: the boss cinematic now playing (per fight, on the orchestrator's component: D-064).
 	UPROPERTY(Transient)

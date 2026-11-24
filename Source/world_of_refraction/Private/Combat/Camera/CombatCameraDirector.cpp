@@ -99,7 +99,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	}
 	bInCombat = true;
 	bActedSinceTurnStart = false; // B-404
-	bWideActionSinceTurnStart = false; // B-600g
+	WideShownAt = -1.0; // B-600g
 	HandoverCount = 0;
 	DefencePunchesDropped = 0;
 	bActedSinceAsked = false; // B-401
@@ -401,13 +401,11 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's turn: the last attacker holds home for %.2f s"), *GetNameSafe(Actor), ActionEndHold);
 		return;
 	}
-	// B-404: who the camera followed and, B-600g, whether an action since the last turn start hit several targets
-	// decide the wide beat.
+	// B-404: who the camera followed, and whether anyone acted since the last turn start, decide the wide beat.
 	FlushPendingHandover();
 	AActor *From = ViewedActor.Get();
-	const bool bWideAction = bWideActionSinceTurnStart;
+	const bool bSomeoneActed = bActedSinceTurnStart;
 	bActedSinceTurnStart = false;
-	bWideActionSinceTurnStart = false;
 	bActedSinceAsked = false; // B-401: the turn start's own ask is not a return
 	ViewedActor = Actor;
 	MenuDepth = CommandMenuRules::MAIN_MENU_DEPTH; // B-399: a new turn opens on the main menu's view
@@ -420,7 +418,7 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 		return; // B-406: the boss cinematic keeps the view; its end shows this turn
 	}
 	StopSequence();
-	StartTurnChange(From, Actor, bWideAction, true); // B-404: the turn view, through a wide beat after a multi-target action
+	StartTurnChange(From, Actor, bSomeoneActed, true); // B-404, B-600g: the hand-over wide, then the sweep into the turn view
 }
 
 void UCombatCameraDirector::HandleMenuDepthChanged(AActor *Actor, int32 NewDepth)
@@ -714,7 +712,7 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	PendingActionEndHold = 0.0f; // B-600f: only a party member's skill with shots holds (set below)
 	FlushPendingHandover(); // B-404: an action inside the beat: the handover now; the action's own camera follows
 	bActedSinceTurnStart = true;
-	bWideActionSinceTurnStart |= FCombatCameraRules::IsWideAction(Action.Targets.Num()); // B-600g
+	WideShownAt = -1.0; // B-600g: the action's own camera takes over
 	bActedSinceAsked = true; // B-401
 	ClearDefenceHandOff();
 	CutBackFromTargetView(); // B-400: confirm cuts from the target view; the action's camera goes on as before
@@ -805,21 +803,12 @@ void UCombatCameraDirector::ReturnToTurnView(AActor *Actor)
 	{
 		return; // movement off (the static view stays) or not the viewer's character: unchanged
 	}
-	StopShotPattern(); // the last action's shot, already seen in full, ends here
-	CurrentMode = ECombatCameraMode::Turn;
-	const FTransform TurnView = GetTurnViewWithHeight(BuildFrame(Actor)); // B-405: a boss fight's height too
-	ACameraActor *Existing = Camera->GetCameraActor();
-	if (Existing && Viewer->GetViewTarget() == Existing)
-	{
-		MoveCameraOnShotTimer(Camera, TurnView, Plan.BlendSeconds); // the wind-up / cast shot's camera: no jump
-	}
-	else if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::Turn, TurnView))
-	{
-		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // undo an impact punch
-		Viewer->SetViewTargetWithBlend(CameraActor, Plan.BlendSeconds); // from the target's impact camera
-	}
+	// B-600g (§6, E33): banked actions hand over to the same fighter as a turn change does: the hand-over wide, then
+	// the sweep back over its own shoulder. No turn started, so no handover is broadcast.
+	FlushPendingHandover();
+	StartTurnChange(Actor, Actor, /*bSomeoneActed=*/true, /*bBroadcast=*/false);
 	++SameTurnReturnCount;
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Same-turn return: %s acts again, its turn view in %.2f s, no wide beat (%d this fight)"),
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Same-turn return: %s acts again, the wide then its turn view in %.2f s (%d this fight)"),
 		   *Actor->GetName(), Plan.BlendSeconds, SameTurnReturnCount);
 }
 
@@ -887,6 +876,7 @@ void UCombatCameraDirector::ShowTurnView()
 		return; // B-406: its end shows the turn view
 	}
 	StopShotPattern(); // B-371: the end of a pattern blends back to the turn view
+	WideShownAt = -1.0; // B-600g
 	bTargetViewShowing = false; // B-400
 	bIntelViewShowing = false; // B-587
 	AActor *Actor = ViewedActor.Get();
@@ -1585,35 +1575,37 @@ void UCombatCameraDirector::HandleReturnStarted(AActor *Actor, FVector Home)
 		ShowTurnView(); // the static view, as before
 		return;
 	}
-	// B-600e (B-600d QA): framed from where it lands, not where it struck (a turn view from the strike spot sat between
-	// the fighters: the leap passed the lens, then the shot held the enemy alone). B-600f (Q-600f): the camera follows
-	// it home into its own turn view there, timed to the return montage; the wide beat waits for the next turn start.
-	UCombatCameraComponent *Viewed = ShotCamera.Get(); // the side view's camera, before StopShotPattern drops it
+	// B-600e (B-600d QA): framed from where it lands, not where it struck. B-600g (§6, E33; replaces B-600f's follow home): a hard cut to the hand-over wide from behind the party; the
+	// attacker is seen walking home in it, and the next turn start (or the same fighter's next ask) sweeps out of it.
 	StopShotPattern();
 	bTargetViewShowing = false; // as ShowTurnView: no target or Intel view survives the leap
 	bIntelViewShowing = false;
-	const FTransform HomeView = GetTurnViewWithHeight(BuildFrame(Actor, Home));
-	const ACharacter *Character = Cast<ACharacter>(Actor);
-	UAnimInstance *Anim = Character && Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr;
-	UAnimMontage *Return = Anim ? Anim->GetCurrentActiveMontage() : nullptr;
-	const float Seconds = FCombatCameraRules::GetFollowHomeSeconds(Return, Return ? Anim->Montage_GetPlayRate(Return) : 1.0f);
-	CurrentMode = ECombatCameraMode::NotYourTurn; // not the live turn view; the next turn's beat or a same-turn return takes it from here
+	CutToWide(Actor->FindComponentByClass<UCombatCameraComponent>(), BuildFrame(Actor, Home));
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s leaps home: cut to the hand-over wide"), *GetNameSafe(Actor));
+}
+
+void UCombatCameraDirector::CutToWide(UCombatCameraComponent *Camera, const FCombatCameraFrame &Frame)
+{
 	APlayerController *Viewer = GetViewer();
-	ACameraActor *Existing = Viewed ? Viewed->GetCameraActor() : nullptr;
-	if (Viewer && Existing && Viewer->GetViewTarget() == Existing)
+	UWorld *World = GetWorld();
+	if (!Camera || !Viewer || !World)
 	{
-		MoveCameraOnShotTimer(Viewed, HomeView, Seconds); // already looking through it: no jump
+		return;
 	}
-	else if (UCombatCameraComponent *Camera = Actor->FindComponentByClass<UCombatCameraComponent>(); Camera && Viewer)
+	World->GetTimerManager().ClearTimer(ShotTimer); // no move of an earlier view runs on into the wide
+	if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::NotYourTurn, FCombatCameraRules::ComputeWideView(Frame)))
 	{
-		if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::NotYourTurn, HomeView))
-		{
-			CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
-			Viewer->SetViewTargetWithBlend(CameraActor, Seconds);
-		}
+		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // undo an impact punch
+		Viewer->SetViewTargetWithBlend(CameraActor, 0.0f);
 	}
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s leaps home: following it into its view there over %.2f s (%s)"), *GetNameSafe(Actor), Seconds,
-		   *GetNameSafe(Return));
+	CurrentMode = ECombatCameraMode::NotYourTurn; // the wide; HandleWideBeatEnd checks nothing else took the view
+	WideShownAt = World->GetTimeSeconds();
+}
+
+float UCombatCameraDirector::GetSecondsOnWide() const
+{
+	const UWorld *World = GetWorld();
+	return WideShownAt >= 0.0 && World ? static_cast<float>(World->GetTimeSeconds() - WideShownAt) : -1.0f;
 }
 
 void UCombatCameraDirector::SetDefendAttacker(AActor *Attacker)
@@ -2146,10 +2138,10 @@ FString UCombatCameraDirector::GetBossCinematicString() const
 						   *GetNameSafe(BossCinematicBoss.Get()), *BossCinematicName);
 }
 
-void UCombatCameraDirector::StartTurnChange(AActor *From, AActor *To, bool bWideAction, bool bBroadcast)
+void UCombatCameraDirector::StartTurnChange(AActor *From, AActor *To, bool bSomeoneActed, bool bBroadcast)
 {
-	// B-404 (study R12, R16, Q-404): between turns, the camera goes wide, then blends behind the next fighter; B-600g
-	// (Q-600g): only after a multi-target action.
+	// B-404 (study R12, R16, Q-404) as B-600g (§6, E33) changes it: after an action, the hand-over wide (a cut), then
+	// the sweep behind the next fighter, or an enemy's slow push-in.
 	UCombatCameraComponent *Camera = To ? To->FindComponentByClass<UCombatCameraComponent>() : nullptr;
 	APlayerController *Viewer = GetViewer();
 	UWorld *World = GetWorld();
@@ -2157,11 +2149,11 @@ void UCombatCameraDirector::StartTurnChange(AActor *From, AActor *To, bool bWide
 	if (Camera && Viewer && World)
 	{
 		const ECombatCameraMode NextMode = FCombatCameraRules::SelectMode(IsViewersCharacter(To), false, bCameraMovementOff);
-		Plan = FCombatCameraRules::PlanTurnChange(bWideAction, To == From, NextMode, TurnViewStyle, BuildFrame(To));
+		Plan = FCombatCameraRules::PlanTurnChange(bSomeoneActed, NextMode, TurnViewStyle, BuildFrame(To), GetSecondsOnWide());
 	}
 	if (!Plan.bWideBeat)
 	{
-		ShowTurnView(); // first turn, same actor, movement off, or no multi-target action since the last turn start
+		ShowTurnView(); // first turn (nobody acted) or movement off
 		if (bBroadcast)
 		{
 			BroadcastHandover(From, To);
@@ -2175,20 +2167,24 @@ void UCombatCameraDirector::StartTurnChange(AActor *From, AActor *To, bool bWide
 	HandoverTo = To;
 	bHandoverPending = true;
 	bHandoverBroadcasts = bBroadcast;
-	CurrentMode = ECombatCameraMode::NotYourTurn; // the wide; HandleWideBeatEnd checks nothing else took the view
-	ACameraActor *Existing = Camera->GetCameraActor();
-	if (Existing && Viewer->GetViewTarget() == Existing)
+	// The cut lands on the next fighter's camera, which the sweep then moves. Already on the wide (the leap home cut to
+	// it): the same view, and the time it has shown still counts.
+	const double ShownAt = WideShownAt;
+	CutToWide(Camera, BuildFrame(To));
+	if (ShownAt >= 0.0)
 	{
-		MoveCameraOnShotTimer(Camera, Plan.WideView, Plan.BeatBlendSeconds); // already looking through it: no jump
+		WideShownAt = ShownAt;
 	}
-	else if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::NotYourTurn, Plan.WideView))
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Hand-over wide: %s -> %s, %s in %.2f s%s"), *GetNameSafe(From), *GetNameSafe(To),
+		   IsViewersCharacter(To) ? TEXT("sweep") : TEXT("push-in"), Plan.BeatSeconds, bBroadcast ? TEXT("") : TEXT(" (no turn start)"));
+	if (Plan.BeatSeconds > 0.0f)
 	{
-		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
-		Viewer->SetViewTargetWithBlend(CameraActor, Plan.BeatBlendSeconds);
+		World->GetTimerManager().SetTimer(WideBeatTimer, this, &UCombatCameraDirector::HandleWideBeatEnd, Plan.BeatSeconds, false);
 	}
-	World->GetTimerManager().SetTimer(WideBeatTimer, this, &UCombatCameraDirector::HandleWideBeatEnd, Plan.BeatSeconds, false);
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Wide beat: %s -> %s, handover blend in %.2f s%s"), *GetNameSafe(From), *GetNameSafe(To),
-		   Plan.BeatSeconds, bBroadcast ? TEXT("") : TEXT(" (preview)"));
+	else
+	{
+		HandleWideBeatEnd(); // shown long enough already: sweep now (a zero-time timer would not fire)
+	}
 }
 
 void UCombatCameraDirector::HandleWideBeatEnd()
@@ -2210,9 +2206,10 @@ void UCombatCameraDirector::HandleWideBeatEnd()
 	// A setting change, a sequence or the Defence view that took the view during the beat keeps it.
 	const bool bStillWide = bInCombat && CurrentMode == ECombatCameraMode::NotYourTurn && !bCameraMovementOff && !PlayingSequence &&
 							!IsShotPlaying() && !DefenceHandOffTimer.IsValid();
+	WideShownAt = -1.0; // B-600g: the sweep (or the push-in) leaves the wide
 	if (bStillWide && Camera)
 	{
-		// B-600g: the beat also comes before an enemy's turn now; its view is the one behind that enemy.
+		// B-600g: the sweep into the next fighter's view, or an enemy's slow push-in (its turn view).
 		CurrentMode = FCombatCameraRules::SelectMode(IsViewersCharacter(To), false, bCameraMovementOff);
 		if (CurrentMode == ECombatCameraMode::Turn)
 		{
@@ -2291,12 +2288,13 @@ FString UCombatCameraDirector::GetHandoverString() const
 		State += FString::Printf(TEXT("; %s's turn held for %s's %s"), *GetNameSafe(DeferredTurnActor.Get()), *GetNameSafe(DefendAttacker.Get()),
 								 DefendHitTime >= 0.0 ? TEXT("hit hold") : TEXT("coming hit"));
 	}
+	if (WideShownAt >= 0.0)
+	{
+		State += FString::Printf(TEXT("; on the hand-over wide %.2f s"), GetSecondsOnWide()); // B-600g
+	}
 	// B-401: the same-turn returns ride on the handover line (wor.Camera.Print).
 	return FString::Printf(TEXT("%s; %d sent this fight%s; %d same-turn return(s)"), *State, HandoverCount,
-						   bWideActionSinceTurnStart ? TEXT("; multi-target action this turn (wide beat next)")
-						   : bActedSinceTurnStart	 ? TEXT("; acted this turn")
-													 : TEXT(""),
-						   SameTurnReturnCount);
+						   bActedSinceTurnStart ? TEXT("; acted this turn") : TEXT(""), SameTurnReturnCount);
 }
 
 bool UCombatCameraDirector::PreviewHandover(int32 PartyIndex)
