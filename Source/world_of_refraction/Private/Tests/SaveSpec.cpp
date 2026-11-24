@@ -15,6 +15,9 @@
 #include "Player/WoRPlayerState.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
+#include "Equipment/Rings/RingData.h"
+#include "Loadout/FSavedLoadout.h"
+#include "Loadout/WornGear.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
 #include "UObject/UnrealType.h"
@@ -226,6 +229,112 @@ void FSaveSpec::Define()
 		TestTrue(TEXT("the member took the record's field skill and pick"),
 				 Restored && Restored->FieldSkill == Pick.FieldSkill && Restored->FieldAttackIndex == SAVED_COLUMN && Restored->bFieldAttackPicked);
 		TestTrue(TEXT("and its weapon in hand"), Restored && Restored->ActiveWeaponId == Worn.ActiveGearID);
+	});
+
+	It("keeps a custom loadout's weapons and adapters through the slots alone, in their places (B-309c)", [this]()
+	{
+		FWoRTestWorld Before;
+		FWoRTestWorld After;
+		if (!CreateWorlds(Before, After))
+		{
+			return;
+		}
+		UPoolSubsystem *BeforePool = Before.GetSubsystem<UPoolSubsystem>();
+		UPoolSubsystem *AfterPool = After.GetSubsystem<UPoolSubsystem>();
+		if (!TestNotNull(TEXT("Pools"), BeforePool) || !TestNotNull(TEXT("After pool"), AfterPool))
+		{
+			return;
+		}
+		UWeaponData *Sword = NewObject<UWeaponData>(GetTransientPackage());
+		UWeaponData *OffHand = NewObject<UWeaponData>(GetTransientPackage());
+		UWeaponData *Bow = NewObject<UWeaponData>(GetTransientPackage());
+		URingData *Adapter = NewObject<URingData>(GetTransientPackage());
+		URingData *Second = NewObject<URingData>(GetTransientPackage());
+		UEvolutionItemData *Evolution = NewObject<UEvolutionItemData>(GetTransientPackage());
+		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
+		const auto MakeRing = [](URingData *Ring)
+		{
+			FResonatorRingSlot Slot;
+			Slot.Ring = Ring;
+			Slot.RingInstance = FGuid::NewGuid();
+			return Slot;
+		};
+		FSavedLoadout Sets; // a Generic's two weapon sets, the bow in hand, and its one adapter (B-480)
+		Sets.LoadoutName = TEXT("Sets");
+		Sets.bShowPrimary = false;
+		Sets.PrimarySlotType = EPrimarySlotType::Weapon;
+		Sets.PrimaryWeapon = Sword;
+		Sets.PrimaryWeaponInstance = FGuid::NewGuid();
+		Sets.PrimaryOffHandWeapon = OffHand;
+		Sets.PrimaryOffHandInstance = FGuid::NewGuid();
+		Sets.PrimaryWeaponAbilities = {Ability};
+		Sets.SecondarySlotType = ESecondarySlotType::Weapon;
+		Sets.SecondaryWeapon = Bow;
+		Sets.SecondaryWeaponInstance = FGuid::NewGuid();
+		Sets.SecondaryOffHandWeapon = OffHand;
+		Sets.SecondaryOffHandInstance = FGuid::NewGuid();
+		Sets.SecondaryWeaponAbilities = {Ability};
+		Sets.EquippedRings = {MakeRing(Adapter)};
+		FSavedLoadout Ringed; // an adapter primary
+		Ringed.RequiredClass = ECharacterClass::Caster;
+		Ringed.PrimarySlotType = EPrimarySlotType::Ring;
+		Ringed.PrimaryRing = Adapter;
+		Ringed.PrimaryRingInstance = FGuid::NewGuid();
+		FSavedLoadout Evolved; // an evolution primary beside a Resonator's adapter loadout
+		Evolved.RequiredClass = ECharacterClass::Resonator;
+		Evolved.PrimarySlotType = EPrimarySlotType::Evolution;
+		Evolved.PrimaryEvolution = Evolution;
+		Evolved.PrimaryEvolutionInstance = FGuid::NewGuid();
+		Evolved.EquippedRings = {MakeRing(Adapter), MakeRing(Second)};
+		const FName Key = UPoolSubsystem::GetCharacterKey(FWoRTestWorld::NewCharacterData());
+		BeforePool->SetCustomLoadouts(Key, {Sets, Ringed, Evolved});
+
+		UWoRSaveGame *Save = NewObject<UWoRSaveGame>();
+		Save->HandlePreSave();
+		Save->Data.Pool = USaveSubsystem::CapturePool(*BeforePool);
+		const TArray<FSavedCustomLoadout> *Written = Save->Data.Pool.CustomLoadouts.Num() == 1 ? &Save->Data.Pool.CustomLoadouts[0].Loadouts : nullptr;
+		using namespace WornGearLayout;
+		TestTrue(TEXT("the sets' slots: primary, secondary, then the adapter, each by GUID"),
+				 Written && Written->Num() == 3 && (*Written)[0].Slots.Num() == FIRST_ADAPTER_INDEX + 1 &&
+					 (*Written)[0].Slots[PRIMARY_INDEX].GearID == Sets.PrimaryWeaponInstance &&
+					 (*Written)[0].Slots[PRIMARY_INDEX].OffHandID == Sets.PrimaryOffHandInstance &&
+					 (*Written)[0].Slots[SECONDARY_INDEX].GearID == Sets.SecondaryWeaponInstance &&
+					 (*Written)[0].Slots[FIRST_ADAPTER_INDEX].GearID == Sets.EquippedRings[0].RingInstance);
+		TestTrue(TEXT("an evolution primary leaves the primary place empty"),
+				 Written && Written->Num() == 3 && (*Written)[2].Slots.Num() == FIRST_ADAPTER_INDEX + 2 &&
+					 !(*Written)[2].Slots[PRIMARY_INDEX].Gear.IsSet() && (*Written)[2].EvolutionInstance == Evolved.PrimaryEvolutionInstance);
+		UWoRSaveGame *Loaded = RoundTrip(Save);
+		if (!TestNotNull(TEXT("Loaded"), Loaded))
+		{
+			return;
+		}
+		USaveSubsystem::RestorePool(Loaded->Data.Pool, *AfterPool);
+		const TArray<FSavedLoadout> *Back = AfterPool->GetCustomLoadouts(Key);
+		if (!TestTrue(TEXT("three loadouts back"), Back && Back->Num() == 3))
+		{
+			return;
+		}
+		const FSavedLoadout &SetsBack = (*Back)[0];
+		TestTrue(TEXT("the primary set rebuilt: sword, off hand, GUIDs, its ability list"),
+				 SetsBack.PrimarySlotType == EPrimarySlotType::Weapon && SetsBack.PrimaryWeapon == Sword &&
+					 SetsBack.PrimaryWeaponInstance == Sets.PrimaryWeaponInstance && SetsBack.PrimaryOffHandWeapon == OffHand &&
+					 SetsBack.PrimaryOffHandInstance == Sets.PrimaryOffHandInstance && SetsBack.PrimaryWeaponAbilities == Sets.PrimaryWeaponAbilities);
+		TestTrue(TEXT("the secondary set, in hand: bow, off hand, GUIDs, its ability list"),
+				 SetsBack.SecondarySlotType == ESecondarySlotType::Weapon && SetsBack.SecondaryWeapon == Bow &&
+					 SetsBack.SecondaryWeaponInstance == Sets.SecondaryWeaponInstance && !SetsBack.bShowPrimary &&
+					 SetsBack.SecondaryOffHandWeapon == OffHand && SetsBack.SecondaryOffHandInstance == Sets.SecondaryOffHandInstance &&
+					 SetsBack.SecondaryWeaponAbilities == Sets.SecondaryWeaponAbilities);
+		TestTrue(TEXT("the adapter"), SetsBack.EquippedRings.Num() == 1 && SetsBack.EquippedRings[0].Ring == Adapter &&
+										  SetsBack.EquippedRings[0].RingInstance == Sets.EquippedRings[0].RingInstance);
+		TestTrue(TEXT("an adapter primary"), (*Back)[1].PrimarySlotType == EPrimarySlotType::Ring && (*Back)[1].PrimaryRing == Adapter &&
+												 (*Back)[1].PrimaryRingInstance == Ringed.PrimaryRingInstance && !(*Back)[1].PrimaryWeapon &&
+												 (*Back)[1].SecondarySlotType == ESecondarySlotType::None);
+		const FSavedLoadout &EvolvedBack = (*Back)[2];
+		TestTrue(TEXT("an evolution primary and two adapters in order"),
+				 EvolvedBack.PrimarySlotType == EPrimarySlotType::Evolution && EvolvedBack.PrimaryEvolution == Evolution &&
+					 EvolvedBack.PrimaryEvolutionInstance == Evolved.PrimaryEvolutionInstance && EvolvedBack.EquippedRings.Num() == 2 &&
+					 EvolvedBack.EquippedRings[0].Ring == Adapter && EvolvedBack.EquippedRings[1].Ring == Second &&
+					 EvolvedBack.EquippedRings[1].RingInstance == Evolved.EquippedRings[1].RingInstance);
 	});
 
 	It("banks every persistent balance but never Gold", [this]()
