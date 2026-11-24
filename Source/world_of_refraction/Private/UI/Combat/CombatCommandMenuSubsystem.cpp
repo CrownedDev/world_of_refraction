@@ -1773,7 +1773,12 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                 // Find the matching cached source and set the index there
                 const TArray<EInfusionSourceOption> &Cached = VFX->GetCachedSources();
                 int32 Idx = Cached.IndexOfByKey(SpellSource);
-                if (Idx != INDEX_NONE)
+                if (Idx != INDEX_NONE && SourceLookup != EPieMenuCategory::Breakthrough)
+                {
+                    // B-593 (D-271): an origin-bound spell keeps its origin, plus that origin's Ice entry when it is Water.
+                    VFX->RestrictCachedSources({SpellSource});
+                }
+                else if (Idx != INDEX_NONE)
                 {
                     VFX->SetSourceIndex(Idx);
                 }
@@ -2176,8 +2181,10 @@ bool UCombatCommandMenuSubsystem::CanChooseInfusionElement() const
     // Attack / Ability always; Breakthrough spells too (BD can pick Innate for Darkness-conversion). Other spells are
     // origin-bound (one fixed element). One cached source leaves nothing to choose (a plain Caster evolution spell).
     const UInfusionVFXComponent *VFX = GetInfusionVFXComponent();
+    // B-593 (D-271): a spell from a Water source also chooses between Water and Ice.
     const bool bChoosableKind = PendingActionCategory == EPieMenuCategory::Attack || PendingActionCategory == EPieMenuCategory::Ability ||
-                                (PendingActionCategory == EPieMenuCategory::Spell && ActiveSubmenuSource == EPieMenuCategory::Breakthrough);
+                                (PendingActionCategory == EPieMenuCategory::Spell &&
+                                 (ActiveSubmenuSource == EPieMenuCategory::Breakthrough || (VFX && VFX->HasIceEntry())));
     return CanInfusePendingAction() && bChoosableKind && VFX && VFX->GetCachedSources().Num() > 1;
 }
 
@@ -2229,8 +2236,13 @@ FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
         const bool bElement = CanChooseInfusionElement();
         const TArray<EInfusionSourceOption> &Sources = VFX->GetCachedSources();
         const UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
-        const auto SourceName = [this, Exec](EInfusionSourceOption Source)
+        const auto SourceName = [this, Exec, VFX, &Sources](int32 Index)
         {
+            const EInfusionSourceOption Source = Sources[Index];
+            if (VFX->IsSourceIce(Index))
+            {
+                return WoRGameNames::GetIceName(); // B-593: a Water source's Ice entry
+            }
             if (Source == EInfusionSourceOption::None)
             {
                 return LOCTEXT("PanelSourceNone", "None");
@@ -2250,7 +2262,7 @@ FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
         {
             if (bElement && Sources.IsValidIndex(VFX->GetCurrentSourceIndex()))
             {
-                Parts.Add(SourceName(Sources[VFX->GetCurrentSourceIndex()]));
+                Parts.Add(SourceName(VFX->GetCurrentSourceIndex()));
             }
             Parts.Add(FText::Format(LOCTEXT("PanelLevel", "Lv {0}"), LevelName(PendingInfusionLevel)));
         }
@@ -2258,7 +2270,7 @@ FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
         {
             for (int32 Index = 0; bElement && Index < Sources.Num(); ++Index)
             {
-                View.Elements.Add(SourceName(Sources[Index]));
+                View.Elements.Add(SourceName(Index));
             }
             View.ActiveElement = bElement ? VFX->GetCurrentSourceIndex() : INDEX_NONE;
             for (int32 Level = 0; Level <= InfusionConstants::MAX_INFUSION_LEVEL; ++Level)
@@ -2634,6 +2646,7 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
                 Action.SelectedSource = Sources.IsValidIndex(Idx)
                                             ? Sources[Idx]
                                             : EInfusionSourceOption::None;
+                Action.bIceInfusion = VFX->IsSourceIce(Idx); // B-593 (D-271)
 
                 // Route level by action type
                 if (Action.ActionType == EActionType::Spell)

@@ -79,6 +79,12 @@ public:
     UFUNCTION(BlueprintPure, Category = "Infusion VFX")
     int32 GetCurrentSourceIndex() const { return CurrentSourceIndex; }
 
+    /** D-271 (B-593): the cached entry at Index is the Ice infusion from its source (each Water source is followed by
+     *  its Ice entry, the same source value). */
+    bool IsSourceIce(int32 Index) const { return CachedSourceIsIce.IsValidIndex(Index) && CachedSourceIsIce[Index]; }
+    bool IsCurrentSourceIce() const { return IsSourceIce(CurrentSourceIndex); }
+    bool HasIceEntry() const { return CachedSourceIsIce.Contains(true); }
+
     /** Set source index directly (used when picker pre-selects a spell's intrinsic source). */
     UFUNCTION(BlueprintCallable, Category = "Infusion VFX")
     void SetSourceIndex(int32 Index) { CurrentSourceIndex = FMath::Clamp(Index, 0, FMath::Max(0, CachedSources.Num() - 1)); }
@@ -175,8 +181,9 @@ public:
     void SetWeaponInfusion(bool bWeapon);
     bool IsWeaponInfusion() const { return bWeaponInfusion; }
 
-    /** Crown 2026-11-24: the infused hit deals Ice (a Water infusion on a Deals Ice skill): a Water glow plays Ice's
-     *  default glow and colour. Set per action by the executor; the picker clears it. */
+    /** Crown 2026-11-24: the infused hit deals Ice (a Water infusion on a Deals Ice skill, or an Ice infusion): a Water
+     *  glow plays Ice's default glow and colour. Set per action by the executor; the picker clears it. The picker's own
+     *  Ice entry (IsCurrentSourceIce) shows Ice too. */
     void SetDealsIce(bool bIce);
     bool DealsIce() const { return bDealsIce; }
 
@@ -211,6 +218,10 @@ protected:
 
     UPROPERTY()
     TArray<EInfusionSourceOption> CachedSources;
+
+    /** Parallel to CachedSources: true for a Water source's Ice entry (B-593). */
+    UPROPERTY()
+    TArray<bool> CachedSourceIsIce;
 
     UPROPERTY()
     int32 CurrentSourceIndex = 0;

@@ -233,7 +233,8 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
     const ESpellElement Element = GetElementForSource(Source);
     const bool bRaw = Source == EInfusionSourceOption::Raw;
-    const bool bIce = !bRaw && bDealsIce && Element == ESpellElement::Water;
+    const bool bIcePicked = IsCurrentSourceIce() && CachedSources[CurrentSourceIndex] == Source; // B-593: the picker's Ice entry
+    const bool bIce = !bRaw && (bDealsIce || bIcePicked) && Element == ESpellElement::Water;
     UNiagaraSystem *Glow = FindGlowSystem(InfusionDisplay, Element, bRaw, bIce);
     if (!Glow)
     {
@@ -546,6 +547,7 @@ void UInfusionVFXComponent::DebugDeactivate()
 void UInfusionVFXComponent::CacheAvailableSources()
 {
     CachedSources.Empty();
+    CachedSourceIsIce.Empty();
     CurrentSourceIndex = 0;
 
     AActor *Owner = GetOwner();
@@ -569,7 +571,17 @@ void UInfusionVFXComponent::CacheAvailableSources()
         return;
     }
 
-    CachedSources = Executor->GetAvailableInfusionSources(Owner);
+    // D-271 (B-593): each Water source is followed by its Ice entry (the same source, picked as Ice).
+    for (const EInfusionSourceOption Source : Executor->GetAvailableInfusionSources(Owner))
+    {
+        CachedSources.Add(Source);
+        CachedSourceIsIce.Add(false);
+        if (InfusionSourceOptionHelpers::HasElement(Source) && Executor->GetElementForSourceOption(Owner, Source) == ESpellElement::Water)
+        {
+            CachedSources.Add(Source);
+            CachedSourceIsIce.Add(true);
+        }
+    }
 
     UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Cached %d sources"), CachedSources.Num());
 }
@@ -577,15 +589,18 @@ void UInfusionVFXComponent::CacheAvailableSources()
 void UInfusionVFXComponent::RestrictCachedSources(const TArray<EInfusionSourceOption> &Allowed)
 {
     TArray<EInfusionSourceOption> Filtered;
+    TArray<bool> FilteredIce;
     Filtered.Reserve(CachedSources.Num());
-    for (EInfusionSourceOption Source : CachedSources)
+    for (int32 Index = 0; Index < CachedSources.Num(); ++Index)
     {
-        if (Allowed.Contains(Source))
+        if (Allowed.Contains(CachedSources[Index]))
         {
-            Filtered.Add(Source);
+            Filtered.Add(CachedSources[Index]);
+            FilteredIce.Add(IsSourceIce(Index)); // a kept Water source keeps its Ice entry
         }
     }
     CachedSources = MoveTemp(Filtered);
+    CachedSourceIsIce = MoveTemp(FilteredIce);
     CurrentSourceIndex = 0;
 
     UE_LOG(LogTemp, Verbose, TEXT("[InfusionVFX] Restricted to %d sources"), CachedSources.Num());
@@ -645,7 +660,8 @@ FString UInfusionVFXComponent::GetCurrentSourceName() const
         return TEXT("None");
     }
 
-    return InfusionSourceOptionHelpers::GetDisplayName(CachedSources[CurrentSourceIndex]);
+    const FString Name = InfusionSourceOptionHelpers::GetDisplayName(CachedSources[CurrentSourceIndex]);
+    return IsCurrentSourceIce() ? Name + TEXT(" (Ice)") : Name;
 }
 
 void UInfusionVFXComponent::ToggleInfusion()
