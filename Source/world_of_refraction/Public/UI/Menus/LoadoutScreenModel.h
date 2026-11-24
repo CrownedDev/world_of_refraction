@@ -190,8 +190,9 @@ namespace WoRLoadoutScreen
 																	   const TArray<FWeaponInventoryEntry> &OwnedWeapons, const TArray<FRingInventoryEntry> &OwnedAdapters,
 																	   const TSet<FGuid> &WornElsewhere);
 
-	/** Puts Choice in Row's place of Loadout (or Row's weapon in hand). False when the place can't take it. */
-	WORLD_OF_REFRACTION_API bool PutGearChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, const FLoadoutScreenChoice &Choice);
+	/** Puts Choice in Row's place of Loadout (or Row's weapon in hand), through the slots (B-309d2). False when the
+	 *  place can't take it. */
+	WORLD_OF_REFRACTION_API bool PutGearChoice(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row, const FLoadoutScreenChoice &Choice);
 
 	/** Empties Row's place of Loadout. The primary can't be empty (D-116): a Generic's second weapon moves up into it,
 	 *  otherwise it is refused with the reason. */
@@ -220,8 +221,9 @@ namespace WoRLoadoutScreen
 																		 const TArray<FEvolutionInventoryEntry> &Evolutions, const TSet<FGuid> &EvolutionsInUse);
 
 	/** Writes Choice's attachment into Row's Socket of Loadout (the preview; the owned piece is changed by
-	 *  ApplySocketChoice). False when the row has no such socket. */
-	WORLD_OF_REFRACTION_API bool PutSocketChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, int32 Socket, const FLoadoutScreenChoice &Choice);
+	 *  ApplySocketChoice), through the slots (EditRowGear). False when the row has no such socket. */
+	WORLD_OF_REFRACTION_API bool PutSocketChoice(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row, int32 Socket,
+												 const FLoadoutScreenChoice &Choice);
 
 	/** The member's socket choices, from its pouch and its evolutions, against its active loadout or, when given,
 	 *  Preview (B-516: the add window's loadout with the new entry in). */
@@ -255,6 +257,13 @@ namespace WoRLoadoutScreen
 	/** The weapon or adapter in Row's place of Loadout (at most one is set; neither for an empty place). */
 	WORLD_OF_REFRACTION_API void FindRowGear(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, FWeaponLoadoutEntry *&OutWeapon,
 											 FRingLoadoutEntry *&OutAdapter);
+
+	/** B-309d2b: the writers' way to edit the piece in Row's place: Edit gets that slot's weapon or adapter entry (at most
+	 *  one set) and returns whether it changed it; a change goes back into the slot by place (FCombatLoadout::EditSlots,
+	 *  which rebuilds the old fields). A piece the slots don't hold (a weapon under a Ring or Evolution primary, a
+	 *  Caster's adapter) is edited in its old entry, which EditSlots keeps. Returns Edit's result; false for an empty place. */
+	WORLD_OF_REFRACTION_API bool EditRowGear(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row,
+											 TFunctionRef<bool(FWeaponLoadoutEntry *, FRingLoadoutEntry *)> Edit);
 
 	/** The member's spawned loadout component, with its inventory; null when the member isn't in this level. */
 	WORLD_OF_REFRACTION_API ULoadoutComponent *FindMemberLoadout(UWorld *World, const FLoadoutScreenMember &Member, UInventoryComponent *&OutInventory);

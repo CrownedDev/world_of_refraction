@@ -150,8 +150,9 @@ public:
      *  a Resonator ring slot is removed). Returns how many loadouts changed. */
     int32 RemoveFromSavedLoadouts(const FGuid &PersistentID);
 
-    /** Takes the instance out of one loadout; true when something was removed. */
-    static bool StripFromLoadout(FCombatLoadout &Loadout, const FGuid &PersistentID);
+    /** Takes the instance out of one loadout, through its slots (B-309d3); true when something was removed. Class picks
+     *  the slot mirror; the Generic default mirrors the most, and the result is the same for any class. */
+    static bool StripFromLoadout(FCombatLoadout &Loadout, const FGuid &PersistentID, ECharacterClass Class = ECharacterClass::Generic);
 
     /** Does the loadout hold any weapon, ring or evolution to fight with? */
     static bool LoadoutHasGear(const FCombatLoadout &Loadout);

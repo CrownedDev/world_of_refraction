@@ -4,6 +4,7 @@
 #include "Loadout/FCombatLoadout.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Loadout/WornGear.h" // B-309d4: an adapter-loadout slot by its place
 #include "Loadout/SpellPoolConstants.h"
 #include "Loadout/WeaponSetRules.h"
 #include "Loadout/SkillRequirementRules.h"
@@ -631,7 +632,7 @@ int32 FLoadoutRules::SlotCost(const FLoadoutSlot &Slot)
 int32 FLoadoutRules::NonAdapterCost(const FCombatLoadout &Loadout, ECharacterClass Class)
 {
 	FCombatLoadout Mirror = Loadout;
-	Mirror.RebuildSlotsFromLegacy(Class);
+	Mirror.BuildSlotsFromOldFields(Class);
 	int32 Cost = Mirror.PrimarySlotType == EPrimarySlotType::Evolution ? LoadoutConstants::EVOLUTION_PRIMARY_SLOT_COST : 0;
 	for (const FLoadoutSlot &Slot : Mirror.Slots)
 	{
@@ -643,7 +644,7 @@ int32 FLoadoutRules::NonAdapterCost(const FCombatLoadout &Loadout, ECharacterCla
 TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FCombatLoadout &Loadout, ECharacterClass Class)
 {
 	FCombatLoadout Mirror = Loadout;
-	Mirror.RebuildSlotsFromLegacy(Class);
+	Mirror.BuildSlotsFromOldFields(Class);
 	const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
 
 	const bool bEvolutionSeat = Mirror.PrimarySlotType == EPrimarySlotType::Evolution;
@@ -687,7 +688,7 @@ TArray<FInvalidSlotFinding> FLoadoutRules::CollectClassLimitFindings(const FComb
 								   Mirror.SecondaryWeapon.IsValid();
 	// B-480 (D-210): a Generic's adapter entry in the adapter loadout is dropped first (RingOverflow), before a weapon.
 	const bool bGenericAdapterEntry = Class == ECharacterClass::Generic && Mirror.Slots.ContainsByPredicate([](const FLoadoutSlot &Slot)
-																										   { return Slot.LegacyOrigin == ELegacySlotOrigin::RingLoadout; });
+																										   { return Slot.Place >= WornGearLayout::FIRST_ADAPTER_INDEX; });
 	const bool bDropsAdapters = bResonator || bGenericAdapterEntry;
 	const bool bRefractorStone = Class == ECharacterClass::Caster && Mirror.Slots.ContainsByPredicate([](const FLoadoutSlot &Slot)
 																									 { return !Slot.IsEmpty() && !Slot.Gear.StoneSocket.IsEmpty(); });

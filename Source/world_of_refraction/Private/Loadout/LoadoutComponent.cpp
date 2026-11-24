@@ -11,6 +11,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Loadout/SourceBreakRules.h"
 #include "Loadout/LoadoutConstants.h"
+#include "Loadout/WornGear.h" // B-309d3: the slot places the writers edit
 #include "Inventory/InventoryConstants.h"
 #include "WoRLog.h"
 #include "Loadout/SpellPoolConstants.h"
@@ -54,6 +55,39 @@ namespace
 {
     /** B-357b: fight-start reads see every evolution as not infused (charge level 0). */
     constexpr int32 LOADOUT_FIGHT_START_CHARGE_LEVEL = 0;
+}
+
+namespace LoadoutSlotWrites
+{
+    /** B-309d3: Edit on the weapon entry in a WornGearLayout place, through the slots (FCombatLoadout::EditGearEntries). */
+    void EditWeaponAt(FCombatLoadout &Loadout, ECharacterClass Class, int32 Place, TFunctionRef<void(FWeaponLoadoutEntry &)> Edit)
+    {
+        Loadout.EditGearEntries(Class, [Place, &Edit](int32 At, FWeaponLoadoutEntry *Weapon, FRingLoadoutEntry *)
+        {
+            if (Weapon && At == Place)
+            {
+                Edit(*Weapon);
+            }
+        });
+    }
+
+    /** B-309d3: Edit on the adapter entry in a place (the primary, or WornGearLayout::FIRST_ADAPTER_INDEX + its index). */
+    void EditAdapterAt(FCombatLoadout &Loadout, ECharacterClass Class, int32 Place, TFunctionRef<void(FRingLoadoutEntry &)> Edit)
+    {
+        Loadout.EditGearEntries(Class, [Place, &Edit](int32 At, FWeaponLoadoutEntry *, FRingLoadoutEntry *Ring)
+        {
+            if (Ring && At == Place)
+            {
+                Edit(*Ring);
+            }
+        });
+    }
+
+    /** The place of a finding's weapon: SubIndex SECONDARY_WEAPON names a Generic's secondary weapon (B-304). */
+    int32 FindingWeaponPlace(int32 SubIndex)
+    {
+        return SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? WornGearLayout::SECONDARY_INDEX : WornGearLayout::PRIMARY_INDEX;
+    }
 }
 
 namespace
@@ -384,13 +418,15 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         // Add to primary weapon or ring depending on class
         if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
         {
-            Loadout.PrimaryWeapon.AssignedSpells.Add(Spell);
+            LoadoutSlotWrites::EditWeaponAt(Loadout, GetCharacterClass(), WornGearLayout::PRIMARY_INDEX,
+                                            [Spell](FWeaponLoadoutEntry &Weapon) { Weapon.AssignedSpells.Add(Spell); });
             SpellsAdded++;
             UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to weapon"), *Spell->Name);
         }
         else if (Loadout.PrimarySlotType == EPrimarySlotType::Ring && Loadout.PrimaryRing.IsValid())
         {
-            Loadout.PrimaryRing.RingEntry.AssignedSpells.Add(Spell);
+            LoadoutSlotWrites::EditAdapterAt(Loadout, GetCharacterClass(), WornGearLayout::PRIMARY_INDEX,
+                                             [Spell](FRingLoadoutEntry &Ring) { Ring.RingEntry.AssignedSpells.Add(Spell); });
             SpellsAdded++;
             UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added spell '%s' to ring"), *Spell->Name);
         }
@@ -420,7 +456,8 @@ int32 ULoadoutComponent::CreateAndConfigureLoadout(
         // Add to primary weapon
         if (Loadout.PrimarySlotType != EPrimarySlotType::Ring && Loadout.PrimaryWeapon.IsValid())
         {
-            Loadout.PrimaryWeapon.AssignedAbilities.Add(Ability);
+            LoadoutSlotWrites::EditWeaponAt(Loadout, GetCharacterClass(), WornGearLayout::PRIMARY_INDEX,
+                                            [Ability](FWeaponLoadoutEntry &Weapon) { Weapon.AssignedAbilities.Add(Ability); });
             AbilitiesAdded++;
             UE_LOG(LogTemp, Verbose, TEXT("[LoadoutComponent] Added ability '%s'"), *Ability->Name);
         }
@@ -805,24 +842,27 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
         }
 
         FInvalidSlotFinding DroppedFinding = Finding;
+        // B-309d3: a weapon or adapter is changed in its slot by place (FCombatLoadout::EditGearEntries).
+        using namespace LoadoutSlotWrites;
+        const ECharacterClass Class = GetCharacterClass();
         switch (Finding.SlotType)
         {
         case ELoadoutSlotType::PrimaryWeapon:
-            Loadout.PrimaryWeapon.Clear();
+            EditWeaponAt(Loadout, Class, WornGearLayout::PRIMARY_INDEX, [](FWeaponLoadoutEntry &Weapon) { Weapon.Clear(); });
             break;
         case ELoadoutSlotType::PrimaryRing:
-            Loadout.PrimaryRing.Clear();
+            EditAdapterAt(Loadout, Class, WornGearLayout::PRIMARY_INDEX, [](FRingLoadoutEntry &Ring) { Ring.Clear(); });
             break;
         case ELoadoutSlotType::PrimaryEvolution:
             Loadout.PrimaryEvolution = FEvolutionAttachment();
             break;
         case ELoadoutSlotType::SecondaryWeapon:
-            Loadout.SecondaryWeapon.Clear();
+            EditWeaponAt(Loadout, Class, WornGearLayout::SECONDARY_INDEX, [](FWeaponLoadoutEntry &Weapon) { Weapon.Clear(); });
             break;
         case ELoadoutSlotType::ResonatorRing:
             if (Loadout.RingLoadout.IsValidIndex(Finding.SlotIndex))
             {
-                Loadout.RingLoadout[Finding.SlotIndex].Clear();
+                EditAdapterAt(Loadout, Class, WornGearLayout::FIRST_ADAPTER_INDEX + Finding.SlotIndex, [](FRingLoadoutEntry &Ring) { Ring.Clear(); });
             }
             break;
         case ELoadoutSlotType::InnateSpell:
@@ -834,43 +874,40 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
         case ELoadoutSlotType::WeaponAbility:
         case ELoadoutSlotType::WeaponSpell:
         {
-            // B-304: SubIndex SECONDARY_WEAPON names a Generic's secondary weapon; anything else the primary.
-            FWeaponLoadoutEntry &Weapon = Finding.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? Loadout.SecondaryWeapon
-                                                                                                           : Loadout.PrimaryWeapon;
-            if (Finding.SlotType == ELoadoutSlotType::WeaponAbility && Weapon.AssignedAbilities.IsValidIndex(Finding.SlotIndex))
+            EditWeaponAt(Loadout, Class, FindingWeaponPlace(Finding.SubIndex), [&Finding](FWeaponLoadoutEntry &Weapon)
             {
-                Weapon.AssignedAbilities[Finding.SlotIndex] = nullptr;
-            }
-            else if (Finding.SlotType == ELoadoutSlotType::WeaponSpell && Weapon.AssignedSpells.IsValidIndex(Finding.SlotIndex))
-            {
-                Weapon.AssignedSpells[Finding.SlotIndex] = nullptr;
-            }
+                if (Finding.SlotType == ELoadoutSlotType::WeaponAbility && Weapon.AssignedAbilities.IsValidIndex(Finding.SlotIndex))
+                {
+                    Weapon.AssignedAbilities[Finding.SlotIndex] = nullptr;
+                }
+                else if (Finding.SlotType == ELoadoutSlotType::WeaponSpell && Weapon.AssignedSpells.IsValidIndex(Finding.SlotIndex))
+                {
+                    Weapon.AssignedSpells[Finding.SlotIndex] = nullptr;
+                }
+            });
             break;
         }
         case ELoadoutSlotType::WeaponGemSkill: // B-410: the slot goes back to its built-in (or empty)
-        {
-            FWeaponLoadoutEntry &Weapon = Finding.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? Loadout.SecondaryWeapon
-                                                                                                           : Loadout.PrimaryWeapon;
-            Weapon.RestoreSkill(Finding.SlotIndex);
+            EditWeaponAt(Loadout, Class, FindingWeaponPlace(Finding.SubIndex),
+                         [&Finding](FWeaponLoadoutEntry &Weapon) { Weapon.RestoreSkill(Finding.SlotIndex); });
             break;
-        }
         case ELoadoutSlotType::RingSpell:
         {
             // SlotIndex -1 = Generic/Caster primary ring; otherwise the Resonator
             // ring-loadout index. SubIndex addresses the spell within the ring.
-            TArray<USpellData *> *Spells = nullptr;
-            if (Finding.SlotIndex == -1)
+            if (Finding.SlotIndex < -1)
             {
-                Spells = &Loadout.PrimaryRing.RingEntry.AssignedSpells;
+                break;
             }
-            else if (Loadout.RingLoadout.IsValidIndex(Finding.SlotIndex))
+            const int32 Place = Finding.SlotIndex == -1 ? WornGearLayout::PRIMARY_INDEX : WornGearLayout::FIRST_ADAPTER_INDEX + Finding.SlotIndex;
+            EditAdapterAt(Loadout, Class, Place, [&Finding](FRingLoadoutEntry &Ring)
             {
-                Spells = &Loadout.RingLoadout[Finding.SlotIndex].RingEntry.AssignedSpells;
-            }
-            if (Spells && Spells->IsValidIndex(Finding.SubIndex))
-            {
-                (*Spells)[Finding.SubIndex] = nullptr;
-            }
+                TArray<USpellData *> &Spells = Ring.RingEntry.AssignedSpells;
+                if (Spells.IsValidIndex(Finding.SubIndex))
+                {
+                    Spells[Finding.SubIndex] = nullptr;
+                }
+            });
             break;
         }
         case ELoadoutSlotType::EvolutionOverflow:
@@ -922,26 +959,45 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
             }
             if (TruncateFromIndex != INDEX_NONE)
             {
-                Loadout.RingLoadout.SetNum(TruncateFromIndex);
+                Loadout.EditSlots(Class, [TruncateFromIndex](FCombatLoadout &Edited)
+                {
+                    const int32 FirstPlace = WornGearLayout::FIRST_ADAPTER_INDEX + TruncateFromIndex;
+                    Edited.Slots.RemoveAll([FirstPlace](const FLoadoutSlot &Slot) { return Slot.Place >= FirstPlace; });
+                    Edited.RingLoadout.SetNum(TruncateFromIndex); // what no slot mirrors (a Caster's adapters), which EditSlots keeps
+                });
             }
             break;
         }
         case ELoadoutSlotType::OffHandWeapon:
             // B-477 (D-209): the set goes back to its main hand alone.
-            (Finding.SubIndex == LoadoutAbilityOverflowIndex::SECONDARY_WEAPON ? Loadout.SecondaryWeapon : Loadout.PrimaryWeapon).OffHandEntry =
-                FWeaponInventoryEntry();
+            EditWeaponAt(Loadout, Class, FindingWeaponPlace(Finding.SubIndex),
+                         [](FWeaponLoadoutEntry &Weapon) { Weapon.OffHandEntry = FWeaponInventoryEntry(); });
             break;
         case ELoadoutSlotType::GearEvolution:
         {
             // B-480 (D-210): the evolution comes off the gear its class may not evolve; it is a reference, so it is
             // free again in the inventory once the owned piece is written.
-            FRuntimeAttachedItem *Socket = Finding.SlotIndex == LoadoutGearEvolutionIndex::PRIMARY_WEAPON ? &Loadout.PrimaryWeapon.WeaponEntry.AttachedItem
-                                           : Finding.SlotIndex == LoadoutGearEvolutionIndex::PRIMARY_RING ? &Loadout.PrimaryRing.RingEntry.AttachedItem
-                                           : Loadout.RingLoadout.IsValidIndex(Finding.SlotIndex)          ? &Loadout.RingLoadout[Finding.SlotIndex].RingEntry.AttachedItem
-                                                                                                          : nullptr;
-            if (Socket && Socket->IsEvolution())
+            bool bTaken = false;
+            const auto TakeEvolution = [&bTaken](FRuntimeAttachedItem &Socket)
             {
-                *Socket = FRuntimeAttachedItem();
+                if (Socket.IsEvolution())
+                {
+                    Socket = FRuntimeAttachedItem();
+                    bTaken = true;
+                }
+            };
+            if (Finding.SlotIndex == LoadoutGearEvolutionIndex::PRIMARY_WEAPON)
+            {
+                EditWeaponAt(Loadout, Class, WornGearLayout::PRIMARY_INDEX, [&TakeEvolution](FWeaponLoadoutEntry &Weapon) { TakeEvolution(Weapon.WeaponEntry.AttachedItem); });
+            }
+            else if (Finding.SlotIndex == LoadoutGearEvolutionIndex::PRIMARY_RING || Finding.SlotIndex >= 0)
+            {
+                const int32 Place = Finding.SlotIndex == LoadoutGearEvolutionIndex::PRIMARY_RING ? WornGearLayout::PRIMARY_INDEX
+                                                                                                 : WornGearLayout::FIRST_ADAPTER_INDEX + Finding.SlotIndex;
+                EditAdapterAt(Loadout, Class, Place, [&TakeEvolution](FRingLoadoutEntry &Ring) { TakeEvolution(Ring.RingEntry.AttachedItem); });
+            }
+            if (bTaken)
+            {
                 Inv->WriteLoadoutToOwned(Index);
             }
             break;
@@ -950,14 +1006,27 @@ TArray<FInvalidSlotFinding> ULoadoutComponent::DropInvalidParts(int32 Index, con
         {
             // B-472 (D-206): a Refractor over 2 drops its one item's augment stone; Q-159 = A: it goes back to the
             // inventory, and the owned item is written so the stone isn't on it and in the pouch at once.
-            FRuntimeAttachedItem &Stone = Loadout.PrimarySlotType == EPrimarySlotType::Ring ? Loadout.PrimaryRing.RingEntry.StoneSocket
-                                                                                             : Loadout.PrimaryWeapon.WeaponEntry.StoneSocket;
-            if (!Stone.IsEmpty())
+            TOptional<FCrystalId> StoneId;
+            const auto TakeStone = [&StoneId](FRuntimeAttachedItem &Stone)
             {
-                const FCrystalId StoneId = Stone.Crystal.Id;
-                Stone = FRuntimeAttachedItem();
+                if (!Stone.IsEmpty())
+                {
+                    StoneId = Stone.Crystal.Id;
+                    Stone = FRuntimeAttachedItem();
+                }
+            };
+            if (Loadout.PrimarySlotType == EPrimarySlotType::Ring)
+            {
+                EditAdapterAt(Loadout, Class, WornGearLayout::PRIMARY_INDEX, [&TakeStone](FRingLoadoutEntry &Ring) { TakeStone(Ring.RingEntry.StoneSocket); });
+            }
+            else
+            {
+                EditWeaponAt(Loadout, Class, WornGearLayout::PRIMARY_INDEX, [&TakeStone](FWeaponLoadoutEntry &Weapon) { TakeStone(Weapon.WeaponEntry.StoneSocket); });
+            }
+            if (StoneId.IsSet())
+            {
                 Inv->WriteLoadoutToOwned(Index);
-                LoadoutReturnDroppedCrystals(Inv, StoneId, 1);
+                LoadoutReturnDroppedCrystals(Inv, *StoneId, 1);
             }
             break;
         }
@@ -1228,7 +1297,7 @@ bool ULoadoutComponent::TryChangeGear(int32 LoadoutIndex, TFunctionRef<void(FCom
     {
         return false;
     }
-    GetInventoryComponent()->SavedLoadouts[LoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass()); // TryChangeLoadout checked both
+    GetInventoryComponent()->SavedLoadouts[LoadoutIndex].RefreshActiveSlots(GetCharacterClass()); // B-309d4: the change wrote the slots
     SwapGearEffects(OldGearEffects);
     if (UCharacterDataComponent *CharComp = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterDataComponent>() : nullptr)
     {
@@ -1931,8 +2000,13 @@ bool ULoadoutComponent::AutoPopulateLoadout(int32 LoadoutIndex, UInventoryCompon
     // Auto-assign first available weapon
     if (Inventory->Weapons.Num() > 0)
     {
-        Loadout.PrimaryWeapon.WeaponEntry = Inventory->Weapons[0];
-        Loadout.PrimaryWeapon.InitializeFromWeapon();
+        FWeaponLoadoutEntry Entry;
+        Entry.WeaponEntry = Inventory->Weapons[0];
+        Entry.InitializeFromWeapon();
+        Loadout.EditSlots(GetCharacterClass(), [&Entry](FCombatLoadout &Edited) // B-309d3: through the slots
+        {
+            Edited.PutSlotAt(WornGearLayout::PRIMARY_INDEX, FLoadoutSlot::FromWeaponLoadoutEntry(Entry));
+        });
     }
 
     // Auto-assign items (one of each type, highest tier first)
@@ -2078,12 +2152,13 @@ void ULoadoutComponent::NotifyApparelChanged()
 
 void ULoadoutComponent::NotifyActiveWeaponChanged()
 {
-    // B-302: every gear change announces here, so the unified slot mirror (D-110) is rebuilt first.
+    // B-302: every gear change announces here. B-309d4: the writers change the slots; the in-step check (not a full
+    // rebuild) catches a loadout authored in the old fields, for the readers of Slots that skip GetActiveLoadoutInStep.
     if (UInventoryComponent *Inv = GetInventoryComponent())
     {
         if (Inv->SavedLoadouts.IsValidIndex(Inv->ActiveLoadoutIndex))
         {
-            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].RebuildSlotsFromLegacy(GetCharacterClass());
+            Inv->SavedLoadouts[Inv->ActiveLoadoutIndex].EnsureSlotsInStep(GetCharacterClass());
         }
     }
     // GetActiveWeapon warns when there is no inventory; with none there is no weapon to announce.
@@ -2765,7 +2840,7 @@ FCombatLoadout *ULoadoutComponent::GetActiveLoadoutInStep() const
         return nullptr;
     }
     FCombatLoadout &Loadout = Inv->SavedLoadouts[Inv->ActiveLoadoutIndex];
-    Loadout.EnsureSlotsInStep(GetCharacterClass());
+    Loadout.EnsureSlotsInStep(GetCharacterClass()); // a loadout authored in the old fields (a preset, a spec) reads right
     return &Loadout;
 }
 
@@ -2833,7 +2908,7 @@ const FLoadoutSlot *ULoadoutComponent::GetActiveSlotIn(const FCombatLoadout &Loa
             return false;
         }
         const FLoadoutSlot &Slot = Loadout.Slots[Index];
-        if (bAdapterLoadoutOnly && Slot.LegacyOrigin != ELegacySlotOrigin::RingLoadout)
+        if (bAdapterLoadoutOnly && Slot.Place < WornGearLayout::FIRST_ADAPTER_INDEX)
         {
             return false;
         }

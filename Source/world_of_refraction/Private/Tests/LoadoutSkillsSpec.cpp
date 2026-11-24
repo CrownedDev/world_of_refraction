@@ -119,11 +119,11 @@ void FLoadoutSkillsSpec::Define()
 		const FLoadoutSkillsPage Page = WoRLoadoutSkills::BuildSkillsPage(Loadout, ECharacterClass::Caster, LOADOUT_SKILLS_TEST_NO_DISCOUNT, {});
 		const FLoadoutSkillTab &Tab = Page.Tabs[0];
 		FText Refusal;
-		TestTrue(TEXT("put in"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows.Last(), Nova, Refusal));
+		TestTrue(TEXT("put in"), WoRLoadoutSkills::PutSkill(Loadout, ECharacterClass::Caster, Tab, Tab.Rows.Last(), Nova, Refusal));
 		TestTrue(TEXT("now in the innate list"), Loadout.InnateSpells.Contains(Nova));
-		TestTrue(TEXT("take Bolt out"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows[0], nullptr, Refusal));
+		TestTrue(TEXT("take Bolt out"), WoRLoadoutSkills::PutSkill(Loadout, ECharacterClass::Caster, Tab, Tab.Rows[0], nullptr, Refusal));
 		TestFalse(TEXT("Bolt is out"), Loadout.InnateSpells.Contains(Bolt));
-		TestFalse(TEXT("an empty slot has nothing to take out"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows.Last(), nullptr, Refusal));
+		TestFalse(TEXT("an empty slot has nothing to take out"), WoRLoadoutSkills::PutSkill(Loadout, ECharacterClass::Caster, Tab, Tab.Rows.Last(), nullptr, Refusal));
 		TestFalse(TEXT("and says so"), Refusal.IsEmpty());
 	});
 
@@ -146,11 +146,11 @@ void FLoadoutSkillsSpec::Define()
 		TestTrue(TEXT("offers only the learned one"), Choices.Num() == 1 && Choices[0].Row.Skill == Cleave);
 
 		FText Refusal;
-		TestFalse(TEXT("X on an empty slot: nothing to take off"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows[0], nullptr, Refusal));
-		TestTrue(TEXT("put it in"), WoRLoadoutSkills::PutSkill(Loadout, Tab, Tab.Rows[0], Cleave, Refusal));
+		TestFalse(TEXT("X on an empty slot: nothing to take off"), WoRLoadoutSkills::PutSkill(Loadout, ECharacterClass::Generic, Tab, Tab.Rows[0], nullptr, Refusal));
+		TestTrue(TEXT("put it in"), WoRLoadoutSkills::PutSkill(Loadout, ECharacterClass::Generic, Tab, Tab.Rows[0], Cleave, Refusal));
 		const FLoadoutSkillsPage After = WoRLoadoutSkills::BuildSkillsPage(Loadout, ECharacterClass::Generic, LOADOUT_SKILLS_TEST_NO_DISCOUNT, {});
 		TestTrue(TEXT("the pick is in, marked a pick"), After.Tabs[0].Rows[0].Skill == Cleave && After.Tabs[0].Rows[0].bPick);
-		TestTrue(TEXT("X takes it off"), WoRLoadoutSkills::PutSkill(Loadout, After.Tabs[0], After.Tabs[0].Rows[0], nullptr, Refusal));
+		TestTrue(TEXT("X takes it off"), WoRLoadoutSkills::PutSkill(Loadout, ECharacterClass::Generic, After.Tabs[0], After.Tabs[0].Rows[0], nullptr, Refusal));
 		TestTrue(TEXT("the slot is empty, Slash doesn't come back"), Loadout.PrimaryWeapon.GetSkillSlots()[0] == nullptr);
 	});
 }

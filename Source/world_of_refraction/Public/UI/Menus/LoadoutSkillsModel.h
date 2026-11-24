@@ -74,9 +74,10 @@ namespace WoRLoadoutSkills
 																		   int32 Tab, const FLoadoutScreenRow &Row);
 
 	/** Puts Skill in Row's slot of Loadout, or with no Skill takes it off (an innate spell comes out; a pick gives back
-	 *  what it replaced). False, with the reason, when there is nothing to take off or the list can't take it. */
-	WORLD_OF_REFRACTION_API bool PutSkill(FCombatLoadout &Loadout, const FLoadoutSkillTab &Tab, const FLoadoutScreenRow &Row, USkillDataBase *Skill,
-										  FText &OutRefusal);
+	 *  what it replaced). A piece's slot is edited through the slots (WoRLoadoutScreen::EditRowGear, B-309d2b). False,
+	 *  with the reason, when there is nothing to take off or the list can't take it. */
+	WORLD_OF_REFRACTION_API bool PutSkill(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutSkillTab &Tab, const FLoadoutScreenRow &Row,
+										  USkillDataBase *Skill, FText &OutRefusal);
 
 	/** PutSkill on the member's active loadout through ULoadoutComponent::TryChangeGear; the picks are written to the
 	 *  owned pieces. Empty on success; else the reason, for the player. */
