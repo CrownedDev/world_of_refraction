@@ -244,9 +244,14 @@ void FSkillCameraStyleSpec::Define()
 					  CameraFraming::IsOnScreen(Wide.End, Wide.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet + FVector::UpVector * STYLE_TEST_BODY_HEIGHT);
 		}
 		TestTrue(TEXT("every party member and the enemy whole in frame"), bWhole);
-		const FVector Middle = (Party[0] + Enemy) * 0.5f;
-		TestTrue(TEXT("further back than the one-defender two-shot"),
-				 FVector::Dist(Wide.End.GetLocation(), Middle) > FVector::Dist(Two.End.GetLocation(), Middle));
+		FVector WideCentre = FVector::ZeroVector;
+		for (const FVector &Fighter : Fighters)
+		{
+			WideCentre += Fighter / Fighters.Num();
+		}
+		const FVector TwoCentre = (Party[0] + Enemy) * 0.5f;
+		TestTrue(TEXT("further back from its fighters than the one-defender two-shot from its two"),
+				 FVector::Dist2D(Wide.End.GetLocation(), WideCentre) > FVector::Dist2D(Two.End.GetLocation(), TwoCentre));
 	});
 
 	It("B-600d: a party member's leap home leaves its shot; an enemy's keeps its shot", [this]()
