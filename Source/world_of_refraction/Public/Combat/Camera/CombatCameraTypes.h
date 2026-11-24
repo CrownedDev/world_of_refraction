@@ -300,9 +300,9 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 
 	/** B-400 (study R3 / §9, Q-400): the view while the single-target picker highlights a target whose feet are at
 	 *  TargetFeet, TargetHeight tall. Fewer than MinTargetsForTargetView targets: ComputeTurnView(Style, Frame,
-	 *  MenuDepth), unchanged. OverTheShoulder: a front medium shot of the target (its whole body and the HP bar above
-	 *  it in frame), from the side of the fight it faces. CentredWide / Tactical: the turn view from the same place,
-	 *  re-aimed part of the way toward the target. */
+	 *  MenuDepth), unchanged. B-600f (Q-600f): OverTheShoulder stays where the turn view stands (low, behind the
+	 *  character) and turns to face the target, its body and the HP bar above it (stepping back along the aim only for
+	 *  a target too near to fit); it was a front medium shot of the target. CentredWide / Tactical: the turn view from the same place, re-aimed part of the way toward the target. */
 	static FTransform ComputeTargetView(ETurnViewStyle Style, const FCombatCameraFrame &Frame, const FVector &TargetFeet, float TargetHeight,
 										int32 MenuDepth, int32 TargetCount);
 	/** ComputeTargetView from a given turn view (the director passes its turn view with B-405's boss height, so a
@@ -318,8 +318,8 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static FTransform ComputeIntelView(const FCombatCameraFrame &Frame, const FVector &SubjectFeet, float SubjectHeight,
 									   const TArray<FVector> &OtherBodies = TArray<FVector>());
 
-	/** B-400: the move to, between and back from target views: 0 (a cut) for OverTheShoulder (study §12: one cut per
-	 *  press); a very short re-aim blend for the other styles (§9: a setting, not a rule). */
+	/** B-400: the move to, between and back from target views: a very short re-aim blend in every style (B-600f: Over
+	 *  the Shoulder turns on the spot now, so it blends too; it cut to the front shot). */
 	static float GetTargetViewBlendSeconds(ETurnViewStyle Style);
 
 	/** B-400: the point above a target's head that its HP bar needs in frame. */
@@ -412,8 +412,23 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 
 	/** B-600e (Q-600d): where a party member's leap home goes: the wide beat's view and blend (PlanTurnChange), framed
 	 *  from the attacker's home spot (HomeFrame.Focus), not where it struck. Both sides in frame, the attacker lands in
-	 *  it, and the leap never passes the lens; the next turn's beat starts from the same kind of view. */
+	 *  it, and the leap never passes the lens; the next turn's beat starts from the same kind of view.
+	 *  Obsolete since B-600f (the director follows the attacker home into its turn view at the home spot instead);
+	 *  remove after PIE. */
 	static FTurnChangePlan PlanLeapHome(ETurnViewStyle Style, const FCombatCameraFrame &HomeFrame);
+
+	/** B-600f (Q-600f): the camera follows a party member's leap home into its own turn view at the home spot (low and
+	 *  behind it, facing the enemies; the leap comes toward the lens but stops short of it). The blend lasts the return
+	 *  montage (its length at PlayRate), so the camera arrives as the attacker lands; FollowHomeFallbackSeconds with no
+	 *  montage. */
+	static float GetFollowHomeSeconds(const UAnimMontage *ReturnMontage, float PlayRate);
+	static constexpr float FollowHomeFallbackSeconds = 0.5f;
+	/** B-600f (Q-600f): after a party member's skill played its shots, the next turn's camera waits this long after the
+	 *  action ends (the return montage's end, or the recovery's for a skill with no return). TODO: tune in PIE. */
+	static constexpr float ActionEndHoldSeconds = 0.5f;
+	/** B-600f: the next turn's wait after an action: ActionEndHoldSeconds for a party member's skill that played its
+	 *  shots, else 0 (an enemy's skill, an item, End Turn, cinematics or camera movement off). */
+	static float GetActionEndHold(bool bPartyCaster, bool bPlayedShots);
 
 	/** B-371: the moment an impact plays: Spread for several targets, else Impact. */
 	static ECameraShotMoment ImpactMomentFor(int32 TargetCount);

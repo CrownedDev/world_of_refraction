@@ -1284,6 +1284,15 @@ The queue of questions only Crown can answer.
 **Addition (Crown, 2026-11-24):** give it the Generic's skills too, Quick Strike and Force Strike, and each new sword skill as it lands. An F sword holds one skill and the party Generic's own F sword holds only Quick Strike, so the enemy wears a second F sword (its swap set, like the Generic's swap weapon) holding Force Strike: same weapon power, no damage change. Known gap: the Medium AI picks its highest-damage skill, so it chose Quick Strike every time (4 of 4); Force Strike was seen only with Quick Strike briefly taken out.
 **Reference:** a mirror match (the same build on both sides) is the usual fair baseline, as fighting games use it to test balance; `docs/Design/BalanceSimulator.md` targets 3-5 hits to kill a same-tier Normal enemy, which a same-numbers enemy meets from both sides.
 
+### Q-600f — The target-pick view, and when a party attack's camera ends
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-600f, Crown: the target view goes high; the next view comes before the attacker is home) · **Blocks:** nothing
+**Question:** (a) with 2+ targets, how does the camera show the highlighted target? (b) when does a party attack's camera hand over to the next fighter?
+**Answer (default, built):**
+- (a) Over the Shoulder stays where the turn view stands, low and behind the attacker, and turns to face the highlighted target with a short blend (0.15 s) as the pick moves; it steps back along its aim only for a target too near to fit. It was a front medium shot of the target. Centred Wide and Tactical keep their small re-aim. Intel's close-up keeps the front shot.
+- (b) as the attacker leaps home the camera follows it into its own turn view at the home spot, over the return montage's length. The next fighter's view (the wide beat, then the handover) waits 0.5 s after the action ends: the return montage's end, or the recovery's for a skill with no return (ranged, or a swing on the spot). Enemy skills keep the defend camera's own wait (B-604c).
+- Named constants, TODO tune in PIE: `FCombatCameraRules::ActionEndHoldSeconds` (0.5), `FollowHomeFallbackSeconds` (0.5), `CombatCameraTargetView::ShoulderTurnFraction` (1), `ReaimBlendSeconds` (0.15), `MediumShotFill` (0.6).
+**Reference:** Expedition 33 and Persona 5 keep the over-the-shoulder view while you pick a target (Crown's brief). The camera video study (`docs/analysis/TurnBasedCameraComparison.md` §5, branch `claude/docs-camera-video-study-a23bbe`): none of E33, P5R, Metaphor or FFX goes high or top-down for a target pick; FFX waits about 0.5 s after the attacker lands, E33 0.2 to 0.5 s.
+
 ### Q-604b — Attack camera and defend camera
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-604b, Crown: "shouldn't it be attack camera and defend camera?") · **Blocks:** nothing
 **Question:** how is an enemy's attack on a party member framed?

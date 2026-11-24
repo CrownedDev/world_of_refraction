@@ -80,7 +80,7 @@ public:
 	bool IsTargetViewShowing() const { return bTargetViewShowing; }
 	/** B-400 (debug, specs): the target-view camera moves this fight (to a target, between targets and back). */
 	int32 GetTargetMoveCount() const { return TargetMoveCount; }
-	/** B-400 (wor.Camera): e.g. "target view: Goblin_2 of 3 (cut, 4 moves)" or "target view: none". */
+	/** B-400 (wor.Camera): e.g. "target view: Goblin_2 of 3 (showing, re-aim 0.15 s, 4 moves)" or "target view: none". */
 	FString GetTargetViewString() const;
 
 	/** B-587 (D-262): Intel's open tab. A character on the viewer's own turn view: a cut to its close-up
@@ -439,6 +439,9 @@ private:
 	TWeakObjectPtr<UDefenseSystem> BoundDefense;
 	void PlayDeferredTurnStart();
 	void ClearDefendWait();
+	/** B-600f: how long the next turn's camera waits after the last action ends (FCombatCameraRules::GetActionEndHold,
+	 *  set when the action starts; used once). */
+	float PendingActionEndHold = 0.0f;
 
 	// B-404: the wide beat and the party handover of the current turn start.
 	FTimerHandle WideBeatTimer;

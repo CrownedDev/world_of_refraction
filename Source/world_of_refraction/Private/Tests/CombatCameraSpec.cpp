@@ -357,7 +357,7 @@ void FCombatCameraSpec::Define()
 
 	Describe("target cut with several enemies (B-400, study R3 / §9, Q-400)", [this]()
 	{
-		It("re-aims from the boss-height turn view it is given, and Over the Shoulder's front shot ignores it (B-400 x B-405)", [this]()
+		It("re-aims from the boss-height turn view it is given, in every style (B-400 x B-405; B-600f: Over the Shoulder too)", [this]()
 		{
 			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, TurnTestThreeEnemies());
 			const FVector Feet = TurnTestThreeEnemies()[0];
@@ -365,15 +365,8 @@ void FCombatCameraSpec::Define()
 			{
 				const FTransform Base = FCombatCameraRules::ComputeTurnView(Style, Frame, CommandMenuRules::MAIN_MENU_DEPTH);
 				const FTransform Low = FBossFramingRules::ApplyHeight(Base, EEnemyCameraHeight::Low, Style, Frame);
-				const FTransform FromBase = FCombatCameraRules::ComputeTargetView(Style, Frame, Feet, TARGET_TEST_PERSON_HEIGHT,
-																				   CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
 				const FTransform FromLow = FCombatCameraRules::ComputeTargetViewFrom(Style, Frame, Low, Feet, TARGET_TEST_PERSON_HEIGHT, TARGET_TEST_SEVERAL);
 				const FString Name = UEnum::GetValueAsString(Style);
-				if (Style == ETurnViewStyle::OverTheShoulder)
-				{
-					TestTrue(FString::Printf(TEXT("%s: the front shot is the same"), *Name), FromLow.Equals(FromBase));
-					continue;
-				}
 				TestTrue(FString::Printf(TEXT("%s: the re-aim stands where the low turn view stands"), *Name),
 						 FromLow.GetLocation().Equals(Low.GetLocation()));
 				TestTrue(FString::Printf(TEXT("%s: the boss height is really lower"), *Name), Low.GetLocation().Z < Base.GetLocation().Z);
@@ -423,23 +416,26 @@ void FCombatCameraSpec::Define()
 			}
 		});
 
-		It("over the shoulder: a front medium shot, the target centred and larger than in the turn view; a cut", [this]()
+		It("over the shoulder (B-600f, Q-600f): stays low behind the character where the turn view stands and turns to face each target; a short blend", [this]()
 		{
 			const TArray<FVector> Enemies = TurnTestThreeEnemies();
-			const FCombatCameraFrame Frame = TurnViewTestFrame(FVector::ZeroVector, Enemies);
-			const FTransform Turn = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame);
-			for (const FVector &Feet : Enemies)
+			for (const FVector &Member : {FVector::ZeroVector, TURN_TEST_SIDE_MEMBER})
 			{
-				const FTransform View = FCombatCameraRules::ComputeTargetView(ETurnViewStyle::OverTheShoulder, Frame, Feet, TARGET_TEST_PERSON_HEIGHT,
-																			  CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
-				const FVector Head = Feet + FVector::UpVector * TARGET_TEST_PERSON_HEIGHT;
-				const float ShotHeight = ProjectInTurnView(View, Head).Y - ProjectInTurnView(View, Feet).Y;
-				const float TurnHeight = ProjectInTurnView(Turn, Head).Y - ProjectInTurnView(Turn, Feet).Y;
-				TestTrue(TEXT("larger than in the turn view"), ShotHeight > TurnHeight);
-				TestTrue(TEXT("centred left to right"), FMath::Abs(ProjectInTurnView(View, Feet).X) <= CameraFraming::THIRD_LINE);
-				TestTrue(TEXT("from the party's side (front)"), View.GetLocation().X < Feet.X);
+				const FCombatCameraFrame Frame = TurnViewTestFrame(Member, Enemies);
+				const FTransform Turn = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame);
+				for (const FVector &Feet : Enemies)
+				{
+					const FTransform View = FCombatCameraRules::ComputeTargetView(ETurnViewStyle::OverTheShoulder, Frame, Feet, TARGET_TEST_PERSON_HEIGHT,
+																				  CommandMenuRules::MAIN_MENU_DEPTH, TARGET_TEST_SEVERAL);
+					const FString Name = FString::Printf(TEXT("member %s, target %s"), *Member.ToCompactString(), *Feet.ToCompactString());
+					TestTrue(Name + TEXT(": the turn view's own spot (no move up or across: no top-down view)"),
+							 View.GetLocation().Equals(Turn.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+					TestTrue(Name + TEXT(": behind the character (the lens on the party's side of it)"),
+							 FVector::DotProduct(Member - View.GetLocation(), Frame.TowardEnemies) > 0.0f);
+					TestTrue(Name + TEXT(": the target centred left to right"), FMath::Abs(ProjectInTurnView(View, Feet).X) < CameraFraming::THIRD_LINE);
+				}
 			}
-			TestEqual(TEXT("a cut"), FCombatCameraRules::GetTargetViewBlendSeconds(ETurnViewStyle::OverTheShoulder), 0.0f);
+			TestTrue(TEXT("a short blend, no cut"), FCombatCameraRules::GetTargetViewBlendSeconds(ETurnViewStyle::OverTheShoulder) > 0.0f);
 		});
 
 		It("centred wide: the same place, re-aimed toward the target; a short blend", [this]()
@@ -1259,7 +1255,7 @@ void FCombatCameraDirectorSpec::Define()
 		Director->SetCameraMovementOff(false);
 	});
 
-	It("cuts to each highlighted target with two enemies, back on cancel, and holds with movement off (B-400)", [this]()
+	It("turns to each highlighted target with two enemies, back on cancel, and holds with movement off (B-400, B-600f)", [this]()
 	{
 		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
 		UCombatCommandMenuSubsystem *Menu = TestWorld->GetSubsystem<UCombatCommandMenuSubsystem>();

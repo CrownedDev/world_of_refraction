@@ -298,6 +298,68 @@ void FSkillCameraStyleSpec::Define()
 		}
 	});
 
+	It("B-600f (Q-600f): the leap home is followed into the attacker's own turn view at home: low behind it, the whole leap in frame", [this]()
+	{
+		const FVector Home = FVector::ZeroVector; // StyleTestContext's caster
+		FCombatCameraFrame HomeFrame;
+		HomeFrame.Focus = Home;
+		HomeFrame.TowardEnemies = (STYLE_TEST_TARGET - Home).GetSafeNormal2D();
+		HomeFrame.EnemyCentre = STYLE_TEST_TARGET;
+		HomeFrame.ArenaCentre = (Home + STYLE_TEST_TARGET) * 0.5f;
+		for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+		{
+			const FString Name = UEnum::GetValueAsString(Style);
+			const FTransform View = FCombatCameraRules::ComputeTurnView(Style, HomeFrame); // what the director follows into
+			const float Behind = FVector::DotProduct(Home - View.GetLocation(), HomeFrame.TowardEnemies);
+			if (Style == ETurnViewStyle::Tactical)
+			{
+				TestTrue(Name + TEXT(": side-on (the leap crosses the frame, never toward the lens)"),
+						 FMath::Abs(Behind) < FVector::Dist2D(Home, View.GetLocation()) * 0.5f);
+			}
+			else
+			{
+				TestTrue(Name + TEXT(": the lens behind the home spot (the leap comes toward it but stops short)"), Behind > 0.0f);
+			}
+			bool bLeapInFrame = true;
+			constexpr float LEAP_SAMPLE_STEP = 0.25f; // strike spot, three points on the way, home
+			for (float Alpha = 0.0f; Alpha <= 1.0f; Alpha += LEAP_SAMPLE_STEP)
+			{
+				const FVector Leaping = FMath::Lerp(STYLE_TEST_STRIKE_SPOT, Home, Alpha);
+				bLeapInFrame &= CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Leaping) &&
+								FVector::Dist(View.GetLocation(), Leaping) >= STYLE_TEST_MIN_LENS_DISTANCE;
+			}
+			TestTrue(Name + TEXT(": the attacker in frame from the strike spot to home, never at the lens"), bLeapInFrame);
+		}
+	});
+
+	It("B-600f: the follow lasts the real return leg (its length at its rate); a fallback with no montage", [this]()
+	{
+		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_LUNGE, STYLE_TEST_HEAVY_STRIKE})
+		{
+			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
+			const UAnimMontage *Montage = Skill ? (Skill->ReturnMontage ? Skill->ReturnMontage : Skill->SkillMontage) : nullptr;
+			if (!TestNotNull(FString::Printf(TEXT("%s has a montage"), Path), Montage))
+			{
+				continue;
+			}
+			const float Length = Montage->GetPlayLength();
+			TestTrue(FString::Printf(TEXT("%s: its length at rate 1"), Path),
+					 Length > 0.0f && FMath::IsNearlyEqual(FCombatCameraRules::GetFollowHomeSeconds(Montage, 1.0f), Length));
+			TestTrue(FString::Printf(TEXT("%s: half at rate 2"), Path), FMath::IsNearlyEqual(FCombatCameraRules::GetFollowHomeSeconds(Montage, 2.0f), Length * 0.5f));
+		}
+		TestEqual(TEXT("no return montage playing: the fallback"), FCombatCameraRules::GetFollowHomeSeconds(nullptr, 1.0f),
+				  FCombatCameraRules::FollowHomeFallbackSeconds);
+	});
+
+	It("B-600f: the next fighter's view waits ActionEndHoldSeconds after a party member's skill with shots, else not at all", [this]()
+	{
+		TestTrue(TEXT("a party member's skill with shots: the hold"),
+				 FCombatCameraRules::GetActionEndHold(/*bPartyCaster=*/true, /*bPlayedShots=*/true) == FCombatCameraRules::ActionEndHoldSeconds &&
+					 FCombatCameraRules::ActionEndHoldSeconds > 0.0f);
+		TestEqual(TEXT("an enemy's skill: the defend camera's own wait (B-604c), not this"), FCombatCameraRules::GetActionEndHold(false, true), 0.0f);
+		TestEqual(TEXT("no shots (an item, End Turn, cinematics or movement off): none"), FCombatCameraRules::GetActionEndHold(true, false), 0.0f);
+	});
+
 	It("Ranged Release: a held shoulder shot, a cut to a still two-shot at the release, a punch in place on the hit", [this, Tuning]()
 	{
 		const FCameraShotContext Context = StyleTestContext();

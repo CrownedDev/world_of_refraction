@@ -37,6 +37,9 @@
 #include "Engine/Engine.h"
 #include "TimerManager.h"
 #include "WoRLog.h"
+#include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
 
 namespace CombatCameraTiming
 {
@@ -226,6 +229,7 @@ void UCombatCameraDirector::EndCombat()
 	bTurnStartDeferred = false;
 	DeferredTurnActor.Reset();
 	ClearDefendWait();
+	PendingActionEndHold = 0.0f; // B-600f
 
 	if (ACombatOrchestrator *Orchestrator = Cast<ACombatOrchestrator>(GetOwner()))
 	{
@@ -384,6 +388,18 @@ void UCombatCameraDirector::HandleActorTurnStarted(AActor *Actor, int32 TurnNumb
 		}
 	}
 	ClearDefendWait();
+	// B-600f: a party member's skill ends with the attacker home and held there a moment before the next fighter's view.
+	const float ActionEndHold = PendingActionEndHold;
+	PendingActionEndHold = 0.0f;
+	if (World && ActionEndHold > 0.0f)
+	{
+		bTurnStartDeferred = true;
+		DeferredTurnActor = Actor;
+		DeferredTurnNumber = TurnNumber;
+		World->GetTimerManager().SetTimer(DeferredTurnTimer, this, &UCombatCameraDirector::PlayDeferredTurnStart, ActionEndHold, false);
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's turn: the last attacker holds home for %.2f s"), *GetNameSafe(Actor), ActionEndHold);
+		return;
+	}
 	// B-404: who the camera followed, and whether anyone acted since the last turn start, decide the wide beat.
 	FlushPendingHandover();
 	AActor *From = ViewedActor.Get();
@@ -409,6 +425,10 @@ void UCombatCameraDirector::HandleMenuDepthChanged(AActor *Actor, int32 NewDepth
 	if (!bInCombat)
 	{
 		return;
+	}
+	if (bTurnStartDeferred && Actor && Actor == DeferredTurnActor.Get())
+	{
+		PlayDeferredTurnStart(); // B-600f review: the player is already in the held turn's menu, so its camera goes now
 	}
 	if (Actor != ViewedActor.Get())
 	{
@@ -489,6 +509,10 @@ void UCombatCameraDirector::HandleTargetHighlighted(AActor *Actor, AActor *Targe
 	if (!bInCombat)
 	{
 		return;
+	}
+	if (bTurnStartDeferred && Actor && Actor == DeferredTurnActor.Get())
+	{
+		PlayDeferredTurnStart(); // B-600f review: a pick inside the held turn: its camera goes now
 	}
 	if (Actor != ViewedActor.Get())
 	{
@@ -668,9 +692,9 @@ FString UCombatCameraDirector::GetTargetViewString() const
 	{
 		return FString::Printf(TEXT("target view: none (%d moves), %s"), TargetMoveCount, *Intel);
 	}
-	return FString::Printf(TEXT("target view: %s of %d (%s, %s, %d moves), %s"), *Target->GetName(), HighlightTargetCount,
-						   bTargetViewShowing ? TEXT("showing") : TEXT("held"),
-						   FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle) > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount, *Intel);
+	return FString::Printf(TEXT("target view: %s of %d (%s, re-aim %.2f s, %d moves), %s"), *Target->GetName(), HighlightTargetCount,
+						   bTargetViewShowing ? TEXT("showing") : TEXT("held"), FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle),
+						   TargetMoveCount, *Intel);
 }
 
 void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost)
@@ -684,6 +708,7 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 		PlayDeferredTurnStart(); // B-604c: the next fighter acts: its turn's camera goes now
 	}
 	ClearDefendWait();
+	PendingActionEndHold = 0.0f; // B-600f: only a party member's skill with shots holds (set below)
 	FlushPendingHandover(); // B-404: an action inside the beat: the handover now; the action's own camera follows
 	bActedSinceTurnStart = true;
 	bActedSinceAsked = true; // B-401
@@ -713,7 +738,9 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 	if (bPlayCinematic && bSkillAction && FCombatCameraRules::UsesShotPatterns(Skill, OpposingCombatants.Contains(Executor)))
 	{
 		// B-371 (Q-371): code-built shots unless the skill has its own sequence.
-		if (!StartShotPattern(Executor, Action, Skill) && bNewActor)
+		const bool bShots = StartShotPattern(Executor, Action, Skill);
+		PendingActionEndHold = FCombatCameraRules::GetActionEndHold(!OpposingCombatants.Contains(Executor), bShots); // B-600f
+		if (!bShots && bNewActor)
 		{
 			ShowTurnView(); // review fix: nothing to show the shots on, so at least frame the new actor
 		}
@@ -1555,28 +1582,34 @@ void UCombatCameraDirector::HandleReturnStarted(AActor *Actor, FVector Home)
 		return;
 	}
 	// B-600e (B-600d QA): framed from where it lands, not where it struck (a turn view from the strike spot sat between
-	// the fighters: the leap passed the lens, then the shot held the enemy alone).
+	// the fighters: the leap passed the lens, then the shot held the enemy alone). B-600f (Q-600f): the camera follows
+	// it home into its own turn view there, timed to the return montage; the wide beat waits for the next turn start.
 	UCombatCameraComponent *Viewed = ShotCamera.Get(); // the side view's camera, before StopShotPattern drops it
 	StopShotPattern();
 	bTargetViewShowing = false; // as ShowTurnView: no target or Intel view survives the leap
 	bIntelViewShowing = false;
-	const FTurnChangePlan Beat = FCombatCameraRules::PlanLeapHome(TurnViewStyle, BuildFrame(Actor, Home));
-	CurrentMode = ECombatCameraMode::NotYourTurn; // the wide; the next turn's beat or a same-turn return takes it from here
+	const FTransform HomeView = GetTurnViewWithHeight(BuildFrame(Actor, Home));
+	const ACharacter *Character = Cast<ACharacter>(Actor);
+	UAnimInstance *Anim = Character && Character->GetMesh() ? Character->GetMesh()->GetAnimInstance() : nullptr;
+	UAnimMontage *Return = Anim ? Anim->GetCurrentActiveMontage() : nullptr;
+	const float Seconds = FCombatCameraRules::GetFollowHomeSeconds(Return, Return ? Anim->Montage_GetPlayRate(Return) : 1.0f);
+	CurrentMode = ECombatCameraMode::NotYourTurn; // not the live turn view; the next turn's beat or a same-turn return takes it from here
 	APlayerController *Viewer = GetViewer();
 	ACameraActor *Existing = Viewed ? Viewed->GetCameraActor() : nullptr;
 	if (Viewer && Existing && Viewer->GetViewTarget() == Existing)
 	{
-		MoveCameraOnShotTimer(Viewed, Beat.WideView, Beat.BeatBlendSeconds); // already looking through it: no jump
+		MoveCameraOnShotTimer(Viewed, HomeView, Seconds); // already looking through it: no jump
 	}
 	else if (UCombatCameraComponent *Camera = Actor->FindComponentByClass<UCombatCameraComponent>(); Camera && Viewer)
 	{
-		if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::NotYourTurn, Beat.WideView))
+		if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::NotYourTurn, HomeView))
 		{
 			CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
-			Viewer->SetViewTargetWithBlend(CameraActor, Beat.BeatBlendSeconds);
+			Viewer->SetViewTargetWithBlend(CameraActor, Seconds);
 		}
 	}
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s leaps home: the wide view from its spot in %.2f s"), *GetNameSafe(Actor), Beat.BeatBlendSeconds);
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s leaps home: following it into its view there over %.2f s (%s)"), *GetNameSafe(Actor), Seconds,
+		   *GetNameSafe(Return));
 }
 
 void UCombatCameraDirector::SetDefendAttacker(AActor *Attacker)
@@ -2234,8 +2267,12 @@ FString UCombatCameraDirector::GetHandoverString() const
 								*GetNameSafe(HandoverTo.Get()), PendingTurnChange.HandoverBlendSeconds, Left,
 								bHandoverBroadcasts ? TEXT("") : TEXT(" (preview)"));
 	}
-	// B-604c: a turn start held for the defend camera's hit.
-	if (bTurnStartDeferred)
+	// B-604c: a turn start held for the defend camera's hit; B-600f: or for the last attacker's hold at home.
+	if (bTurnStartDeferred && !DefendAttacker.IsValid())
+	{
+		State += FString::Printf(TEXT("; %s's turn held for the last attacker's hold at home"), *GetNameSafe(DeferredTurnActor.Get()));
+	}
+	else if (bTurnStartDeferred)
 	{
 		State += FString::Printf(TEXT("; %s's turn held for %s's %s"), *GetNameSafe(DeferredTurnActor.Get()), *GetNameSafe(DefendAttacker.Get()),
 								 DefendHitTime >= 0.0 ? TEXT("hit hold") : TEXT("coming hit"));
