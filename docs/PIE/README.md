@@ -688,6 +688,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-593](B-593.md) | `feature/B-593-ice-infusion` (built 2026-11-24) | D-271: a Water source also offers Ice in the picker; it deals Ice, fills the Ice bar, plays the Ice glow and costs x1.25 (normal on a Deals Ice spell) | Pending |
 | [B-593b](B-593b.md) | `fix/B-593b-ice-gaps` (built 2026-11-24) | D-271 gaps: Ice wears crystals x1.25, no Ice entry on a Deals Ice spell, no Ice price on a damage-free spell, the AI kill check counts Ice | Pending |
 | [B-600](B-600.md) | `feature/B-600-skill-camera-presets` (built 2026-11-24) | Q-600: skills pick a camera style; Force Strike (Ranged Release) no longer zooms in then out; set the two assets' style first | Pending |
+| [B-600c](B-600c.md) | `fix/B-600c-melee-rush-arrival-cut` (built 2026-11-24) | Melee Rush (Quick Strike): the camera holds behind the dash and cuts to the side view as the attacker arrives, so they never run through the lens | Pending |
 | [QA-kit](QA-kit.md) | `chore/qa-kit` (built 2026-11-24) | QA setup: `wor.Debug.QAKit` puts an ability that costs EP in the weapon in hand's skill slot (B-592b's HP ghost) and has a Caster join as your seat (the selector colour; Darkness, or the TestGear bd hint). QA save only | Pending |
 
 Move rows to **Done** when every check passes.
