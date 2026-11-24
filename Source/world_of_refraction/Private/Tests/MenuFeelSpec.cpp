@@ -6,9 +6,12 @@
 #if WITH_DEV_AUTOMATION_TESTS
 
 #include "Blueprint/UserWidget.h"
+#include "Components/Image.h"
+#include "Engine/Texture2D.h"
 #include "Misc/AutomationTest.h"
 #include "UI/Menus/LoadoutV2ScreenWidget.h"
 #include "UI/Menus/MenuFeel.h"
+#include "UI/Menus/MenuScreenStyle.h"
 #include "WoRTestWorld.h"
 
 BEGIN_DEFINE_SPEC(FMenuFeelSpec, "WoR.UI.MenuFeel", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -74,6 +77,16 @@ void FMenuFeelSpec::Define()
 		TestTrue(TEXT("and that is heard: the Move cue"), Screen->GetLastCue() == EWoRMenuCue::Move);
 		Screen->PressBack();
 		TestTrue(TEXT("Back: the Back cue"), Screen->GetLastCue() == EWoRMenuCue::Back);
+	});
+
+	It("B-598: a menu icon has no hover tooltip and lets the mouse through to its row", [this]()
+	{
+		UImage *Icon = NewObject<UImage>(GetTransientPackage());
+		UTexture2D *Texture = NewObject<UTexture2D>(GetTransientPackage());
+		TestTrue(TEXT("the icon shows"), WoRMenuStyle::SetIcon(Icon, Texture));
+		TestTrue(TEXT("no tooltip"), Icon->GetToolTipText().IsEmpty() && !Icon->GetToolTip());
+		TestEqual(TEXT("not hit-testable"), Icon->GetVisibility(), ESlateVisibility::SelfHitTestInvisible);
+		TestFalse(TEXT("no texture: hidden"), WoRMenuStyle::SetIcon(Icon, nullptr));
 	});
 }
 

@@ -244,9 +244,9 @@ namespace WoRMenuStyle
 		return Icon;
 	}
 
-	/** Shows Texture on Icon with Name as its tooltip (the icon in words). With no texture the icon is hidden: taken
-	 *  out of the row, or (bKeepSpace) left as a gap so lines stay aligned. Returns whether the icon shows. */
-	inline bool SetIcon(UImage *Icon, UTexture2D *Texture, const FText &Name, bool bKeepSpace = false)
+	/** Shows Texture on Icon. With no texture the icon is hidden: taken out of the row, or (bKeepSpace) left as a gap so
+	 *  lines stay aligned. Returns whether the icon shows. B-598: no hover tooltip (the picked item's card has the words). */
+	inline bool SetIcon(UImage *Icon, UTexture2D *Texture, bool bKeepSpace = false)
 	{
 		if (!Icon)
 		{
@@ -258,8 +258,7 @@ namespace WoRMenuStyle
 			return false;
 		}
 		Icon->SetBrushFromTexture(Texture);
-		Icon->SetToolTipText(Name);
-		Icon->SetVisibility(ESlateVisibility::Visible); // hit-testable: a tooltip needs the mouse
+		Icon->SetVisibility(ESlateVisibility::SelfHitTestInvisible); // clicks reach the row or tile under it
 		return true;
 	}
 

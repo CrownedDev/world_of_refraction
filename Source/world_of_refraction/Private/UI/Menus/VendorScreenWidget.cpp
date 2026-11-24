@@ -468,9 +468,8 @@ void UVendorScreenWidget::RefreshData()
 			}
 		}
 		// B-487: the row's icon, and its tier as a badge when the icon table has it (else the letter, as before).
-		SetIcon(Widgets.Icon.Get(), WoRIcons::Find(Row.Icon), Row.Icon.Name);
-		const bool bTierBadge = SetIcon(Widgets.TierBadge.Get(), Row.bTierBadge ? WoRIcons::GetTierBadge(Row.TierValue) : nullptr,
-										FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), Row.Tier));
+		SetIcon(Widgets.Icon.Get(), WoRIcons::Find(Row.Icon));
+		const bool bTierBadge = SetIcon(Widgets.TierBadge.Get(), Row.bTierBadge ? WoRIcons::GetTierBadge(Row.TierValue) : nullptr);
 		Widgets.Tier->SetText(bTierBadge ? FText::GetEmpty() : Row.Tier);
 		// Sell and Dismantle: the stack's size. Buy: how many the cart holds, and a refused line still shows its price.
 		// Repair: how worn the piece is.
@@ -558,7 +557,7 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	}
 	DetailLines->SetText(FText::Join(FText::FromString(TEXT("\n")), Lines));
 	SetShown(DetailLines, !Lines.IsEmpty());
-	SetIcon(DetailEffectIcon, EffectIcon, Row.EffectIcon.Name);
+	SetIcon(DetailEffectIcon, EffectIcon);
 	DetailEffectText->SetText(EffectIcon ? Row.Note : FText::GetEmpty());
 	SetShown(DetailEffectRow, EffectIcon != nullptr);
 	const bool bBuyFor = bBuy && Members.IsValidIndex(MemberIndex);

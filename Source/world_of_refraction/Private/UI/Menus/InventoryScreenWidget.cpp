@@ -425,10 +425,9 @@ void UInventoryScreenWidget::RefreshData()
 		const bool bLocked = !bTile && Index >= Page.Slots;
 		const FInventoryScreenTile Tile = bTile ? Page.Tiles[Index] : FInventoryScreenTile();
 		// B-487: the icon stands in for the letter when the icon table has it; the tier is a badge on the tile.
-		const bool bIcon = SetIcon(Widgets.Icon.Get(), bTile ? WoRIcons::Find(Tile.Icon) : nullptr, Tile.Icon.Name);
-		SetIcon(Widgets.IconCentre.Get(), bIcon ? WoRIcons::FindCentre(Tile.Icon) : nullptr, Tile.Icon.Name);
-		SetIcon(Widgets.TierBadge.Get(), bTile && Tile.bTierBadge ? WoRIcons::GetTierBadge(Tile.TierValue) : nullptr,
-				FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), Tile.Tier));
+		const bool bIcon = SetIcon(Widgets.Icon.Get(), bTile ? WoRIcons::Find(Tile.Icon) : nullptr);
+		SetIcon(Widgets.IconCentre.Get(), bIcon ? WoRIcons::FindCentre(Tile.Icon) : nullptr);
+		SetIcon(Widgets.TierBadge.Get(), bTile && Tile.bTierBadge ? WoRIcons::GetTierBadge(Tile.TierValue) : nullptr);
 		Widgets.Mark->SetText(bIcon ? FText::GetEmpty() : Tile.Mark);
 		Widgets.Mark->SetColorAndOpacity(FSlateColor(MarkColor(Tile.Element)));
 		Widgets.Worn->SetText(bLocked ? LOCTEXT("LockedSlot", "Jeweler") : Tile.bWorn ? LOCTEXT("WornMark", "E") : FText::GetEmpty());
@@ -469,15 +468,14 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 		return; // headless: no tree
 	}
 	// B-487: the icon before the name; the tier as a badge after it when the icon table has it, else in brackets as before.
-	SetIcon(DetailIcon, Focused ? WoRIcons::Find(Tile.Icon) : nullptr, Tile.Icon.Name);
-	const bool bTierBadge = SetIcon(DetailTierBadge, Focused && Tile.bTierBadge ? WoRIcons::GetTierBadge(Tile.TierValue) : nullptr,
-									FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), Tile.Tier));
+	SetIcon(DetailIcon, Focused ? WoRIcons::Find(Tile.Icon) : nullptr);
+	const bool bTierBadge = SetIcon(DetailTierBadge, Focused && Tile.bTierBadge ? WoRIcons::GetTierBadge(Tile.TierValue) : nullptr);
 	DetailName->SetText(Focused && !Tile.Tier.IsEmpty() && !bTierBadge ? FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Tile.Name, Tile.Tier) : Tile.Name);
 	DetailKindLine->SetText(Tile.KindLine);
 	for (int32 Index = 0; Index < DetailLabels.Num(); ++Index)
 	{
 		const bool bShown = Tile.Details.IsValidIndex(Index);
-		const bool bLineIcon = SetIcon(DetailLineIcons[Index], bShown ? WoRIcons::Find(Tile.Details[Index].Icon) : nullptr, bShown ? Tile.Details[Index].Icon.Name : FText::GetEmpty());
+		const bool bLineIcon = SetIcon(DetailLineIcons[Index], bShown ? WoRIcons::Find(Tile.Details[Index].Icon) : nullptr);
 		SetShown(DetailLabels[Index]->GetParent(), !bLineIcon); // the label's sized box, so the value sits right after the icon
 		SetShown(DetailLabels[Index], bShown);
 		SetShown(DetailValues[Index], bShown);
@@ -489,7 +487,7 @@ void UInventoryScreenWidget::RefreshSelection(bool bScrollIntoView)
 	}
 	DetailNote->SetText(Tile.Note);
 	SetShown(DetailNoteRow, !Tile.Note.IsEmpty());
-	SetIcon(DetailEffectIcon, Focused ? WoRIcons::Find(Tile.EffectIcon) : nullptr, Tile.EffectIcon.Name);
+	SetIcon(DetailEffectIcon, Focused ? WoRIcons::Find(Tile.EffectIcon) : nullptr);
 
 	// The verb menu, or "Give to" in its place.
 	const bool bGiving = Focus == EInventoryScreenFocus::Receivers;

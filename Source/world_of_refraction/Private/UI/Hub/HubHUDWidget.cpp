@@ -564,9 +564,9 @@ bool UHubHUDWidget::ShowFieldAttackWheel(const TArray<FFieldAttackEntry> &Entrie
 		}
 		UTexture2D *OffHandIcon = Icon ? Piece.SliceOffHandIcon.Get() : nullptr;
 		StripIcons[Index]->SetDesiredSizeOverride(FVector2D(OffHandIcon ? StripPairIconSize : StripIconSize));
-		const bool bIcon = SetIcon(StripIcons[Index], Icon, Piece.SliceName);
-		SetIcon(StripIconCentres[Index], bIcon ? WoRIcons::FindCentre(AdapterIcon) : nullptr, Piece.SliceName);
-		SetIcon(StripOffHandIcons[Index], OffHandIcon, Piece.SliceName);
+		const bool bIcon = SetIcon(StripIcons[Index], Icon);
+		SetIcon(StripIconCentres[Index], bIcon ? WoRIcons::FindCentre(AdapterIcon) : nullptr);
+		SetIcon(StripOffHandIcons[Index], OffHandIcon);
 		StripTileNames[Index]->SetText(Piece.SliceName);
 		SetShown(StripTileNames[Index], !bIcon);
 		SetShown(StripInHandTags[Index], Index == InHandSlice);

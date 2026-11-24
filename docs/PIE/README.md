@@ -689,6 +689,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-593b](B-593b.md) | `fix/B-593b-ice-gaps` (built 2026-11-24) | D-271 gaps: Ice wears crystals x1.25, no Ice entry on a Deals Ice spell, no Ice price on a damage-free spell, the AI kill check counts Ice | Pending |
 | [B-600](B-600.md) | `feature/B-600-skill-camera-presets` (built 2026-11-24) | Q-600: skills pick a camera style; Force Strike (Ranged Release) no longer zooms in then out; set the two assets' style first | Pending |
 | [QA-kit](QA-kit.md) | `chore/qa-kit` (built 2026-11-24) | QA setup: `wor.Debug.QAKit` puts an ability that costs EP in the weapon in hand's skill slot (B-592b's HP ghost) and has a Caster join as your seat (the selector colour; Darkness, or the TestGear bd hint). QA save only | Pending |
+| [B-598](B-598.md) | `fix/B-598-no-hover-popups` (built 2026-11-24) | No hover pop-ups (Q-598): the loadout card follows the pick, no icon or tier tooltips; hover lighting stays | Pending |
 
 Move rows to **Done** when every check passes.
 
