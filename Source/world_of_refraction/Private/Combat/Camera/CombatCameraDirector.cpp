@@ -1285,10 +1285,11 @@ FString UCombatCameraDirector::GetTurnLayoutString() const
 namespace
 {
 	/** B-424: the skill montage's approach burst toward Target (the dash), and where it ends. False without one, or with a
-	 *  ritual lead-in (its own timing comes first). */
-	bool MeasureApproach(const AActor *Caster, const AActor *Target, const USkillDataBase *Skill, FVector &OutStrike, FApproachBurst &OutBurst)
+	 *  ritual lead-in still to play (its own timing comes first); B-600h: a ritual's fire turn plays the skill montage. */
+	bool MeasureApproach(const AActor *Caster, const AActor *Target, const USkillDataBase *Skill, bool bRitualFire, FVector &OutStrike,
+						 FApproachBurst &OutBurst)
 	{
-		if (!Caster || !Target || !Skill || !Skill->SkillMontage || Skill->RitualCastMontage)
+		if (!Caster || !Target || !Skill || !Skill->SkillMontage || (Skill->RitualCastMontage && !bRitualFire))
 		{
 			return false;
 		}
@@ -1334,12 +1335,20 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	ShotStartFrame = GFrameCounter;
 	// B-406: an enemy's named attack opens on a front shot of the enemy, everything else on the wind-up.
 	const bool bEnemy = OpposingCombatants.Contains(Caster);
-	ShotStyle = FCombatCameraRules::GetCameraStyle(Skill, bEnemy); // B-600
 	const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(ShotTuning, bEnemy);
+	const AActor *FirstTarget = ShotTargets.IsEmpty() ? nullptr : ShotTargets[0].Get();
+	FVector Strike;
+	FApproachBurst Burst;
+	const bool bDashes = Opening == ECameraShotMoment::WindUp && MeasureApproach(Caster, FirstTarget, Skill, Action.bIsDeferredFire, Strike, Burst);
+	ShotStyle = FCombatCameraRules::GetStyleForDash(FCombatCameraRules::GetCameraStyle(Skill, bEnemy), bDashes); // B-600, B-600h
+	if (ShotStyle != FCombatCameraRules::GetCameraStyle(Skill, bEnemy))
+	{
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's %s dashes in (%s): plays as Melee Rush"), *GetNameSafe(Caster), *GetNameSafe(Skill),
+			   Action.bIsDeferredFire ? TEXT("its ritual's fire turn") : TEXT("no ritual"));
+	}
 	const FCameraShotContext Context = BuildShotContext(false);
 	FCameraShot OpeningShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Opening, Context, ShotTuning)
 								  .Get(FCombatCameraRules::ComputeShot(Opening, Context, ShotTuning));
-	const AActor *FirstTarget = ShotTargets.IsEmpty() ? nullptr : ShotTargets[0].Get();
 	// B-604b (Q-604b): an enemy's attack on the party plays the defend camera, held through the hit; the Defence
 	// hand-off (ShowDefenceView) keeps the same framing. B-604d (Q-604d): side-on, or wide for several party targets.
 	TArray<FVector> Defenders;
@@ -1370,10 +1379,8 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 			   *GetNameSafe(FirstTarget), Defenders.Num(), Defenders.Num() > 1 ? TEXT("wide") : TEXT("side-on two-shot"));
 		return true;
 	}
-	FVector Strike;
-	FApproachBurst Burst;
 	const bool bRush = Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f; // B-403: the melee rush
-	if (bRush && MeasureApproach(Caster, FirstTarget, Skill, Strike, Burst))
+	if (bRush && bDashes)
 	{
 		if (FCombatCameraRules::ComputeArrivalShot(ShotStyle, bEnemy, Context, ShotTuning).IsSet())
 		{
