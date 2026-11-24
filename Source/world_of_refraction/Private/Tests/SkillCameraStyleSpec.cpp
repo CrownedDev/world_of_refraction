@@ -18,7 +18,14 @@ namespace
 	const FVector STYLE_TEST_SECOND_TARGET(800.0f, 400.0f, 0.0f);
 	constexpr float STYLE_TEST_MAX_CREEP = 30.0f;
 	constexpr float STYLE_TEST_PUNCH_RANGE = 1.0f;
-	constexpr float STYLE_TEST_LOW_CAMERA_HEIGHT = 100.0f; // a hero angle sits below the fighters' chests
+	constexpr float STYLE_TEST_LOW_CAMERA_HEIGHT = 100.0f; // a low camera sits below the fighters' heads
+	// B-600h: a medium shot of the target (a fighter 2 x 90 cm tall) fills about a third to a half of the frame.
+	constexpr float STYLE_TEST_HALF_HEIGHT = 90.0f;
+	constexpr float STYLE_TEST_MEDIUM_MIN_SHARE = 0.3f;
+	constexpr float STYLE_TEST_MEDIUM_MAX_SHARE = 0.6f;
+	// B-600h (B-595c QA): Heavy Attack, a ritual that dashes about 7 m on its fire turn.
+	const TCHAR *const STYLE_TEST_HEAVY_ATTACK = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_HeavyStrike.DA_Sword_Abilities_HeavyStrike");
+	const FVector STYLE_TEST_DASH_TARGET(850.0f, 0.0f, 0.0f);
 	const FVector STYLE_TEST_STRIKE_SPOT(650.0f, 0.0f, 0.0f);	   // B-600c: where a melee dash ends, in reach of the target
 	constexpr float STYLE_TEST_MIN_LENS_DISTANCE = 250.0f;		   // B-600c: the attacker never fills the lens
 	// B-604b: the test trial enemy's real skills (BP_Enemy_Generic in the B-604 check).
@@ -334,7 +341,7 @@ void FSkillCameraStyleSpec::Define()
 
 	It("B-600f: the follow lasts the real return leg (its length at its rate); a fallback with no montage", [this]()
 	{
-		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_LUNGE, STYLE_TEST_HEAVY_STRIKE})
+		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_LUNGE, STYLE_TEST_HEAVY_ATTACK})
 		{
 			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
 			const UAnimMontage *Montage = Skill ? (Skill->ReturnMontage ? Skill->ReturnMontage : Skill->SkillMontage) : nullptr;
@@ -387,7 +394,7 @@ void FSkillCameraStyleSpec::Define()
 		}
 	});
 
-	It("Heavy Wind-Up: a slow one-way push, no Cast shot, a cut to a held low hero angle on the hit", [this, Tuning]()
+	It("Heavy Wind-Up: a slow one-way push, no Cast shot, a cut to a held medium shot of the target on the hit (B-600h, E33)", [this, Tuning]()
 	{
 		const FCameraShotContext Context = StyleTestContext();
 		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::WindUp, Context, Tuning);
@@ -398,9 +405,58 @@ void FSkillCameraStyleSpec::Define()
 		TestFalse(TEXT("no Cast shot"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::Cast, Context, Tuning).IsSet());
 		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::Impact, Context, Tuning);
 		TestTrue(TEXT("the hit cuts and holds"), Hit.IsSet() && Hit->bCut && IsStill(*Hit));
-		TestTrue(TEXT("low, looking up"), Hit.IsSet() && Hit->End.GetLocation().Z - Context.Caster.Z < STYLE_TEST_LOW_CAMERA_HEIGHT && Hit->End.GetRotation().Rotator().Pitch > 0.0f);
-		TestTrue(TEXT("both fighters in frame"), Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster) &&
-													 CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
+		if (!Hit.IsSet())
+		{
+			return;
+		}
+		// B-600h (E33 section 7: a spell's hit cuts to a medium shot of the target; it replaces B-600's low hero angle).
+		const FVector Up = FVector::UpVector * STYLE_TEST_HALF_HEIGHT;
+		FVector2D Centre, Head, Feet;
+		const bool bProjected = CameraFraming::ProjectToScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET, Centre) &&
+								CameraFraming::ProjectToScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET + Up, Head) &&
+								CameraFraming::ProjectToScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET - Up, Feet);
+		const float Share = static_cast<float>(Head.Y - Feet.Y) * 0.5f;
+		const FString Where = FString::Printf(TEXT("target %s, %.2f of the frame"), *CameraFraming::GetThirdsCell(Centre), Share);
+		TestTrue(FString::Printf(TEXT("the target in the middle band (%s)"), *Where),
+				 bProjected && FMath::Abs(Centre.X) <= CameraFraming::THIRD_LINE && FMath::Abs(Centre.Y) <= CameraFraming::THIRD_LINE);
+		TestTrue(FString::Printf(TEXT("a medium shot: the whole target, %.2f to %.2f of the frame (%s)"), STYLE_TEST_MEDIUM_MIN_SHARE, STYLE_TEST_MEDIUM_MAX_SHARE, *Where),
+				 bProjected && Share >= STYLE_TEST_MEDIUM_MIN_SHARE && Share <= STYLE_TEST_MEDIUM_MAX_SHARE);
+		const FVector ToCaster = (Context.Caster - STYLE_TEST_TARGET).GetSafeNormal2D();
+		TestTrue(TEXT("from the caster's side of the target"), FVector::DotProduct(Hit->End.GetLocation() - STYLE_TEST_TARGET, ToCaster) > 0.0f);
+		TestTrue(TEXT("about chest height"), FMath::Abs(Hit->End.GetLocation().Z - STYLE_TEST_TARGET.Z) < STYLE_TEST_LOW_CAMERA_HEIGHT);
+		TestTrue(TEXT("its punch passes (FOV back to the default)"), Hit->FovPunch > 0.0f && FMath::IsNearlyEqual(Hit->FieldOfView, FCombatCameraRules::DefaultFieldOfView));
+	});
+
+	It("B-600h: a Heavy Wind-Up blow that dashes in plays as Melee Rush; nothing else changes", [this]()
+	{
+		TestEqual(TEXT("Heavy Wind-Up that dashes: Melee Rush (the rush, the cut as the dash ends)"),
+				  FCombatCameraRules::GetStyleForDash(ESkillCameraStyle::HeavyWindUp, true), ESkillCameraStyle::MeleeRush);
+		TestEqual(TEXT("Heavy Wind-Up in place: its own push and target shot"), FCombatCameraRules::GetStyleForDash(ESkillCameraStyle::HeavyWindUp, false),
+				  ESkillCameraStyle::HeavyWindUp);
+		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::MeleeRush, ESkillCameraStyle::RangedRelease, ESkillCameraStyle::AreaSweep,
+											  ESkillCameraStyle::Cinematic})
+		{
+			for (const bool bDashes : {false, true})
+			{
+				TestEqual(FString::Printf(TEXT("%s, dash %d: unchanged"), *UEnum::GetValueAsString(Style), bDashes), FCombatCameraRules::GetStyleForDash(Style, bDashes), Style);
+			}
+		}
+	});
+
+	It("B-600h: the real Heavy Attack is a Heavy Wind-Up ritual whose fire-turn montage dashes, so its fire turn plays as Melee Rush", [this]()
+	{
+		const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, STYLE_TEST_HEAVY_ATTACK);
+		if (!TestNotNull(TEXT("Heavy Attack loads (renamed? point this case at it)"), Skill) || !TestNotNull(TEXT("its fire-turn montage"), Skill->SkillMontage))
+		{
+			return;
+		}
+		TestEqual(TEXT("Heavy Wind-Up style"), Skill->CameraStyle, ESkillCameraStyle::HeavyWindUp);
+		TestNotNull(TEXT("a ritual: the wind-up turn plays its own montage first"), Skill->RitualCastMontage);
+		const FVector Strike = ApproachWarp::GetStrikePosition(FVector::ZeroVector, STYLE_TEST_DASH_TARGET, Skill->ExecutionRange);
+		const FApproachBurst Burst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(FVector::ZeroVector, Strike)), 1.0f,
+														   ApproachWarp::GetApproachBurstSeconds());
+		TestTrue(FString::Printf(TEXT("its fire-turn montage dashes %.0f cm (%s)"), FVector::Dist2D(FVector::ZeroVector, Strike), *Burst.ToString()), Burst.bHasWindow);
+		TestEqual(TEXT("so its fire turn plays as Melee Rush"), FCombatCameraRules::GetStyleForDash(Skill->CameraStyle, Burst.bHasWindow), ESkillCameraStyle::MeleeRush);
 	});
 
 	It("Area Sweep: one wide still shot of the attacker and every target, held through the hit", [this, Tuning]()
