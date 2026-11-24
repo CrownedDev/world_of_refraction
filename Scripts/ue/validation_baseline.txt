@@ -3,7 +3,7 @@
 Data/Characters/Data/DA_Test_Inventory: Loadout[0] 'loadout0': Too many S-tier crystals equipped: 3 (max 1)
 Data/Characters/Data/Generic/Inventory/DA_Inventory_Generic: Loadout[0] 'loadout0': Too many S-tier crystals equipped: 3 (max 1)
 Data/Pool/Merchant/DA_Merchant_Blacksmith: Stock[28]: empty — set Asset or Crystal.
-Data/Pool/Merchant/DA_Merchant_CombatMaster: Stock[154]: empty — set Asset or Crystal.
+Data/Pool/Merchant/DA_Merchant_CombatMaster: Stock[156]: empty — set Asset or Crystal.
 Data/Pool/Merchant/DA_Merchant_Evolutionist: Stock[37]: empty — set Asset or Crystal.
 Data/Pool/Merchant/DA_Merchant_Jewler: Stock[20]: empty — set Asset or Crystal.
 Data/Pool/Merchant/DA_Merchant_Refractor: Stock[25]: empty — set Asset or Crystal.
