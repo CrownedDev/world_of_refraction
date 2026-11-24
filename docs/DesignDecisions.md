@@ -1267,6 +1267,17 @@ The queue of questions only Crown can answer.
 - **The party card's gear tooltip** just goes; the gear names stay in the loadout screen.
 **Reference:** Persona 5 and Expedition 33 show a short line in a fixed place when you try a command you can't use, instead of a pop-up; Final Fantasy X's help bar is the same idea. All three read as part of the menu, not on top of it.
 
+### Q-595d — WhirlWind's numbers, wind-up and camera
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595d) · **Blocks:** nothing
+**Question:** WhirlWind hits every enemy. What does it cost, does it wind up a turn first, and how is it framed? (The backlog row said a wind-up and its own `CameraSequence`; the brain's brief said the Area Sweep camera style.)
+**Answer (default, built):** **35 damage to each enemy, 25 EP, buildup 5, striking range 150 cm; fires the same turn (no wind-up); Area Sweep camera.**
+- Each enemy takes Quick Strike's damage for the cost of Heavy Attack: worth it from two enemies up, weaker than Quick Strike on one.
+- No wind-up turn: Heavy Attack is the sword's wind-up skill; two delayed skills in a four-skill kit is one too many, and the spin itself is the build-up.
+- Area Sweep (the high wide view) instead of a hand-made cinematic: it keeps every enemy in shot and hands back on time; a `CameraSequence` can come later if Crown wants one.
+- The move: a dash in, a full spin with the sword out, ending in a slam; the hit lands on the slam (Impact0).
+- **Price:** priced by its tier in the Combat Master, like the other sword skills.
+**Reference:** Final Fantasy's Cyclone/Whirlwind-type skills and Octopath Traveler's all-enemy attacks hit everyone for less than a single-target skill at a higher cost; Persona 5 frames all-enemy physicals from a wide, high camera.
+
 ### Q-595e — Force Strike's numbers (the ranged air slash)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595e) · **Blocks:** nothing
 **Question:** Force Strike swings from where the fighter stands and sends the cut through the air (D-273). What are its numbers next to Quick Strike's 35 damage / 10 EP?
