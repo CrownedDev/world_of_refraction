@@ -178,7 +178,8 @@ public:
 
 	/** D-224 (AssetOverhaulPlan §4): CalculateDurabilityWearWithSubstatsDetailed with the tier gap read against
 	 *  GapTier (a ring's built tier) while max durability stays CrystalTier's. GapTier == CrystalTier is the plain
-	 *  form. C++ only. */
+	 *  form. InfusionWearMultiplier scales only the infusion add-on (an Ice infusion's ICE_INFUSION_COST_MULTIPLIER,
+	 *  B-593b). C++ only. */
 	static FDurabilityWearWithSubstatsResult CalculateGapWearWithSubstatsDetailed(
 		EItemTier CrystalTier,
 		EItemTier GapTier,
@@ -188,9 +189,14 @@ public:
 		float SpellDamageFrac,
 		float StatusMultiplierFrac,
 		float EfficiencyFrac,
-		float ResistanceFrac);
+		float ResistanceFrac,
+		float InfusionWearMultiplier = 1.0f);
 
-	/** D-224: CalculateDurabilityWear with the gap read against GapTier; max durability stays CrystalTier's. */
+	/** D-224: CalculateDurabilityWear with the gap read against GapTier; max durability stays CrystalTier's.
+	 *  InfusionWearMultiplier scales only the infusion add-on (B-593b). */
 	static int32 CalculateGapDurabilityWear(EItemTier CrystalTier, EItemTier GapTier, EItemTier ActionTier, int32 InfusionLevel,
-											bool bIsSpell);
+											bool bIsSpell, float InfusionWearMultiplier = 1.0f);
+
+	/** The infusion add-on alone, as a fraction of max durability (0 uninfused). */
+	static float GetInfusionWearPercent(int32 InfusionLevel, bool bIsSpell);
 };
