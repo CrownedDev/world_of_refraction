@@ -782,7 +782,8 @@ void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, 
 			HitShot->End = ActiveShot.End;
 		}
 		// B-600: a style's hit shot stays on the caster's camera (a still shot never hops cameras); Standard as before.
-		UCombatCameraComponent *Camera = FCombatCameraRules::PlaysStandardShots(ShotStyle) && IsValid(Target)
+		// B-604: an enemy's Standard hit after its arrival cut stays on the arrival's camera too (no hop at the same pose).
+		UCombatCameraComponent *Camera = !bArrivedOnSide && FCombatCameraRules::PlaysStandardShots(ShotStyle) && IsValid(Target)
 											 ? Target->FindComponentByClass<UCombatCameraComponent>()
 											 : nullptr;
 		PlayShot(Camera ? Camera : ShotCamera.Get(), Moment, HitShot.GetValue());
