@@ -679,6 +679,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-309d](B-309d.md) | `refactor/B-309d-slots-truth-base` (built 2026-11-24) | B-309d piece 1: the old loadout fields can be rebuilt from the slots with no loss (nothing calls it yet); a smoke check that the loadout and a fight are unchanged | Pending |
 | [B-309d2](B-309d2.md) | `refactor/B-309d2-screens-write-slots` (built 2026-11-24, on piece 1's branch) | B-309d2: the gear screen and loadout v2 put, swap and clear pieces in the slots; the old fields follow; `wor.Loadout.CompareSlots` 0 differ after each | Pending |
 | [B-309d2b](B-309d2b.md) | `refactor/B-309d2b-socket-skill-edits-write-slots` (built 2026-11-24, on B-309d2's branch) | B-309d2b: the socket preview and the skill picks edit the piece's slot; `wor.Loadout.CompareSlots` 0 differ after each | Pending |
+| [B-309d3](B-309d3.md) | `refactor/B-309d3-inventory-writes-slots` (built 2026-11-24, on B-309d2b's branch) | B-309d3: selling, dismantling, crystal changes, run presets and the loadout clean go through the slots; `wor.Loadout.CompareSlots` 0 differ after each | Pending |
 
 Move rows to **Done** when every check passes.
 
