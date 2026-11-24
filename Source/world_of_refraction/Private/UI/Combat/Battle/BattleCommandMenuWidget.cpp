@@ -25,6 +25,7 @@
 #include "Engine/GameInstance.h"
 #include "Equipment/Crystals/CrystalManager.h"
 #include "GameFramework/Actor.h"
+#include "Infusion/ClassColors.h"
 #include "UI/Combat/Battle/BattleHUDButton.h"
 #include "UI/Combat/Battle/BattleHUDCard.h"
 #include "UI/Combat/Battle/BattleHUDView.h"
@@ -75,6 +76,12 @@ namespace BattleCommandMenuStyle
 	const FLinearColor FaceBColor = FLinearColor::FromSRGBColor(FColor(235, 87, 87));
 	const FLinearColor FaceXColor = FLinearColor::FromSRGBColor(FColor(91, 141, 239));
 	const FLinearColor FaceYColor = FLinearColor::FromSRGBColor(FColor(242, 201, 76));
+	/** B-582c: the selector fill's luminance cap, about the old violet focus's (#5B3A99): white text on it reads ~8:1. */
+	constexpr float MaxSelectorFillLuminance = 0.08f;
+	/** B-582c: an accent darker than this vanishes as an outline on the dark panel (Darkness): the pale outline instead. */
+	constexpr float MinSelectorOutlineLuminance = 0.05f;
+	/** B-582c: a greyed main-menu row's key chip, dimmed with the row. TODO: tune in PIE */
+	constexpr float GreyedKeyCapOpacity = 0.45f;
 }
 
 namespace BattleCommandMenuBuild
@@ -140,24 +147,20 @@ namespace BattleCommandMenuBuild
 															: Row.DisplayName;
 	}
 
-	/** The row's look: plate, violet on hover (the highlighted target uses Highlighted); a footer row has none. */
-	const FButtonStyle &RowStyle(bool bHighlighted, bool bFooter)
+	/** The row's look: plate, the selector colour on hover and when lit (B-582c: the acting character's colour, Fill /
+	 *  Outline; was violet); a footer row has none. */
+	FButtonStyle RowStyle(bool bHighlighted, bool bFooter, const FLinearColor &Fill = WoRMenuStyle::FocusColor,
+						  const FLinearColor &Outline = WoRMenuStyle::CyanColor)
 	{
 		static const FSlateRoundedBoxBrush Plate(WoRMenuStyle::PlateColor, CutCorner());
-		static const FSlateRoundedBoxBrush Focus(WoRMenuStyle::FocusColor, CutCorner(), WoRMenuStyle::CyanColor, FrameOutline);
 		static const FSlateRoundedBoxBrush Hover(WoRMenuStyle::HoverColor, CutCorner());
 		static const FSlateNoResource None;
-		const auto Make = [](const FSlateBrush &Normal, const FSlateBrush &Hovered)
-		{
-			FButtonStyle Style;
-			Style.SetNormal(Normal).SetHovered(Hovered).SetPressed(Focus).SetDisabled(Normal);
-			Style.SetNormalPadding(FMargin(0.0f)).SetPressedPadding(FMargin(0.0f));
-			return Style;
-		};
-		static const FButtonStyle Row = Make(Plate, Focus);
-		static const FButtonStyle Highlighted = Make(Focus, Focus);
-		static const FButtonStyle Footer = Make(None, Hover);
-		return bFooter ? Footer : bHighlighted ? Highlighted : Row;
+		const FSlateRoundedBoxBrush Focus(Fill, CutCorner(), Outline, FrameOutline);
+		const FSlateBrush &Normal = bFooter ? static_cast<const FSlateBrush &>(None) : bHighlighted ? Focus : Plate;
+		FButtonStyle Style;
+		Style.SetNormal(Normal).SetHovered(bFooter ? Hover : Focus).SetPressed(Focus).SetDisabled(Normal);
+		Style.SetNormalPadding(FMargin(0.0f)).SetPressedPadding(FMargin(0.0f));
+		return Style;
 	}
 
 	UTextBlock *MakeText(UWidgetTree *Tree, int32 Size, const FLinearColor &Color, bool bBold = false)
@@ -542,6 +545,21 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 	{
 		UE_LOG(LogWoRUI, Warning, TEXT("[BattleCommandMenu] %d infusion sources but %d chips: the rest are not shown"), Panel.Elements.Num(), MAX_CHIPS);
 	}
+	// B-582c: the same view rebuilt (an infusion pick, the main menu refreshed) keeps its lit row. A new one takes the
+	// row it was left on (QA: Back re-lights the row you came from), else its first (below).
+	const FText NewTitle = Menu ? Menu->GetViewTitle() : FText::GetEmpty();
+	if (!NewTitle.EqualTo(Title) || Buttons.Num() != Rows.Num() || !bShowing)
+	{
+		const auto ViewKey = [](const FText &ViewTitle, int32 RowCount)
+		{ return FString::Printf(TEXT("%s#%d"), *ViewTitle.ToString(), FMath::Min(RowCount, MAX_ROWS)); };
+		const int32 Leaving = bShowing ? GetLitRow() : INDEX_NONE;
+		if (Leaving != INDEX_NONE && !GetRowTarget(Leaving))
+		{
+			LitRowByTitle.Add(ViewKey(Title, Rows.Num()), Leaving);
+		}
+		const int32 *Left = LitRowByTitle.Find(ViewKey(NewTitle, Buttons.Num()));
+		LitRow = Left ? *Left : INDEX_NONE;
+	}
 	Rows = Buttons;
 	if (Rows.Num() > MAX_ROWS)
 	{
@@ -549,10 +567,16 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 		Rows.SetNum(MAX_ROWS);
 	}
 	RefreshKeys();
+	RefreshSelectorColours();
 	// D-260: no "Your turn" title; past the main menu the header says where you are.
 	Title = Menu ? Menu->GetViewTitle() : FText::GetEmpty();
 	RefreshDurability(); // B-391c: per menu open, as the old header
 	bShowing = true;
+	// B-582c QA: something is always lit, so D works at once (a new turn: the first row).
+	for (int32 Index = 0; GetLitRow() == INDEX_NONE && Index < Rows.Num(); ++Index)
+	{
+		LitRow = IsNavigableRow(Index) ? Index : INDEX_NONE;
+	}
 	RefreshActionsLine();
 	PushToWidgets();
 }
@@ -560,6 +584,8 @@ void UBattleCommandMenuWidget::HandleMenuReady(const TArray<FPieMenuButtonData> 
 void UBattleCommandMenuWidget::HandleMenuClosed()
 {
 	Rows.Reset();
+	LitRow = INDEX_NONE;
+	LitRowByTitle.Reset();
 	RowLabels.Reset();
 	RowKeys.Reset();
 	Hints.Reset();
@@ -588,8 +614,11 @@ void UBattleCommandMenuWidget::RefreshKeys()
 	TArray<bool> Enabled;
 	for (const FPieMenuButtonData &Row : Rows)
 	{
+		// B-582c (Crown): Attack, Skills and Items keep their key chip when greyed (greyed with the row), so 1 / 2 / 3 stay put.
+		const bool bMainRow = bAtMainMenu && (Row.Category == EPieMenuCategory::Attack || Row.Category == EPieMenuCategory::Skills ||
+											  Row.Category == EPieMenuCategory::Items);
 		Categories.Add(Row.Category);
-		Enabled.Add(Row.bEnabled && Row.Category != EPieMenuCategory::SectionHeader);
+		Enabled.Add((Row.bEnabled || bMainRow) && Row.Category != EPieMenuCategory::SectionHeader);
 	}
 	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
 	const TArray<int32> KeyForRow = BattleHUDView::AssignMenuKeys(Categories, Enabled, bAtMainMenu,
@@ -664,8 +693,135 @@ void UBattleCommandMenuWidget::HandleTargetHighlighted(AActor *Actor, AActor *Ta
 {
 	if (bShowing)
 	{
-		PushToWidgets(); // the highlighted target's row turns violet
+		// B-582c: a new highlight (hover, W / S, the picker's default) lights its row.
+		const int32 TargetRow = Target ? Rows.IndexOfByPredicate([Target](const FPieMenuButtonData &Row)
+															   { return Row.Category == EPieMenuCategory::Target && Row.Targets.IsEmpty() && Row.DataReference == Target; })
+									   : INDEX_NONE;
+		if (TargetRow != INDEX_NONE)
+		{
+			LitRow = TargetRow;
+		}
+		PushToWidgets(); // the lit row turns violet
 	}
+}
+
+FLinearColor UBattleCommandMenuWidget::GetActTabFill() const
+{
+	const UBorder *Tab = TabText ? Cast<UBorder>(TabText->GetParent()) : nullptr;
+	return Tab ? Tab->Background.TintColor.GetSpecifiedColor() : FLinearColor::Transparent;
+}
+
+FLinearColor UBattleCommandMenuWidget::GetActTabTextColour() const
+{
+	return TabText ? TabText->GetColorAndOpacity().GetSpecifiedColor() : FLinearColor::Transparent;
+}
+
+float UBattleCommandMenuWidget::GetRelativeLuminance(const FLinearColor &Colour)
+{
+	return 0.2126f * Colour.R + 0.7152f * Colour.G + 0.0722f * Colour.B; // linear channels (WCAG 2)
+}
+
+void UBattleCommandMenuWidget::MakeSelectorColours(const FLinearColor &Accent, FLinearColor &OutFill, FLinearColor &OutOutline)
+{
+	using namespace BattleCommandMenuStyle;
+	const float Luminance = GetRelativeLuminance(Accent);
+	const float Scale = Luminance > MaxSelectorFillLuminance ? MaxSelectorFillLuminance / Luminance : 1.0f;
+	OutFill = FLinearColor(Accent.R * Scale, Accent.G * Scale, Accent.B * Scale, 1.0f);
+	OutOutline = Luminance < MinSelectorOutlineLuminance ? ElementColors::TextOutline : Accent.CopyWithNewOpacity(1.0f);
+}
+
+void UBattleCommandMenuWidget::RefreshSelectorColours()
+{
+	// B-582c (Crown, 2026-11-23): the selector is the acting character's colour; overrides UI_Theme §3's violet here only.
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	GetSelectorColoursFor(Menu ? Menu->GetCurrentActor() : nullptr, SelectorFill, SelectorOutline);
+}
+
+void UBattleCommandMenuWidget::GetSelectorColoursFor(const AActor *Fighter, FLinearColor &OutFill, FLinearColor &OutOutline)
+{
+	const UCharacterDataComponent *Data = Fighter ? Fighter->FindComponentByClass<UCharacterDataComponent>() : nullptr;
+	if (Data && Data->CharacterData)
+	{
+		MakeSelectorColours(ClassColors::GetColorForCharacter(Data->CharacterData), OutFill, OutOutline);
+		return;
+	}
+	OutFill = WoRMenuStyle::FocusColor;
+	OutOutline = WoRMenuStyle::CyanColor;
+}
+
+bool UBattleCommandMenuWidget::IsPickedOnField(int32 RowIndex) const
+{
+	// B-582c (D-270): a single-target pick happens on the field (the marker and the enemy's card name it): no name rows.
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	return bShowing && Rows.IsValidIndex(RowIndex) && Menu && Menu->IsSingleTargetPickerOpen() &&
+		   (GetRowTarget(RowIndex) || Rows[RowIndex].Category == EPieMenuCategory::SectionHeader);
+}
+
+bool UBattleCommandMenuWidget::IsNavigableRow(int32 RowIndex) const
+{
+	return Rows.IsValidIndex(RowIndex) && Rows[RowIndex].bEnabled && Rows[RowIndex].Category != EPieMenuCategory::SectionHeader &&
+		   !IsCornerHint(Rows[RowIndex].Category, bAtMainMenu);
+}
+
+int32 UBattleCommandMenuWidget::GetLitRow() const
+{
+	if (IsNavigableRow(LitRow))
+	{
+		return LitRow;
+	}
+	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
+	const AActor *Highlighted = Menu ? Menu->GetHighlightedTarget() : nullptr;
+	for (int32 Index = 0; Highlighted && Index < Rows.Num(); ++Index)
+	{
+		if (GetRowTarget(Index) == Highlighted)
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
+void UBattleCommandMenuWidget::MoveLitRow(int32 Direction)
+{
+	const int32 Count = Rows.Num();
+	if (!bShowing || Count == 0 || Direction == 0)
+	{
+		return;
+	}
+	const int32 Step = Direction > 0 ? 1 : -1;
+	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get(); Menu && Menu->IsSingleTargetPickerOpen())
+	{
+		Menu->CycleHighlightedTarget(Step); // D-270: no target rows; the marker moves on the field, wrapping
+		return;
+	}
+	const int32 From = GetLitRow();
+	int32 Index = From != INDEX_NONE ? From : (Step > 0 ? Count - 1 : 0); // unlit: the first step lands on the first / last
+	for (int32 Tried = 0; Tried < Count; ++Tried)
+	{
+		Index = (Index + Step + Count) % Count;
+		if (IsNavigableRow(Index))
+		{
+			LitRow = Index;
+			HoverRow(Index); // a target row highlights its target: the marker and camera follow, as hover
+			PushToWidgets();
+			return;
+		}
+	}
+}
+
+bool UBattleCommandMenuWidget::PressLitRow()
+{
+	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get(); bShowing && Menu && Menu->IsSingleTargetPickerOpen())
+	{
+		return Menu->ConfirmHighlightedTarget(); // D-270: the marked target, as Enter / Space
+	}
+	const int32 Lit = bShowing ? GetLitRow() : INDEX_NONE;
+	if (Lit == INDEX_NONE)
+	{
+		return false;
+	}
+	PressRow(Lit); // a target row picks its target, as Enter / Space (D-267)
+	return true;
 }
 
 void UBattleCommandMenuWidget::HandleInputMethodChanged(ECommonInputType InputType)
@@ -711,6 +867,10 @@ void UBattleCommandMenuWidget::PressRow(int32 RowIndex)
 	{
 		return;
 	}
+	if (IsNavigableRow(RowIndex))
+	{
+		LitRow = RowIndex; // B-582c QA: a click or D leaves this list on this row, for Back
+	}
 	if (UCombatCommandMenuSubsystem *Menu = BoundMenu.Get())
 	{
 		Menu->HandleSelection(Pressed);
@@ -754,6 +914,12 @@ void UBattleCommandMenuWidget::PushToWidgets()
 	{
 		TabText->SetText(ActionsLine);
 		WoRMenuStyle::SetShown(TabText->GetParent(), !ActionsLine.IsEmpty());
+		// B-582c (Crown): the Act tag is the selector's colour too, white text and dots (the empty dot is an outline).
+		TabText->SetColorAndOpacity(FSlateColor(WoRMenuStyle::TextColor));
+		if (UBorder *Tab = Cast<UBorder>(TabText->GetParent()))
+		{
+			Tab->SetBrush(FSlateRoundedBoxBrush(SelectorFill, BattleCommandMenuBuild::CutCorner(), SelectorOutline, FrameOutline));
+		}
 	}
 	if (TitleText)
 	{
@@ -788,7 +954,7 @@ void UBattleCommandMenuWidget::PushToWidgets()
 			WoRMenuStyle::SetShown(Button, Choices.IsValidIndex(Index));
 			if (Choices.IsValidIndex(Index))
 			{
-				Button->SetStyle(BattleCommandMenuBuild::RowStyle(Index == LineActive[Line], false));
+				Button->SetStyle(BattleCommandMenuBuild::RowStyle(Index == LineActive[Line], false, SelectorFill, SelectorOutline));
 				Word->SetText(Choices[Index]);
 			}
 		}
@@ -799,8 +965,7 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		DurabilityText->SetVisibility(bShowing && !DurabilityLines.IsEmpty() ? ESlateVisibility::HitTestInvisible
 																			  : ESlateVisibility::Collapsed);
 	}
-	const UCombatCommandMenuSubsystem *Menu = BoundMenu.Get();
-	const AActor *Highlighted = Menu ? Menu->GetHighlightedTarget() : nullptr;
+	const int32 Lit = GetLitRow(); // B-582c: W / S's row, else the highlighted target's
 	for (int32 Index = 0; Index < RowButtons.Num(); ++Index)
 	{
 		UButton *Button = RowButtons[Index];
@@ -815,15 +980,15 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		{
 			continue;
 		}
-		if (!bShowing || !Rows.IsValidIndex(Index) || IsCornerHint(Rows[Index].Category, bAtMainMenu))
+		if (!bShowing || !Rows.IsValidIndex(Index) || IsCornerHint(Rows[Index].Category, bAtMainMenu) || IsPickedOnField(Index))
 		{
 			Button->SetVisibility(ESlateVisibility::Collapsed);
 			continue;
 		}
 		const FPieMenuButtonData &Row = Rows[Index];
 		const bool bFooter = BattleCommandMenuBuild::IsFooterRow(Row.Category);
-		const bool bHighlighted = Highlighted && GetRowTarget(Index) == Highlighted;
-		Button->SetStyle(BattleCommandMenuBuild::RowStyle(bHighlighted, bFooter));
+		const bool bHighlighted = Index == Lit;
+		Button->SetStyle(BattleCommandMenuBuild::RowStyle(bHighlighted, bFooter, SelectorFill, SelectorOutline));
 
 		const FKey Key = RowKeys.IsValidIndex(Index) ? RowKeys[Index] : FKey();
 		WoRMenuStyle::SetShown(Cap->GetParent(), Key.IsValid());
@@ -831,8 +996,9 @@ void UBattleCommandMenuWidget::PushToWidgets()
 		{
 			Cap->SetBrush(BattleCommandMenuBuild::KeyCapBrush(Key));
 			KeyText->SetText(BattleCommandMenuBuild::ShortKeyName(Key));
-			KeyText->SetColorAndOpacity(FSlateColor(BattleCommandMenuBuild::KeyTextColor(Key)));
+			KeyText->SetColorAndOpacity(FSlateColor(Row.bEnabled ? BattleCommandMenuBuild::KeyTextColor(Key) : WoRMenuStyle::OffColor));
 		}
+		Cap->SetRenderOpacity(Row.bEnabled ? 1.0f : GreyedKeyCapOpacity); // a greyed row's chip greys with it
 
 		Icon->SetVisibility(Row.Icon ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Collapsed);
 		if (Row.Icon)
@@ -881,6 +1047,7 @@ FString UBattleCommandMenuWidget::GetCommandMenuString() const
 								  Rows.Num(), *ActionsLine.ToString(), *Title.ToString(),
 								  DurabilityLines.IsEmpty() ? TEXT("none")
 															: *FText::Join(FText::FromString(TEXT(", ")), DurabilityLines).ToString());
+	Out += FString::Printf(TEXT(" lit=%d selector=%s"), GetLitRow(), *SelectorFill.ToFColor(true).ToHex()); // B-582c
 	if (Panel.bShown) // B-592
 	{
 		const FText Comma = FText::FromString(TEXT(", "));
@@ -896,7 +1063,8 @@ FString UBattleCommandMenuWidget::GetCommandMenuString() const
 							  : FString::Printf(TEXT("%s%s%s"), Rows[Index].Quantity > 0 ? *FString::Printf(TEXT(" x%d"), Rows[Index].Quantity) : TEXT(""),
 												!bAtMainMenu && Rows[Index].ActionCost > 0 ? *FString::Printf(TEXT(" cost %d"), Rows[Index].ActionCost) : TEXT(""),
 												Rows[Index].bEnabled ? TEXT("") : TEXT(" (greyed)"));
-		Out += FString::Printf(TEXT("\n  [%d]%s %s%s"), Index, bHint ? TEXT(" hint") : TEXT(""), *RowLabels[Index].ToString(), *Extra);
+		Out += FString::Printf(TEXT("\n  [%d]%s %s%s"), Index, bHint ? TEXT(" hint") : IsPickedOnField(Index) ? TEXT(" field") : TEXT(""),
+							   *RowLabels[Index].ToString(), *Extra);
 	}
 	return Out;
 }

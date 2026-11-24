@@ -19,10 +19,15 @@
 #include "Character/CharacterData.h"
 #include "Character/CharacterDataComponent.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Components/CapsuleComponent.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
+#include "Infusion/ClassColors.h"
 #include "InputCoreTypes.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
+#include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/PieMenuButtonData.h"
 #include "Save/SaveSubsystem.h"
@@ -588,6 +593,305 @@ void FCommandMenuKeysSpec::Define()
 		TestFalse(TEXT("no element key hint"), HasHint(View, TEXT("Element"), EKeys::R));
 		Menu->PressMenuKey(EPieMenuCategory::Items);
 		TestEqual(TEXT("the summary is the level alone"), View->GetPanel().Summary.ToString(), FString(TEXT("Lv II")));
+	});
+
+	It("keeps a greyed main-menu row's key chip and gives greyed Skills no reason line (B-582c, Crown)", [this]()
+	{
+		if (!StartDuel()) // no weapon, no skills: Attack, Skills and Items all greyed
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
+		const FText *Skills = View->GetRowLabels().FindByPredicate([](const FText &Label) { return Label.ToString().Contains(TEXT("Skills")); });
+		if (TestNotNull(TEXT("a Skills row"), Skills))
+		{
+			TestTrue(TEXT("greyed Skills keeps its key chip"), Skills->ToString().StartsWith(TEXT("[")));
+			TestFalse(TEXT("and has no reason line"), Skills->ToString().Contains(TEXT("(")));
+		}
+		const FText *Attack = View->GetRowLabels().FindByPredicate([](const FText &Label) { return Label.ToString().Contains(TEXT("Attack")); });
+		TestTrue(TEXT("greyed Attack keeps its key chip too"), Attack && Attack->ToString().StartsWith(TEXT("[")));
+	});
+
+	It("moves the lit row with W / S (wrapping), opens it with D, picks a target with D, backs out with A (B-582c, D-269)", [this]()
+	{
+		if (!StartSkilledDuel(true)) // Attack and Skills open; Items greyed (W / S skip it)
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
+		const auto LitLabel = [View]()
+		{
+			const int32 Lit = View->GetLitRow();
+			return View->GetRowLabels().IsValidIndex(Lit) ? View->GetRowLabels()[Lit].ToString() : FString();
+		};
+		TestTrue(TEXT("the main menu opens lit on its first row, Attack"), LitLabel().Contains(TEXT("Attack")));
+		View->MoveLitRow(-1);
+		const FString Last = LitLabel();
+		TestTrue(TEXT("W from the first wraps to the last row"), Last.Contains(TEXT("Skills")));
+		View->MoveLitRow(1);
+		TestTrue(TEXT("S from the last wraps to the first"), LitLabel().Contains(TEXT("Attack")));
+		View->MoveLitRow(1);
+		TestTrue(TEXT("S skips greyed Items and wraps to Skills"), LitLabel().Contains(TEXT("Skills")));
+		View->MoveLitRow(1);
+		TestTrue(TEXT("wor.UI.Print shows the lit row"), View->GetCommandMenuString().Contains(FString::Printf(TEXT("lit=%d"), View->GetLitRow())));
+
+		TestFalse(TEXT("A (Back) on the main menu does nothing"), Menu->PressMenuKey(EPieMenuCategory::Back));
+		TestTrue(TEXT("still the main menu"), Menu->IsOpen() && Menu->IsAtMainMenu());
+
+		TestTrue(TEXT("D opens the lit row, as its key"), View->PressLitRow());
+		TestEqual(TEXT("the Attack picker, on the foe"), Menu->GetHighlightedTarget(), Foe);
+		TestEqual(TEXT("the foe's row is lit"), View->GetRowTarget(View->GetLitRow()), Foe);
+		TestTrue(TEXT("A goes back one step"), Menu->PressMenuKey(EPieMenuCategory::Back));
+		TestTrue(TEXT("to the main menu"), Menu->IsAtMainMenu());
+		TestTrue(TEXT("Back re-lights the row you came from, Attack"), LitLabel().Contains(TEXT("Attack")));
+
+		// QA: Skills, a kind, then Back twice re-lights the kind, then Skills.
+		View->MoveLitRow(1);
+		TestTrue(TEXT("D opens Skills"), View->PressLitRow() && !Menu->IsAtMainMenu());
+		const FString Kind = LitLabel();
+		TestTrue(TEXT("the kinds list opens lit on its first, Abilities"), Kind.Contains(TEXT("Abilities")));
+		const FText KindsTitle = View->GetTitle();
+		TestTrue(TEXT("D opens the kind"), View->PressLitRow() && !View->GetTitle().EqualTo(KindsTitle));
+		TestFalse(TEXT("its list opens lit"), LitLabel().IsEmpty());
+		TestTrue(TEXT("Back to the kinds"), Menu->PressMenuKey(EPieMenuCategory::Back) && View->GetTitle().EqualTo(KindsTitle));
+		TestEqual(TEXT("on the kind you opened"), LitLabel(), Kind);
+		TestTrue(TEXT("Back to the main menu"), Menu->PressMenuKey(EPieMenuCategory::Back) && Menu->IsAtMainMenu());
+		TestTrue(TEXT("on Skills"), LitLabel().Contains(TEXT("Skills")));
+
+		// A new turn starts fresh: both Defend round to the hero, whose menu opens on Attack, not the Skills it was left on.
+		TestTrue(TEXT("the hero defends"), Menu->PressMenuKey(EPieMenuCategory::Defend));
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		TestTrue(TEXT("the foe defends"), Menu->GetCurrentActor() == Foe && Menu->PressMenuKey(EPieMenuCategory::Defend));
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		TestTrue(TEXT("the hero's next turn"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero && Menu->IsAtMainMenu());
+		TestTrue(TEXT("opens lit on its first row, Attack"), LitLabel().Contains(TEXT("Attack")));
+
+		View->PressLitRow();
+		TestTrue(TEXT("D on a target row picks it, as Enter"), View->PressLitRow());
+		TestNull(TEXT("and leaves the picker"), Menu->GetHighlightedTarget());
+
+		const FString Keys = ACombatPlayerController::GetMenuKeysString();
+		TestTrue(TEXT("W / S / D are bound"), Keys.Contains(TEXT("IA_Combat_MenuRowUp")) && Keys.Contains(TEXT("IA_Combat_MenuRowDown")) &&
+												  Keys.Contains(TEXT("IA_Combat_MenuForward")));
+		const FCombatMenuKey *BackA = ACombatPlayerController::GetMenuKeys().FindByPredicate([](const FCombatMenuKey &Key) { return Key.Keyboard == EKeys::A; });
+		TestTrue(TEXT("A is a Back key"), BackA && BackA->Category == EPieMenuCategory::Back);
+		TestFalse(TEXT("Q / E stay Intel's: no menu key on them"),
+				  ACombatPlayerController::GetMenuKeys().ContainsByPredicate([](const FCombatMenuKey &Key) { return Key.Keyboard == EKeys::Q || Key.Keyboard == EKeys::E; }));
+	});
+
+	It("colours the selector with the acting character's element or class, readable with white text (B-582c, Crown)", [this]()
+	{
+		if (!StartSkilledDuel(false))
+		{
+			return;
+		}
+		UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+		UCharacterDataComponent *FoeData = Foe->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestTrue(TEXT("both have character data"), HeroData && HeroData->CharacterData && FoeData && FoeData->CharacterData))
+		{
+			return;
+		}
+		HeroData->CharacterData->InnateElement = ESpellElement::Water; // a Water Caster
+		FoeData->CharacterData->CharacterClass = ECharacterClass::Generic;
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		const TSharedRef<SWidget> Built = View->TakeWidget(); // builds the Act tag; held, or its release tears it down
+		Menu->RefreshMenu();
+		FLinearColor Fill, Outline;
+		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Water, Fill, Outline);
+		TestEqual(TEXT("the Caster's selector is its element, Water"), View->GetSelectorFill(), Fill);
+		TestEqual(TEXT("outlined in Water"), View->GetSelectorOutline(), ElementColors::Water);
+		const FLinearColor HeroFill = View->GetSelectorFill();
+		constexpr float MIN_WHITE_TEXT_LUMINANCE = 0.8f;
+		TestEqual(TEXT("the Act tag is the selector's colour"), View->GetActTabFill(), HeroFill);
+		TestTrue(TEXT("with white text and dots"), UBattleCommandMenuWidget::GetRelativeLuminance(View->GetActTabTextColour()) >= MIN_WHITE_TEXT_LUMINANCE);
+
+		TestTrue(TEXT("the hero defends"), Menu->PressMenuKey(EPieMenuCategory::Defend));
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		TestTrue(TEXT("the foe's turn"), Menu->IsOpen() && Menu->GetCurrentActor() == Foe);
+		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Generic, Fill, Outline);
+		TestEqual(TEXT("a Generic has no element: its class colour, the brown"), View->GetSelectorFill(), Fill);
+		TestNotEqual(TEXT("the colour changed with the turn"), View->GetSelectorFill(), HeroFill);
+		TestEqual(TEXT("and the Act tag with it"), View->GetActTabFill(), Fill);
+		TestTrue(TEXT("wor.UI.Print shows it"), View->GetCommandMenuString().Contains(TEXT("selector=")));
+
+		// Every element and class colour: white text on the fill at >= 4.5:1, and an outline that shows on the dark panel.
+		constexpr float MIN_TEXT_CONTRAST = 4.5f;
+		constexpr float WCAG_FLARE = 0.05f;
+		TArray<FLinearColor> Accents = {ClassColors::ResonatorSilver, ElementColors::Generic, ElementColors::Ice};
+		for (const ESpellElement Element : {ESpellElement::Fire, ESpellElement::Lightning, ESpellElement::Earth, ESpellElement::Wind,
+											ESpellElement::Water, ESpellElement::Reality, ESpellElement::Void, ESpellElement::Light,
+											ESpellElement::Darkness})
+		{
+			Accents.Add(ElementColors::GetColorForElement(Element));
+		}
+		for (const FLinearColor &Accent : Accents)
+		{
+			UBattleCommandMenuWidget::MakeSelectorColours(Accent, Fill, Outline);
+			const float Contrast = (1.0f + WCAG_FLARE) / (UBattleCommandMenuWidget::GetRelativeLuminance(Fill) + WCAG_FLARE);
+			TestTrue(FString::Printf(TEXT("white text on %s's fill reads (%.1f:1)"), *Accent.ToFColor(true).ToHex(), Contrast), Contrast >= MIN_TEXT_CONTRAST);
+			TestTrue(FString::Printf(TEXT("%s's outline shows"), *Accent.ToFColor(true).ToHex()), UBattleCommandMenuWidget::GetRelativeLuminance(Outline) >= WCAG_FLARE);
+		}
+		UBattleCommandMenuWidget::MakeSelectorColours(ElementColors::Darkness, Fill, Outline);
+		TestEqual(TEXT("Darkness keeps its black fill with the pale outline"), Outline, ElementColors::TextOutline);
+	});
+
+	It("picks a single target on the field: no name rows, W / S cycle, D confirms, the pointer marks and picks (B-582c, D-270)", [this]()
+	{
+		if (!Orchestrator || !Menu)
+		{
+			return;
+		}
+		Hero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		Foe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		AActor *SecondFoe = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("combatants spawned"), Hero && Foe && SecondFoe))
+		{
+			return;
+		}
+		MenuKeysAddLoadout(Hero);
+		MenuKeysAddLoadout(Foe);
+		MenuKeysAddLoadout(SecondFoe);
+		Menu->SetCombatOrchestrator(Orchestrator);
+		Orchestrator->StartCombat({Hero}, {Foe, SecondFoe});
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		if (!TestTrue(TEXT("the hero's menu"), Menu->IsOpen() && Menu->GetCurrentActor() == Hero))
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		UBattleHUDWidget *HUD = CreateWidget<UBattleHUDWidget>(TestWorld->GetWorld(), UBattleHUDWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View) || !TestNotNull(TEXT("battle HUD"), HUD))
+		{
+			return;
+		}
+		View->Initialise();
+		HUD->Initialise({Hero}, {Foe, SecondFoe});
+		ON_SCOPE_EXIT
+		{
+			View->Teardown();
+			HUD->Teardown();
+		};
+		const auto FieldRows = [View]()
+		{
+			TArray<FString> Lines;
+			View->GetCommandMenuString().ParseIntoArrayLines(Lines);
+			return Lines.FilterByPredicate([](const FString &Line) { return Line.Contains(TEXT("] field ")); }).Num();
+		};
+
+		// The pointer events as the engine sends them (UPrimitiveComponent broadcasts the owner's delegates).
+		TestTrue(TEXT("the HUD binds the foes' pointer events"), Foe->OnBeginCursorOver.IsBound() && SecondFoe->OnClicked.IsBound());
+		// The pointer does nothing on the main menu.
+		Foe->OnClicked.Broadcast(Foe, EKeys::LeftMouseButton);
+		TestTrue(TEXT("a click on a foe on the main menu picks nothing"), Menu->IsAtMainMenu());
+
+		FPieMenuButtonData Attack;
+		Attack.Category = EPieMenuCategory::Attack;
+		Attack.DisplayName = FText::FromString(TEXT("Attack"));
+		Menu->HandleSelection(Attack);
+		TestTrue(TEXT("a single-target pick"), Menu->IsSingleTargetPickerOpen());
+		TestEqual(TEXT("it opens on the first foe"), Menu->GetHighlightedTarget(), Foe);
+		TestEqual(TEXT("no name rows: both foes are picked on the field"), FieldRows(), 2);
+		TestTrue(TEXT("the heading stays"), !View->GetTitle().IsEmpty());
+
+		View->MoveLitRow(1);
+		TestEqual(TEXT("S marks the next foe"), Menu->GetHighlightedTarget(), SecondFoe);
+		View->MoveLitRow(1);
+		TestEqual(TEXT("S wraps to the first"), Menu->GetHighlightedTarget(), Foe);
+		View->MoveLitRow(-1);
+		TestEqual(TEXT("W wraps back to the last"), Menu->GetHighlightedTarget(), SecondFoe);
+		TestFalse(TEXT("D-pad Up (Position) does nothing in a target pick"), Menu->PressMenuKey(EPieMenuCategory::MoveRow));
+		TestEqual(TEXT("the mark stays"), Menu->GetHighlightedTarget(), SecondFoe);
+
+		Foe->OnBeginCursorOver.Broadcast(Foe);
+		TestEqual(TEXT("the pointer over a foe marks it"), Menu->GetHighlightedTarget(), Foe);
+		SecondFoe->OnClicked.Broadcast(SecondFoe, EKeys::RightMouseButton);
+		TestTrue(TEXT("a right click picks nothing"), Menu->IsSingleTargetPickerOpen() && Menu->GetHighlightedTarget() == Foe);
+		SecondFoe->OnClicked.Broadcast(SecondFoe, EKeys::LeftMouseButton);
+		TestFalse(TEXT("a left click on a foe picks it"), Menu->IsSingleTargetPickerOpen());
+		TestEqual(TEXT("the one clicked"), Menu->GetLastAttackTarget(Hero), SecondFoe);
+
+		const FString Keys = ACombatPlayerController::GetMenuKeysString();
+		TestTrue(TEXT("the pad's target keys are listed"), Keys.Contains(TEXT("IA_Combat_MenuTargetPrevPad")) && Keys.Contains(TEXT("IA_Combat_MenuTargetNextPad")));
+	});
+
+	It("confirms a single target with D, the marked one (B-582c, D-270)", [this]()
+	{
+		if (!StartSkilledDuel(false))
+		{
+			return;
+		}
+		UBattleCommandMenuWidget *View = CreateWidget<UBattleCommandMenuWidget>(TestWorld->GetWorld(), UBattleCommandMenuWidget::StaticClass());
+		if (!TestNotNull(TEXT("menu widget"), View))
+		{
+			return;
+		}
+		View->Initialise();
+		ON_SCOPE_EXIT { View->Teardown(); };
+		Menu->RefreshMenu();
+		TestTrue(TEXT("D opens Attack"), View->PressLitRow() && Menu->IsSingleTargetPickerOpen());
+		TestTrue(TEXT("D picks the marked foe"), View->PressLitRow());
+		TestEqual(TEXT("the foe"), Menu->GetLastAttackTarget(Hero), Foe);
+	});
+
+	It("never moves the possessed fighter on move input in a fight (B-582c, D-269)", [this]()
+	{
+		// No movement component: AddMovementInput then queues input unless the controller ignores move input.
+		APawn *Pawn = TestWorld->GetWorld()->SpawnActor<APawn>();
+		ACombatPlayerController *Controller = TestWorld->GetWorld()->SpawnActor<ACombatPlayerController>();
+		if (!TestNotNull(TEXT("a fighter pawn"), Pawn) || !TestNotNull(TEXT("the fight's player controller"), Controller))
+		{
+			return;
+		}
+		Controller->Possess(Pawn);
+		TestTrue(TEXT("move input is ignored"), Controller->IsMoveInputIgnored());
+		Pawn->AddMovementInput(FVector::ForwardVector, 1.0f); // what a W mapped to walking would do
+		TestTrue(TEXT("no movement queued"), Pawn->GetPendingMovementInputVector().IsNearlyZero());
+	});
+
+	It("picks the nearest fighter whose screen box holds the pointer (B-582c QA, D-270)", [this]()
+	{
+		FBox2D Unbuilt(FVector2D(0, 0), FVector2D(400, 400)); // covers every point but is not valid: never picked
+		Unbuilt.bIsValid = false;
+		const TArray<FBox2D> Boxes = {FBox2D(FVector2D(100, 100), FVector2D(200, 300)), FBox2D(FVector2D(150, 150), FVector2D(250, 350)), Unbuilt};
+		const TArray<double> Distances = {900.0, 600.0, 10.0};
+		TestEqual(TEXT("inside one box: that fighter"), UBattleHUDWidget::PickNearestBoxAt(Boxes, Distances, FVector2D(120, 120)), 0);
+		TestEqual(TEXT("inside both: the nearer"), UBattleHUDWidget::PickNearestBoxAt(Boxes, Distances, FVector2D(175, 200)), 1);
+		TestEqual(TEXT("outside every valid box: none (the invalid one, the nearest, is skipped)"),
+				  UBattleHUDWidget::PickNearestBoxAt(Boxes, Distances, FVector2D(10, 10)), INDEX_NONE);
+	});
+
+	It("traces the pointer on the channel a fighter's capsule blocks (B-582c QA, D-270)", [this]()
+	{
+		ACombatPlayerController *Controller = TestWorld->GetWorld()->SpawnActor<ACombatPlayerController>();
+		ACharacter *Fighter = TestWorld->GetWorld()->SpawnActor<ACharacter>();
+		if (!TestNotNull(TEXT("the fight's player controller"), Controller) || !TestNotNull(TEXT("a fighter"), Fighter))
+		{
+			return;
+		}
+		TestEqual(TEXT("hover and click trace the Pawn channel"), Controller->CurrentClickTraceChannel.GetValue(), ECC_Pawn);
+		TestEqual(TEXT("the fighter's capsule blocks that channel"),
+				  Fighter->GetCapsuleComponent()->GetCollisionResponseToChannel(Controller->CurrentClickTraceChannel), ECR_Block);
+		TestTrue(TEXT("mouse-over and click events are on"), Controller->bEnableMouseOverEvents && Controller->bEnableClickEvents);
 	});
 
 	It("steps back out of the Position picker without moving (B-588)", [this]()

@@ -19,6 +19,7 @@
 #include "InputCoreTypes.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "UI/Combat/CombatHUD.h"
+#include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "Combat/CombatControl.h"
 #include "Combat/CombatOrchestrator.h"
@@ -57,6 +58,30 @@ namespace CombatMenuKeys
 	constexpr const TCHAR *CONFIRM_SPACE_ACTION_NAME = TEXT("IA_Combat_MenuConfirmSpace");
 	FKey GetConfirmKeyboard() { return EKeys::Enter; }
 	FKey GetConfirmSpaceKeyboard() { return EKeys::SpaceBar; }
+
+	/** B-582c (D-269): W / S / D in the battle menu, the new HUD only; one action per key (D-063). A is the Back row in
+	 *  GetMenuKeys. D-270: the D-pad Up / Down move the target marker in a single-target pick only (elsewhere they are
+	 *  Position / Flee on the main menu). */
+	struct FMenuNavKey
+	{
+		const TCHAR *ActionName;
+		FKey Key;
+		EBattleMenuNav Nav;
+		const TCHAR *What;
+	};
+	const TArray<FMenuNavKey> &GetMenuNavKeys()
+	{
+		static const TArray<FMenuNavKey> Keys = {
+			{TEXT("IA_Combat_MenuRowUp"), EKeys::W, EBattleMenuNav::RowUp, TEXT("light the row above, wrapping; in a target pick, the previous target")},
+			{TEXT("IA_Combat_MenuRowDown"), EKeys::S, EBattleMenuNav::RowDown, TEXT("light the row below, wrapping; in a target pick, the next target")},
+			{TEXT("IA_Combat_MenuForward"), EKeys::D, EBattleMenuNav::Forward, TEXT("open the lit row; in a target pick, pick the marked target")},
+			{TEXT("IA_Combat_MenuTargetPrevPad"), EKeys::Gamepad_DPad_Up, EBattleMenuNav::TargetPrevious, TEXT("the previous target, in a target pick only")},
+			{TEXT("IA_Combat_MenuTargetNextPad"), EKeys::Gamepad_DPad_Down, EBattleMenuNav::TargetNext, TEXT("the next target, in a target pick only")},
+		};
+		return Keys;
+	}
+	constexpr int32 ROW_PREVIOUS = -1;
+	constexpr int32 ROW_NEXT = 1;
 
 	/** B-587 (D-262): holding V / R3 this long closes Intel; a shorter press is a tap. */
 	constexpr float INTEL_HOLD_SECONDS = 0.5f; // TODO: tune in PIE
@@ -120,11 +145,33 @@ namespace CombatInputRouting
 			Defend.ActionType = EActionType::Defend;
 			Controller->RequestMenuPick(FCombatPickRequest::FromAction(CurrentActor, Defend));
 		}));
+
+	FAutoConsoleCommandWithWorldAndArgs GHitUnderCursorCmd(
+		TEXT("wor.Debug.HitUnderCursor"),
+		TEXT("DEBUG (B-582c): what the pointer, or the viewport-pixel point X Y, hits: the engine's hover / click trace and the battle HUD's screen pick, with each offered fighter's screen box."),
+		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray<FString> &Args, UWorld *World)
+		{
+			const ACombatPlayerController *Controller = ACombatPlayerController::FindLocal(World);
+			if (!Controller)
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[CombatInput] wor.Debug.HitUnderCursor: no combat controller"));
+				return;
+			}
+			const FVector2D Point(Args.Num() >= 2 ? FCString::Atof(*Args[0]) : 0.0, Args.Num() >= 2 ? FCString::Atof(*Args[1]) : 0.0);
+			UE_LOG(LogWoR, Log, TEXT("[CombatInput] wor.Debug.HitUnderCursor\n%s"), *Controller->GetPointerHitString(Args.Num() >= 2 ? &Point : nullptr));
+		}));
 }
 
 void ACombatPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// B-582c (D-270): the pointer over / a click on a fighter marks / picks it (UBattleHUDWidget binds the actor events).
+	// The Pawn channel: a fighter's capsule blocks it where the Pawn profile ignores Visibility, the default click trace.
+	bEnableMouseOverEvents = true;
+	bEnableClickEvents = true;
+	DefaultClickTraceChannel = ECC_Pawn;
+	CurrentClickTraceChannel = ECC_Pawn; // the traces read this one, copied from the default before BeginPlay (InitInputSystem)
 
 	// The combat input mapping context, then the code-built menu keys above it (WoRInputPriority, B-129).
 	if (UEnhancedInputLocalPlayerSubsystem *Subsystem =
@@ -203,6 +250,10 @@ void ACombatPlayerController::SetupInputComponent()
 	for (const TObjectPtr<UInputAction> &ConfirmAction : ConfirmActions) // B-582b
 	{
 		EnhancedInput->BindAction(ConfirmAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnConfirmKey);
+	}
+	for (const TObjectPtr<UInputAction> &NavAction : MenuNavActions) // B-582c
+	{
+		EnhancedInput->BindAction(NavAction.Get(), ETriggerEvent::Started, this, &ACombatPlayerController::OnMenuNavKey);
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("[CombatPlayerController] Defense input bindings complete"));
@@ -666,6 +717,64 @@ void ACombatPlayerController::BuildMenuKeys()
 		MenuKeysContext->MapKey(Action, Confirm.Value);
 		ConfirmActions.Add(Action);
 	}
+
+	// B-582c: W / S / D, not consumed either (a letter may also be an editor-mapped Guard / Dodge key; OnMenuNavKey checks
+	// the window, and the DefenseSystem ignores a press with no window open).
+	for (const CombatMenuKeys::FMenuNavKey &Nav : CombatMenuKeys::GetMenuNavKeys())
+	{
+		UInputAction *Action = NewObject<UInputAction>(this, Nav.ActionName);
+		Action->ValueType = EInputActionValueType::Boolean;
+		Action->bConsumeInput = false;
+		MenuKeysContext->MapKey(Action, Nav.Key);
+		MenuNavActions.Add(Action);
+		MenuNavKinds.Add(Nav.Nav);
+	}
+}
+
+void ACombatPlayerController::OnMenuNavKey(const FInputActionInstance &Instance)
+{
+	// B-582c (D-269): the new HUD only (the old WBP HUD has its own focus navigation).
+	if (!IsLocalController() || !UCombatHUD::WantsNewHUD())
+	{
+		return;
+	}
+	// A Guard / Dodge window on this machine takes the key; nothing in the menu moves then (it is shut on an enemy's turn too).
+	if (const UDefenseSystem *Defense = GetDefenseSystem(); Defense && Defense->GetActiveDefenderForLocalPlayer())
+	{
+		return;
+	}
+	UBattleHUDWidget *HUD = FindBattleHUD();
+	UBattleCommandMenuWidget *MenuView = HUD ? HUD->GetCommandMenu() : nullptr;
+	if (!MenuView || HUD->IsIntelOpen()) // Intel open: the menu keys stand down (B-586)
+	{
+		return;
+	}
+	const UInputAction *Pressed = Instance.GetSourceAction();
+	const int32 Index = MenuNavActions.IndexOfByPredicate([Pressed](const TObjectPtr<UInputAction> &Action) { return Action.Get() == Pressed; });
+	if (!MenuNavKinds.IsValidIndex(Index))
+	{
+		return;
+	}
+	switch (MenuNavKinds[Index])
+	{
+	case EBattleMenuNav::RowUp:
+		MenuView->MoveLitRow(CombatMenuKeys::ROW_PREVIOUS);
+		break;
+	case EBattleMenuNav::RowDown:
+		MenuView->MoveLitRow(CombatMenuKeys::ROW_NEXT);
+		break;
+	case EBattleMenuNav::Forward:
+		MenuView->PressLitRow();
+		break;
+	case EBattleMenuNav::TargetPrevious:
+	case EBattleMenuNav::TargetNext:
+		// D-270: the pad's target cycle; nothing outside a single-target pick (the D-pad is Position / Flee there).
+		if (const UCombatCommandMenuSubsystem *Menu = WoRFight::Get<UCombatCommandMenuSubsystem>(GetGameInstance()); Menu && Menu->IsSingleTargetPickerOpen())
+		{
+			MenuView->MoveLitRow(MenuNavKinds[Index] == EBattleMenuNav::TargetNext ? CombatMenuKeys::ROW_NEXT : CombatMenuKeys::ROW_PREVIOUS);
+		}
+		break;
+	}
 }
 
 void ACombatPlayerController::OnConfirmKey(const FInputActionValue &Value)
@@ -681,6 +790,52 @@ void ACombatPlayerController::OnConfirmKey(const FInputActionValue &Value)
 		return;
 	}
 	PressMenuKey(EPieMenuCategory::Target);
+}
+
+bool ACombatPlayerController::InputKey(const FInputKeyEventArgs &Params)
+{
+	const bool bHandled = Super::InputKey(Params); // the engine's click on a fighter (OnClicked) goes first
+	// B-582c QA (D-270): a left click that reaches the game view (not a menu row or card) picks the fighter whose body
+	// is under the pointer, by its screen box: the engine's click needs the trace to hit and the view to be the topmost
+	// widget, which failed on the battle field.
+	if (Params.Key == EKeys::LeftMouseButton && Params.Event == IE_Pressed)
+	{
+		if (UBattleHUDWidget *HUD = FindBattleHUD())
+		{
+			HUD->PickFighterUnderPointer();
+		}
+	}
+	return bHandled;
+}
+
+FString ACombatPlayerController::GetPointerHitString(const FVector2D *Point) const
+{
+	float MouseX = 0.0f;
+	float MouseY = 0.0f;
+	const bool bPointer = GetMousePosition(MouseX, MouseY);
+	const FVector2D At = Point ? *Point : FVector2D(MouseX, MouseY);
+	FString Out = FString::Printf(TEXT("pointer (viewport pixels): %s; checking %.0f,%.0f\n"),
+								  bPointer ? *FString::Printf(TEXT("%.0f,%.0f"), MouseX, MouseY) : TEXT("none"), At.X, At.Y);
+	const ULocalPlayer *LocalPlayer = GetLocalPlayer();
+	Out += FString::Printf(TEXT("engine: mouse-over %s, click events %s, trace channel %d (Pawn %d), game view topmost under the pointer: %s\n"),
+						   bEnableMouseOverEvents ? TEXT("on") : TEXT("off"), bEnableClickEvents ? TEXT("on") : TEXT("off"),
+						   static_cast<int32>(CurrentClickTraceChannel.GetValue()), static_cast<int32>(ECC_Pawn),
+						   LocalPlayer && IsInViewportClient(LocalPlayer->ViewportClient) ? TEXT("yes") : TEXT("no"));
+	FHitResult Hit;
+	const bool bHit = GetHitResultAtScreenPosition(At, CurrentClickTraceChannel, true, Hit);
+	Out += FString::Printf(TEXT("engine trace at the point: %s; hovered now: %s\n"),
+						   bHit ? *FString::Printf(TEXT("%s (%s)"), *GetNameSafe(Hit.GetActor()), *GetNameSafe(Hit.GetComponent())) : TEXT("nothing"),
+						   *GetNameSafe(CurrentClickablePrimitive.IsValid() ? CurrentClickablePrimitive->GetOwner() : nullptr));
+	if (const UBattleHUDWidget *HUD = FindBattleHUD())
+	{
+		Out += FString::Printf(TEXT("screen pick (what a click picks): %s\n%s"), *GetNameSafe(HUD->GetOfferedFighterAt(At)),
+							   *HUD->GetOfferedFighterBoxesString());
+	}
+	else
+	{
+		Out += TEXT("screen pick: no new battle HUD\n");
+	}
+	return Out;
 }
 
 UBattleHUDWidget *ACombatPlayerController::FindBattleHUD() const
@@ -851,6 +1006,10 @@ FString ACombatPlayerController::GetMenuKeysString()
 		const FKey Key = Name == CombatMenuKeys::CONFIRM_ACTION_NAME ? CombatMenuKeys::GetConfirmKeyboard() : CombatMenuKeys::GetConfirmSpaceKeyboard();
 		Out += FString::Printf(TEXT("\n  %s (confirm the highlighted target, B-582b): %s / -"), Name, *Key.GetDisplayName().ToString());
 	}
+	for (const CombatMenuKeys::FMenuNavKey &Nav : CombatMenuKeys::GetMenuNavKeys())
+	{
+		Out += FString::Printf(TEXT("\n  %s (%s, B-582c): %s"), Nav.ActionName, Nav.What, *Nav.Key.GetDisplayName().ToString());
+	}
 	return Out;
 }
 
@@ -870,6 +1029,8 @@ const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 		// Backspace is the key the hints name (B-481); Esc is the second, its own action as a row takes one key.
 		{TEXT("IA_Combat_MenuBack"), EPieMenuCategory::Back, EKeys::BackSpace, EKeys::Gamepad_FaceButton_Right},
 		{TEXT("IA_Combat_MenuBackEscape"), EPieMenuCategory::Back, EKeys::Escape, EKeys::Invalid},
+		// B-582c (D-269): A goes back one step, as Backspace (W / S / D move and open, GetMenuNavKeys).
+		{TEXT("IA_Combat_MenuBackA"), EPieMenuCategory::Back, EKeys::A, EKeys::Invalid},
 		{TEXT("IA_Combat_MenuFlee"), EPieMenuCategory::Flee, EKeys::Five, EKeys::Gamepad_DPad_Down},
 		// B-474 (D-207): Switch Weapon moved from D-pad Left to L3 (D-pad Left is free).
 		{TEXT("IA_Combat_MenuSwitchWeapon"), EPieMenuCategory::SwitchWeapon, EKeys::Six, EKeys::Gamepad_LeftThumbstick},

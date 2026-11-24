@@ -153,6 +153,15 @@ public:
 	/** B-400b (debug, specs): the actor a per-actor target row picks; null for any other row. */
 	AActor *GetRowTarget(int32 RowIndex) const;
 
+	/** B-582c (D-269): the lit row: the one W / S last moved to, else the highlighted target's row; INDEX_NONE only
+	 *  when no row can be lit. A list opens on the row it was left on (Back), else its first. It draws violet. */
+	int32 GetLitRow() const;
+	/** B-582c: W (Direction < 0) / S (> 0): light the previous / next frame row (not a header, a greyed row or a corner
+	 *  hint), wrapping. A target row also highlights its target, as hover. */
+	void MoveLitRow(int32 Direction);
+	/** B-582c: D, forward: press the lit row as a click (a target row picks its target). False: nothing lit. */
+	bool PressLitRow();
+
 	/** B-592 (D-268): a click on a target panel chip (Line: ETargetPanelChoice). */
 	void PressChip(int32 Line, int32 Index);
 
@@ -169,6 +178,22 @@ public:
 	const TArray<FText> &GetRowLabels() const { return RowLabels; }
 	/** B-436g (D-260): the tab, "Act: ●●○ · Skills 1/3" (ActionPipsText::MakeCardActionsLine). */
 	const FText &GetActionsLine() const { return ActionsLine; }
+
+	/** B-582c (Crown, 2026-11-23): the lit row's and lit chip's fill and outline, in the acting character's colour
+	 *  (ClassColors: a Caster's element, a Resonator's silver, a Generic's brown); the violet focus with no character. */
+	const FLinearColor &GetSelectorFill() const { return SelectorFill; }
+	const FLinearColor &GetSelectorOutline() const { return SelectorOutline; }
+	/** B-582c: the Act tag's plate and text colours as drawn (debug, specs); transparent before the widget is built. */
+	FLinearColor GetActTabFill() const;
+	FLinearColor GetActTabTextColour() const;
+	/** B-582c: Accent darkened until white text on it reads well (about the old violet's contrast), and an outline that
+	 *  shows on the dark panel (the pale crystal outline for a near-black colour such as Darkness). */
+	static void MakeSelectorColours(const FLinearColor &Accent, FLinearColor &OutFill, FLinearColor &OutOutline);
+	/** B-582c: Fighter's selector colours (its class / element colour through MakeSelectorColours); violet / cyan
+	 *  without character data. The menu's lit row and Act tag, and the acting party card's frame. */
+	static void GetSelectorColoursFor(const AActor *Fighter, FLinearColor &OutFill, FLinearColor &OutOutline);
+	/** WCAG relative luminance of a linear colour (debug, specs: contrast checks). */
+	static float GetRelativeLuminance(const FLinearColor &Colour);
 	/** B-436g: the corner hints of this view, in row order. */
 	const TArray<FBattleMenuHint> &GetHints() const { return Hints; }
 
@@ -207,13 +232,28 @@ private:
 
 	void PushToWidgets();
 
+	/** B-582c: a row W / S can light. */
+	bool IsNavigableRow(int32 RowIndex) const;
+	/** B-582c (D-270): a target name row (or its section header) in a single-target pick: not drawn; W / S / the pointer
+	 *  mark the target on the field instead. wor.UI.Print tags it "field". */
+	bool IsPickedOnField(int32 RowIndex) const;
+
 	TArray<FPieMenuButtonData> Rows;
+	/** B-582c: the row W / S or a target highlight last lit; kept through a rebuild of the same view (an infusion pick). */
+	int32 LitRow = INDEX_NONE;
+	/** B-582c QA: each list's lit row when it was left, by title and row count, so Back re-lights the row you came from. Target rows
+	 *  aren't kept (the picker opens on its own target, B-582). Cleared when the menu closes (a new turn starts fresh). */
+	TMap<FString, int32> LitRowByTitle;
 	TArray<FText> RowLabels;
 	/** B-436g: each row's key for the device in use (invalid: none). */
 	TArray<FKey> RowKeys;
 	TArray<FBattleMenuHint> Hints;
 	FText Title;
 	FText ActionsLine;
+	/** B-582c: the selector colours for the acting character, set per menu open (a turn change re-opens the menu). */
+	FLinearColor SelectorFill = FLinearColor::Transparent;
+	FLinearColor SelectorOutline = FLinearColor::Transparent;
+	void RefreshSelectorColours();
 	bool bAtMainMenu = false;
 	bool bShowing = false;
 	bool bBound = false;

@@ -1133,7 +1133,40 @@ void FBattleHUDSpec::Define()
 					  WoRCombatTier::GetCombatTierText(WoRCombatTier::GetCombatTier(Foe)).ToString());
 			TestTrue(TEXT("the tier names no rank"), Cards[FoeCard].TierLine.ToString().StartsWith(TEXT("Tier ")));
 			TestTrue(TEXT("still no HP number on it (Q-391)"), Cards[FoeCard].HPBar && !Cards[FoeCard].HPText);
-			TestTrue(TEXT("its tier line built"), Cards[FoeCard].TierText && !Cards[CardOf(Hero)].TierText);
+			// B-582c (Crown, 2026-11-23): the floating card keeps its HP bar, buildup bar and status line, not the tier line.
+			TestTrue(TEXT("no tier line drawn on any card"), !Cards[FoeCard].TierText && !Cards[CardOf(Hero)].TierText);
+			TestTrue(TEXT("the enemy card keeps its HP bar"), Cards[FoeCard].HPBar != nullptr);
+			// B-582c QA: a foe with no effects has no empty status row under its bars.
+			TestTrue(TEXT("the fresh foe has no effects"), Cards[FoeCard].StatusLine.IsEmpty());
+			TestTrue(TEXT("so its status row takes no space"),
+					 Cards[FoeCard].StatusText && Cards[FoeCard].StatusText->GetVisibility() == ESlateVisibility::Collapsed);
+			// B-582c (Crown): names centred with no "> " marker; whose turn it is shows as a frame on the acting party card,
+			// in its selector colour; no other card is framed.
+			const int32 HeroCard = CardOf(Hero);
+			const FByteProperty *Justify = CastField<FByteProperty>(UTextBlock::StaticClass()->FindPropertyByName(TEXT("Justification")));
+			for (const int32 Card : {HeroCard, FoeCard})
+			{
+				const UTextBlock *Name = Cards.IsValidIndex(Card) ? Cards[Card].NameText.Get() : nullptr;
+				TestTrue(TEXT("the name is centred"), Name && Justify && Justify->GetPropertyValue_InContainer(Name) == ETextJustify::Center);
+				TestTrue(TEXT("with no turn marker"), Name && Name->GetText().ToString() == Cards[Card].Name.ToString());
+			}
+			FLinearColor Fill;
+			FLinearColor Outline;
+			UBattleCommandMenuWidget::GetSelectorColoursFor(Hero, Fill, Outline);
+			if (TestTrue(TEXT("the acting hero's card is built"), Cards.IsValidIndex(HeroCard) && Cards[HeroCard].bActing && Cards[HeroCard].Frame))
+			{
+				const FSlateBrushOutlineSettings &Frame = Cards[HeroCard].Frame->Background.OutlineSettings;
+				TestTrue(TEXT("it is framed"), Frame.Width > 0.0f);
+				TestEqual(TEXT("in the hero's selector colour"), Frame.Color.GetSpecifiedColor(), Outline);
+			}
+			TestEqual(TEXT("the enemy card has no frame"), Cards[FoeCard].Frame->Background.OutlineSettings.Width, 0.0f);
+			// B-582c QA: the dark fill is drawn once and nothing tints the frame (the border's colour multiplier stays white).
+			for (const int32 Card : {HeroCard, FoeCard})
+			{
+				const UBorder *Frame = Cards.IsValidIndex(Card) ? Cards[Card].Frame.Get() : nullptr;
+				TestTrue(TEXT("the card's fill is the card colour"), Frame && Frame->Background.TintColor.GetSpecifiedColor().Equals(BattleCardStyle::CardColor));
+				TestTrue(TEXT("and no multiplier on top"), Frame && Frame->GetBrushColor().Equals(FLinearColor::White));
+			}
 
 			FPieMenuButtonData Attack;
 			Attack.Category = EPieMenuCategory::Attack;

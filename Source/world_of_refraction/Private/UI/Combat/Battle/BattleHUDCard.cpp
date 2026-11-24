@@ -5,6 +5,8 @@
 #include "UI/Combat/Battle/BattleHUDCard.h"
 
 #include "Blueprint/WidgetTree.h"
+#include "Brushes/SlateColorBrush.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 #include "Components/Border.h"
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
@@ -216,7 +218,9 @@ FBattleCardParts BattleHUDCard::GetParts(EBattleCardLevel Level, bool bParty)
 	Parts.bBuildupLine = Parts.bGear = Level == EBattleCardLevel::Battle && bParty;
 	Parts.bActions = false; // B-436g (D-260): the pips moved to the command menu's tab; OBSOLETE with ActionsText, kept until PIE (docs/PIE/Sweep.md)
 	Parts.bStatus = Level == EBattleCardLevel::Battle && !bParty; // D-261 (B-586): a party member's effects are in Intel
-	Parts.bTier = Level == EBattleCardLevel::Battle && !bParty;	  // B-436c: the target marker's tier
+	// B-436c drew the target marker's tier here; B-582c (Crown, 2026-11-23): no tier line on the floating card. TierLine
+	// stays on the card data for wor.UI.Print.
+	Parts.bTier = false;
 	Parts.bFixedWidth = Level != EBattleCardLevel::Hub; // the hub's name-only card shrinks to the name
 	return Parts;
 }
@@ -242,7 +246,8 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 
 	const FBattleCardParts Parts = GetParts(Level, Card.bParty);
 	Card.Frame = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Card.Frame->SetBrushColor(CardColor);
+	// B-582c QA: the fill is the brush's own (Push swaps it), not SetBrushColor, which would also tint the acting frame.
+	Card.Frame->SetBrush(FSlateColorBrush(CardColor));
 	Card.Frame->SetPadding(FMargin(CardPadding));
 	// B-391c: a card with gear is hit-testable so its gear tooltip shows on hover; the others let clicks through.
 	Card.Frame->SetVisibility(Parts.bGear ? ESlateVisibility::Visible : ESlateVisibility::HitTestInvisible);
@@ -262,6 +267,7 @@ UBorder *BattleHUDCard::Build(UWidgetTree *Tree, FBattleHUDCard &Card, EBattleCa
 
 	Card.NameText = AddText(Tree, Rows, NameFontSize);
 	Card.NameText->SetAutoWrapText(Parts.bFixedWidth); // wrapping needs a width: a fitted card keeps the name on one line
+	Card.NameText->SetJustification(ETextJustify::Center); // B-582c (Crown): names centred on every card
 	Card.DetailText = AddText(Tree, Rows, LineFontSize); // D-229: the kind name ("Fire Refractor")
 
 	// B-503m: the numbers sit on the bars (HP on the HP bar, EP on its own bar); an enemy's HP bar has no number (Q-391).
@@ -311,11 +317,17 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 {
 	using namespace BattleCardStyle;
 
-	const FText Name = Card.bActing ? FText::Format(LOCTEXT("ActingName", "> {0}"), Card.Name) : Card.Name;
-	SetTextSafe(Card.NameText, Name);
-	if (Card.NameText)
+	SetTextSafe(Card.NameText, Card.Name);
+	if (Card.Frame) // B-582c (Crown): the acting party card's frame, in its selector colour, says whose turn it is
 	{
-		Card.NameText->SetColorAndOpacity(FSlateColor(Card.bActing ? ActingColor : TextColor));
+		if (Card.bActing && Card.bParty)
+		{
+			Card.Frame->SetBrush(FSlateRoundedBoxBrush(CardColor, 0.0f, Card.ActingOutline, ActingFrameWidth));
+		}
+		else
+		{
+			Card.Frame->SetBrush(FSlateColorBrush(CardColor));
+		}
 	}
 	SetTextSafe(Card.DetailText, Card.DetailLine);
 	if (Card.DetailText)
@@ -347,6 +359,10 @@ void BattleHUDCard::Push(const FBattleHUDCard &Card)
 	}
 	SetTextSafe(Card.ActionsText, Card.ActionsLine);
 	SetTextSafe(Card.StatusText, Card.StatusLine);
+	if (Card.StatusText) // B-582c QA: no effects, no empty row under the bars
+	{
+		Card.StatusText->SetVisibility(Card.StatusLine.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
+	}
 	SetTextSafe(Card.TierText, Card.TierLine);
 	if (Card.Frame)
 	{
@@ -385,7 +401,7 @@ void BattleHUDCard::SetCompact(const FBattleHUDCard &Card, bool bCompact)
 	ShowIf(Card.DetailText, !bCompact && !Card.DetailLine.IsEmpty());
 	ShowIf(Card.EPRow, !bCompact && Card.bShowEP);
 	ShowIf(Card.ActionsText, !bCompact);
-	ShowIf(Card.StatusText, !bCompact);
+	ShowIf(Card.StatusText, !bCompact && !Card.StatusLine.IsEmpty());
 }
 
 void BattleHUDCard::SetHPPulse(const FBattleHUDCard &Card, float Opacity)

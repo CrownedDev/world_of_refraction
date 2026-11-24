@@ -136,6 +136,8 @@ public:
 	void SelectIntelTab(int32 Tab);
 	void CloseIntel();
 	bool IsIntelOpen() const { return bIntelOpen; }
+	/** B-582c: the command menu SetCommandMenu placed (the W / S / D keys drive it); null before. */
+	UBattleCommandMenuWidget *GetCommandMenu() const { return CommandMenu; }
 	int32 GetIntelTab() const { return IntelTab; }
 	/** The pages as last built (rebuilt on every push while open): the open tab's in full, the others only their tab. */
 	const TArray<FBattleIntelPage> &GetIntelPages() const { return IntelPages; }
@@ -145,6 +147,18 @@ public:
 	/** B-436c (D-263): the enemy card shown as the target marker (the picker's highlighted enemy); INDEX_NONE: none,
 	 *  so no enemy card shows. */
 	int32 GetMarkedCardIndex() const;
+
+	/** B-582c QA (D-270): a left click on the game view (ACombatPlayerController::InputKey) picks the fighter under the
+	 *  pointer in a single-target pick. False: nothing picked. */
+	bool PickFighterUnderPointer();
+	/** B-582c QA: the fighter the open single-target picker offers whose body's screen box holds Point (viewport
+	 *  pixels), the nearest to the camera; null if none. On screen boxes, not a collision trace, so a fighter's
+	 *  collision and the widgets over the view don't matter. */
+	AActor *GetOfferedFighterAt(const FVector2D &Point) const;
+	/** The index of the box holding Point with the smallest distance; INDEX_NONE if none (invalid boxes skipped). */
+	static int32 PickNearestBoxAt(const TArray<FBox2D> &Boxes, const TArray<double> &Distances, const FVector2D &Point);
+	/** Debug (wor.Debug.HitUnderCursor): each offered fighter's screen box and distance. */
+	FString GetOfferedFighterBoxesString() const;
 
 	/** OBSOLETE (B-586, D-261): inspect moved to Intel; always INDEX_NONE now. Kept until PIE (docs/PIE/Sweep.md). */
 	int32 GetInspectedCardIndex() const { return InspectedCard; }
@@ -259,6 +273,21 @@ private:
 	UFUNCTION()
 	FEventReply HandleCardMouseDown(FGeometry MyGeometry, const FPointerEvent &MouseEvent);
 
+	/** B-582c (D-270): the pointer over a fighter marks it in an open single-target picker (the picker ignores one it
+	 *  doesn't offer). Bound to each card's actor (AActor::OnBeginCursorOver; the fight controller enables the events). */
+	UFUNCTION()
+	void HandleFighterCursorOver(AActor *Fighter);
+	/** B-582c (D-270): a left click on a fighter marks and confirms it in an open single-target picker. */
+	UFUNCTION()
+	void HandleFighterClicked(AActor *Fighter, FKey ButtonPressed);
+	/** B-582c (D-270): mark Fighter and confirm it, when the open single-target picker offers it. False: nothing picked. */
+	bool PickFighter(AActor *Fighter);
+	/** B-582c QA: marks the offered fighter under the pointer when the pointer has moved since the last check (so a
+	 *  resting pointer never undoes W / S). Run by the target-marker timer while a single-target pick is open. */
+	void HoverFighterUnderPointer();
+	/** A fighter's body as a screen box (viewport pixels) and its distance to the camera; false off screen. */
+	bool GetFighterScreenBox(const AActor *Fighter, FBox2D &OutBox, double &OutDistance) const;
+
 	/** What the status panel shows for one inspected card. OBSOLETE (B-586, D-261): Intel replaced the inspect; kept
 	 *  until PIE (docs/PIE/Sweep.md). */
 	FText BuildInspectText(const FBattleHUDCard &Card) const;
@@ -315,6 +344,7 @@ private:
 	TWeakObjectPtr<UCombatCommandMenuSubsystem> BoundMenu;
 	TWeakObjectPtr<AActor> MarkedTarget;
 	FTimerHandle TargetMarkerTimer;
+	TOptional<FVector2D> LastHoverPointer;
 
 	/** B-436b: runs while a party card is low on HP (StepLowHPPulse dims and brightens its HP bar). */
 	FTimerHandle LowHPPulseTimer;

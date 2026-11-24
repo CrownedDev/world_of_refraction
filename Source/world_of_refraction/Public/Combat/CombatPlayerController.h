@@ -117,10 +117,33 @@ struct FCombatMenuKey
 	FKey Gamepad;
 };
 
+/** B-582c (D-269): what a battle-menu navigation key does to the new HUD's UBattleCommandMenuWidget. */
+enum class EBattleMenuNav : uint8
+{
+	RowUp,
+	RowDown,
+	Forward,
+	TargetPrevious, // D-270: the pad's D-pad Up / Down, in a single-target pick only
+	TargetNext,
+};
+
 UCLASS()
 class WORLD_OF_REFRACTION_API ACombatPlayerController : public APlayerController
 {
 	GENERATED_BODY()
+
+public:
+	/** B-582c (D-269): a fight never takes move input, so WASD (the menu keys) can't walk the possessed leader or its
+	 *  camera, whatever its pawn Blueprint maps. An override, as possession resets the ignore counter (ClientRestart). */
+	virtual bool IsMoveInputIgnored() const override { return true; }
+
+	/** B-582c QA (D-270): after the engine's handling, a left click on the game view picks the fighter under the
+	 *  pointer (UBattleHUDWidget::PickFighterUnderPointer). */
+	virtual bool InputKey(const FInputKeyEventArgs &Params) override;
+
+	/** Debug (wor.Debug.HitUnderCursor): what Point (viewport pixels; null: the pointer) hits, by the engine's trace and
+	 *  by the battle HUD's screen pick. */
+	FString GetPointerHitString(const FVector2D *Point) const;
 
 protected:
 	virtual void BeginPlay() override;
@@ -197,6 +220,13 @@ protected:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UInputAction>> ConfirmActions;
 	void OnConfirmKey(const FInputActionValue &Value);
+
+	/** B-582c (D-269): W / S move the lit row, D presses it (forward); MenuNavKinds[i] is what MenuNavActions[i] does.
+	 *  A (back) is a Back row in GetMenuKeys. */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UInputAction>> MenuNavActions;
+	TArray<EBattleMenuNav> MenuNavKinds;
+	void OnMenuNavKey(const FInputActionInstance &Instance);
 
 	/** Creates the menu-key actions (and the cinematic skip) and their mapping context once. */
 	void BuildMenuKeys();
