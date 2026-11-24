@@ -16,6 +16,7 @@ namespace
 	const FVector STYLE_TEST_SECOND_TARGET(800.0f, 400.0f, 0.0f);
 	constexpr float STYLE_TEST_MAX_CREEP = 30.0f;
 	constexpr float STYLE_TEST_PUNCH_RANGE = 1.0f;
+	constexpr float STYLE_TEST_LOW_CAMERA_HEIGHT = 100.0f; // a hero angle sits below the fighters' chests
 
 	FCameraShotContext StyleTestContext()
 	{
@@ -66,6 +67,7 @@ void FSkillCameraStyleSpec::Define()
 	It("Melee Rush: rushes in, no Cast shot, cuts to a held side two-shot on the hit", [this, Tuning]()
 	{
 		const FCameraShotContext Context = StyleTestContext();
+		TestTrue(TEXT("precondition: camera movement on (the rush is allowed)"), Context.bAllowRush);
 		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::WindUp, Context, Tuning);
 		TestTrue(TEXT("a rush (motion blur), one way in"), WindUp.IsSet() && WindUp->MotionBlur > 0.0f && Travel(*WindUp) > 0.0f);
 		TestFalse(TEXT("no Cast pull-back"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Cast, Context, Tuning).IsSet());
@@ -108,13 +110,15 @@ void FSkillCameraStyleSpec::Define()
 		const FCameraShotContext Context = StyleTestContext();
 		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::WindUp, Context, Tuning);
 		const FCameraShot Plain = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context, Tuning);
+		TestTrue(TEXT("precondition: camera movement on (so no rush is a real choice)"), Context.bAllowRush);
 		TestTrue(TEXT("a push, no rush, slower than the plain wind-up"), WindUp.IsSet() && FMath::IsNearlyZero(WindUp->MotionBlur) && Travel(*WindUp) > 0.0f &&
 																			 WindUp->BlendSeconds > Plain.BlendSeconds);
 		TestFalse(TEXT("no Cast shot"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::Cast, Context, Tuning).IsSet());
 		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::Impact, Context, Tuning);
 		TestTrue(TEXT("the hit cuts and holds"), Hit.IsSet() && Hit->bCut && IsStill(*Hit));
-		TestTrue(TEXT("low, looking up at the attacker"), Hit.IsSet() && Hit->End.GetLocation().Z < 100.0f && Hit->End.GetRotation().Rotator().Pitch > 0.0f &&
-															  CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster));
+		TestTrue(TEXT("low, looking up"), Hit.IsSet() && Hit->End.GetLocation().Z - Context.Caster.Z < STYLE_TEST_LOW_CAMERA_HEIGHT && Hit->End.GetRotation().Rotator().Pitch > 0.0f);
+		TestTrue(TEXT("both fighters in frame"), Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster) &&
+													 CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
 	});
 
 	It("Area Sweep: one wide still shot of the attacker and every target, held through the hit", [this, Tuning]()
