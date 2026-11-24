@@ -752,7 +752,7 @@ void ULoadoutV2ScreenWidget::RefreshDetails()
 			}
 			return;
 		}
-		const int32 Line = GetBoxLine(); // the line under the mouse, else the focused one (as B-484's lists)
+		const int32 Line = GetBoxLine(); // the selected line (B-598)
 		const FLoadoutScreenRow *Row = Mode == ELoadoutV2Mode::SkillPicker ? (SkillChoices.IsValidIndex(Line) ? &SkillChoices[Line].Row : nullptr)
 									 : SkillRows.IsValidIndex(Line)		   ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Line])
 																		   : nullptr;
@@ -1489,12 +1489,11 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		SetShown(LineTags[Index], !Tag.IsEmpty());
 		// B-485: the row's icons; each is hidden when the icon table has none for it.
 		const FLineIcons Icons = GetLineIcons(Index);
-		const bool bTypeIcon = SetIcon(LineTypeIcons[Index], FindIcon(Icons.Type), Icons.Type.Name);
-		SetIcon(LineTypeCentres[Index], bTypeIcon ? WoRIcons::FindCentre(Icons.Type) : nullptr, Icons.Type.Name);
-		const bool bSocketBadge = SetIcon(LineSocket1Icons[Index], FindIcon(Icons.Socket1), Icons.Socket1.Name);
-		SetIcon(LineSocket2Icons[Index], bSocketBadge ? FindIcon(Icons.Socket2) : nullptr, Icons.Socket2.Name); // the pair shows together
-		const bool bTierBadge = SetIcon(LineTierIcons[Index], Icons.bHasTier ? WoRIcons::GetTierBadge(Icons.Tier) : nullptr,
-										FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Icons.Tier)));
+		const bool bTypeIcon = SetIcon(LineTypeIcons[Index], FindIcon(Icons.Type));
+		SetIcon(LineTypeCentres[Index], bTypeIcon ? WoRIcons::FindCentre(Icons.Type) : nullptr);
+		const bool bSocketBadge = SetIcon(LineSocket1Icons[Index], FindIcon(Icons.Socket1));
+		SetIcon(LineSocket2Icons[Index], bSocketBadge ? FindIcon(Icons.Socket2) : nullptr); // the pair shows together
+		const bool bTierBadge = SetIcon(LineTierIcons[Index], Icons.bHasTier ? WoRIcons::GetTierBadge(Icons.Tier) : nullptr);
 		// A name with a badge after it keeps its own width, so the badge sits right after it; with none it fills the
 		// column and a long one ends in "...", as before the icons.
 		// (The name sits in a stack with its quiet line: the stack is what the row sizes.)
@@ -1908,12 +1907,11 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 			}
 		}
 	}
-	const auto GetTierTooltip = [](EItemTier Tier) { return FText::Format(LOCTEXT("TierTooltip", "Tier {0}"), WoRGameNames::GetTierLetter(Tier)); };
 	BoxTitleText->SetText(BoxTitle);
 	BoxTypeText->SetText(BoxType.Text);
-	SetIcon(BoxTitleIcon, FindIcon(BoxHeader.Icon), BoxHeader.Icon.Name); // beside the name
+	SetIcon(BoxTitleIcon, FindIcon(BoxHeader.Icon)); // beside the name
 	SetShown(BoxTypeRow, !BoxType.Text.IsEmpty());
-	const bool bTitleTier = SetIcon(BoxTitleTier, BoxHeader.bHasTier ? WoRIcons::GetTierBadge(BoxHeader.Tier) : nullptr, GetTierTooltip(BoxHeader.Tier));
+	const bool bTitleTier = SetIcon(BoxTitleTier, BoxHeader.bHasTier ? WoRIcons::GetTierBadge(BoxHeader.Tier) : nullptr);
 	if (UHorizontalBoxSlot *TitleSlot = Cast<UHorizontalBoxSlot>(BoxTitleText->Slot))
 	{
 		TitleSlot->SetSize(FSlateChildSize(bTitleTier ? ESlateSizeRule::Automatic : ESlateSizeRule::Fill)); // as the lines below
@@ -1949,8 +1947,8 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 			// UI_Theme 5a: measured this frame: the line wraps at the room it has (less its icon and its tier badge).
 			BoxTexts[Index]->SetWrapTextAt(CardTextWidth - (bAnyBoxIcon ? BoxIconSize + WordGap : 0.0f) - (Line.bHasTier ? BadgeSize + WordGap : 0.0f));
 			BoxTexts[Index]->SetColorAndOpacity(FSlateColor(Line.bWarn ? WarnColor : Line.bLit ? CyanColor : Line.bQuiet ? DimColor : TextColor));
-			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), Line.Icon.Name, /*bKeepSpace=*/bAnyBoxIcon);
-			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr, GetTierTooltip(Line.Tier));
+			SetIcon(BoxIcons[Index], FindIcon(Line.Icon), /*bKeepSpace=*/bAnyBoxIcon);
+			const bool bTier = SetIcon(BoxTierIcons[Index], Line.bHasTier ? WoRIcons::GetTierBadge(Line.Tier) : nullptr);
 			// A name with its tier badge keeps its own width, so the badge sits right after it; other lines fill and wrap.
 			if (UHorizontalBoxSlot *TextSlot = Cast<UHorizontalBoxSlot>(BoxTexts[Index]->Slot))
 			{
@@ -2204,7 +2202,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 			Icon.Name = WoRGameNames::GetWeaponTypeName(Icon.WeaponType);
 			Word = Icon.Name;
 		}
-		const bool bPicture = SetIcon(GridTabIcons[Index], FindIcon(Icon), Icon.Name);
+		const bool bPicture = SetIcon(GridTabIcons[Index], FindIcon(Icon));
 		GridTabLabels[Index]->SetText(Word);
 		SetShown(GridTabLabels[Index], !bPicture);
 	}
@@ -2264,7 +2262,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		}
 		const FLoadoutV2GridTile &Tile = Tiles[Index];
 		GridTiles[Index]->SetBrushColor(GetTileColor(Index, Tile.bLocked, bSlotGrid));
-		const bool bPicture = SetIcon(GridTileIcons[Index], FindIcon(Tile.Icon), Tile.Icon.Name);
+		const bool bPicture = SetIcon(GridTileIcons[Index], FindIcon(Tile.Icon));
 		GridTileIcons[Index]->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, Tile.bLocked ? LockedTileOpacity : 1.0f));
 		GridTileWords[Index]->SetText(Tile.Icon.Name);
 		GridTileWords[Index]->SetColorAndOpacity(FSlateColor(Tile.bLocked ? OffColor : DimColor));

@@ -399,14 +399,9 @@ private:
 	/** B-484: the row's tag, in its own space at the right end: ACTIVE on the weapon in hand, EQUIPPED / PICKED in a
 	 *  slot's list. */
 	FText GetLineTag(int32 Line) const;
-	/** B-484: the line the details box shows in a list of pieces: the one under the mouse, else the focused one.
-	 *  B-476d: a skill's slots and the picker follow the mouse the same way. B-503u: the Edit window's slot rows too. */
-	int32 GetBoxLine() const
-	{
-		const bool bFollowsMouse = Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::ApparelItems || Mode == ELoadoutV2Mode::SkillRows ||
-								   Mode == ELoadoutV2Mode::SkillPicker || Mode == ELoadoutV2Mode::WindowSlots || IsOnInventoryList();
-		return bFollowsMouse && HoveredLine >= 0 && HoveredLine < GetLineCount() ? HoveredLine : Selected;
-	}
+	/** The line the details box shows: the selected one. B-598 (Crown): it no longer follows the mouse (no hover pop-ups);
+	 *  a click selects a line, so the box still shows what is picked. */
+	int32 GetBoxLine() const { return Selected; }
 	/** B-484: one line of a slot's list as the box's details: that piece alone (WoRLoadoutV2::Build...Details). */
 	TArray<FLoadoutV2DetailLine> BuildItemDetails(const FLoadoutV2WindowItem &Item) const;
 	/** B-503u: the Edit window's box on a slot row: that slot's piece, or a line saying what it takes. */
@@ -450,8 +445,8 @@ private:
 	void RefreshInventorySide();
 	/** The inventory's tiles as grid tiles (FInventoryScreenTile to FLoadoutV2GridTile). */
 	TArray<FLoadoutV2GridTile> GetInventoryTiles() const;
-	/** The tile the card shows on the inventory's side: the one under the mouse, else the lit one. */
-	int32 GetInventoryBoxTile() const { return InvPage.Tiles.IsValidIndex(HoveredInvTile) ? HoveredInvTile : InvSelected; }
+	/** The tile the card shows on the inventory's side: the selected one (B-598: not the one under the mouse). */
+	int32 GetInventoryBoxTile() const { return InvSelected; }
 	/** The inventory's side has the card: the keys are there and no slot is being filled. */
 	bool IsInventoryBox() const { return !bOnLoadoutSide && IsInventoryGrid(); }
 	void SelectInventoryTab(EInventoryScreenTab NewTab);
