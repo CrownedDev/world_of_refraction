@@ -145,6 +145,9 @@ Ask unreal-mcp to describe the toolset for the exact argument spelling. Mouse po
 | `wor.Debug.GiveTestKit member` | A second party member: the recruitable character in the level, else another character in the played one's body |
 | `wor.Debug.GiveTestKit potions` | 5 Health Potions and 5 Energy Potions carried (B-579; no merchant stocks them until its asset gets the rows) |
 | `wor.Debug.GiveTestKit weapons` | `wor.Debug.GiveTestWeapons` (12 more each call; there is no weapon room since D-250) |
+| `wor.Debug.QAKit` | `skill` and `caster` below |
+| `wor.Debug.QAKit skill` | The weapon in hand gets an ability that costs EP in a skill slot (learned first if needed, one that fits the weapon), so Raw level II shows the HP ghost (B-592b) |
+| `wor.Debug.QAKit caster [element]` | A Caster joins the party as your seat (not AI), of that element if named (`darkness`, `fire`, ...), to see its selector colour. With no Caster asset of that element it says so: `wor.Debug.TestGear refractor` (or `bd` for Darkness) makes the played character one for the PIE session |
 
 The answer has one line per part and says what was refused. Several parts can be named at once.
 
