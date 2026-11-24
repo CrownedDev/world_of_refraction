@@ -854,7 +854,32 @@ void FCombatLoadout::EditSlots(ECharacterClass CharacterClass, TFunctionRef<void
 {
     RebuildSlotsFromLegacy(CharacterClass);
     Edit(*this);
+    // What the class's mirror never holds stays as the edit left it, as the old writers kept it: a weapon under a Ring or
+    // Evolution primary, an adapter under a Weapon one, a second weapon not mirrored, a Caster's adapter loadout.
+    const bool bWeaponPrimary = PrimarySlotType == EPrimarySlotType::Weapon || PrimarySlotType == EPrimarySlotType::None;
+    const FWeaponLoadoutEntry HiddenPrimaryWeapon = bWeaponPrimary ? FWeaponLoadoutEntry() : PrimaryWeapon;
+    const FRingLoadoutEntry HiddenPrimaryRing = PrimarySlotType == EPrimarySlotType::Ring ? FRingLoadoutEntry() : PrimaryRing;
+    const bool bSecondaryMirrored = CharacterClass == ECharacterClass::Generic && SecondarySlotType == ESecondarySlotType::Weapon;
+    const FWeaponLoadoutEntry HiddenSecondary = bSecondaryMirrored ? FWeaponLoadoutEntry() : SecondaryWeapon;
+    const bool bAdaptersMirrored = CharacterClass == ECharacterClass::Resonator || CharacterClass == ECharacterClass::Generic;
+    const TArray<FRingLoadoutEntry> HiddenAdapters = bAdaptersMirrored ? TArray<FRingLoadoutEntry>() : RingLoadout;
     RebuildLegacyFromSlots(CharacterClass);
+    if (!PrimaryWeapon.IsValid())
+    {
+        PrimaryWeapon = HiddenPrimaryWeapon;
+    }
+    if (!PrimaryRing.IsValid())
+    {
+        PrimaryRing = HiddenPrimaryRing;
+    }
+    if (!SecondaryWeapon.IsValid())
+    {
+        SecondaryWeapon = HiddenSecondary;
+    }
+    if (RingLoadout.IsEmpty())
+    {
+        RingLoadout = HiddenAdapters;
+    }
 }
 
 FLoadoutSlot *FCombatLoadout::FindSlotAt(int32 Place)

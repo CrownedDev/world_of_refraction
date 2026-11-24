@@ -270,6 +270,8 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** B-309d2: the writers' way in. Brings Slots fully in step with the old fields (a full rebuild: an in-place edit of
      *  an old entry is not something EnsureSlotsInStep sees), runs Edit, which changes the slots (and the fields that are
      *  not slots: the evolution primary, bShowPrimary, the type fields), then rebuilds the old fields from the slots.
+     *  An old entry the class's mirror never holds (a weapon under a Ring or Evolution primary, a non-Generic's second
+     *  weapon, a Caster's adapter loadout) is kept as the edit left it; an edit that means to drop one clears it itself.
      *  B-309d4 drops the first rebuild once nothing writes the old fields. */
     void EditSlots(ECharacterClass CharacterClass, TFunctionRef<void(FCombatLoadout &)> Edit);
 

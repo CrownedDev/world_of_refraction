@@ -152,6 +152,34 @@ void FLoadoutScreensWriteSlotsSpec::Define()
 																		  !Loadout.PrimaryWeapon.AssignedAbilities.Contains(Pick) && InStep(Loadout, Class));
 	});
 
+	It("keeps what the class's mirror never holds, as the old writers did, and Remove all still takes a second weapon off", [this]()
+	{
+		FText Refusal;
+		// A Caster: an adapter primary, plus an adapter loadout and a second weapon its fight never reads.
+		FCombatLoadout Caster;
+		const FRingInventoryEntry Primary = OwnedAdapter();
+		TestTrue(TEXT("the Caster's adapter"), WoRLoadoutV2::ApplyDraft(Caster, ECharacterClass::Caster, AdapterDraft(Primary), Refusal));
+		Caster.RingLoadout = {FRingLoadoutEntry()};
+		Caster.RingLoadout[0].RingEntry = OwnedAdapter();
+		Caster.SecondaryWeapon.WeaponEntry = OwnedWeapon();
+		FLoadoutV2Entry Entry;
+		Entry.Kind = ELoadoutV2EntryKind::Adapter;
+		Entry.Place = ELoadoutV2Place::Primary;
+		const FRingInventoryEntry Other = OwnedAdapter();
+		TestTrue(TEXT("its adapter replaced"), WoRLoadoutV2::ReplaceEntry(Caster, ECharacterClass::Caster, Entry, AdapterDraft(Other), Refusal));
+		TestTrue(TEXT("the new adapter, the hidden adapter loadout and second weapon kept"), Caster.PrimaryRing.RingEntry.PersistentID == Other.PersistentID &&
+																								  Caster.RingLoadout.Num() == 1 && Caster.RingLoadout[0].IsValid() && Caster.SecondaryWeapon.IsValid());
+		TestEqual(TEXT("Remove all takes the second weapon off, never a Caster's adapter loadout"), WoRLoadoutV2::RemoveAllGear(Caster, ECharacterClass::Caster), 1);
+		TestTrue(TEXT("so"), !Caster.SecondaryWeapon.IsValid() && Caster.RingLoadout.Num() == 1 && Caster.PrimaryRing.IsValid());
+
+		// A weapon hidden under an evolution primary stays through an adapter added beside it.
+		FCombatLoadout Resonator;
+		Resonator.PrimarySlotType = EPrimarySlotType::Evolution;
+		Resonator.PrimaryWeapon.WeaponEntry = OwnedWeapon();
+		TestTrue(TEXT("an adapter added"), WoRLoadoutV2::ApplyDraft(Resonator, ECharacterClass::Resonator, AdapterDraft(OwnedAdapter()), Refusal));
+		TestTrue(TEXT("the hidden weapon kept, the evolution type too"), Resonator.PrimaryWeapon.IsValid() && Resonator.PrimarySlotType == EPrimarySlotType::Evolution);
+	});
+
 	It("puts a weapon over an evolution primary and moves a Generic's second weapon up with its picks (gear screen)", [this]()
 	{
 		const ECharacterClass Class = ECharacterClass::Generic;
