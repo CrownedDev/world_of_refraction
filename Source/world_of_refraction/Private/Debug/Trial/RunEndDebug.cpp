@@ -25,7 +25,7 @@ namespace
 		return GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
 	}
 
-	void Report(const FString &Text)
+	void ReportRunEnd(const FString &Text) // own name: a unity blob with FieldMovementDebug's Report clashed
 	{
 		UE_LOG(LogWoR, Log, TEXT("[RunEndDebug] %s"), *Text);
 		if (GEngine)
@@ -120,7 +120,7 @@ namespace
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &Args, UWorld *World)
 			{
-				Report(WoRRunEndDebug::EndRun(World, Args.IsEmpty() ? FString() : Args[0]));
+				ReportRunEnd(WoRRunEndDebug::EndRun(World, Args.IsEmpty() ? FString() : Args[0]));
 			}));
 
 	FAutoConsoleCommandWithWorldAndArgs GGrantFoundWeaponCmd(
@@ -129,7 +129,7 @@ namespace
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &Args, UWorld *World)
 			{
-				Report(WoRRunEndDebug::GrantFoundWeapon(World, Args.IsEmpty() ? FString() : Args[0]));
+				ReportRunEnd(WoRRunEndDebug::GrantFoundWeapon(World, Args.IsEmpty() ? FString() : Args[0]));
 			}));
 }
 #endif // !UE_BUILD_SHIPPING

@@ -1272,7 +1272,7 @@ The queue of questions only Crown can answer.
 **Question:** Crown likes the standard attack camera and the enemy-attack camera, and wants a fixed set of camera styles each skill picks instead of a camera tuned per skill. Which styles?
 **Answer (default, built):** six, in `ESkillCameraStyle`:
 - **Standard:** today's attack camera, the default for every skill (no asset changes).
-- **Melee Rush** (Quick Strike): the rush timed to the dash, a cut to the side two-shot on the hit, held; no Cast pull-back.
+- **Melee Rush** (Quick Strike): the rush timed to the dash, a cut to the side two-shot on the hit, held; no Cast pull-back. **B-600c (QA):** the rush now holds behind the attacker's start and the cut to the side two-shot comes as the dash ends (before the swing), so the attacker never runs through the lens; the hit punches in that shot.
 - **Ranged Release** (Force Strike): a cut to a low over-the-right-shoulder shot about 250 cm back that holds (creeps at most 30 cm), FOV 90; at the release a cut to the side two-shot, dead still, so the projectile crosses the screen; on the hit FOV 90 to 85 to 90 in 0.1 s and a small shake in the same shot.
 - **Heavy Wind-Up** (Heavy Attack): a slow one-way push during the charge, a cut to a low hero angle at the hit (the side two-shot at shin height, looking up), held.
 - **Area Sweep** (WhirlWind): one wide, higher shot holding the attacker and every target, still.

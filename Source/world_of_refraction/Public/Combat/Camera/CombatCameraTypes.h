@@ -382,6 +382,10 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	/** B-600: Shot's field of view Elapsed seconds in: narrowed by FovPunch at the punch's middle, back by its end. */
 	static float GetPunchedFieldOfView(const FCameraShot &Shot, float Elapsed);
 
+	/** B-600c: the shot cut to when the attacker's dash ends, before the swing (Context.Caster at the striking spot).
+	 *  Melee Rush: the side two-shot, still, no punch (the hit punches in it). Unset for every other style. */
+	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning);
+
 	/** B-371: the moment an impact plays: Spread for several targets, else Impact. */
 	static ECameraShotMoment ImpactMomentFor(int32 TargetCount);
 

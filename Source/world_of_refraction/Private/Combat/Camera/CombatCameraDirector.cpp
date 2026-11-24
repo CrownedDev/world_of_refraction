@@ -768,10 +768,16 @@ void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, 
 			return;
 		}
 		const ECameraShotMoment Moment = FCombatCameraRules::ImpactMomentFor(ShotTargets.Num());
-		const TOptional<FCameraShot> HitShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Moment, BuildShotContext(bCritical), ShotTuning);
+		TOptional<FCameraShot> HitShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Moment, BuildShotContext(bCritical), ShotTuning);
 		if (!HitShot.IsSet())
 		{
 			return; // B-600: the style's shot holds through the hit
+		}
+		if (bArrivedOnSide)
+		{
+			// B-600c: already on the side view since the arrival: the hit punches and shakes there, no second cut.
+			HitShot->Start = ActiveShot.End;
+			HitShot->End = ActiveShot.End;
 		}
 		// B-600: a style's hit shot stays on the caster's camera (a still shot never hops cameras); Standard as before.
 		UCombatCameraComponent *Camera = FCombatCameraRules::PlaysStandardShots(ShotStyle) && IsValid(Target)
@@ -1197,23 +1203,25 @@ FString UCombatCameraDirector::GetTurnLayoutString() const
 
 namespace
 {
-	/** B-424 (air-burst dash): a melee rush timed to the skill montage's approach burst, framed at the striking spot.
-	 *  Unchanged without an approach window, or with a ritual lead-in (its own timing comes first). */
-	FCameraShot TimeRushToApproach(const FCameraShot &Rush, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning,
-								   const AActor *Caster, const AActor *Target, const USkillDataBase *Skill)
+	/** B-424: the skill montage's approach burst toward Target (the dash), and where it ends. False without one, or with a
+	 *  ritual lead-in (its own timing comes first). */
+	bool MeasureApproach(const AActor *Caster, const AActor *Target, const USkillDataBase *Skill, FVector &OutStrike, FApproachBurst &OutBurst)
 	{
 		if (!Caster || !Target || !Skill || !Skill->SkillMontage || Skill->RitualCastMontage)
 		{
-			return Rush;
+			return false;
 		}
-		const FVector Strike = ApproachWarp::GetStrikePosition(Caster->GetActorLocation(), Target->GetActorLocation(), Skill->ExecutionRange);
+		OutStrike = ApproachWarp::GetStrikePosition(Caster->GetActorLocation(), Target->GetActorLocation(), Skill->ExecutionRange);
 		// TODO: B-424: the action's play rate (Action Speed); the camera reads the montage at 1.0.
-		const FApproachBurst Burst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(Caster->GetActorLocation(), Strike)), 1.0f,
-													  ApproachWarp::GetApproachBurstSeconds());
-		if (!Burst.bHasWindow)
-		{
-			return Rush;
-		}
+		OutBurst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(Caster->GetActorLocation(), OutStrike)), 1.0f,
+										 ApproachWarp::GetApproachBurstSeconds());
+		return OutBurst.bHasWindow;
+	}
+
+	/** B-424 (air-burst dash): a melee rush timed to the measured approach burst (MeasureApproach), framed at Strike. */
+	FCameraShot TimeRushToApproach(const FCameraShot &Rush, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning,
+								   const AActor *Caster, const FVector &Strike, const FApproachBurst &Burst)
+	{
 		FCameraShotContext AtStrike = Context;
 		AtStrike.Caster = Strike;
 		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Rush timed to %s's approach: %s"), *Caster->GetName(), *Burst.ToString());
@@ -1250,9 +1258,25 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	const FCameraShotContext Context = BuildShotContext(false);
 	FCameraShot OpeningShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Opening, Context, ShotTuning)
 								  .Get(FCombatCameraRules::ComputeShot(Opening, Context, ShotTuning));
-	if (Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f) // B-403: the melee rush
+	const AActor *FirstTarget = ShotTargets.IsEmpty() ? nullptr : ShotTargets[0].Get();
+	FVector Strike;
+	FApproachBurst Burst;
+	const bool bRush = Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f; // B-403: the melee rush
+	if (bRush && MeasureApproach(Caster, FirstTarget, Skill, Strike, Burst))
 	{
-		OpeningShot = TimeRushToApproach(OpeningShot, Context, ShotTuning, Caster, ShotTargets.IsEmpty() ? nullptr : ShotTargets[0].Get(), Skill);
+		if (FCombatCameraRules::ComputeArrivalShot(ShotStyle, Context, ShotTuning).IsSet())
+		{
+			// B-600c (Melee Rush): the rush holds behind the attacker's start (a camera timed to the dash got there first
+			// and the attacker ran through the lens); the cut to the side view comes as the dash ends, before the swing.
+			if (UWorld *World = GetWorld())
+			{
+				World->GetTimerManager().SetTimer(ArrivalCutTimer, this, &UCombatCameraDirector::CutOnArrival, FMath::Max(Burst.WindowEnd, KINDA_SMALL_NUMBER), false);
+			}
+		}
+		else
+		{
+			OpeningShot = TimeRushToApproach(OpeningShot, Context, ShotTuning, Caster, Strike, Burst);
+		}
 	}
 	if (!PlayShot(Camera, Opening, OpeningShot))
 	{
@@ -1427,6 +1451,22 @@ void UCombatCameraDirector::StepShot()
 	}
 }
 
+void UCombatCameraDirector::CutOnArrival()
+{
+	// B-600c: the dash is over; unless the hit came first (its own shot shows), cut to the side view before the swing.
+	UCombatCameraComponent *Camera = ShotCamera.Get();
+	if (!IsShotPlaying() || bShotImpactShown || !Camera)
+	{
+		return;
+	}
+	const TOptional<FCameraShot> Arrival = FCombatCameraRules::ComputeArrivalShot(ShotStyle, BuildShotContext(false), ShotTuning);
+	if (Arrival.IsSet() && PlayShot(Camera, ECameraShotMoment::Impact, Arrival.GetValue()))
+	{
+		bArrivedOnSide = true;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s arrived: cut to the side view"), *GetNameSafe(ShotCaster.Get()));
+	}
+}
+
 void UCombatCameraDirector::StopShotPattern()
 {
 	if (UWorld *World = GetWorld())
@@ -1441,6 +1481,11 @@ void UCombatCameraDirector::StopShotPattern()
 	ShotTargets.Reset();
 	ShotProjectile.Reset();
 	ShotCamera.Reset();
+	if (UWorld *World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(ArrivalCutTimer); // B-600c
+	}
+	bArrivedOnSide = false;
 	bShotImpactShown = false;
 	bShotCastShown = false;
 	ShotElapsed = 0.0f;
@@ -1478,10 +1523,13 @@ FString UCombatCameraDirector::GetShotString() const
 		return TEXT("shot: none");
 	}
 	const UCombatCameraComponent *Camera = ShotCamera.Get();
-	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f, blur %.2f over %.2f s%s)"), *UEnum::GetValueAsString(ShotMoment),
+	const UWorld *World = GetWorld();
+	const bool bArrivalPending = World && World->GetTimerManager().IsTimerActive(ArrivalCutTimer);
+	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f, blur %.2f over %.2f s%s%s)"), *UEnum::GetValueAsString(ShotMoment),
 						   *GetNameSafe(ShotCaster.Get()), Camera ? *GetNameSafe(Camera->GetOwner()) : TEXT("no"),
 						   ActiveShot.FieldOfView, ActiveShot.ShakeScale, ActiveShot.MotionBlur, ActiveShot.BlendSeconds,
-						   ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""));
+						   ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""),
+						   bArrivalPending ? TEXT(", arrival cut pending") : bArrivedOnSide ? TEXT(", on the side view since the arrival") : TEXT("")); // B-600c
 }
 
 EEnemyCameraHeight UCombatCameraDirector::GetFightCameraHeight() const
