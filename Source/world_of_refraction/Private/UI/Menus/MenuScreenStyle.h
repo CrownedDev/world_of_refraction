@@ -15,6 +15,7 @@
 #include "Components/HorizontalBoxSlot.h"
 #include "Components/Image.h"
 #include "Components/ProgressBar.h"
+#include "Components/ScrollBox.h"
 #include "Components/SizeBox.h"
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
@@ -23,6 +24,8 @@
 #include "InputCoreTypes.h"
 #include "UI/Menus/MenuChipRow.h"
 #include "UI/WoRKeyHintText.h"
+#include "Layout/ArrangedWidget.h"
+#include "Widgets/SWidget.h"
 
 namespace WoRMenuStyle
 {
@@ -373,5 +376,56 @@ namespace WoRMenuStyle
 			}
 		}
 		return INDEX_NONE;
+	}
+
+	/** B-602: the first of a scroll box's rows (GetRow(0..Count-1), any depth inside it) under ScreenPosition, inside the
+	 *  box's view; INDEX_NONE for none (and before the box is drawn). The rows' places are laid out fresh from the box's
+	 *  own place and scroll: a row scrolled out of view isn't drawn, so its cached geometry stays where it last was and
+	 *  would still be "under" the mouse after a wheel scroll. */
+	inline int32 FindScrolledRowUnder(const UScrollBox *Scroll, int32 Count, TFunctionRef<const UWidget *(int32)> GetRow, const FVector2D &ScreenPosition)
+	{
+		const TSharedPtr<SWidget> ScrollWidget = Scroll ? Scroll->GetCachedWidget() : nullptr;
+		if (!ScrollWidget || !Scroll->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			return INDEX_NONE;
+		}
+		TMap<const SWidget *, int32> RowIndex;
+		for (int32 Index = 0; Index < Count; ++Index)
+		{
+			const UWidget *Row = GetRow(Index);
+			if (const TSharedPtr<SWidget> RowWidget = Row ? Row->GetCachedWidget() : nullptr)
+			{
+				RowIndex.Add(RowWidget.Get(), Index);
+			}
+		}
+		// Lay the box's tree out again from its own (fresh) place, down to the rows; only shown widgets are arranged.
+		int32 Found = INDEX_NONE;
+		int32 Placed = 0;
+		TArray<FArrangedWidget> Level{FArrangedWidget(ScrollWidget.ToSharedRef(), Scroll->GetCachedGeometry())};
+		while (!Level.IsEmpty() && Placed < RowIndex.Num())
+		{
+			TArray<FArrangedWidget> Next;
+			for (const FArrangedWidget &Parent : Level)
+			{
+				FArrangedChildren Children(EVisibility::Visible);
+				Parent.Widget->ArrangeChildren(Parent.Geometry, Children);
+				for (int32 Child = 0; Child < Children.Num(); ++Child)
+				{
+					const FArrangedWidget &Arranged = Children[Child];
+					if (const int32 *Index = RowIndex.Find(&Arranged.Widget.Get()))
+					{
+						++Placed;
+						if (Arranged.Geometry.IsUnderLocation(ScreenPosition) && (Found == INDEX_NONE || *Index < Found))
+						{
+							Found = *Index;
+						}
+						continue; // a row's own insides are not rows
+					}
+					Next.Add(Arranged);
+				}
+			}
+			Level = MoveTemp(Next);
+		}
+		return Found;
 	}
 }
