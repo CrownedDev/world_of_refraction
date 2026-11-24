@@ -5,6 +5,7 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/CombatPresentationComponent.h"
 #include "Combat/Presentation/CastVisuals.h"
+#include "Combat/Presentation/WeaponTrail.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
 #include "GameFramework/Character.h"
@@ -239,6 +240,10 @@ void UActionExecutor::PlaySkillStep(AActor *Actor, USkillDataBase *Skill)
 	const FApproachBurst Burst = LogWarpBurst(Actor, Skill->SkillMontage, PendingMontagePlayRate, TEXT("approach"), ApproachWarp::GetApproachBurstSeconds());
 	PlayActionMontageOnActor(Actor, Skill->SkillMontage, PendingMontagePlayRate);
 	StretchHop(Actor, Skill->SkillMontage, PendingMontagePlayRate, Burst);
+	if (CurrentExecutionContext.IsSet() && CurrentExecutionContext->Action.ActionType == EActionType::Ability)
+	{
+		WeaponTrail::ScheduleFallback(Actor, Skill->SkillMontage, PendingMontagePlayRate, TelegraphTimerHandles);
+	}
 }
 
 void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)

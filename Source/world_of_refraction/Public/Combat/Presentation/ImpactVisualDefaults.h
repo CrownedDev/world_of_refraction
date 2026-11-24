@@ -12,6 +12,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Equipment/Rings/EAdapterForm.h"
 #include "Combat/Presentation/CastVisuals.h"
+#include "Combat/Presentation/WeaponTrail.h"
 #include "ImpactVisualDefaults.generated.h"
 
 class UNiagaraSystem;
@@ -65,4 +66,30 @@ public:
 	/** D-170: the Generic class's preference when it wears both a weapon and an adapter (Q-394: Adapter). */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cast Visuals")
 	ECastVFXPreference GenericCastVFXPreference = ECastVFXPreference::Adapter;
+
+	// ==================== WEAPON TRAILS (Crown 2026-11-24, WeaponTrail.h) ====================
+
+	/** Swords, axes, scythes. A ribbon between the user vectors TrailStart and TrailEnd (local space), tinted by
+	 *  ElementColor. TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
+	TSoftObjectPtr<UNiagaraSystem> SlashTrailVFX;
+
+	/** Spears, daggers. TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
+	TSoftObjectPtr<UNiagaraSystem> ThrustTrailVFX;
+
+	/** Hammers, staves, gauntlets. TODO: art. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
+	TSoftObjectPtr<UNiagaraSystem> SmashTrailVFX;
+
+	/** The tint with no infusion, a Physical or a Raw one. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails")
+	FLinearColor PlainTrailColor = FLinearColor::White;
+
+	/** A montage with no trail window starts its trail this long (seconds) before its first Impact. TODO: tune. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Weapon Trails", meta = (ClampMin = "0.0"))
+	float TrailWindUpSeconds = 0.25f;
+
+	/** The slot for a trail kind; empty for None. */
+	const TSoftObjectPtr<UNiagaraSystem> &GetTrailVFX(EWeaponTrailKind Kind) const;
 };
