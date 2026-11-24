@@ -138,9 +138,15 @@ namespace
 							   Slots.IsEmpty() ? TEXT("(none)") : *FString::Join(Slots, TEXT(" ")));
 	}
 
-	/** Puts an HP-cost skill the weapon's list offers in one of its slots (empty slots first). Empty when none is offered. */
-	FString PutOfferedSkill(UWorld &World, const FLoadoutScreenMember &Member, const UWeaponData &Weapon)
+	/** Puts an HP-cost skill the weapon's list offers (the one Named, when given) in one of its slots (empty slots first).
+	 *  Empty when none is offered. */
+	FString PutOfferedSkill(UWorld &World, const FLoadoutScreenMember &Member, const UWeaponData &Weapon, const FString &Named)
 	{
+		const auto Wanted = [&Weapon, &Named](const USkillDataBase *Skill)
+		{
+			const UAbilityData *Ability = Cast<UAbilityData>(Skill);
+			return WoRQAKit::IsHPCostSkillFor(Ability, &Weapon) && WoRQAKit::IsNamed(Ability, Named);
+		};
 		const FLoadoutSkillsPage Page = WoRLoadoutSkills::BuildSkillsPage(&World, Member);
 		const int32 Tab = FindWeaponTab(Page);
 		if (Tab == INDEX_NONE)
@@ -149,7 +155,7 @@ namespace
 		}
 		for (const FLoadoutScreenRow &Row : Page.Tabs[Tab].Rows)
 		{
-			if (Row.Skill && WoRQAKit::IsHPCostSkillFor(Cast<UAbilityData>(Row.Skill), &Weapon))
+			if (Row.Skill && Wanted(Row.Skill))
 			{
 				return FString::Printf(TEXT("skill: %s already in a slot of %s"), *Row.Skill->GetName(), *Weapon.GetName());
 			}
@@ -164,7 +170,7 @@ namespace
 				}
 				for (const FLoadoutScreenChoice &Choice : WoRLoadoutSkills::BuildSkillChoices(&World, Member, Page, Tab, Row))
 				{
-					if (Choice.Refusal.IsEmpty() && WoRQAKit::IsHPCostSkillFor(Cast<UAbilityData>(Choice.Row.Skill), &Weapon))
+					if (Choice.Refusal.IsEmpty() && Wanted(Choice.Row.Skill))
 					{
 						const FString Replaced = Row.Skill ? FString::Printf(TEXT(", replacing %s"), *Row.Skill->GetName()) : FString();
 						const FText Refusal = WoRLoadoutSkills::ApplySkill(&World, Member, Page.Tabs[Tab], Row, Choice.Row.Skill);
@@ -194,9 +200,14 @@ namespace
 	}
 
 	FString GiveHPCostSkill(UWorld &World, const ULoadoutComponent &Loadout, UPoolSubsystem &Pool, FName CharacterKey, UInventoryComponent &Inventory,
-							const FLoadoutScreenMember &Member)
+							const FLoadoutScreenMember &Member, const FString &Named)
 	{
-		const TArray<UAbilityData *> Abilities = LoadAll<UAbilityData>();
+		TArray<UAbilityData *> Abilities = LoadAll<UAbilityData>();
+		Abilities.RemoveAll([&Named](const UAbilityData *Ability) { return !WoRQAKit::IsNamed(Ability, Named); });
+		if (Abilities.IsEmpty())
+		{
+			return FString::Printf(TEXT("skill: no ability named '%s' (its asset name, e.g. DA_Sword_Abilities_QuickStrike)"), *Named);
+		}
 		const auto HasFittingSkill = [&Abilities](const UWeaponData *Weapon)
 		{
 			return Abilities.ContainsByPredicate([Weapon](const UAbilityData *Ability) { return WoRQAKit::IsHPCostSkillFor(Ability, Weapon); });
@@ -215,7 +226,7 @@ namespace
 		{
 			return Prefix + TEXT("skill: the active loadout's primary is not a weapon");
 		}
-		FString Line = PutOfferedSkill(World, Member, *Weapon);
+		FString Line = PutOfferedSkill(World, Member, *Weapon, Named);
 		TArray<FString> Learned;
 		for (UAbilityData *Ability : Abilities)
 		{
@@ -226,7 +237,7 @@ namespace
 			if (WoRQAKit::IsHPCostSkillFor(Ability, Weapon) && WoRQAKit::LearnForKit(Pool, CharacterKey, Inventory, Ability))
 			{
 				Learned.Add(Ability->GetName());
-				Line = PutOfferedSkill(World, Member, *Weapon);
+				Line = PutOfferedSkill(World, Member, *Weapon, Named);
 			}
 		}
 		if (Line.IsEmpty())
@@ -294,7 +305,8 @@ namespace
 	FAutoConsoleCommandWithWorldAndArgs GQAKitCmd(
 		TEXT("wor.Debug.QAKit"),
 		TEXT("DEBUG (QA setup): [skill] the active loadout's primary (put in hand, the weapon the fight holds) gets an ability that costs EP and has a "
-			 "SkillMontage (B-592b's HP ghost), another owned weapon taking the primary place when it has none; ends on the fight loadout and its slots. "
+			 "SkillMontage (B-592b's HP ghost), another owned weapon taking the primary place when it has none; ends on the fight loadout and its slots; "
+			 "[skill <asset name>] that ability only (B-595a). "
 			 "[caster [element]] a Caster joins as your seat (the selector colour). No argument: both. Hub only, through the real API."),
 		FConsoleCommandWithWorldAndArgsDelegate::CreateLambda(
 			[](const TArray<FString> &Args, UWorld *World)
@@ -312,6 +324,11 @@ bool WoRQAKit::IsHPCostSkillFor(const UAbilityData *Ability, const UWeaponData *
 {
 	return Ability && Weapon && !Ability->bIsAttack && Ability->BaseEnergyCost > 0 && Ability->SkillMontage && Ability->RequiredWeaponType == Weapon->WeaponType &&
 		   Ability->RequiredWieldMode == Weapon->WieldMode;
+}
+
+bool WoRQAKit::IsNamed(const UAbilityData *Ability, const FString &Named)
+{
+	return Named.IsEmpty() || (Ability && (Ability->GetName().Equals(Named, ESearchCase::IgnoreCase) || Ability->Name.Equals(Named, ESearchCase::IgnoreCase)));
 }
 
 bool WoRQAKit::LearnForKit(UPoolSubsystem &Pool, FName CharacterKey, UInventoryComponent &Inventory, UAbilityData *Ability)
@@ -376,7 +393,11 @@ FString WoRQAKit::RunQAKit(UWorld *World, const TArray<FString> &Args)
 	}
 
 	TArray<FString> Lines;
-	const bool bSkill = bAll || Args.ContainsByPredicate([](const FString &Arg) { return Arg.Equals(TEXT("skill"), ESearchCase::IgnoreCase); });
+	const int32 SkillArg = Args.IndexOfByPredicate([](const FString &Arg) { return Arg.Equals(TEXT("skill"), ESearchCase::IgnoreCase); });
+	const bool bSkill = bAll || SkillArg != INDEX_NONE;
+	const FString SkillName = SkillArg != INDEX_NONE && Args.IsValidIndex(SkillArg + 1) && !Args[SkillArg + 1].Equals(TEXT("caster"), ESearchCase::IgnoreCase)
+								  ? Args[SkillArg + 1]
+								  : FString();
 	const FLoadoutScreenMember *Played = nullptr;
 	UInventoryComponent *PlayedInventory = nullptr;
 	const TArray<FLoadoutScreenMember> Members = WoRLoadoutScreen::BuildMembers(World);
@@ -392,7 +413,7 @@ FString WoRQAKit::RunQAKit(UWorld *World, const TArray<FString> &Args)
 	if (bSkill)
 	{
 		const FName CharacterKey = UPoolSubsystem::GetCharacterKey(DataComponent);
-		Lines.Add(Played && PlayedInventory ? GiveHPCostSkill(*World, *Loadout, *Pool, CharacterKey, *PlayedInventory, *Played)
+		Lines.Add(Played && PlayedInventory ? GiveHPCostSkill(*World, *Loadout, *Pool, CharacterKey, *PlayedInventory, *Played, SkillName)
 											: FString(TEXT("skill: the played character is not a party member here")));
 	}
 	if (bAll || CasterArg != INDEX_NONE)
