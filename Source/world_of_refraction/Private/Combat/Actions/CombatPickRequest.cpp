@@ -39,6 +39,7 @@ FCombatPickRequest FCombatPickRequest::FromAction(AActor *InActor, const FAction
 	}
 	Pick.InfusionSource = Action.SelectedSource;
 	Pick.InfusionLevel = Action.GetChargeLevel();
+	Pick.bIceInfusion = Action.bIceInfusion;
 	return Pick;
 }
 
@@ -60,6 +61,7 @@ FAction FCombatPickRequest::ToAction() const
 	{
 		const int32 Level = FMath::Clamp(InfusionLevel, 0, InfusionConstants::MAX_INFUSION_LEVEL);
 		Action.SelectedSource = InfusionSource;
+		Action.bIceInfusion = bIceInfusion; // the executor honours it only on a Water source
 		if (ActionType == EActionType::Spell)
 		{
 			Action.SpellInfusionLevel = Level;

@@ -78,6 +78,12 @@ struct WORLD_OF_REFRACTION_API FAction
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
 	EInfusionSourceOption SelectedSource = EInfusionSourceOption::None;
 
+	/** D-271 (B-593): an Ice infusion from SelectedSource. Only a Water source honours it: the hits deal Ice (the Ice
+	 *  hit kind, the Ice bar) and the infusion costs ICE_INFUSION_COST_MULTIPLIER more, except on a spell marked
+	 *  Deals Ice. Ignored at level 0 or on a source that isn't Water. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Action|Infusion")
+	bool bIceInfusion = false;
+
 	/** Spell charge infusion level (0 = none, 1 = status boost, 2 = damage boost)
 	 *  L1: 1.5x size, +50% status buildup, base damage
 	 *  L2: 2.0x size, base status, +30% damage
