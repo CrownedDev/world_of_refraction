@@ -439,6 +439,9 @@ private:
 	TWeakObjectPtr<UDefenseSystem> BoundDefense;
 	void PlayDeferredTurnStart();
 	void ClearDefendWait();
+	/** B-600f: how long the next turn's camera waits after the last action ends (FCombatCameraRules::GetActionEndHold,
+	 *  set when the action starts; used once). */
+	float PendingActionEndHold = 0.0f;
 
 	// B-404: the wide beat and the party handover of the current turn start.
 	FTimerHandle WideBeatTimer;
