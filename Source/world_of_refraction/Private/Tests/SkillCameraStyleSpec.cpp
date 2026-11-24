@@ -24,7 +24,6 @@ namespace
 	// B-604b: the test trial enemy's real skills (BP_Enemy_Generic in the B-604 check).
 	const TCHAR *const STYLE_TEST_WRATH_CUT = TEXT("/Game/Data/Pool/Generic/Weapons/Sword/Slash/Abilities/DA_Sword_Ability_WrathCut.DA_Sword_Ability_WrathCut");
 	const TCHAR *const STYLE_TEST_LUNGE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_Lunge.DA_Sword_Abilities_Lunge");
-	const TCHAR *const STYLE_TEST_HEAVY_STRIKE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_HeavyStrike.DA_Sword_Abilities_HeavyStrike");
 	constexpr float STYLE_TEST_TURN_BEFORE_HIT = 0.25f; // B-604b check: the next turn started up to 0.25 s before the hit
 
 	FCameraShotContext StyleTestContext()
@@ -139,9 +138,10 @@ void FSkillCameraStyleSpec::Define()
 				 FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::MeleeRush, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
 	});
 
-	It("B-604c: with the enemy's real Wrath Cut and Heavy Strike timing, the defend camera holds until the hit lands and is seen", [this]()
+	It("B-604c: with the enemy's real Wrath Cut timing, the defend camera holds until the hit lands and is seen", [this]()
 	{
-		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_HEAVY_STRIKE})
+		// B-595c: Heavy Attack left this case: it now has an Impact notify on its contact frame.
+		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT})
 		{
 			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
 			if (!TestNotNull(FString::Printf(TEXT("%s loads (renamed? point this case at the enemy's skill)"), Path), Skill) ||

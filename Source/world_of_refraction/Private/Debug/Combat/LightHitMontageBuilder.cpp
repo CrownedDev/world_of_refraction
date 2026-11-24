@@ -8,6 +8,7 @@
 //   wor.Editor.BuildQuickStrikeMontage (B-595a: the dash + the one-handed sword's slash, for Quick Strike)
 //   wor.Editor.BuildForceStrikeMontage (B-595e: a standing slash, Cast0 on the cut, for Force Strike's projectile)
 //   wor.Editor.BuildOverUnderMontage (B-595b: the dash + a cut down and a cut up, Impact0 and Impact1)
+//   wor.Editor.BuildHeavyAttackMontages (B-595c: Heavy Attack's wind-up turn, and its dash + overhead lunge)
 // Times are from docs/analysis/ShowcaseAnimAnalysis.md, "Travel without stretching".
 
 #if WITH_EDITOR
@@ -75,6 +76,20 @@ namespace LightHitMontageBuilder
 	/** In the segment's time: the down cut peaks at 0.883 s of the clip (z 139 -> 97), the rising cut at 1.383 s (z 106 -> 174). */
 	constexpr float OVER_UNDER_OVER_IMPACT_TIME = 0.233f;
 	constexpr float OVER_UNDER_UNDER_IMPACT_TIME = 0.733f;
+
+	// ---- B-595c: Heavy Attack, a wind-up turn (the ritual leg), then the dash and one lunging overhead cut ----
+	constexpr const TCHAR *HEAVY_ATTACK_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/HeavyAttack");
+	constexpr const TCHAR *HEAVY_ATTACK_MONTAGE = TEXT("AM_Sword_HeavyAttack");
+	constexpr const TCHAR *HEAVY_WIND_UP_MONTAGE = TEXT("AM_Sword_HeavyAttack_WindUp");
+	/** Read only (vendor folder): a cut, the sword raised overhead, a lunging cut down (root motion 2.5 m). */
+	constexpr const TCHAR *HEAVY_ATTACK_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordV2/Manny_UE5/RootMotion/Attack/CommonAttack/Anim_SwordV2_HeavyAttack.Anim_SwordV2_HeavyAttack");
+	/** Read only (vendor folder): the one-handed sword's in-place power-up gesture, 2.17 s: the arm turn. */
+	constexpr const TCHAR *HEAVY_WIND_UP_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordAndShield/SwordAnimations/Buff/Anim_HSAS_Buff.Anim_HSAS_Buff");
+	/** In the clip's own time (sample_bones.sh, weapon_r): 0.78 s is after the first cut, closest to the dash's end pose
+	 *  (65 cm); the sword rises overhead to 1.0 s; the lunge reaches furthest forward at 1.133 s; settled by 1.75 s. */
+	constexpr float HEAVY_ATTACK_CLIP_START = 0.78f;
+	constexpr float HEAVY_ATTACK_CLIP_END = 1.75f;
+	constexpr float HEAVY_ATTACK_IMPACT_TIME = 1.133f - HEAVY_ATTACK_CLIP_START;
 
 	/** The airborne frames only: the feet never slide, the hop becomes the burst. */
 	constexpr float DASH_WARP_START = 0.18f;
@@ -341,6 +356,47 @@ namespace LightHitMontageBuilder
 		TEXT("EDITOR (B-595b): build AM_Sword_OverUnder (the light hit's dash + a cut down and a cut up, Impact0 and Impact1 ")
 			TEXT("on contact) in /Game/Data/Skills/Weapons/Sword/OverUnder. Doesn't save: save it in the editor."),
 		FConsoleCommandDelegate::CreateStatic(&BuildOverUnder));
+
+	/** B-595c: Heavy Attack's two montages. The wind-up is the arm turn's RitualCastMontage (no notifies); the strike is
+	 *  the light hit's dash then the heavy cut, trimmed to the overhead lunge, Impact0 on contact. */
+	void BuildHeavyAttack()
+	{
+		UAnimSequenceBase *Dash = LoadObject<UAnimSequenceBase>(nullptr, DASH_CLIP);
+		UAnimSequenceBase *Cut = LoadObject<UAnimSequenceBase>(nullptr, HEAVY_ATTACK_CLIP);
+		UAnimSequenceBase *WindUpClip = LoadObject<UAnimSequenceBase>(nullptr, HEAVY_WIND_UP_CLIP);
+		if (!Dash || !Cut || !WindUpClip)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing a clip (dash %d, cut %d, wind-up %d)"), Dash != nullptr, Cut != nullptr,
+				   WindUpClip != nullptr);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		for (const TCHAR *Name : {HEAVY_ATTACK_MONTAGE, HEAVY_WIND_UP_MONTAGE})
+		{
+			if (LoadObject<UAnimMontage>(nullptr, *(FString(HEAVY_ATTACK_FOLDER) / Name + TEXT(".") + Name), nullptr, LOAD_NoWarn | LOAD_Quiet))
+			{
+				UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete both to rebuild"), Name);
+				return;
+			}
+		}
+		UAnimMontage *Strike = MakeMontage(HEAVY_ATTACK_MONTAGE, {Dash, Cut}, HEAVY_ATTACK_FOLDER);
+		FAnimSegment &CutSegment = Strike->SlotAnimTracks[0].AnimTrack.AnimSegments[1];
+		CutSegment.AnimStartTime = HEAVY_ATTACK_CLIP_START;
+		CutSegment.AnimEndTime = HEAVY_ATTACK_CLIP_END;
+		const float CutStart = Dash->GetPlayLength();
+		Strike->SetCompositeLength(CutStart + CutSegment.GetLength());
+		AddWarpWindow(Strike, DASH_WARP_START, DASH_WARP_END);
+		AddCombatNotify(Strike, CutStart + HEAVY_ATTACK_IMPACT_TIME, ECombatNotifyFamily::Impact);
+		Finish(Strike);
+
+		Finish(MakeMontage(HEAVY_WIND_UP_MONTAGE, {WindUpClip}, HEAVY_ATTACK_FOLDER));
+	}
+
+	static FAutoConsoleCommand GBuildHeavyAttackCommand(
+		TEXT("wor.Editor.BuildHeavyAttackMontages"),
+		TEXT("EDITOR (B-595c): build AM_Sword_HeavyAttack (dash + the overhead lunge, Impact0 on contact) and AM_Sword_HeavyAttack_WindUp ")
+			TEXT("(the arm turn) in /Game/Data/Skills/Weapons/Sword/HeavyAttack. Doesn't save: save them in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildHeavyAttack));
 
 	static FAutoConsoleCommand GBuildCommand(
 		TEXT("wor.Editor.BuildLightHitMontages"),
