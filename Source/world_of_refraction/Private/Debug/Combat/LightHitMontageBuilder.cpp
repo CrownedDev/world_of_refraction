@@ -6,6 +6,7 @@
 //   wor.Editor.BuildFieldPulseMontage (B-503d: the field pulse's cast, the throw cut from AS_Cast_FireBall; it shares
 //   this file's montage helpers)
 //   wor.Editor.BuildQuickStrikeMontage (B-595a: the dash + the one-handed sword's slash, for Quick Strike)
+//   wor.Editor.BuildForceStrikeMontage (B-595e: a standing slash, Cast0 on the cut, for Force Strike's projectile)
 // Times are from docs/analysis/ShowcaseAnimAnalysis.md, "Travel without stretching".
 
 #if WITH_EDITOR
@@ -52,6 +53,14 @@ namespace LightHitMontageBuilder
 	/** In the slash's own time: weapon_r is fastest at frame 20 of 75 (60 fps) and slows sharply after
 	 *  (Scripts/ue/sample_bones.sh, one clear peak). */
 	constexpr float QUICK_STRIKE_IMPACT_TIME = 0.333f;
+
+	// ---- B-595e: Force Strike, a standing slash that sends a projectile (CastArray[0]) ----
+	constexpr const TCHAR *FORCE_STRIKE_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/ForceStrike");
+	constexpr const TCHAR *FORCE_STRIKE_MONTAGE = TEXT("AM_Sword_ForceStrike");
+	/** In place, read only (vendor folder): a rising lift (the wind-up), then a flat cut. */
+	constexpr const TCHAR *FORCE_STRIKE_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/DSAS_V1/Manny_UE5/InPlace/Attack/CommonAttack/Anim_SAS_Slash1_IP.Anim_SAS_Slash1_IP");
+	/** The flat cut: weapon_r is fastest at frame 38 of 80 (40 fps) and stops sharply by frame 41 (sample_bones.sh). */
+	constexpr float FORCE_STRIKE_RELEASE_TIME = 0.95f;
 
 	/** The airborne frames only: the feet never slide, the hop becomes the burst. */
 	constexpr float DASH_WARP_START = 0.18f;
@@ -257,6 +266,32 @@ namespace LightHitMontageBuilder
 		TEXT("EDITOR (B-595a): build AM_Sword_QuickStrike (the light hit's dash + the one-handed slash, Impact0 on contact) in ")
 			TEXT("/Game/Data/Skills/Weapons/Sword/QuickStrike. Doesn't save: save it in the editor."),
 		FConsoleCommandDelegate::CreateStatic(&BuildQuickStrike));
+
+	/** B-595e: Force Strike's swing, the clip alone (in place, no warp), Cast0 on the cut: the projectile leaves there. */
+	void BuildForceStrike()
+	{
+		UAnimSequenceBase *Swing = LoadObject<UAnimSequenceBase>(nullptr, FORCE_STRIKE_CLIP);
+		if (!Swing)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing the swing clip %s"), FORCE_STRIKE_CLIP);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(FORCE_STRIKE_FOLDER) / FORCE_STRIKE_MONTAGE + TEXT(".") + FORCE_STRIKE_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), FORCE_STRIKE_MONTAGE);
+			return;
+		}
+		UAnimMontage *Montage = MakeMontage(FORCE_STRIKE_MONTAGE, {Swing}, FORCE_STRIKE_FOLDER);
+		AddCombatNotify(Montage, FORCE_STRIKE_RELEASE_TIME, ECombatNotifyFamily::Cast);
+		Finish(Montage);
+	}
+
+	static FAutoConsoleCommand GBuildForceStrikeCommand(
+		TEXT("wor.Editor.BuildForceStrikeMontage"),
+		TEXT("EDITOR (B-595e): build AM_Sword_ForceStrike (a standing slash, Cast0 on the cut) in ")
+			TEXT("/Game/Data/Skills/Weapons/Sword/ForceStrike. Doesn't save: save it in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildForceStrike));
 
 	static FAutoConsoleCommand GBuildCommand(
 		TEXT("wor.Editor.BuildLightHitMontages"),
