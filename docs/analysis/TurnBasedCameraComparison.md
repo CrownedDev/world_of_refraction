@@ -80,3 +80,22 @@ FFX: the same side-on two-shot as an attack (1:06). E33: wide from behind and be
 - E33 hides the hero during target pick; the frame is all enemy (1:38, 2:22).
 - FFX changes the idle menu angle between turns (0:59.5 vs 1:03).
 - Hold on a hit is short everywhere: 0.5 s (FFX) to ~1.3 s (E33).
+
+## 6. Follow-up: Expedition 33 hand-overs — `GByuD9VPa2I`
+
+Official combat clip (Gustave and Lune vs Évêque, 4:43). Stepped every 2 s, then every 0.1–0.25 s around each hand-over (0:12, 0:17, 0:40, 1:01, 3:31). Added 2026-11-24.
+
+| Moment | What the camera does | Time(s) |
+|---|---|---|
+| Hit, then hold | Close behind or beside the attacker at the enemy; number pops; held ~1 s | 0:11–0:12, 0:40, 3:31–3:31.5 |
+| **Cut to the home wide** | Hard **cut** (no blend) to a low, wide shot from behind the party: both heroes small in the near-left and near-right, the enemy whole in the centre. The attacker is seen walking back home in it | 0:12.1, 0:40.5, 1:01.0, 3:32.0 |
+| Attacker lands home | ~0.4–0.5 s after the cut | 0:12.5, 0:41.0 |
+| **Sweep to the next hero** | ~0.1 s after the landing, a **fast sweep** (heavy motion blur) from the wide into the next hero's over-the-shoulder view. Takes ~0.3–0.4 s. The menu appears as it settles | 0:12.6 → 0:13.0, 1:01.5 → 1:02.0 |
+| Next turn is the enemy's | No sweep: the same wide stays, the enemy's skill banner appears, and the camera slowly pushes in toward the enemy (~2–3 s) | 0:17.5 → 0:20–0:22, 0:41.25 → 0:44, 3:32.5 → 3:35 |
+| Enemy → hero | Same pattern: cut from the defend shot to the wide (1:01.0) as the enemy walks back, then the sweep into Lune's view (1:01.5 → 1:02.0) | 1:01–1:02 |
+| Next hero's turn view | Hero in the **left third**, back to us, framed knees or waist up, about 50–60% of frame height. The camera sits a little above the hero's waist, about chest height, **over the right shoulder** (hero left, enemy right of centre). The **whole enemy**, head to feet, is in frame, centre to centre-right, as tall as the hero or taller. The menu floats between them | 0:13, 1:02, 3:26 |
+
+**Answers**
+1. **Cut, then sweep.** On the hit's end it hard-cuts to a low wide from behind the party (0:12.1). The attacker lands ~0.4 s later (0:12.5). About 0.1 s after that, a fast blurred sweep (~0.3–0.4 s) carries the camera into the next hero's shoulder view (0:12.6 → 0:13.0). Same at 1:01–1:02. Total from hit end to the next menu is about 1 s.
+2. **Next hero's view:** hero in the left third, seen from behind at about chest height, camera over the right shoulder. The enemy is fully in frame, centre to centre-right (0:13, 1:02).
+3. **Whole party and field:** not only for all-target attacks. The wide from behind the party is the **hand-over shot after every action**, single-target too (Lune's single spell, 0:17.5). It is also the base of every enemy turn (0:41–0:44, 3:32–3:35). Only the menu, aim, rush and hit shots are close.
