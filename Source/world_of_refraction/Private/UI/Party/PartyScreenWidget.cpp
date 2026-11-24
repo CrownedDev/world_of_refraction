@@ -392,20 +392,15 @@ FReply UPartyScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FK
 
 int32 UPartyScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 {
-	if (!RowList || !RowList->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
-	{
-		return INDEX_NONE;
-	}
-	for (int32 Index = 0; Index < RowWidgets.Num() && Index < Page.Members.Num(); ++Index)
-	{
-		const UBorder *Frame = RowWidgets[Index].Frame.Get();
-		if (Frame && Frame->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
-		{
-			return Index;
-		}
-	}
-	const UBorder *Invite = InviteRow.Frame.Get();
-	return Invite && Invite->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()) ? Page.Members.Num() : INDEX_NONE;
+	// B-602: the rows' places as scrolled now (a row scrolled out of view keeps its last drawn place). The Invite row,
+	// last in the list, answers as the row after the members.
+	const int32 Members = Page.Members.Num();
+	return WoRMenuStyle::FindScrolledRowUnder(RowList, Members + 1,
+											  [this, Members](int32 Index) -> const UWidget *
+											  {
+												  return Index == Members ? InviteRow.Frame.Get() : RowWidgets.IsValidIndex(Index) ? RowWidgets[Index].Frame.Get() : nullptr;
+											  },
+											  MouseEvent.GetScreenSpacePosition());
 }
 
 FReply UPartyScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)

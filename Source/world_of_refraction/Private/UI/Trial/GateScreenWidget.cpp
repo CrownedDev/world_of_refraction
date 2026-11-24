@@ -482,12 +482,12 @@ int32 UGateScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent, int32 &Ou
 	const FVector2D At = MouseEvent.GetScreenSpacePosition();
 	const auto IsUnder = [At](const UWidget *Widget) { return Widget && Widget->GetCachedGeometry().IsUnderLocation(At); };
 	OutCard = INDEX_NONE;
-	for (int32 Index = 0; Index < Page.Trials.Num() && Index < TrialRows.Num(); ++Index)
+	// B-602: the trials' places as scrolled now (a row scrolled out of view keeps its last drawn place).
+	const int32 Trial = WoRMenuStyle::FindScrolledRowUnder(TrialList, FMath::Min(Page.Trials.Num(), TrialRows.Num()),
+															[this](int32 Index) -> const UWidget * { return TrialRows[Index].Frame.Get(); }, At);
+	if (Trial != INDEX_NONE)
 	{
-		if (IsUnder(TrialRows[Index].Frame.Get()))
-		{
-			return Index;
-		}
+		return Trial;
 	}
 	for (int32 Index = 0; Index < DifficultyCards.Num(); ++Index)
 	{
