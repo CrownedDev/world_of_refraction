@@ -1183,13 +1183,10 @@ void UCombatCameraDirector::ShowDefenceView()
 		return;
 	}
 	CurrentMode = ECombatCameraMode::Defence;
-	// B-604b (Q-604b): one defender gets the defend camera (the same pose an enemy's shot opened on); several, the wide view.
-	const FTransform View = Defenders.Num() == 1 ? FCombatCameraRules::ComputeDefendShot(Defenders[0], Attacker->GetActorLocation()).End
-												 : FCombatCameraRules::ComputeDefenceView(Defenders, Attacker->GetActorLocation());
-	if (Defenders.Num() == 1)
-	{
-		SetDefendAttacker(Attacker); // B-604c: the next turn's camera waits for this hit
-	}
+	// B-604b / B-604d (Q-604d): the defend camera, the same pose an enemy's shot opened on (one defender: the side-on
+	// two-shot; several: the wide view).
+	const FTransform View = FCombatCameraRules::ComputeDefendShot(Defenders, Attacker->GetActorLocation()).End;
+	SetDefendAttacker(Attacker); // B-604c: the next turn's camera waits for this hit (B-604d: several defenders too)
 	if (ACameraActor *CameraActor = Camera->ShowView(CurrentMode, View))
 	{
 		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // B-371
@@ -1321,14 +1318,24 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	FCameraShot OpeningShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Opening, Context, ShotTuning)
 								  .Get(FCombatCameraRules::ComputeShot(Opening, Context, ShotTuning));
 	const AActor *FirstTarget = ShotTargets.IsEmpty() ? nullptr : ShotTargets[0].Get();
-	// B-604b (Q-604b): an enemy's attack on one party member plays the defend camera from behind the defender, held
-	// through the hit (the hit punches in it); the Defence hand-off (ShowDefenceView) keeps the same framing.
-	const bool bOnePartyTarget = ShotTargets.Num() == 1 && FirstTarget && !OpposingCombatants.Contains(ShotTargets[0].Get());
-	if (UCombatCameraComponent *DefenderCamera = FCombatCameraRules::UsesDefendCamera(bEnemy, Opening, bOnePartyTarget)
+	// B-604b (Q-604b): an enemy's attack on the party plays the defend camera, held through the hit; the Defence
+	// hand-off (ShowDefenceView) keeps the same framing. B-604d (Q-604d): side-on, or wide for several party targets.
+	TArray<FVector> Defenders;
+	bool bOnlyPartyTargets = FirstTarget != nullptr;
+	for (const TWeakObjectPtr<AActor> &Target : ShotTargets)
+	{
+		const AActor *Actor = Target.Get();
+		bOnlyPartyTargets &= Actor && !OpposingCombatants.Contains(Actor);
+		if (Actor)
+		{
+			Defenders.Add(Actor->GetActorLocation());
+		}
+	}
+	if (UCombatCameraComponent *DefenderCamera = FCombatCameraRules::UsesDefendCamera(bEnemy, Opening, bOnlyPartyTargets)
 													 ? FirstTarget->FindComponentByClass<UCombatCameraComponent>()
 													 : nullptr)
 	{
-		if (!PlayShot(DefenderCamera, Opening, FCombatCameraRules::ComputeDefendShot(FirstTarget->GetActorLocation(), Caster->GetActorLocation())))
+		if (!PlayShot(DefenderCamera, Opening, FCombatCameraRules::ComputeDefendShot(Defenders, Caster->GetActorLocation())))
 		{
 			StopShotPattern();
 			return false;
@@ -1337,8 +1344,8 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 		bShotCastShown = true; // no Cast pull-back to the enemy's side
 		SetDefendAttacker(Caster); // B-604c: the next turn's camera waits for this hit
 		CurrentMode = ECombatCameraMode::Action;
-		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defend camera: %s's %s at %s, from behind the defender"), *GetNameSafe(Caster), *GetNameSafe(Skill),
-			   *GetNameSafe(FirstTarget));
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defend camera: %s's %s at %s (%d party target(s)), %s"), *GetNameSafe(Caster), *GetNameSafe(Skill),
+			   *GetNameSafe(FirstTarget), Defenders.Num(), Defenders.Num() > 1 ? TEXT("wide") : TEXT("side-on two-shot"));
 		return true;
 	}
 	FVector Strike;

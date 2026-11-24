@@ -353,13 +353,14 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  shot. Either way the camera stands back far enough that every defender and the attacker project inside the
 	 *  frame at DefaultFieldOfView. */
 	static FTransform ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker);
-	/** B-604b (Q-604b): the defend camera for an enemy's attack on one party member: low, behind and beside the
-	 *  defender, facing the attacker, still. The defender stands between the attacker and the lens, so a rushing enemy
-	 *  stays in front of them (Expedition 33's parry view). */
-	static FCameraShot ComputeDefendShot(const FVector &Defender, const FVector &Attacker);
-	/** B-604b: an enemy's skill at one party member opens on the defend camera (a named attack keeps its front shot,
-	 *  B-406; several targets keep today's shots). A party member's skill keeps the attack camera (its style). */
-	static bool UsesDefendCamera(bool bCasterIsEnemy, ECameraShotMoment Opening, bool bOnePartyTarget);
+	/** B-604b (Q-604b): the defend camera for an enemy's attack on the party, still (a cut held through the hit).
+	 *  B-604d (Q-604d): ComputeDefenceView's framing, no longer tight behind one defender: one defender, a low side-on
+	 *  two-shot with the attacker's whole body and weapon in view; several, the wide shot of every defender and it. */
+	static FCameraShot ComputeDefendShot(const TArray<FVector> &Defenders, const FVector &Attacker);
+	/** B-604b: an enemy's skill at the party opens on the defend camera (a named attack keeps its front shot, B-406).
+	 *  B-604d: any number of party targets (it was one); a target on the enemy's own side keeps today's shots. A party
+	 *  member's skill keeps the attack camera (its style). */
+	static bool UsesDefendCamera(bool bCasterIsEnemy, ECameraShotMoment Opening, bool bOnlyPartyTargets);
 	/** B-604c: the hit is seen in the defend camera for this long before the next turn's camera moves. TODO: tune in PIE. */
 	static constexpr float DefendHitHoldSeconds = 0.6f;
 	/** B-604c: the longest the next turn's camera waits for a defend camera's hit that hasn't landed (a stalled action). */
