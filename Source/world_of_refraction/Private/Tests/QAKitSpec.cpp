@@ -1,7 +1,8 @@
 // QAKitSpec.cpp
 // wor.Debug.QAKit, headless: which ability shows an infusion HP cost on a weapon (costs EP, not the attack, the weapon's
 // type and wield mode), which Caster joins (of the element asked, or any with an element of its own, never one already
-// in the party), and with no played character the kit says so.
+// in the party), a brand-new character's learn (no skills kept yet: banked first, then learned in the store and on the
+// member), and with no played character the kit says so.
 // Unproven here: the skill put in a real slot and the Caster joining a real party (the brain's live check).
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -10,7 +11,9 @@
 #include "Character/CharacterData.h"
 #include "Debug/Inventory/QAKitDebug.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Inventory/InventoryComponent.h"
 #include "Misc/AutomationTest.h"
+#include "Pool/PoolSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "WoRTestWorld.h"
 
@@ -64,6 +67,27 @@ void FQAKitSpec::Define()
 		TestEqual(TEXT("Darkness asked"), WoRQAKit::PickCaster(Candidates, ESpellElement::Darkness, {}), Darkness);
 		TestEqual(TEXT("one in the party is skipped"), WoRQAKit::PickCaster(Candidates, ESpellElement::None, {Fire}), Darkness);
 		TestNull(TEXT("no Caster of that element"), WoRQAKit::PickCaster(Candidates, ESpellElement::Light, {}));
+	});
+
+	It("learns for a brand-new character whose skills aren't kept yet: banks what it knows, then learns there and on the member", [this]()
+	{
+		FWoRTestWorld TestWorld;
+		if (!TestTrue(TEXT("test world created"), TestWorld.Create())) return;
+		UPoolSubsystem *Pool = TestWorld.GetSubsystem<UPoolSubsystem>();
+		AActor *Member = TestWorld.SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		UInventoryComponent *Inventory = Member ? FWoRTestWorld::AddComponent<UInventoryComponent>(Member) : nullptr;
+		if (!TestNotNull(TEXT("pool"), Pool) || !TestNotNull(TEXT("inventory"), Inventory)) return;
+		const FName Key(TEXT("QAKitNewCharacter"));
+		UAbilityData *Known = NewObject<UAbilityData>(GetTransientPackage()); // from its asset
+		UAbilityData *QuickStrike = NewObject<UAbilityData>(GetTransientPackage());
+		Inventory->Abilities.LearnAbility(Known);
+		if (!TestFalse(TEXT("nothing kept yet"), Pool->HasBankedSkills(Key))) return;
+
+		TestTrue(TEXT("learned"), WoRQAKit::LearnForKit(*Pool, Key, *Inventory, QuickStrike));
+		TestTrue(TEXT("its asset's skill is kept"), Pool->KnowsAbility(Key, Known));
+		TestTrue(TEXT("the new one is kept"), Pool->KnowsAbility(Key, QuickStrike));
+		TestTrue(TEXT("and on the member, for the skills page"), Inventory->HasAbility(QuickStrike));
+		TestFalse(TEXT("a second time: already known"), WoRQAKit::LearnForKit(*Pool, Key, *Inventory, QuickStrike));
 	});
 
 	It("says so when there is no played character", [this]()

@@ -18,6 +18,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Inventory/InventoryComponent.h"
 #include "Loadout/LoadoutComponent.h"
+#include "Loadout/SkillRequirementRules.h"
 #include "Party/Party.h"
 #include "Party/PartyInteractionComponent.h"
 #include "Party/PartySessionSubsystem.h"
@@ -176,7 +177,24 @@ namespace
 		return FString();
 	}
 
-	FString GiveHPCostSkill(UWorld &World, const ULoadoutComponent &Loadout, UPoolSubsystem &Pool, FName CharacterKey, const FLoadoutScreenMember &Member)
+	/** Why each fitting ability wasn't put in a slot: on the member (the skills page's list), kept in the store, and the gear it needs. */
+	FString DescribeFittingSkills(const TArray<UAbilityData *> &Abilities, const UWeaponData &Weapon, const UPoolSubsystem &Pool, FName CharacterKey,
+								  const UInventoryComponent &Inventory)
+	{
+		TArray<FString> Parts;
+		for (UAbilityData *Ability : Abilities)
+		{
+			if (WoRQAKit::IsHPCostSkillFor(Ability, &Weapon))
+			{
+				Parts.Add(FString::Printf(TEXT("%s (on member %s, kept %s, needs %s)"), *Ability->GetName(), Inventory.HasAbility(Ability) ? TEXT("yes") : TEXT("no"),
+										  Pool.KnowsAbility(CharacterKey, Ability) ? TEXT("yes") : TEXT("no"), *SkillRequirementRules::GetRequirementString(Ability)));
+			}
+		}
+		return Parts.IsEmpty() ? FString(TEXT("none fits")) : FString::Join(Parts, TEXT(", "));
+	}
+
+	FString GiveHPCostSkill(UWorld &World, const ULoadoutComponent &Loadout, UPoolSubsystem &Pool, FName CharacterKey, UInventoryComponent &Inventory,
+							const FLoadoutScreenMember &Member)
 	{
 		const TArray<UAbilityData *> Abilities = LoadAll<UAbilityData>();
 		const auto HasFittingSkill = [&Abilities](const UWeaponData *Weapon)
@@ -199,13 +217,13 @@ namespace
 		}
 		FString Line = PutOfferedSkill(World, Member, *Weapon);
 		TArray<FString> Learned;
-		for (const UAbilityData *Ability : Abilities)
+		for (UAbilityData *Ability : Abilities)
 		{
 			if (!Line.IsEmpty() || Learned.Num() >= MAX_SKILLS_LEARNED)
 			{
 				break;
 			}
-			if (WoRQAKit::IsHPCostSkillFor(Ability, Weapon) && Pool.LearnSkillCopy(CharacterKey, Ability))
+			if (WoRQAKit::IsHPCostSkillFor(Ability, Weapon) && WoRQAKit::LearnForKit(Pool, CharacterKey, Inventory, Ability))
 			{
 				Learned.Add(Ability->GetName());
 				Line = PutOfferedSkill(World, Member, *Weapon);
@@ -213,9 +231,10 @@ namespace
 		}
 		if (Line.IsEmpty())
 		{
-			return Prefix + FString::Printf(TEXT("skill: %s's skill list offers no ability that costs EP and has a SkillMontage (%s, %s)%s"), *Weapon->GetName(),
+			return Prefix + FString::Printf(TEXT("skill: %s's skill list offers no ability that costs EP and has a SkillMontage (%s, %s)%s; fitting: %s"), *Weapon->GetName(),
 											*UEnum::GetValueAsString(Weapon->WeaponType), *UEnum::GetValueAsString(Weapon->WieldMode),
-											Learned.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("; learned %s"), *FString::Join(Learned, TEXT(", "))));
+											Learned.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("; learned %s"), *FString::Join(Learned, TEXT(", "))),
+											*DescribeFittingSkills(Abilities, *Weapon, Pool, CharacterKey, Inventory));
 		}
 		return Prefix + (Learned.IsEmpty() ? Line : FString::Printf(TEXT("%s (learned %s first)"), *Line, *FString::Join(Learned, TEXT(", "))));
 	}
@@ -295,6 +314,18 @@ bool WoRQAKit::IsHPCostSkillFor(const UAbilityData *Ability, const UWeaponData *
 		   Ability->RequiredWieldMode == Weapon->WieldMode;
 }
 
+bool WoRQAKit::LearnForKit(UPoolSubsystem &Pool, FName CharacterKey, UInventoryComponent &Inventory, UAbilityData *Ability)
+{
+	if (!Pool.HasBankedSkills(CharacterKey))
+	{
+		// A brand-new character keeps its skills from its first draw that finds it in the party; bank what that draw would.
+		Pool.BankSkills(CharacterKey, Inventory.Spells.LearnedSpells, Inventory.Abilities.LearnedAbilities);
+	}
+	const bool bKept = Pool.LearnSkillCopy(CharacterKey, Ability);
+	const bool bOnMember = !Inventory.HasAbility(Ability) && Inventory.LearnAbility(Ability); // the list the skills page reads
+	return bKept || bOnMember;
+}
+
 UCharacterData *WoRQAKit::PickCaster(const TArray<UCharacterData *> &Candidates, ESpellElement Element, const TArray<const UCharacterData *> &InParty)
 {
 	for (UCharacterData *Data : Candidates)
@@ -347,6 +378,7 @@ FString WoRQAKit::RunQAKit(UWorld *World, const TArray<FString> &Args)
 	TArray<FString> Lines;
 	const bool bSkill = bAll || Args.ContainsByPredicate([](const FString &Arg) { return Arg.Equals(TEXT("skill"), ESearchCase::IgnoreCase); });
 	const FLoadoutScreenMember *Played = nullptr;
+	UInventoryComponent *PlayedInventory = nullptr;
 	const TArray<FLoadoutScreenMember> Members = WoRLoadoutScreen::BuildMembers(World);
 	for (const FLoadoutScreenMember &Member : Members)
 	{
@@ -354,12 +386,14 @@ FString WoRQAKit::RunQAKit(UWorld *World, const TArray<FString> &Args)
 		if (WoRLoadoutScreen::FindMemberLoadout(World, Member, Inventory) == Loadout)
 		{
 			Played = &Member;
+			PlayedInventory = Inventory;
 		}
 	}
 	if (bSkill)
 	{
 		const FName CharacterKey = UPoolSubsystem::GetCharacterKey(DataComponent);
-		Lines.Add(Played ? GiveHPCostSkill(*World, *Loadout, *Pool, CharacterKey, *Played) : FString(TEXT("skill: the played character is not a party member here")));
+		Lines.Add(Played && PlayedInventory ? GiveHPCostSkill(*World, *Loadout, *Pool, CharacterKey, *PlayedInventory, *Played)
+											: FString(TEXT("skill: the played character is not a party member here")));
 	}
 	if (bAll || CasterArg != INDEX_NONE)
 	{

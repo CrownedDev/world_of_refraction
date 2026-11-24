@@ -22,6 +22,8 @@
 
 class UAbilityData;
 class UCharacterData;
+class UInventoryComponent;
+class UPoolSubsystem;
 class UWeaponData;
 class UWorld;
 
@@ -30,6 +32,11 @@ namespace WoRQAKit
 	/** Ability can show an infusion HP cost on Weapon: it costs EP, isn't the weapon's attack, has a SkillMontage (it
 	 *  plays in a fight), and fits the weapon's type and wield mode. */
 	WORLD_OF_REFRACTION_API bool IsHPCostSkillFor(const UAbilityData *Ability, const UWeaponData *Weapon);
+
+	/** Learns Ability for the kit: banks the member's skills first when the store has none for CharacterKey yet (a
+	 *  brand-new character), then learns it there and on the member's Inventory (the list the skills page reads).
+	 *  True when either learned it. */
+	WORLD_OF_REFRACTION_API bool LearnForKit(UPoolSubsystem &Pool, FName CharacterKey, UInventoryComponent &Inventory, UAbilityData *Ability);
 
 	/** The first Caster in Candidates not in the party (InParty), of Element when it isn't None; null if none. */
 	WORLD_OF_REFRACTION_API UCharacterData *PickCaster(const TArray<UCharacterData *> &Candidates, ESpellElement Element,
