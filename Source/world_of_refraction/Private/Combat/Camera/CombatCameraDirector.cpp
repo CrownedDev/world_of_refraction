@@ -1135,14 +1135,16 @@ void UCombatCameraDirector::ShowDefenceView()
 		return;
 	}
 	CurrentMode = ECombatCameraMode::Defence;
-	const FTransform View = FCombatCameraRules::ComputeDefenceView(Defenders, Attacker->GetActorLocation());
+	// B-604b (Q-604b): one defender gets the defend camera (the same pose an enemy's shot opened on); several, the wide view.
+	const FTransform View = Defenders.Num() == 1 ? FCombatCameraRules::ComputeDefendShot(Defenders[0], Attacker->GetActorLocation()).End
+												 : FCombatCameraRules::ComputeDefenceView(Defenders, Attacker->GetActorLocation());
 	if (ACameraActor *CameraActor = Camera->ShowView(CurrentMode, View))
 	{
 		CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView); // B-371
 		Viewer->SetViewTargetWithBlend(CameraActor, CombatCameraTiming::DefenceBlendSeconds);
 	}
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defence view (%s): %d defender(s) against %s"),
-		   Defenders.Num() > 1 ? TEXT("wide side-on") : TEXT("side-on two-shot"), Defenders.Num(), *GetNameSafe(Attacker));
+		   Defenders.Num() > 1 ? TEXT("wide side-on") : TEXT("defend camera"), Defenders.Num(), *GetNameSafe(Attacker));
 }
 
 bool UCombatCameraDirector::IsViewerDefending() const
@@ -1267,6 +1269,25 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	FCameraShot OpeningShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Opening, Context, ShotTuning)
 								  .Get(FCombatCameraRules::ComputeShot(Opening, Context, ShotTuning));
 	const AActor *FirstTarget = ShotTargets.IsEmpty() ? nullptr : ShotTargets[0].Get();
+	// B-604b (Q-604b): an enemy's attack on one party member plays the defend camera from behind the defender, held
+	// through the hit (the hit punches in it); the Defence hand-off (ShowDefenceView) keeps the same framing.
+	const bool bOnePartyTarget = ShotTargets.Num() == 1 && FirstTarget && !OpposingCombatants.Contains(ShotTargets[0].Get());
+	if (UCombatCameraComponent *DefenderCamera = FCombatCameraRules::UsesDefendCamera(bEnemy, Opening, bOnePartyTarget)
+													 ? FirstTarget->FindComponentByClass<UCombatCameraComponent>()
+													 : nullptr)
+	{
+		if (!PlayShot(DefenderCamera, Opening, FCombatCameraRules::ComputeDefendShot(FirstTarget->GetActorLocation(), Caster->GetActorLocation())))
+		{
+			StopShotPattern();
+			return false;
+		}
+		bArrivedOnSide = true; // HandleDamageDealt: the hit stays on this camera and pose
+		bShotCastShown = true; // no Cast pull-back to the enemy's side
+		CurrentMode = ECombatCameraMode::Action;
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Defend camera: %s's %s at %s, from behind the defender"), *GetNameSafe(Caster), *GetNameSafe(Skill),
+			   *GetNameSafe(FirstTarget));
+		return true;
+	}
 	FVector Strike;
 	FApproachBurst Burst;
 	const bool bRush = Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f; // B-403: the melee rush

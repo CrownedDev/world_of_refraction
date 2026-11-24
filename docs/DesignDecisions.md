@@ -1277,6 +1277,12 @@ The queue of questions only Crown can answer.
 - **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
+### Q-604b — Attack camera and defend camera
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-604b, Crown: "shouldn't it be attack camera and defend camera?") · **Blocks:** nothing
+**Question:** how is an enemy's attack on a party member framed?
+**Answer (default, built):** a defend camera. Low, behind and beside the targeted party member, facing the enemy; the defender stands between the enemy and the lens, so the enemy stays in front of them. It holds through the hit (the hit punches in it), then the normal beat. The DEFEND! window's Defence view uses the same framing for one defender (several: the wide side-on view, as before). Party attacks keep the attack camera (their styles). An enemy's named attack keeps its front shot (B-406); an enemy attack on several party members keeps today's shots. Supersedes Q-604's arrival cut for single-target enemy attacks. In co-op the defender is any party member (each screen sees its party defend). Tuning (TODO in PIE): 250 cm behind, 170 cm beside, 40 cm above the defender's centre, aimed 30 cm above the enemy's. Known: an enemy that dashes moves the aim a little when the Defence window opens (a short re-aim, same camera spot).
+**Reference:** Expedition 33 frames enemy attacks from behind your character so you read the enemy's swing for the parry/dodge timing; widely praised as its core loop.
+
 ### Q-604 — How the enemy's melee rush is framed
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-604) · **Blocks:** nothing
 **Question:** the enemy's rush camera followed its dash and met it at the lens. Cut to a side view on arrival (as B-600c did for Melee Rush), or a framing that stays clear the whole way?

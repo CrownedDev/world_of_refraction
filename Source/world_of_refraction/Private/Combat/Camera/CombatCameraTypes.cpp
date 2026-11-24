@@ -577,6 +577,39 @@ FTransform FCombatCameraRules::ComputeDefenceView(const TArray<FVector> &Defende
 	return LookFrom(Mid - Look * Distance + FVector::UpVector * CameraHeight, Mid + FVector::UpVector * AimHeight);
 }
 
+namespace CombatCameraDefend
+{
+	// B-604b (Q-604b). TODO: tune in PIE (B-157). Distances in cm, above the actor locations.
+	/** Behind the defender, away from the attacker. */
+	constexpr float BehindDefender = 250.0f;
+	/** Beside the defender (its right as it faces the attacker), so its back doesn't hide the attacker. */
+	constexpr float BesideDefender = 170.0f;
+	/** Low: below the defender's head, about chest height. */
+	constexpr float CameraHeight = 40.0f;
+	/** Where the camera looks on the attacker. */
+	constexpr float AimHeight = 30.0f;
+}
+
+FCameraShot FCombatCameraRules::ComputeDefendShot(const FVector &Defender, const FVector &Attacker)
+{
+	using namespace CombatCameraDefend;
+	const FVector Axis = (Attacker - Defender).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Axis);
+	FCameraShot Shot;
+	Shot.End = LookFrom(Defender - Axis * BehindDefender + Right * BesideDefender + FVector::UpVector * CameraHeight,
+						Attacker + FVector::UpVector * AimHeight);
+	Shot.Start = Shot.End; // a cut that holds through the hit
+	Shot.BlendSeconds = 0.0f;
+	Shot.bCut = true;
+	Shot.FieldOfView = DefaultFieldOfView;
+	return Shot;
+}
+
+bool FCombatCameraRules::UsesDefendCamera(bool bCasterIsEnemy, ECameraShotMoment Opening, bool bOnePartyTarget)
+{
+	return bCasterIsEnemy && bOnePartyTarget && Opening != ECameraShotMoment::NamedAttack;
+}
+
 FCameraShot FCombatCameraRules::SteadyForDefence(const FCameraShot &Shot, bool bViewerDefending)
 {
 	FCameraShot Out = Shot;

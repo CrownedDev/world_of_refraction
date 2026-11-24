@@ -353,6 +353,13 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	 *  shot. Either way the camera stands back far enough that every defender and the attacker project inside the
 	 *  frame at DefaultFieldOfView. */
 	static FTransform ComputeDefenceView(const TArray<FVector> &Defenders, const FVector &Attacker);
+	/** B-604b (Q-604b): the defend camera for an enemy's attack on one party member: low, behind and beside the
+	 *  defender, facing the attacker, still. The defender stands between the attacker and the lens, so a rushing enemy
+	 *  stays in front of them (Expedition 33's parry view). */
+	static FCameraShot ComputeDefendShot(const FVector &Defender, const FVector &Attacker);
+	/** B-604b: an enemy's skill at one party member opens on the defend camera (a named attack keeps its front shot,
+	 *  B-406; several targets keep today's shots). A party member's skill keeps the attack camera (its style). */
+	static bool UsesDefendCamera(bool bCasterIsEnemy, ECameraShotMoment Opening, bool bOnePartyTarget);
 
 	/** B-402 (R10, R11; Q-402): a shot shown while the viewer defends keeps still: no shake, no FOV punch and no melee
 	 *  rush blur (B-403). A held punch is dropped, not replayed; the next shot after the combo plays its own as usual. */
