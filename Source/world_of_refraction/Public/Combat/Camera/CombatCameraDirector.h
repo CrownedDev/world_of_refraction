@@ -12,10 +12,12 @@
 #include "Engine/TimerHandle.h"
 #include "Combat/Camera/CombatCameraTypes.h"
 #include "Combat/Camera/BossFraming.h"
+#include "Combat/Defense/EDefenseType.h"
 #include "CombatCameraDirector.generated.h"
 
 class UCombatCameraComponent;
 class UActionExecutor;
+class UDefenseSystem;
 class ULevelSequence;
 class ULevelSequencePlayer;
 class ALevelSequenceActor;
@@ -247,6 +249,10 @@ private:
 	UFUNCTION()
 	void HandleDamageDealt(AActor *Attacker, AActor *Target, int32 Damage, bool bCritical);
 
+	/** B-604c: a guarded or dodged impact lands without damage; it still ends the defend camera's wait for the hit. */
+	UFUNCTION()
+	void HandleDefenseResolved(AActor *Defender, AActor *Attacker, EDefenseType DefenseType, bool bPerfect, int32 ImpactIndex, float AttackEnergyCost);
+
 	UFUNCTION()
 	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
 
@@ -428,6 +434,9 @@ private:
 	int32 DeferredTurnNumber = 0;
 	bool bTurnStartDeferred = false;
 	void SetDefendAttacker(AActor *Attacker);
+	/** The defend attacker's first impact landed (damage, guard or dodge): a deferred turn start waits only for the hold. */
+	void MarkDefendHit(AActor *Attacker);
+	TWeakObjectPtr<UDefenseSystem> BoundDefense;
 	void PlayDeferredTurnStart();
 	void ClearDefendWait();
 
