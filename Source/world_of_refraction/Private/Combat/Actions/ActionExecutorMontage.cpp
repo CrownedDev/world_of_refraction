@@ -284,6 +284,7 @@ void UActionExecutor::PlayReturnStep(AActor *Actor, USkillDataBase *Skill)
 	UE_LOG(LogTemp, Verbose, TEXT("[Montage] PlayReturn %s"), *Skill->ReturnMontage->GetName());
 	LogWarpBurst(Actor, Skill->ReturnMontage, 1.0f, TEXT("return"));
 	PlayActionMontageOnActor(Actor, Skill->ReturnMontage, 1.0f);
+	OnReturnStarted.Broadcast(Actor); // B-600d: the camera follows a party member home
 }
 
 void UActionExecutor::FinishArmTurn(AActor *Actor)

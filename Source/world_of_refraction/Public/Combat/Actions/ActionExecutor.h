@@ -157,6 +157,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnImpactFrame, AActor *, Executor,
 /** B-371: a skill's projectile has just launched (the camera's Cast shot can follow it). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnProjectileLaunched, AActor *, Caster, AActor *, Projectile);
 
+/** B-600d: a skill's return leg has started (its ReturnMontage: the attacker heads home). */
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnReturnStarted, AActor *, Actor);
+
 /** Callback for async action completion */
 DECLARE_DELEGATE_OneParam(FOnActionComplete, const FActionResult &);
 
@@ -570,6 +573,10 @@ public:
 	/** B-371: fires when a skill's projectile launches, once per projectile. */
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
 	FOnProjectileLaunched OnProjectileLaunched;
+
+	/** B-600d: fires when a skill's ReturnMontage starts (PlayReturnStep), once per return. */
+	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
+	FOnReturnStarted OnReturnStarted;
 
 	/** Broadcast when async action fully completes (after all defense windows) */
 	UPROPERTY(BlueprintAssignable, Category = "Action Executor|Events")
