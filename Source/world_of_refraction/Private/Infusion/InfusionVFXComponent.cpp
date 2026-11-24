@@ -526,7 +526,7 @@ void UInfusionVFXComponent::DebugActivateWithElement(ESpellElement TestElement)
     CurrentElement = TestElement;
 
     UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
-    SpawnVFX(FindGlowSystem(InfusionDisplay, TestElement, false, false),InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
+    SpawnVFX(FindGlowSystem(InfusionDisplay, TestElement, false, false), InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
     CurrentGlowColor = GetElementColor(TestElement);
     ApplyLevelToVFX();
 
