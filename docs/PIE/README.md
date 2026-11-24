@@ -688,6 +688,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-593](B-593.md) | `feature/B-593-ice-infusion` (built 2026-11-24) | D-271: a Water source also offers Ice in the picker; it deals Ice, fills the Ice bar, plays the Ice glow and costs x1.25 (normal on a Deals Ice spell) | Pending |
 | [B-593b](B-593b.md) | `fix/B-593b-ice-gaps` (built 2026-11-24) | D-271 gaps: Ice wears crystals x1.25, no Ice entry on a Deals Ice spell, no Ice price on a damage-free spell, the AI kill check counts Ice | Pending |
 | [QA-kit](QA-kit.md) | `chore/qa-kit` (built 2026-11-24) | QA setup: `wor.Debug.QAKit` puts an ability that costs EP in the weapon in hand's skill slot (B-592b's HP ghost) and has a Caster join as your seat (the selector colour; Darkness, or the TestGear bd hint). QA save only | Pending |
+| [B-602](B-602.md) | `fix/B-602-scroll-click-picks-stale-row` (built 2026-11-24) | A click after a wheel scroll picks the row now under the mouse (vendor, and every scrolling menu list) | Pending |
 
 Move rows to **Done** when every check passes.
 
