@@ -980,7 +980,12 @@ void UCombatCameraDirector::StopSequence(bool bDeferDestroy)
 
 FCombatCameraFrame UCombatCameraDirector::BuildFrame(AActor *Focus) const
 {
-	auto Centre = [](const TArray<TObjectPtr<AActor>> &Team, FVector Fallback)
+	return BuildFrame(Focus, Focus->GetActorLocation());
+}
+
+FCombatCameraFrame UCombatCameraDirector::BuildFrame(AActor *Focus, const FVector &FocusAt) const
+{
+	auto Centre = [Focus, &FocusAt](const TArray<TObjectPtr<AActor>> &Team, FVector Fallback)
 	{
 		FVector Sum = FVector::ZeroVector;
 		int32 Count = 0;
@@ -988,7 +993,7 @@ FCombatCameraFrame UCombatCameraDirector::BuildFrame(AActor *Focus) const
 		{
 			if (IsValid(Actor))
 			{
-				Sum += Actor->GetActorLocation();
+				Sum += Actor == Focus ? FocusAt : Actor->GetActorLocation();
 				++Count;
 			}
 		}
@@ -996,7 +1001,7 @@ FCombatCameraFrame UCombatCameraDirector::BuildFrame(AActor *Focus) const
 	};
 
 	FCombatCameraFrame Frame;
-	Frame.Focus = Focus->GetActorLocation();
+	Frame.Focus = FocusAt;
 	// Always framed from the viewer's side, so turns never flip the view across the arena.
 	const FVector ViewerSide = Centre(LocalCombatants, Frame.Focus);
 	const FVector OtherSide = Centre(OpposingCombatants, Frame.Focus + FVector::ForwardVector);
@@ -1453,17 +1458,43 @@ void UCombatCameraDirector::StepShot()
 	}
 }
 
-void UCombatCameraDirector::HandleReturnStarted(AActor *Actor)
+void UCombatCameraDirector::HandleReturnStarted(AActor *Actor, FVector Home)
 {
 	const bool bIsShotCaster = Actor && Actor == ShotCaster.Get();
 	// A sequence, a Defence hand-off or a kill shot owns the view; a projectile still flying is seen to its hit.
 	if (!bInCombat || PlayingSequence || DefenceHandOffTimer.IsValid() || CurrentMode == ECombatCameraMode::KillShot || ShotProjectile.IsValid() ||
-		!FCombatCameraRules::ReturnsToTurnViewOnLeapHome(IsShotPlaying(), bIsShotCaster, OpposingCombatants.Contains(Actor)))
+		!FCombatCameraRules::FollowsLeapHome(IsShotPlaying(), bIsShotCaster, OpposingCombatants.Contains(Actor)))
 	{
 		return;
 	}
-	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s leaps home: back to the turn view"), *GetNameSafe(Actor));
-	ShowTurnView(); // stops the pattern; blends from the side view as the attacker goes
+	if (bCameraMovementOff)
+	{
+		ShowTurnView(); // the static view, as before
+		return;
+	}
+	// B-600e (B-600d QA): framed from where it lands, not where it struck (a turn view from the strike spot sat between
+	// the fighters: the leap passed the lens, then the shot held the enemy alone).
+	UCombatCameraComponent *Viewed = ShotCamera.Get(); // the side view's camera, before StopShotPattern drops it
+	StopShotPattern();
+	bTargetViewShowing = false; // as ShowTurnView: no target or Intel view survives the leap
+	bIntelViewShowing = false;
+	const FTurnChangePlan Beat = FCombatCameraRules::PlanLeapHome(TurnViewStyle, BuildFrame(Actor, Home));
+	CurrentMode = ECombatCameraMode::NotYourTurn; // the wide; the next turn's beat or a same-turn return takes it from here
+	APlayerController *Viewer = GetViewer();
+	ACameraActor *Existing = Viewed ? Viewed->GetCameraActor() : nullptr;
+	if (Viewer && Existing && Viewer->GetViewTarget() == Existing)
+	{
+		MoveCameraOnShotTimer(Viewed, Beat.WideView, Beat.BeatBlendSeconds); // already looking through it: no jump
+	}
+	else if (UCombatCameraComponent *Camera = Actor->FindComponentByClass<UCombatCameraComponent>(); Camera && Viewer)
+	{
+		if (ACameraActor *CameraActor = Camera->ShowView(ECombatCameraMode::NotYourTurn, Beat.WideView))
+		{
+			CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::DefaultFieldOfView);
+			Viewer->SetViewTargetWithBlend(CameraActor, Beat.BeatBlendSeconds);
+		}
+	}
+	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s leaps home: the wide view from its spot in %.2f s"), *GetNameSafe(Actor), Beat.BeatBlendSeconds);
 }
 
 void UCombatCameraDirector::CutOnArrival()
