@@ -106,6 +106,17 @@ void FSkillCameraStyleSpec::Define()
 		}
 	});
 
+	It("B-600d: a party member's leap home goes back to the turn view; an enemy's keeps its shot", [this]()
+	{
+		TestTrue(TEXT("a party member leaving its own shot: the turn view, never the target alone"),
+				 FCombatCameraRules::ReturnsToTurnViewOnLeapHome(/*bShotPlaying=*/true, /*bIsShotCaster=*/true, /*bEnemyCaster=*/false));
+		TestFalse(TEXT("an enemy leaving: the shot holds on the party member it hit, as before"),
+				  FCombatCameraRules::ReturnsToTurnViewOnLeapHome(true, true, true));
+		TestFalse(TEXT("someone else's return: not this shot's"), FCombatCameraRules::ReturnsToTurnViewOnLeapHome(true, false, false));
+		TestFalse(TEXT("no shot playing (cinematics off, a sequence): the view is the turn view's or the sequence's already"),
+				  FCombatCameraRules::ReturnsToTurnViewOnLeapHome(false, true, false));
+	});
+
 	It("Ranged Release: a held shoulder shot, a cut to a still two-shot at the release, a punch in place on the hit", [this, Tuning]()
 	{
 		const FCameraShotContext Context = StyleTestContext();

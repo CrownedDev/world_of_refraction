@@ -605,6 +605,11 @@ bool FCombatCameraRules::PlaysStandardShots(ESkillCameraStyle Style)
 	return Style == ESkillCameraStyle::Standard || Style == ESkillCameraStyle::Cinematic;
 }
 
+bool FCombatCameraRules::ReturnsToTurnViewOnLeapHome(bool bShotPlaying, bool bIsShotCaster, bool bEnemyCaster)
+{
+	return bShotPlaying && bIsShotCaster && !bEnemyCaster;
+}
+
 ESkillCameraStyle FCombatCameraRules::GetCameraStyle(const USkillDataBase *Skill, bool bCasterIsEnemy)
 {
 	return Skill && !bCasterIsEnemy ? Skill->CameraStyle : ESkillCameraStyle::Standard;
