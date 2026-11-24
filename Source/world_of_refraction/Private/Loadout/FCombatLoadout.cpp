@@ -9,6 +9,7 @@
 #include "Equipment/Crystals/CrystalType.h"
 #include "Loadout/FSavedLoadout.h"
 #include "Loadout/SpellPoolConstants.h"
+#include "Loadout/WornGear.h"
 #include "Loadout/Entries/FSpellCollection.h"
 #include "Loadout/Entries/FAbilityCollection.h"
 #include "Equipment/FRuntimeAttachedItem.h"
@@ -710,6 +711,24 @@ namespace
         }
     }
 
+    /** B-309d: the WornGearLayout place of an old field (a ring's by its index in the adapter loadout). */
+    int32 PlaceOfOrigin(ELegacySlotOrigin Origin, int32 LegacyIndex)
+    {
+        using namespace WornGearLayout;
+        switch (Origin)
+        {
+        case ELegacySlotOrigin::PrimaryWeapon:
+        case ELegacySlotOrigin::PrimaryRing:
+            return PRIMARY_INDEX;
+        case ELegacySlotOrigin::SecondaryWeapon:
+            return SECONDARY_INDEX;
+        case ELegacySlotOrigin::RingLoadout:
+            return FIRST_ADAPTER_INDEX + LegacyIndex;
+        default:
+            return INDEX_NONE;
+        }
+    }
+
     int32 FindSlotByOrigin(const FCombatLoadout &Loadout, ELegacySlotOrigin Origin, int32 LegacyIndex = INDEX_NONE)
     {
         return Loadout.Slots.IndexOfByPredicate([Origin, LegacyIndex](const FLoadoutSlot &Slot)
@@ -755,7 +774,78 @@ void FCombatLoadout::RebuildSlotsFromLegacy(ECharacterClass CharacterClass)
                                                                            : FLoadoutSlot::FromRingLoadoutEntry(*Ring));
                               Slot.LegacyOrigin = Origin;
                               Slot.LegacyIndex = LegacyIndex;
+                              Slot.Place = PlaceOfOrigin(Origin, LegacyIndex);
                           });
+    ComputeActiveSlotIndices(*this, CharacterClass);
+}
+
+void FCombatLoadout::RebuildLegacyFromSlots(ECharacterClass CharacterClass)
+{
+    using namespace WornGearLayout;
+    PrimaryWeapon = FWeaponLoadoutEntry();
+    SecondaryWeapon = FWeaponLoadoutEntry();
+    PrimaryRing = FRingLoadoutEntry();
+    RingLoadout.Reset();
+    bool bPrimaryWeapon = false;
+    bool bPrimaryRing = false;
+    bool bSecondaryWeapon = false;
+    for (FLoadoutSlot &Slot : Slots)
+    {
+        if (Slot.IsEmpty())
+        {
+            continue;
+        }
+        if (Slot.Place == PRIMARY_INDEX && Slot.Gear.IsWeapon())
+        {
+            PrimaryWeapon = Slot.ToWeaponLoadoutEntry();
+            bPrimaryWeapon = true;
+            Slot.LegacyOrigin = ELegacySlotOrigin::PrimaryWeapon;
+        }
+        else if (Slot.Place == PRIMARY_INDEX && Slot.Gear.IsAdapter())
+        {
+            PrimaryRing = Slot.ToRingLoadoutEntry();
+            bPrimaryRing = true;
+            Slot.LegacyOrigin = ELegacySlotOrigin::PrimaryRing;
+        }
+        else if (Slot.Place == SECONDARY_INDEX && Slot.Gear.IsWeapon())
+        {
+            SecondaryWeapon = Slot.ToWeaponLoadoutEntry();
+            bSecondaryWeapon = true;
+            Slot.LegacyOrigin = ELegacySlotOrigin::SecondaryWeapon;
+        }
+        else if (Slot.Place >= FIRST_ADAPTER_INDEX && Slot.Gear.IsAdapter())
+        {
+            const int32 RingIndex = Slot.Place - FIRST_ADAPTER_INDEX;
+            if (RingLoadout.Num() <= RingIndex)
+            {
+                RingLoadout.SetNum(RingIndex + 1); // an empty place before it stays empty, as the old list kept it
+            }
+            RingLoadout[RingIndex] = Slot.ToRingLoadoutEntry();
+            Slot.LegacyOrigin = ELegacySlotOrigin::RingLoadout;
+            Slot.LegacyIndex = RingIndex;
+            continue;
+        }
+        else
+        {
+            UE_LOG(LogTemp, Warning, TEXT("[FCombatLoadout] RebuildLegacyFromSlots: %s in place %d has no old field; left out"), *Slot.Gear.GetGearString(), Slot.Place);
+            continue;
+        }
+        Slot.LegacyIndex = INDEX_NONE;
+    }
+    // The type fields follow a filled place only (a weapon counts under None too, as ForEachReadLegacySlot reads it);
+    // an empty place keeps its type (an emptied Weapon or Ring primary reads as none already), so nothing is lost.
+    if (bPrimaryWeapon && PrimarySlotType != EPrimarySlotType::Weapon && PrimarySlotType != EPrimarySlotType::None)
+    {
+        PrimarySlotType = EPrimarySlotType::Weapon;
+    }
+    else if (bPrimaryRing)
+    {
+        PrimarySlotType = EPrimarySlotType::Ring;
+    }
+    if (bSecondaryWeapon)
+    {
+        SecondarySlotType = ESecondarySlotType::Weapon;
+    }
     ComputeActiveSlotIndices(*this, CharacterClass);
 }
 

@@ -59,6 +59,26 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 	UPROPERTY(BlueprintReadOnly, Category = "Slot")
 	TObjectPtr<USkillDataBase> OverrideAttack = nullptr;
 
+	/** B-309d: the WornGearLayout place (WornGear.h: the primary, the secondary, then the adapter loadout by index), so
+	 *  the old fields can be rebuilt from the slots (FCombatLoadout::RebuildLegacyFromSlots). INDEX_NONE: not placed. */
+	UPROPERTY(BlueprintReadOnly, Category = "Slot")
+	int32 Place = INDEX_NONE;
+
+	/** B-309d: a DERIVED cache of the off hand OffHandID names, as Gear is of GearID. */
+	UPROPERTY(BlueprintReadOnly, Category = "Slot")
+	FGearInstance OffHand;
+
+	/** B-309d: the old weapon entry's own lists, carried so it rebuilds with no loss until the old fields go (B-309f):
+	 *  OBSOLETE (B-351) the position-merge abilities, the entry's spell list and (OBSOLETE, B-392) the parry flag. */
+	UPROPERTY()
+	TArray<TObjectPtr<UAbilityData>> MergeAbilities;
+
+	UPROPERTY()
+	TArray<TObjectPtr<USpellData>> WeaponSpells;
+
+	UPROPERTY()
+	bool bUseWeaponParryAnimation = true;
+
 	/** B-304: the old field this slot mirrors (RingLoadout: LegacyIndex is the ring's index). Not saved. */
 	ELegacySlotOrigin LegacyOrigin = ELegacySlotOrigin::None;
 	int32 LegacyIndex = INDEX_NONE;
@@ -72,9 +92,13 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 		Slot.Gear = FGearInstance::FromWeaponEntry(Entry.WeaponEntry);
 		Slot.GearID = Slot.Gear.PersistentID;
 		Slot.OffHandID = Entry.OffHandEntry.PersistentID;
+		Slot.OffHand = FGearInstance::FromWeaponEntry(Entry.OffHandEntry);
 		Slot.AssignedAbilities.Append(Entry.WeaponEntry.SkillPicks);
 		Slot.SpellOverrides.Append(Entry.WeaponEntry.SpellPicks);
 		Slot.OverrideAttack = Entry.OverrideAttack;
+		Slot.MergeAbilities.Append(Entry.AssignedAbilities);
+		Slot.WeaponSpells.Append(Entry.AssignedSpells);
+		Slot.bUseWeaponParryAnimation = Entry.bUseWeaponParryAnimation;
 		return Slot;
 	}
 
@@ -85,5 +109,32 @@ struct WORLD_OF_REFRACTION_API FLoadoutSlot
 		Slot.GearID = Slot.Gear.PersistentID;
 		Slot.SpellOverrides.Append(Entry.RingEntry.SpellPicks);
 		return Slot;
+	}
+
+	/** B-309d: FromWeaponLoadoutEntry's way back; the picks come from this entry (D-224), not the cached piece. */
+	FWeaponLoadoutEntry ToWeaponLoadoutEntry() const
+	{
+		FWeaponLoadoutEntry Entry;
+		Entry.WeaponEntry = Gear.ToWeaponEntry();
+		Entry.WeaponEntry.SkillPicks.Reset(AssignedAbilities.Num());
+		Entry.WeaponEntry.SkillPicks.Append(AssignedAbilities);
+		Entry.WeaponEntry.SpellPicks.Reset(SpellOverrides.Num());
+		Entry.WeaponEntry.SpellPicks.Append(SpellOverrides);
+		Entry.OffHandEntry = OffHand.ToWeaponEntry();
+		Entry.OverrideAttack = OverrideAttack;
+		Entry.AssignedAbilities.Append(MergeAbilities);
+		Entry.AssignedSpells.Append(WeaponSpells);
+		Entry.bUseWeaponParryAnimation = bUseWeaponParryAnimation;
+		return Entry;
+	}
+
+	/** B-309d: FromRingLoadoutEntry's way back. */
+	FRingLoadoutEntry ToRingLoadoutEntry() const
+	{
+		FRingLoadoutEntry Entry;
+		Entry.RingEntry = Gear.ToRingEntry();
+		Entry.RingEntry.SpellPicks.Reset(SpellOverrides.Num());
+		Entry.RingEntry.SpellPicks.Append(SpellOverrides);
+		return Entry;
 	}
 };

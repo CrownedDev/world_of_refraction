@@ -259,6 +259,14 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
      *  (everyone else's adapter is the primary one), as GetActiveWeapon / GetActiveRing / GetPrimaryRing. */
     void RebuildSlotsFromLegacy(ECharacterClass CharacterClass);
 
+    /** B-309d: the way back, the old fields rebuilt from Slots by each slot's Place (one direction, for the writers
+     *  that move onto the slots): the primary weapon or adapter, the secondary weapon, the adapter loadout by index
+     *  (an empty place before a ring stays empty; empty places after the last ring go, and an ActiveRingIndex there
+     *  finds no adapter, as before). A filled place sets its type field (a weapon also counts under None); an empty
+     *  one keeps it. What the mirror never held (a non-Generic's secondary weapon, a Caster's adapter loadout) is
+     *  cleared. Then the two active indices. */
+    void RebuildLegacyFromSlots(ECharacterClass CharacterClass);
+
     /** B-304: rebuilds the mirror only if it no longer holds the old fields' items (same items by asset and GUID, in
      *  slot order), then refreshes the two active indices (bShowPrimary / ActiveRingIndex may have moved). Cheap:
      *  a walk of at most the primary, the secondary and the adapters, no copies when in step. */
