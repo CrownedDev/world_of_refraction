@@ -7,6 +7,7 @@
 //   this file's montage helpers)
 //   wor.Editor.BuildQuickStrikeMontage (B-595a: the dash + the one-handed sword's slash, for Quick Strike)
 //   wor.Editor.BuildForceStrikeMontage (B-595e: a standing slash, Cast0 on the cut, for Force Strike's projectile)
+//   wor.Editor.BuildWhirlWindMontage (B-595d: the dash + a spin ending in a slam, for WhirlWind)
 // Times are from docs/analysis/ShowcaseAnimAnalysis.md, "Travel without stretching".
 
 #if WITH_EDITOR
@@ -61,6 +62,16 @@ namespace LightHitMontageBuilder
 	constexpr const TCHAR *FORCE_STRIKE_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/DSAS_V1/Manny_UE5/InPlace/Attack/CommonAttack/Anim_SAS_Slash1_IP.Anim_SAS_Slash1_IP");
 	/** The flat cut: weapon_r is fastest at frame 38 of 80 (40 fps) and stops sharply by frame 41 (sample_bones.sh). */
 	constexpr float FORCE_STRIKE_RELEASE_TIME = 0.95f;
+
+	// ---- B-595d: WhirlWind, the light hit's dash then a full spin that ends in a slam (one hit on every target) ----
+	constexpr const TCHAR *WHIRLWIND_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/WhirlWind");
+	constexpr const TCHAR *WHIRLWIND_MONTAGE = TEXT("AM_Sword_WhirlWind");
+	/** Read only (vendor folder): a 360-degree spinning cut (0.5 s), then a leaping slam down; root motion 3.1 m. Its
+	 *  first frame is 16 cm from the dash's end pose. */
+	constexpr const TCHAR *WHIRLWIND_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/HandsomeSwordV2/Manny_UE5/RootMotion/Attack/CommonAttack/Anim_SwordV2_Slash3.Anim_SwordV2_Slash3");
+	/** In the clip's own time (sample_bones.sh, weapon_r): the slam reaches the ground at 0.9 s (z 173 to 56 cm). The
+	 *  spinning cut is earlier but the clip still travels 2 m after it, so it would land short. */
+	constexpr float WHIRLWIND_IMPACT_TIME = 0.9f;
 
 	/** The airborne frames only: the feet never slide, the hop becomes the burst. */
 	constexpr float DASH_WARP_START = 0.18f;
@@ -292,6 +303,34 @@ namespace LightHitMontageBuilder
 		TEXT("EDITOR (B-595e): build AM_Sword_ForceStrike (a standing slash, Cast0 on the cut) in ")
 			TEXT("/Game/Data/Skills/Weapons/Sword/ForceStrike. Doesn't save: save it in the editor."),
 		FConsoleCommandDelegate::CreateStatic(&BuildForceStrike));
+
+	/** B-595d: WhirlWind's approach, the light hit's dash then the spin and slam, Impact0 on the slam (every target). */
+	void BuildWhirlWind()
+	{
+		UAnimSequenceBase *Dash = LoadObject<UAnimSequenceBase>(nullptr, DASH_CLIP);
+		UAnimSequenceBase *Spin = LoadObject<UAnimSequenceBase>(nullptr, WHIRLWIND_CLIP);
+		if (!Dash || !Spin)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing a clip (dash %d, spin %d)"), Dash != nullptr, Spin != nullptr);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(WHIRLWIND_FOLDER) / WHIRLWIND_MONTAGE + TEXT(".") + WHIRLWIND_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), WHIRLWIND_MONTAGE);
+			return;
+		}
+		UAnimMontage *Montage = MakeMontage(WHIRLWIND_MONTAGE, {Dash, Spin}, WHIRLWIND_FOLDER);
+		AddWarpWindow(Montage, DASH_WARP_START, DASH_WARP_END);
+		AddCombatNotify(Montage, Dash->GetPlayLength() + WHIRLWIND_IMPACT_TIME, ECombatNotifyFamily::Impact);
+		Finish(Montage);
+	}
+
+	static FAutoConsoleCommand GBuildWhirlWindCommand(
+		TEXT("wor.Editor.BuildWhirlWindMontage"),
+		TEXT("EDITOR (B-595d): build AM_Sword_WhirlWind (the light hit's dash + a spin ending in a slam, Impact0 on the slam) in ")
+			TEXT("/Game/Data/Skills/Weapons/Sword/WhirlWind. Doesn't save: save it in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildWhirlWind));
 
 	static FAutoConsoleCommand GBuildCommand(
 		TEXT("wor.Editor.BuildLightHitMontages"),
