@@ -130,7 +130,8 @@ enum class ESkillCameraStyle : uint8
 	/** A cut to a low over-the-shoulder shot that holds; at the release a cut to a still side two-shot the projectile
 	 *  crosses; on the hit a quick FOV punch and a small shake, same shot. */
 	RangedRelease UMETA(DisplayName = "Ranged Release"),
-	/** A slow one-way push during the charge; a cut to a low hero angle at the hit, held. */
+	/** A slow one-way push during the charge; a cut to a medium shot of the target at the hit, held (B-600h, E33). A
+	 *  blow that dashes in plays as Melee Rush (GetStyleForDash). */
 	HeavyWindUp UMETA(DisplayName = "Heavy Wind-Up"),
 	/** A wide, higher still shot of the attacker and every target, held throughout. */
 	AreaSweep UMETA(DisplayName = "Area Sweep"),
@@ -404,6 +405,11 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	/** B-600: the style Skill's shots follow: its CameraStyle; Standard for an enemy's skill (enemy attacks keep
 	 *  today's camera) or with no skill. */
 	static ESkillCameraStyle GetCameraStyle(const USkillDataBase *Skill, bool bCasterIsEnemy);
+
+	/** B-600h (Q-600h; E33: a physical blow moves the camera with the hero): a Heavy Wind-Up blow that dashes in (a
+	 *  ritual's on its fire turn) plays as Melee Rush: the rush behind it, the cut as the dash ends. Every other style,
+	 *  or no dash: Style. */
+	static ESkillCameraStyle GetStyleForDash(ESkillCameraStyle Style, bool bDashes);
 
 	/** B-600: Style plays today's shots (Standard, and Cinematic without a sequence): they follow a projectile and
 	 *  frame a hit from the target's camera. */

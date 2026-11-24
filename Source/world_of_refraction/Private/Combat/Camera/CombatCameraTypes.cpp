@@ -93,9 +93,12 @@ namespace CombatCameraStyles
 	constexpr float ReleaseHitShake = 0.15f;
 	// Heavy Wind-Up: the charge's push is slower than the plain wind-up's.
 	constexpr float HeavyPushSeconds = 2.0f;
-	// Heavy Wind-Up: the low hero angle, the side two-shot's place at shin height, looking up at the attacker.
-	constexpr float HeroHeight = 30.0f;
-	constexpr float HeroLookHeight = 110.0f;
+	// Heavy Wind-Up (B-600h, E33 section 7): the hit cuts to a medium shot of the target, from the caster's side of it
+	// and off to the tuned side, at chest height, looking at the target's chest.
+	constexpr float HeavyTargetBack = 350.0f;
+	constexpr float HeavyTargetSide = 150.0f;
+	constexpr float HeavyTargetHeight = 40.0f;
+	constexpr float HeavyTargetLookHeight = 20.0f;
 	// Area Sweep: wide and higher, back from everyone's centre past the attacker.
 	constexpr float AreaBack = 700.0f;
 	constexpr float AreaHeight = 450.0f;
@@ -687,6 +690,11 @@ ESkillCameraStyle FCombatCameraRules::GetCameraStyle(const USkillDataBase *Skill
 	return Skill && !bCasterIsEnemy ? Skill->CameraStyle : ESkillCameraStyle::Standard;
 }
 
+ESkillCameraStyle FCombatCameraRules::GetStyleForDash(ESkillCameraStyle Style, bool bDashes)
+{
+	return Style == ESkillCameraStyle::HeavyWindUp && bDashes ? ESkillCameraStyle::MeleeRush : Style;
+}
+
 ECameraShotMoment FCombatCameraRules::ImpactMomentFor(int32 TargetCount)
 {
 	return TargetCount > 1 ? ECameraShotMoment::Spread : ECameraShotMoment::Impact;
@@ -886,12 +894,14 @@ TOptional<FCameraShot> FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle S
 		}
 		if (bHit)
 		{
-			// The side two-shot's place dropped low, looking up at the fighters' chests: both stay in frame.
-			FCameraShot Hero = WithPassingPunch(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)); // its punch and shake
-			FVector Low = Hero.End.GetLocation();
-			Low.Z = Caster.Z + HeroHeight;
-			Hero.End = LookFrom(Low, (Caster + TargetCentre) * 0.5f + FVector::UpVector * HeroLookHeight);
-			return CutAndHold(Hero);
+			// B-600h (E33: a spell's hit cuts to the target): a medium shot of the target, from the caster's side.
+			FCameraShot OnTarget = WithPassingPunch(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)); // its punch and shake
+			const FVector Target = Context.Targets.IsEmpty() ? TargetCentre : Context.Targets[0];
+			const FVector Back = (Caster - Target).GetSafeNormal2D(UE_SMALL_NUMBER, -Forward);
+			const FVector Across = FVector::CrossProduct(FVector::UpVector, Back);
+			OnTarget.End = LookFrom(Target + Back * HeavyTargetBack * Scale - Across * HeavyTargetSide * SideSign * Scale + FVector::UpVector * HeavyTargetHeight,
+									Target + FVector::UpVector * HeavyTargetLookHeight);
+			return CutAndHold(OnTarget);
 		}
 		return {};
 	}
