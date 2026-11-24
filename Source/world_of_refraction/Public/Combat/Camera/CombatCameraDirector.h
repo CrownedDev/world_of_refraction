@@ -115,7 +115,7 @@ public:
 	/** Turn-view style (D-074 (2)). B-398: each fight starts from the player's saved setting (USaveSubsystem); this
 	 *  value is used only where there is no save subsystem. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera|Settings", meta = (ToolTip = "Set by the player's saved setting at each fight start (wor.Camera.Style); not editable here"))
-	ETurnViewStyle TurnViewStyle = ETurnViewStyle::CentredWide;
+	ETurnViewStyle TurnViewStyle = ETurnViewStyle::OverTheShoulder; // B-600g (Q-600g)
 
 	/** B-398 (wor.Camera): where the viewed character and the enemy centre land in its turn view, e.g. "layout
 	 *  OverTheShoulder: Hero_1 lower-left (-0.44, -0.61), enemy centre middle-centre (0.00, 0.00)". */
@@ -316,8 +316,9 @@ private:
 	bool IsViewerDefending() const;
 
 	/** B-404: the turn start's camera move (FCombatCameraRules::PlanTurnChange): a wide beat, then the handover
-	 *  blend on WideBeatTimer; or the turn view at once. bBroadcast false for a preview. */
-	void StartTurnChange(AActor *From, AActor *To, bool bSomeoneActed, bool bBroadcast);
+	 *  blend on WideBeatTimer; or the turn view at once. bWideAction (B-600g): a multi-target action since the last
+	 *  turn start. bBroadcast false for a preview. */
+	void StartTurnChange(AActor *From, AActor *To, bool bWideAction, bool bBroadcast);
 	/** B-404: the beat's end: the handover blend (unless something else took the view) and the event. */
 	void HandleWideBeatEnd();
 	/** B-404: a pending handover runs now (an action or a new turn comes before the beat ends): once per turn start. */
@@ -451,6 +452,8 @@ private:
 	bool bHandoverPending = false;
 	bool bHandoverBroadcasts = false;
 	bool bActedSinceTurnStart = false;
+	/** B-600g: an action since the last turn start hit several targets (FCombatCameraRules::IsWideAction): the wide beat. */
+	bool bWideActionSinceTurnStart = false;
 	int32 HandoverCount = 0;
 	// B-406: the boss cinematic now playing (per fight, on the orchestrator's component: D-064).
 	UPROPERTY(Transient)
