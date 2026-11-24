@@ -42,8 +42,6 @@ struct FBattleCardParts
 	bool bEPLine = false;
 	bool bBuildupBar = false;
 	bool bBuildupLine = false;
-	/** The gear tooltip on hover; B-503k: no gear line on the card (GearLine stays as data). */
-	bool bGear = false;
 	bool bActions = false;
 	bool bStatus = false;
 	/** B-436c: "Tier C" centred at the bottom of a fight's enemy card (the target marker), no rank. */
@@ -143,10 +141,9 @@ struct FBattleHUDCard
 	FLinearColor BuildupColour = FLinearColor::White;
 	FText BuildupLine;
 
-	/** B-391c: party cards: "weapon · ring" and the hover tooltip with the loadout. */
+	/** B-391c: party cards: "weapon · ring" (data only since B-503k; B-598b dropped the hover tooltip). */
 	TWeakObjectPtr<ULoadoutComponent> Loadout;
 	FText GearLine;
-	FText GearTooltip;
 
 	UPROPERTY()
 	TObjectPtr<UBorder> Frame;
