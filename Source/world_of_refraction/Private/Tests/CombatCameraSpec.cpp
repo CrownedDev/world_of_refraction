@@ -63,8 +63,21 @@ namespace
 	constexpr float TURN_TEST_LOCATION_TOLERANCE = 0.1f;
 	/** B-404: world ticks well past a wide beat (0.5 s) at the test wrapper's 0.01 s step. */
 	constexpr int32 BEAT_TEST_TICKS_PAST_BEAT = 200;
+	/** B-600g: an action on every enemy of a full side. */
+	constexpr int32 BEAT_TEST_WHOLE_SIDE = 4;
+	/** B-600g: the highest the over-the-shoulder camera may sit above the acting fighter's centre at CombatCameraTestFrame's
+	 *  10 m (about head height; it was 2 m). */
+	constexpr float TURN_TEST_SHOULDER_MAX_RISE = 130.0f;
 	/** A byte past the last ETurnViewStyle (a save from a later build). */
 	constexpr uint8 TURN_TEST_UNKNOWN_STYLE = 7;
+
+	/** B-600g: an action on two targets, the fewest that bring the wide beat. */
+	FAction BeatTestWideAction(AActor *First, AActor *Second)
+	{
+		FAction Action;
+		Action.Targets = {First, Second};
+		return Action;
+	}
 
 	TArray<FVector> TurnTestThreeEnemies()
 	{
@@ -216,12 +229,39 @@ void FCombatCameraSpec::Define()
 			TestTrue(TEXT("side-on"), FMath::Abs(View.GetLocation().Y) > FMath::Abs(View.GetLocation().X - Frame.ArenaCentre.X));
 		});
 
-		It("pans further out on someone else's turn than on your own", [this]()
+		It("pans the wide view of everyone further out than the turn view", [this]()
 		{
 			const FCombatCameraFrame Frame = CombatCameraTestFrame();
 			const FVector Turn = FCombatCameraRules::ComputeView(ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame).GetLocation();
-			const FVector Wide = FCombatCameraRules::ComputeView(ECombatCameraMode::NotYourTurn, ETurnViewStyle::CentredWide, Frame).GetLocation();
+			const FVector Wide = FCombatCameraRules::ComputeWideView(Frame).GetLocation();
 			TestTrue(TEXT("further from the character"), FVector::Dist(Wide, Frame.Focus) > FVector::Dist(Turn, Frame.Focus));
+		});
+
+		It("puts an enemy's turn view behind that enemy, over its shoulder, facing the party (B-600g)", [this]()
+		{
+			// The viewer's frame, as BuildFrame makes it on an enemy's turn: focus on the enemy, the party behind the camera.
+			FCombatCameraFrame Frame = CombatCameraTestFrame();
+			Frame.Focus = TURN_TEST_ONE_ENEMY;
+			const FVector PartyCentre = FVector::ZeroVector;
+			const FTransform View = FCombatCameraRules::ComputeView(ECombatCameraMode::NotYourTurn, ETurnViewStyle::OverTheShoulder, Frame);
+			const FVector2D Enemy = ProjectInTurnView(View, Frame.Focus);
+			const FVector2D Party = ProjectInTurnView(View, PartyCentre);
+			const FString Where = FString::Printf(TEXT("enemy %s, party %s"), *CameraFraming::GetThirdsCell(Enemy), *CameraFraming::GetThirdsCell(Party));
+			TestTrue(TEXT("behind the enemy"), View.GetLocation().X > Frame.Focus.X);
+			TestTrue(TEXT("faces the party"), View.GetRotation().GetForwardVector().X < 0.0f);
+			TestTrue(FString::Printf(TEXT("enemy in the lower-left third (%s)"), *Where), Enemy.X < -CameraFraming::THIRD_LINE && Enemy.Y < -CameraFraming::THIRD_LINE);
+			TestTrue(FString::Printf(TEXT("party in the middle band (%s)"), *Where),
+					 FMath::Abs(Party.X) <= CameraFraming::THIRD_LINE && FMath::Abs(Party.Y) <= CameraFraming::THIRD_LINE);
+			TestTrue(TEXT("closer than the wide view"),
+					 FVector::Dist(View.GetLocation(), Frame.Focus) < FVector::Dist(FCombatCameraRules::ComputeWideView(Frame).GetLocation(), Frame.Focus));
+		});
+
+		It("keeps the over-the-shoulder camera at about head height, not above it (B-600g)", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			const FTransform View = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame);
+			TestTrue(TEXT("above the fighter's centre"), View.GetLocation().Z > Frame.Focus.Z);
+			TestTrue(TEXT("no higher than about head height"), View.GetLocation().Z - Frame.Focus.Z <= TURN_TEST_SHOULDER_MAX_RISE);
 		});
 
 		It("keeps the static view in one place whoever acts", [this]()
@@ -805,33 +845,52 @@ void FCombatCameraSpec::Define()
 
 	Describe("wide beats and the party handover (B-404, study R12, R16)", [this]()
 	{
-		It("passes a turn change after an action through the wide view, then blends to the next hero", [this]()
+		It("passes a turn change after a multi-target action through the wide view, then blends to the next hero", [this]()
 		{
 			const FCombatCameraFrame Frame = TurnViewTestFrame(TURN_TEST_SIDE_MEMBER, {TURN_TEST_ONE_ENEMY});
 			const FTurnChangePlan Plan = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, ETurnViewStyle::OverTheShoulder, Frame);
-			const FTransform Wide = FCombatCameraRules::ComputeView(ECombatCameraMode::NotYourTurn, ETurnViewStyle::OverTheShoulder, Frame);
+			const FTransform Wide = FCombatCameraRules::ComputeWideView(Frame);
 			const FTransform Turn = FCombatCameraRules::ComputeTurnView(ETurnViewStyle::OverTheShoulder, Frame);
 			TestTrue(TEXT("a wide beat"), Plan.bWideBeat);
-			TestTrue(TEXT("through the wide (NotYourTurn) view"), Plan.WideView.GetLocation().Equals(Wide.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+			TestTrue(TEXT("through the wide view"), Plan.WideView.GetLocation().Equals(Wide.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
 			TestTrue(TEXT("ends on the next hero's turn view"), Plan.TurnView.GetLocation().Equals(Turn.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
 			TestTrue(TEXT("the wide is higher than the turn view"), Plan.WideView.GetLocation().Z > Plan.TurnView.GetLocation().Z);
 			TestTrue(TEXT("the beat holds after blending in"), Plan.BeatSeconds > Plan.BeatBlendSeconds && Plan.BeatBlendSeconds > 0.0f);
 			TestTrue(TEXT("the handover is a blend, not a cut"), Plan.HandoverBlendSeconds > 0.0f);
 		});
 
-		It("adds no wide beat between actions of one actor, on the first turn, with movement off or before an enemy's turn", [this]()
+		It("adds no wide beat between actions of one actor, after a single-target action, on the first turn or with movement off", [this]()
 		{
 			const FCombatCameraFrame Frame = CombatCameraTestFrame();
 			const FTurnChangePlan SameActor = FCombatCameraRules::PlanTurnChange(true, true, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
-			const FTurnChangePlan NobodyActed = FCombatCameraRules::PlanTurnChange(false, false, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
+			const FTurnChangePlan SingleTarget = FCombatCameraRules::PlanTurnChange(false, false, ECombatCameraMode::Turn, ETurnViewStyle::CentredWide, Frame);
 			const FTurnChangePlan MovementOff = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame);
-			const FTurnChangePlan EnemyTurn = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::NotYourTurn, ETurnViewStyle::CentredWide, Frame);
 			TestFalse(TEXT("same actor keeps acting (B-401)"), SameActor.bWideBeat);
-			TestFalse(TEXT("first turn: nobody acted yet"), NobodyActed.bWideBeat);
+			TestFalse(TEXT("single target or first turn: no beat (B-600g)"), SingleTarget.bWideBeat);
+			TestTrue(TEXT("straight to the next turn view"),
+					 SingleTarget.TurnView.Equals(FCombatCameraRules::ComputeTurnView(ETurnViewStyle::CentredWide, Frame), TURN_TEST_LOCATION_TOLERANCE));
 			TestFalse(TEXT("movement off: the static view"), MovementOff.bWideBeat);
-			TestFalse(TEXT("an enemy's watch view is already the wide"), EnemyTurn.bWideBeat);
 			const FTransform Static = FCombatCameraRules::ComputeView(ECombatCameraMode::Static, ETurnViewStyle::CentredWide, Frame);
 			TestTrue(TEXT("movement off still ends on the static view"), MovementOff.TurnView.GetLocation().Equals(Static.GetLocation(), TURN_TEST_LOCATION_TOLERANCE));
+		});
+
+		It("counts an action as wide from two targets (B-600g, Q-600g)", [this]()
+		{
+			TestFalse(TEXT("no target"), FCombatCameraRules::IsWideAction(0));
+			TestFalse(TEXT("one target"), FCombatCameraRules::IsWideAction(1));
+			TestTrue(TEXT("two targets"), FCombatCameraRules::IsWideAction(FCombatCameraRules::MinTargetsForWideBeat));
+			TestTrue(TEXT("the whole side"), FCombatCameraRules::IsWideAction(BEAT_TEST_WHOLE_SIDE));
+		});
+
+		It("plays the wide beat before an enemy's turn after a multi-target action, then goes behind that enemy (B-600g)", [this]()
+		{
+			const FCombatCameraFrame Frame = CombatCameraTestFrame();
+			const FTurnChangePlan EnemyTurn = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::NotYourTurn, ETurnViewStyle::OverTheShoulder, Frame);
+			TestTrue(TEXT("a wide beat"), EnemyTurn.bWideBeat);
+			TestTrue(TEXT("ends on the enemy's turn view"),
+					 EnemyTurn.TurnView.Equals(FCombatCameraRules::ComputeView(ECombatCameraMode::NotYourTurn, ETurnViewStyle::OverTheShoulder, Frame), TURN_TEST_LOCATION_TOLERANCE));
+			TestFalse(TEXT("single target: straight behind the enemy"),
+					  FCombatCameraRules::PlanTurnChange(false, false, ECombatCameraMode::NotYourTurn, ETurnViewStyle::OverTheShoulder, Frame).bWideBeat);
 		});
 	});
 
@@ -1013,16 +1072,16 @@ void FCombatCameraDirectorSpec::Define()
 		TestEqual(TEXT("first turn: at once"), Director->GetHandoverCount(), 1);
 
 		// A turn starting inside the beat.
-		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Executor->OnActionStarted.Broadcast(Hero, BeatTestWideAction(Foe, SecondHero), 0);
 		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
-		TestTrue(TEXT("hero -> hero after an action: a wide beat"), Director->IsHandoverPending());
+		TestTrue(TEXT("hero -> hero after a multi-target action: a wide beat"), Director->IsHandoverPending());
 		TestEqual(TEXT("the beat holds the handover"), Director->GetHandoverCount(), 1);
 		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 3); // nobody acted in turn 2: no beat of its own
 		TestFalse(TEXT("the next turn ran the pending one"), Director->IsHandoverPending());
 		TestEqual(TEXT("the pending one once, then turn 3's own"), Director->GetHandoverCount(), 3);
 
 		// An action starting inside the beat.
-		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Executor->OnActionStarted.Broadcast(Hero, BeatTestWideAction(Foe, SecondHero), 0);
 		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 4);
 		TestTrue(TEXT("a wide beat again"), Director->IsHandoverPending());
 		Executor->OnActionStarted.Broadcast(SecondHero, FAction(), 0);
@@ -1066,14 +1125,14 @@ void FCombatCameraDirectorSpec::Define()
 		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
 		Orchestrator->OnActionRequested.Broadcast(Hero);
 		TestEqual(TEXT("a third action's ask: a return"), Director->GetSameTurnReturnCount(), 2);
-		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Executor->OnActionStarted.Broadcast(Hero, BeatTestWideAction(Foe, SecondHero), 0);
 		Orchestrator->OnActionRequested.Broadcast(SecondHero); // not the actor the camera follows
 		TestEqual(TEXT("another actor asked after Hero acted: no return"), Director->GetSameTurnReturnCount(), 2);
 		TestTrue(TEXT("still following Hero"), Director->GetViewedActor() == Hero);
 
 		// Only a turn change does the full move.
 		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
-		TestTrue(TEXT("hero -> hero after acting: the wide beat"), Director->IsHandoverPending());
+		TestTrue(TEXT("hero -> hero after a multi-target action: the wide beat"), Director->IsHandoverPending());
 		Orchestrator->OnActionRequested.Broadcast(SecondHero);
 		TestEqual(TEXT("a new turn's ask is no return"), Director->GetSameTurnReturnCount(), 2);
 
@@ -1115,7 +1174,7 @@ void FCombatCameraDirectorSpec::Define()
 		Director->SetViewerForTests(Viewer); // dev's viewer is the local player only (B-405 review)
 		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
 		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
-		Executor->OnActionStarted.Broadcast(Hero, FAction(), 0);
+		Executor->OnActionStarted.Broadcast(Hero, BeatTestWideAction(Foe, SecondHero), 0);
 		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
 		TestTrue(TEXT("a wide beat"), Director->IsHandoverPending());
 		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
@@ -1139,6 +1198,43 @@ void FCombatCameraDirectorSpec::Define()
 		Director->EndCombat();
 	});
 
+	It("goes straight to the next fighter after a single-target action, wide only after a multi-target one, an enemy's turn too (B-600g)", [this]()
+	{
+		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
+		UActionExecutor *Executor = TestWorld->GetSubsystem<UActionExecutor>();
+		APlayerController *Viewer = TestWorld->GetWorld() ? TestWorld->GetWorld()->SpawnActor<APlayerController>() : nullptr;
+		AActor *SecondHero = TestWorld->SpawnCombatant(FWoRTestWorld::NewCharacterData());
+		if (!TestTrue(TEXT("setup"), Director && Executor && Viewer && Hero && SecondHero && Foe))
+		{
+			return;
+		}
+		Viewer->SetAsLocalPlayerController(); // switches views mid-blend: see the B-401 case
+		Director->BeginCombat({Hero, SecondHero}, {Foe}, Executor);
+		Director->SetViewerForTests(Viewer);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 1);
+
+		FAction SingleTarget;
+		SingleTarget.Targets = {Foe};
+		Executor->OnActionStarted.Broadcast(Hero, SingleTarget, 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(SecondHero, 2);
+		TestFalse(TEXT("single target: no wide beat"), Director->IsHandoverPending());
+		TestEqual(TEXT("straight to the next hero's turn view"), Director->GetCurrentMode(), ECombatCameraMode::Turn);
+		TestEqual(TEXT("its handover at once"), Director->GetHandoverCount(), 2);
+
+		Executor->OnActionStarted.Broadcast(SecondHero, BeatTestWideAction(Foe, Hero), 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(Foe, 3);
+		TestTrue(TEXT("multi-target, then an enemy's turn: a wide beat"), Director->IsHandoverPending());
+		TestWorld->Tick(BEAT_TEST_TICKS_PAST_BEAT);
+		TestFalse(TEXT("the beat ended"), Director->IsHandoverPending());
+		TestEqual(TEXT("then the enemy's own turn view"), Director->GetCurrentMode(), ECombatCameraMode::NotYourTurn);
+
+		Executor->OnActionStarted.Broadcast(Foe, SingleTarget, 0);
+		Orchestrator->OnActorTurnStarted.Broadcast(Hero, 4);
+		TestFalse(TEXT("an enemy's single-target attack: no wide beat after it"), Director->IsHandoverPending());
+		Director->SetViewerForTests(nullptr); // before EndCombat: see the B-399 case (engine view-target recursion)
+		Director->EndCombat();
+	});
+
 	It("keeps the turn-view setting across a fight restart and on a new orchestrator (B-398, saved)", [this]()
 	{
 		UCombatCameraDirector *Director = Orchestrator ? Orchestrator->GetCameraDirector() : nullptr;
@@ -1147,7 +1243,7 @@ void FCombatCameraDirectorSpec::Define()
 		{
 			return;
 		}
-		Save->SetTurnViewStyle(ETurnViewStyle::CentredWide); // the default (D-074), whatever a loaded slot held
+		Save->SetTurnViewStyle(ETurnViewStyle::CentredWide); // a picked style, whatever a loaded slot held
 
 		Orchestrator->StartCombat({Hero}, {Foe});
 		TestEqual(TEXT("the first fight starts Centred Wide"), Director->GetTurnViewStyle(), ETurnViewStyle::CentredWide);
@@ -1173,8 +1269,25 @@ void FCombatCameraDirectorSpec::Define()
 		NextDirector->EndCombat();
 
 		Save->SetTurnViewStyle(static_cast<ETurnViewStyle>(TURN_TEST_UNKNOWN_STYLE));
-		TestEqual(TEXT("an unknown saved value reads as the default"), Save->GetTurnViewStyle(), ETurnViewStyle::CentredWide);
-		Save->SetTurnViewStyle(ETurnViewStyle::CentredWide);
+		TestEqual(TEXT("an unknown saved value reads as the default"), Save->GetTurnViewStyle(), ETurnViewStyle::OverTheShoulder);
+		Save->SetTurnViewStyle(ETurnViewStyle::OverTheShoulder); // the default (B-600g)
+	});
+
+	It("defaults the turn view to over the shoulder, an older save's stored style too (B-600g, Q-600g)", [this]()
+	{
+		TestEqual(TEXT("new settings"), USaveSubsystem::ReadTurnViewStyle(FSavedSettings()), ETurnViewStyle::OverTheShoulder);
+		FSavedSettings Older;
+		Older.TurnViewStyle = static_cast<uint8>(ETurnViewStyle::CentredWide); // the old default, stored before B-600g
+		TestEqual(TEXT("an older save's Centred Wide gives way"), USaveSubsystem::ReadTurnViewStyle(Older), ETurnViewStyle::OverTheShoulder);
+		Older.bTurnViewStylePicked = true; // picked again since
+		TestEqual(TEXT("a style picked since is kept"), USaveSubsystem::ReadTurnViewStyle(Older), ETurnViewStyle::CentredWide);
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (TestNotNull(TEXT("save"), Save))
+		{
+			Save->SetTurnViewStyle(ETurnViewStyle::Tactical);
+			TestEqual(TEXT("setting it marks it picked"), Save->GetTurnViewStyle(), ETurnViewStyle::Tactical);
+			Save->SetTurnViewStyle(ETurnViewStyle::OverTheShoulder);
+		}
 	});
 
 	It("starts a fight with the saved camera movement switch, and the switch writes it back (B-453b)", [this]()
