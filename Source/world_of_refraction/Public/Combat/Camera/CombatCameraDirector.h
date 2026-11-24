@@ -397,6 +397,8 @@ private:
 	TWeakObjectPtr<UCombatCameraComponent> ShotCamera;
 	FSkillCameraTuning ShotTuning;
 	bool bShotRanged = false;
+	/** B-600: the playing pattern's camera style (Standard for an enemy's skill). */
+	ESkillCameraStyle ShotStyle = ESkillCameraStyle::Standard;
 	bool bShotImpactShown = false;
 	bool bShotCastShown = false;
 	uint64 ShotStartFrame = 0;

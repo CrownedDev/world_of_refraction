@@ -157,6 +157,10 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
     FSkillCameraTuning CameraTuning;
 
+    /** B-600 (Q-600): the camera style this skill's shots follow. Standard is the attack camera every skill had before. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Presentation")
+    ESkillCameraStyle CameraStyle = ESkillCameraStyle::Standard;
+
     // ==================== EXECUTION ====================
 
     /** DESCRIPTIVE tag (D3): how this skill executes, for UI / AI filtering /

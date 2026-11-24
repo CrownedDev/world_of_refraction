@@ -1,0 +1,156 @@
+// SkillCameraStyleSpec.cpp
+// B-600 (Q-600, Crown 2026-11-24): each skill picks a camera style. The shot order per style: which moments play a
+// shot, which cut, which hold still, the Ranged Release creep and punch, and that Standard is today's camera. Rule
+// (Persona 5, Expedition 33; study R5, R6, R8): never change size along one axis; a size change comes with a cut.
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+#include "Misc/AutomationTest.h"
+#include "Combat/Camera/CombatCameraTypes.h"
+#include "Combat/Camera/CameraFramingChecks.h"
+#include "Skills/Definitions/AbilityData.h"
+
+namespace
+{
+	const FVector STYLE_TEST_TARGET(800.0f, 0.0f, 0.0f);
+	const FVector STYLE_TEST_SECOND_TARGET(800.0f, 400.0f, 0.0f);
+	constexpr float STYLE_TEST_MAX_CREEP = 30.0f;
+	constexpr float STYLE_TEST_PUNCH_RANGE = 1.0f;
+	constexpr float STYLE_TEST_LOW_CAMERA_HEIGHT = 100.0f; // a hero angle sits below the fighters' chests
+
+	FCameraShotContext StyleTestContext()
+	{
+		FCameraShotContext Context;
+		Context.Targets.Add(STYLE_TEST_TARGET);
+		return Context;
+	}
+
+	bool IsStill(const FCameraShot &Shot) { return Shot.Start.Equals(Shot.End); }
+
+	float Travel(const FCameraShot &Shot) { return static_cast<float>(FVector::Dist(Shot.Start.GetLocation(), Shot.End.GetLocation())); }
+}
+
+BEGIN_DEFINE_SPEC(FSkillCameraStyleSpec, "WoR.Combat.Camera.Styles", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
+END_DEFINE_SPEC(FSkillCameraStyleSpec)
+
+void FSkillCameraStyleSpec::Define()
+{
+	const FSkillCameraTuning Tuning;
+
+	It("defaults a skill to Standard, today's camera, and keeps Standard for an enemy", [this]()
+	{
+		UAbilityData *Skill = NewObject<UAbilityData>(GetTransientPackage());
+		TestEqual(TEXT("a new skill is Standard"), Skill->CameraStyle, ESkillCameraStyle::Standard);
+		Skill->CameraStyle = ESkillCameraStyle::RangedRelease;
+		TestEqual(TEXT("a party member's skill plays its style"), FCombatCameraRules::GetCameraStyle(Skill, false), ESkillCameraStyle::RangedRelease);
+		TestEqual(TEXT("an enemy's plays Standard"), FCombatCameraRules::GetCameraStyle(Skill, true), ESkillCameraStyle::Standard);
+		TestEqual(TEXT("no skill: Standard"), FCombatCameraRules::GetCameraStyle(nullptr, false), ESkillCameraStyle::Standard);
+		TestTrue(TEXT("a styled skill plays shots"), FCombatCameraRules::UsesShotPatterns(Skill));
+	});
+
+	It("plays Standard exactly as ComputeShot (Cinematic too, with no sequence)", [this, Tuning]()
+	{
+		const FCameraShotContext Context = StyleTestContext();
+		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::Cinematic})
+		{
+			for (const ECameraShotMoment Moment : {ECameraShotMoment::WindUp, ECameraShotMoment::Cast, ECameraShotMoment::Impact})
+			{
+				const TOptional<FCameraShot> Styled = FCombatCameraRules::ComputeStyledShot(Style, Moment, Context, Tuning);
+				const FCameraShot Plain = FCombatCameraRules::ComputeShot(Moment, Context, Tuning);
+				TestTrue(FString::Printf(TEXT("%s %s is today's shot"), *UEnum::GetValueAsString(Style), *UEnum::GetValueAsString(Moment)),
+						 Styled.IsSet() && Styled->End.Equals(Plain.End) && Styled->Start.Equals(Plain.Start) && !Styled->bCut &&
+							 FMath::IsNearlyEqual(Styled->BlendSeconds, Plain.BlendSeconds));
+			}
+		}
+	});
+
+	It("Melee Rush: rushes in, no Cast shot, cuts to a held side two-shot on the hit", [this, Tuning]()
+	{
+		const FCameraShotContext Context = StyleTestContext();
+		TestTrue(TEXT("precondition: camera movement on (the rush is allowed)"), Context.bAllowRush);
+		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::WindUp, Context, Tuning);
+		TestTrue(TEXT("a rush (motion blur), one way in"), WindUp.IsSet() && WindUp->MotionBlur > 0.0f && Travel(*WindUp) > 0.0f);
+		TestFalse(TEXT("no Cast pull-back"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Cast, Context, Tuning).IsSet());
+		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Impact, Context, Tuning);
+		TestTrue(TEXT("the hit cuts and holds"), Hit.IsSet() && Hit->bCut && IsStill(*Hit));
+		TestTrue(TEXT("both fighters in the two-shot"), Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster) &&
+															CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
+		TestTrue(TEXT("its punch passes (FOV back to the default)"), Hit.IsSet() && FMath::IsNearlyEqual(Hit->FieldOfView, FCombatCameraRules::DefaultFieldOfView));
+	});
+
+	It("Ranged Release: a held shoulder shot, a cut to a still two-shot at the release, a punch in place on the hit", [this, Tuning]()
+	{
+		const FCameraShotContext Context = StyleTestContext();
+		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::RangedRelease, ECameraShotMoment::WindUp, Context, Tuning);
+		TestTrue(TEXT("a cut to the shoulder"), WindUp.IsSet() && WindUp->bCut);
+		TestTrue(FString::Printf(TEXT("it creeps no more than %.0f cm"), STYLE_TEST_MAX_CREEP), WindUp.IsSet() && Travel(*WindUp) <= STYLE_TEST_MAX_CREEP + KINDA_SMALL_NUMBER);
+		TestTrue(TEXT("FOV 90"), WindUp.IsSet() && FMath::IsNearlyEqual(WindUp->FieldOfView, FCombatCameraRules::DefaultFieldOfView));
+		TestTrue(TEXT("no rush blur"), WindUp.IsSet() && FMath::IsNearlyZero(WindUp->MotionBlur));
+
+		FCameraShotContext Flying = Context;
+		Flying.Projectile = FVector(400.0f, 0.0f, 100.0f);
+		const TOptional<FCameraShot> Cast = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::RangedRelease, ECameraShotMoment::Cast, Flying, Tuning);
+		TestTrue(TEXT("the release cuts to a dead-still shot"), Cast.IsSet() && Cast->bCut && IsStill(*Cast) && FMath::IsNearlyZero(Cast->ShakeScale));
+		TestTrue(TEXT("the projectile's path is in it"), Cast.IsSet() && CameraFraming::IsOnScreen(Cast->End, Cast->FieldOfView, CameraFraming::DEFAULT_ASPECT, Flying.Projectile.GetValue()));
+
+		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::RangedRelease, ECameraShotMoment::Impact, Context, Tuning);
+		TestTrue(TEXT("the hit stays in the same shot (no swing)"), Hit.IsSet() && Cast.IsSet() && Hit->End.Equals(Cast->End) && !Hit->bCut && IsStill(*Hit));
+		TestTrue(TEXT("a small shake"), Hit.IsSet() && Hit->ShakeScale > 0.0f);
+		if (Hit.IsSet())
+		{
+			const float Middle = FCombatCameraRules::GetPunchedFieldOfView(*Hit, Hit->FovPunchSeconds * 0.5f);
+			const float After = FCombatCameraRules::GetPunchedFieldOfView(*Hit, Hit->FovPunchSeconds);
+			TestTrue(FString::Printf(TEXT("FOV 90 -> %.1f -> %.1f"), Middle, After), Hit->FovPunch > 0.0f && Middle < FCombatCameraRules::DefaultFieldOfView - STYLE_TEST_PUNCH_RANGE &&
+																						FMath::IsNearlyEqual(After, FCombatCameraRules::DefaultFieldOfView));
+		}
+	});
+
+	It("Heavy Wind-Up: a slow one-way push, no Cast shot, a cut to a held low hero angle on the hit", [this, Tuning]()
+	{
+		const FCameraShotContext Context = StyleTestContext();
+		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::WindUp, Context, Tuning);
+		const FCameraShot Plain = FCombatCameraRules::ComputeShot(ECameraShotMoment::WindUp, Context, Tuning);
+		TestTrue(TEXT("precondition: camera movement on (so no rush is a real choice)"), Context.bAllowRush);
+		TestTrue(TEXT("a push, no rush, slower than the plain wind-up"), WindUp.IsSet() && FMath::IsNearlyZero(WindUp->MotionBlur) && Travel(*WindUp) > 0.0f &&
+																			 WindUp->BlendSeconds > Plain.BlendSeconds);
+		TestFalse(TEXT("no Cast shot"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::Cast, Context, Tuning).IsSet());
+		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::Impact, Context, Tuning);
+		TestTrue(TEXT("the hit cuts and holds"), Hit.IsSet() && Hit->bCut && IsStill(*Hit));
+		TestTrue(TEXT("low, looking up"), Hit.IsSet() && Hit->End.GetLocation().Z - Context.Caster.Z < STYLE_TEST_LOW_CAMERA_HEIGHT && Hit->End.GetRotation().Rotator().Pitch > 0.0f);
+		TestTrue(TEXT("both fighters in frame"), Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster) &&
+													 CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
+	});
+
+	It("Area Sweep: one wide still shot of the attacker and every target, held through the hit", [this, Tuning]()
+	{
+		FCameraShotContext Context = StyleTestContext();
+		Context.Targets.Add(STYLE_TEST_SECOND_TARGET);
+		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::AreaSweep, ECameraShotMoment::WindUp, Context, Tuning);
+		TestTrue(TEXT("a cut to a still shot"), WindUp.IsSet() && WindUp->bCut && IsStill(*WindUp) && FMath::IsNearlyZero(WindUp->ShakeScale));
+		if (WindUp.IsSet())
+		{
+			TestTrue(TEXT("the attacker in frame"), CameraFraming::IsOnScreen(WindUp->End, WindUp->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster));
+			for (const FVector &Target : Context.Targets)
+			{
+				TestTrue(TEXT("every target in frame"), CameraFraming::IsOnScreen(WindUp->End, WindUp->FieldOfView, CameraFraming::DEFAULT_ASPECT, Target));
+			}
+		}
+		for (const ECameraShotMoment Moment : {ECameraShotMoment::Cast, ECameraShotMoment::Impact, ECameraShotMoment::Spread})
+		{
+			TestFalse(TEXT("then it holds"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::AreaSweep, Moment, Context, Tuning).IsSet());
+		}
+	});
+
+	It("drops a style's punch while the viewer defends", [this, Tuning]()
+	{
+		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::RangedRelease, ECameraShotMoment::Impact, StyleTestContext(), Tuning);
+		if (!TestTrue(TEXT("hit shot"), Hit.IsSet()))
+		{
+			return;
+		}
+		const FCameraShot Steady = FCombatCameraRules::SteadyForDefence(*Hit, true);
+		TestTrue(TEXT("no punch, no shake"), FMath::IsNearlyZero(Steady.FovPunch) && FMath::IsNearlyZero(Steady.FovPunchSeconds) && FMath::IsNearlyZero(Steady.ShakeScale));
+	});
+}
+
+#endif // WITH_DEV_AUTOMATION_TESTS

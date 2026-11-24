@@ -80,6 +80,30 @@ namespace CombatCameraShots
 	constexpr float NamedAttackSeconds = 1.0f;
 }
 
+namespace CombatCameraStyles
+{
+	// B-600 (Q-600; Persona 5, Expedition 33, study R5/R6/R8). TODO: tune in PIE (Crown). Distances in cm, times in s.
+	/** Every punch narrows and comes back this fast (90 -> 85 -> 90). */
+	constexpr float HitFovPunchSeconds = 0.1f;
+	// Ranged Release: the low over-the-shoulder hold, creeping in no more than ReleaseCreep.
+	constexpr float ReleaseShoulderBack = 250.0f;
+	constexpr float ReleaseShoulderSide = 70.0f;
+	constexpr float ReleaseShoulderHeight = 90.0f;
+	constexpr float ReleaseCreep = 30.0f;
+	constexpr float ReleaseCreepSeconds = 1.5f;
+	constexpr float ReleaseHitShake = 0.15f;
+	// Heavy Wind-Up: the charge's push is slower than the plain wind-up's.
+	constexpr float HeavyPushSeconds = 2.0f;
+	// Heavy Wind-Up: the low hero angle, the side two-shot's place at shin height, looking up at the attacker.
+	constexpr float HeroHeight = 30.0f;
+	constexpr float HeroLookHeight = 110.0f;
+	// Area Sweep: wide and higher, back from everyone's centre past the attacker.
+	constexpr float AreaBack = 700.0f;
+	constexpr float AreaHeight = 450.0f;
+	/** Extra distance back per cm the farthest fighter stands from the centre. */
+	constexpr float AreaPullback = 1.6f;
+}
+
 namespace CombatCameraTargetView
 {
 	// B-400 (study R3 / §9, Q-400). TODO: tune in PIE.
@@ -561,13 +585,29 @@ FCameraShot FCombatCameraRules::SteadyForDefence(const FCameraShot &Shot, bool b
 		Out.ShakeScale = 0.0f;
 		Out.FieldOfView = DefaultFieldOfView;
 		Out.MotionBlur = 0.0f; // B-403 review: no melee rush either (no blur, and the director keeps the camera where it is)
+		Out.FovPunch = 0.0f;   // B-600
+		Out.FovPunchSeconds = 0.0f;
 	}
 	return Out;
 }
 
-bool FCombatCameraRules::UsesShotPatterns(const USkillDataBase *Skill)
+bool FCombatCameraRules::UsesShotPatterns(const USkillDataBase *Skill, bool bCasterIsEnemy)
 {
-	return Skill && Skill->CameraSequence.IsNull();
+	if (!Skill)
+	{
+		return false;
+	}
+	return Skill->CameraSequence.IsNull() || !PlaysStandardShots(GetCameraStyle(Skill, bCasterIsEnemy));
+}
+
+bool FCombatCameraRules::PlaysStandardShots(ESkillCameraStyle Style)
+{
+	return Style == ESkillCameraStyle::Standard || Style == ESkillCameraStyle::Cinematic;
+}
+
+ESkillCameraStyle FCombatCameraRules::GetCameraStyle(const USkillDataBase *Skill, bool bCasterIsEnemy)
+{
+	return Skill && !bCasterIsEnemy ? Skill->CameraStyle : ESkillCameraStyle::Standard;
 }
 
 ECameraShotMoment FCombatCameraRules::ImpactMomentFor(int32 TargetCount)
@@ -667,6 +707,152 @@ FCameraShot FCombatCameraRules::ComputeShot(ECameraShotMoment Moment, const FCam
 	}
 	}
 	return Shot;
+}
+
+namespace
+{
+	/** A shot that cuts to Base's end and holds there. */
+	FCameraShot CutAndHold(FCameraShot Shot)
+	{
+		Shot.Start = Shot.End;
+		Shot.BlendSeconds = 0.0f;
+		Shot.bCut = true;
+		return Shot;
+	}
+
+	/** Impact's static FOV narrowing as a punch that comes back (B-600: the shot holds, the punch passes). */
+	FCameraShot WithPassingPunch(FCameraShot Shot)
+	{
+		Shot.FovPunch = FCombatCameraRules::DefaultFieldOfView - Shot.FieldOfView;
+		Shot.FovPunchSeconds = Shot.FovPunch > 0.0f ? CombatCameraStyles::HitFovPunchSeconds : 0.0f;
+		Shot.FieldOfView = FCombatCameraRules::DefaultFieldOfView;
+		return Shot;
+	}
+}
+
+TOptional<FCameraShot> FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle Style, ECameraShotMoment Moment, const FCameraShotContext &Context,
+															 const FSkillCameraTuning &Tuning)
+{
+	using namespace CombatCameraStyles;
+	const bool bHit = Moment == ECameraShotMoment::Impact || Moment == ECameraShotMoment::Spread;
+	const FVector Caster = Context.Caster;
+	FVector TargetCentre = Caster + FVector::ForwardVector;
+	if (!Context.Targets.IsEmpty())
+	{
+		TargetCentre = FVector::ZeroVector;
+		for (const FVector &Target : Context.Targets)
+		{
+			TargetCentre += Target;
+		}
+		TargetCentre /= Context.Targets.Num();
+	}
+	const FVector Forward = (TargetCentre - Caster).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector);
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, Forward);
+	const float SideSign = Tuning.Side == ECameraShotSide::Left ? -1.0f : 1.0f;
+	const float Scale = FMath::Max(Tuning.DistanceScale, UE_KINDA_SMALL_NUMBER);
+
+	switch (Style)
+	{
+	case ESkillCameraStyle::MeleeRush:
+	{
+		if (Moment == ECameraShotMoment::WindUp)
+		{
+			FCameraShotContext Melee = Context;
+			Melee.bRanged = false; // the rush (unless camera movement is off), timed to the dash by the director
+			return ComputeShot(ECameraShotMoment::WindUp, Melee, Tuning);
+		}
+		if (bHit)
+		{
+			return CutAndHold(WithPassingPunch(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)));
+		}
+		return {}; // no Cast pull-back
+	}
+	case ESkillCameraStyle::RangedRelease:
+	{
+		if (Moment == ECameraShotMoment::WindUp || Moment == ECameraShotMoment::NamedAttack)
+		{
+			FCameraShot Shot;
+			Shot.FieldOfView = DefaultFieldOfView;
+			const FVector Shoulder = Caster - Forward * ReleaseShoulderBack * Scale + Right * ReleaseShoulderSide * SideSign * Scale +
+									 FVector::UpVector * ReleaseShoulderHeight * Scale;
+			Shot.Start = LookFrom(Shoulder, TargetCentre);
+			Shot.End = LookFrom(Shoulder + Forward * ReleaseCreep, TargetCentre);
+			Shot.BlendSeconds = ReleaseCreepSeconds;
+			Shot.bCut = true;
+			return Shot;
+		}
+		// The release and the hit share one still side two-shot: the projectile crosses it, the hit punches in it.
+		FCameraShotContext Still = Context;
+		Still.Projectile.Reset();
+		FCameraShot TwoShot = CutAndHold(ComputeShot(ECameraShotMoment::Impact, Still, Tuning));
+		TwoShot.FieldOfView = DefaultFieldOfView;
+		TwoShot.ShakeScale = 0.0f;
+		if (bHit)
+		{
+			TwoShot.bCut = false; // already there: the punch and the shake only
+			TwoShot.FovPunch = (Context.bCritical ? CombatCameraShots::CritFovPunch : CombatCameraShots::ImpactFovPunch) * Tuning.ShakeScale;
+			TwoShot.FovPunchSeconds = HitFovPunchSeconds;
+			TwoShot.ShakeScale = ReleaseHitShake * Tuning.ShakeScale;
+		}
+		return TwoShot;
+	}
+	case ESkillCameraStyle::HeavyWindUp:
+	{
+		if (Moment == ECameraShotMoment::WindUp || Moment == ECameraShotMoment::NamedAttack)
+		{
+			FCameraShotContext Charge = Context;
+			Charge.bAllowRush = false; // the slow push, one way
+			FCameraShot Push = ComputeShot(ECameraShotMoment::WindUp, Charge, Tuning);
+			Push.BlendSeconds = HeavyPushSeconds;
+			return Push;
+		}
+		if (bHit)
+		{
+			// The side two-shot's place dropped low, looking up at the fighters' chests: both stay in frame.
+			FCameraShot Hero = WithPassingPunch(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)); // its punch and shake
+			FVector Low = Hero.End.GetLocation();
+			Low.Z = Caster.Z + HeroHeight;
+			Hero.End = LookFrom(Low, (Caster + TargetCentre) * 0.5f + FVector::UpVector * HeroLookHeight);
+			return CutAndHold(Hero);
+		}
+		return {};
+	}
+	case ESkillCameraStyle::AreaSweep:
+	{
+		if (Moment != ECameraShotMoment::WindUp && Moment != ECameraShotMoment::NamedAttack)
+		{
+			return {}; // the wide shot holds to the end
+		}
+		FVector Centre = Caster;
+		for (const FVector &Target : Context.Targets)
+		{
+			Centre += Target;
+		}
+		Centre /= Context.Targets.Num() + 1;
+		float Spread = static_cast<float>(FVector::Dist2D(Caster, Centre));
+		for (const FVector &Target : Context.Targets)
+		{
+			Spread = FMath::Max(Spread, static_cast<float>(FVector::Dist2D(Target, Centre)));
+		}
+		FCameraShot Wide;
+		Wide.FieldOfView = DefaultFieldOfView;
+		Wide.End = LookFrom(Centre - Forward * (AreaBack + Spread * AreaPullback) * Scale + FVector::UpVector * AreaHeight * Scale, Centre);
+		return CutAndHold(Wide);
+	}
+	case ESkillCameraStyle::Cinematic:
+	case ESkillCameraStyle::Standard:
+	default:
+		return ComputeShot(Moment, Context, Tuning);
+	}
+}
+
+float FCombatCameraRules::GetPunchedFieldOfView(const FCameraShot &Shot, float Elapsed)
+{
+	if (Shot.FovPunchSeconds <= 0.0f || Elapsed < 0.0f || Elapsed >= Shot.FovPunchSeconds)
+	{
+		return Shot.FieldOfView;
+	}
+	return Shot.FieldOfView - Shot.FovPunch * FMath::Sin(UE_PI * Elapsed / Shot.FovPunchSeconds);
 }
 
 ECameraShotMoment FCombatCameraRules::OpeningMomentFor(const FSkillCameraTuning &Tuning, bool bCasterIsEnemy)

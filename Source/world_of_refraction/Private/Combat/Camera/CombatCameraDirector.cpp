@@ -661,7 +661,7 @@ void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction 
 		SkillCinematics, bCameraMovementOff, OpposingCombatants.Contains(Executor), bEnemySkillCinematics);
 	const USkillDataBase *Skill = GetActionSkill(Action);
 	const bool bSkillAction = Action.ActionType == EActionType::Spell || Action.ActionType == EActionType::Ability;
-	if (bPlayCinematic && bSkillAction && FCombatCameraRules::UsesShotPatterns(Skill))
+	if (bPlayCinematic && bSkillAction && FCombatCameraRules::UsesShotPatterns(Skill, OpposingCombatants.Contains(Executor)))
 	{
 		// B-371 (Q-371): code-built shots unless the skill has its own sequence.
 		if (!StartShotPattern(Executor, Action, Skill) && bNewActor)
@@ -768,8 +768,16 @@ void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, 
 			return;
 		}
 		const ECameraShotMoment Moment = FCombatCameraRules::ImpactMomentFor(ShotTargets.Num());
-		UCombatCameraComponent *Camera = IsValid(Target) ? Target->FindComponentByClass<UCombatCameraComponent>() : nullptr;
-		PlayShot(Camera ? Camera : ShotCamera.Get(), Moment, FCombatCameraRules::ComputeShot(Moment, BuildShotContext(bCritical), ShotTuning));
+		const TOptional<FCameraShot> HitShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Moment, BuildShotContext(bCritical), ShotTuning);
+		if (!HitShot.IsSet())
+		{
+			return; // B-600: the style's shot holds through the hit
+		}
+		// B-600: a style's hit shot stays on the caster's camera (a still shot never hops cameras); Standard as before.
+		UCombatCameraComponent *Camera = FCombatCameraRules::PlaysStandardShots(ShotStyle) && IsValid(Target)
+											 ? Target->FindComponentByClass<UCombatCameraComponent>()
+											 : nullptr;
+		PlayShot(Camera ? Camera : ShotCamera.Get(), Moment, HitShot.GetValue());
 		return;
 	}
 	// A hit resolved on the frame the cinematic started (no montage to wait on) would cut it
@@ -1236,9 +1244,12 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 	bShotRanged = Action.ActionType == EActionType::Spell || Skill->ExecutionType == EAbilityExecutionType::Ranged;
 	ShotStartFrame = GFrameCounter;
 	// B-406: an enemy's named attack opens on a front shot of the enemy, everything else on the wind-up.
-	const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(ShotTuning, OpposingCombatants.Contains(Caster));
+	const bool bEnemy = OpposingCombatants.Contains(Caster);
+	ShotStyle = FCombatCameraRules::GetCameraStyle(Skill, bEnemy); // B-600
+	const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(ShotTuning, bEnemy);
 	const FCameraShotContext Context = BuildShotContext(false);
-	FCameraShot OpeningShot = FCombatCameraRules::ComputeShot(Opening, Context, ShotTuning);
+	FCameraShot OpeningShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, Opening, Context, ShotTuning)
+								  .Get(FCombatCameraRules::ComputeShot(Opening, Context, ShotTuning));
 	if (Opening == ECameraShotMoment::WindUp && OpeningShot.MotionBlur > 0.0f) // B-403: the melee rush
 	{
 		OpeningShot = TimeRushToApproach(OpeningShot, Context, ShotTuning, Caster, ShotTargets.IsEmpty() ? nullptr : ShotTargets[0].Get(), Skill);
@@ -1261,8 +1272,15 @@ void UCombatCameraDirector::HandleProjectileLaunched(AActor *Caster, AActor *Pro
 		return;
 	}
 	bShotCastShown = true; // review fix: once per pattern, followed or not
-	ShotProjectile = ShotTuning.bFollowProjectile ? Projectile : nullptr;
-	PlayShot(ShotCamera.Get(), ECameraShotMoment::Cast, FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, BuildShotContext(false), ShotTuning));
+	const TOptional<FCameraShot> CastShot = FCombatCameraRules::ComputeStyledShot(ShotStyle, ECameraShotMoment::Cast, BuildShotContext(false), ShotTuning);
+	if (!CastShot.IsSet())
+	{
+		return; // B-600: no Cast pull-back in this style; the wind-up's shot holds
+	}
+	// B-600: only Standard follows the projectile; a style's release shot is still, and the projectile crosses it.
+	const bool bFollows = ShotTuning.bFollowProjectile && FCombatCameraRules::PlaysStandardShots(ShotStyle);
+	ShotProjectile = bFollows ? Projectile : nullptr;
+	PlayShot(ShotCamera.Get(), ECameraShotMoment::Cast, CastShot.GetValue());
 }
 
 namespace
@@ -1324,7 +1342,8 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	ShotMoment = Moment;
 	// B-402 (R10, R11): no shake and no FOV punch while the viewer defends; a held punch is dropped, not replayed (Q-402).
 	const bool bDefending = IsViewerDefending();
-	if (bDefending && (Shot.ShakeScale > 0.0f || Shot.MotionBlur > 0.0f || !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
+	if (bDefending && (Shot.ShakeScale > 0.0f || Shot.MotionBlur > 0.0f || Shot.FovPunch > 0.0f ||
+					   !FMath::IsNearlyEqual(Shot.FieldOfView, FCombatCameraRules::DefaultFieldOfView)))
 	{
 		++DefencePunchesDropped;
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] %s shot held steady: the viewer is defending"), *UEnum::GetValueAsString(Moment));
@@ -1334,8 +1353,8 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	ACameraActor *Existing = Camera->GetCameraActor();
 	const bool bAlreadyViewed = Existing && Viewer->GetViewTarget() == Existing;
 	// Move from where the camera is (no jump), except the melee rush (B-403, R5): it cuts to its own start, 420 cm back,
-	// and pushes in from there, so it reads the same whatever the turn view was.
-	if (bAlreadyViewed && ActiveShot.MotionBlur <= 0.0f)
+	// and pushes in from there, so it reads the same whatever the turn view was. B-600: a style's cut cuts too.
+	if (bAlreadyViewed && ActiveShot.MotionBlur <= 0.0f && !ActiveShot.bCut)
 	{
 		ActiveShot.Start = Existing->GetActorTransform();
 	}
@@ -1349,7 +1368,8 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	const bool bMoves = !ActiveShot.Start.Equals(ActiveShot.End) || ShotProjectile.IsValid();
 	if (!bAlreadyViewed)
 	{
-		Viewer->SetViewTargetWithBlend(CameraActor, bMoves ? CombatCameraTiming::ShotCutSeconds : ActiveShot.BlendSeconds);
+		const float ViewBlend = ActiveShot.bCut ? 0.0f : bMoves ? CombatCameraTiming::ShotCutSeconds : ActiveShot.BlendSeconds; // B-600: a cut is instant
+		Viewer->SetViewTargetWithBlend(CameraActor, ViewBlend);
 	}
 	// B-453a (D-190): the player's screen shake setting scales the shot's shake (Off plays none).
 	const USaveSubsystem *ShakeSave = FindSaveSubsystem(this);
@@ -1358,7 +1378,7 @@ bool UCombatCameraDirector::PlayShot(UCombatCameraComponent *Camera, ECameraShot
 	{
 		Viewer->PlayerCameraManager->StartCameraShake(ImpactShake, ShakeScale);
 	}
-	if (bMoves && World)
+	if ((bMoves || ActiveShot.FovPunchSeconds > 0.0f) && World) // B-600: a punch steps too
 	{
 		World->GetTimerManager().SetTimer(ShotTimer, this, &UCombatCameraDirector::StepShot, CombatCameraTiming::ShotStepSeconds, true);
 	}
@@ -1381,6 +1401,8 @@ void UCombatCameraDirector::StepShot()
 	{
 		ActiveShot.End = FCombatCameraRules::ComputeShot(ECameraShotMoment::Cast, BuildShotContext(false), ShotTuning).End;
 	}
+	CameraActor->GetCameraComponent()->SetFieldOfView(FCombatCameraRules::GetPunchedFieldOfView(ActiveShot, ShotElapsed)); // B-600
+	const bool bPunching = ShotElapsed < ActiveShot.FovPunchSeconds;
 	const float Moving = ShotElapsed - ActiveShot.DelaySeconds;
 	if (Moving < 0.0f)
 	{
@@ -1389,7 +1411,7 @@ void UCombatCameraDirector::StepShot()
 	// B-424 review: a zero blend is a cut, not a one-step ease.
 	const float Alpha = ActiveShot.BlendSeconds > 0.0f ? Moving / FMath::Max(ActiveShot.BlendSeconds, CombatCameraTiming::ShotStepSeconds) : 1.0f;
 	CameraActor->SetActorTransform(FCombatCameraRules::BlendShot(ActiveShot, Alpha));
-	if (Alpha >= 1.0f && !bFollowing)
+	if (Alpha >= 1.0f && !bFollowing && !bPunching)
 	{
 		World->GetTimerManager().ClearTimer(ShotTimer); // the shot holds where it ended
 		SetShotMotionBlur(CameraActor, 0.0f);			// B-403: the rush is over

@@ -8,6 +8,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Save/SaveSubsystem.h"
+#include "Skills/Definitions/SkillDataBase.h"
 #include "Combat/WoRFightSubsystem.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
 #include "EngineUtils.h"
@@ -235,6 +236,20 @@ namespace
 				}
 			}));
 
+	FAutoConsoleCommand GCombatCameraStylePreviewCmd(
+		TEXT("wor.Camera.StylePreview"),
+		TEXT("DEBUG (B-600): print every skill camera style's shots in order for a sample fight (cut or blend, still or moving, FOV punch). No fight needed."),
+		FConsoleCommandDelegate::CreateLambda(
+			[]()
+			{
+				TArray<FString> Lines;
+				for (int32 Style = 0; Style <= static_cast<int32>(ESkillCameraStyle::Cinematic); ++Style)
+				{
+					Lines.Add(UCombatCameraDebug::GetCameraStyleShotOrderString(static_cast<ESkillCameraStyle>(Style)));
+				}
+				UE_LOG(LogWoRCombat, Display, TEXT("[CombatCamera] Style preview:\n%s"), *FString::Join(Lines, TEXT("\n")));
+			}));
+
 	FAutoConsoleCommandWithWorldAndArgs GCombatCameraMenuDepthCmd = MakeCameraSettingCmd(
 		TEXT("wor.Camera.MenuDepth"),
 		TEXT("DEBUG (B-399): what the command menu sends. 1 = a sub-menu is open (one step closer and lower), 0 = the main menu. ")
@@ -257,6 +272,45 @@ namespace
 				Menu->CycleHighlightedTarget(Args.Num() > 0 ? FCString::Atoi(*Args[0]) : 1);
 				UCombatCameraDebug::PrintCameraState(World);
 			}));
+}
+
+FString UCombatCameraDebug::GetCameraStyleShotOrderString(ESkillCameraStyle Style)
+{
+	FCameraShotContext Context;
+	Context.Targets.Add(SHOT_PREVIEW_TARGET);
+	const FSkillCameraTuning Tuning;
+	TArray<FString> Parts;
+	for (const ECameraShotMoment Moment : {ECameraShotMoment::WindUp, ECameraShotMoment::Cast, ECameraShotMoment::Impact})
+	{
+		const TOptional<FCameraShot> Shot = FCombatCameraRules::ComputeStyledShot(Style, Moment, Context, Tuning);
+		FString Line = TEXT("holds");
+		if (Shot.IsSet())
+		{
+			const FCameraShot &Value = Shot.GetValue();
+			const bool bStill = Value.Start.Equals(Value.End);
+			Line = FString::Printf(TEXT("%s, %s%s"), Value.bCut ? TEXT("cut") : TEXT("blend"),
+								   bStill ? TEXT("still") : *FString::Printf(TEXT("moves %.0f cm over %.2f s"), FVector::Dist(Value.Start.GetLocation(), Value.End.GetLocation()), Value.BlendSeconds),
+								   Value.FovPunchSeconds > 0.0f ? *FString::Printf(TEXT(", fov punch %.0f in %.2f s"), Value.FovPunch, Value.FovPunchSeconds) : TEXT(""));
+		}
+		Parts.Add(FString::Printf(TEXT("%s: %s"), *UEnum::GetDisplayValueAsText(Moment).ToString(), *Line));
+	}
+	return FString::Printf(TEXT("%s | %s"), *UEnum::GetDisplayValueAsText(Style).ToString(), *FString::Join(Parts, TEXT(" | ")));
+}
+
+FString UCombatCameraDebug::GetSkillCameraStyleString(const USkillDataBase *Skill)
+{
+	if (!Skill)
+	{
+		return TEXT("no skill");
+	}
+	return FString::Printf(TEXT("%s: style %s%s -> %s"), *Skill->GetName(), *UEnum::GetDisplayValueAsText(Skill->CameraStyle).ToString(),
+						   Skill->CameraSequence.IsNull() ? TEXT("") : TEXT(" (has a CameraSequence)"),
+						   *GetCameraStyleShotOrderString(Skill->CameraStyle));
+}
+
+void UCombatCameraDebug::PrintSkillCameraStyle(const USkillDataBase *Skill)
+{
+	UE_LOG(LogWoRCombat, Display, TEXT("[CombatCamera] %s"), *GetSkillCameraStyleString(Skill));
 }
 
 FString UCombatCameraDebug::GetCameraStateString(const UCombatCameraDirector *Director)
