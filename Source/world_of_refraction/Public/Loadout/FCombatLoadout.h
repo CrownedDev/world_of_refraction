@@ -238,9 +238,9 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     TArray<FApparelEntry> Apparel;
 
     // ==================== UNIFIED SLOTS (D-110, mirror) ====================
-    // B-302: the weapons and adapters above as one slot list (active loadout only), rebuilt by RebuildSlotsFromLegacy
-    // (the loadout component calls it whenever it announces a gear change). Read-only mirror until B-304 moves the
-    // getters onto it; wor.Loadout.CompareSlots prints both sides.
+    // B-302: the weapons and adapters above as one slot list. B-309d4: the writers change the slots and rebuild the old
+    // fields from them (RebuildLegacyFromSlots); the slots are built from the old fields only where a loadout is authored
+    // in them (a save, a preset, a spec: BuildSlotsFromOldFields). wor.Loadout.CompareSlots prints both sides.
 
     /** Order: the primary weapon or adapter, the secondary weapon, then the Resonator's adapters. */
     UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
@@ -254,10 +254,16 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     UPROPERTY(BlueprintReadOnly, Category = "Runtime|Slots")
     int32 ActiveAdapterSlot = INDEX_NONE;
 
-    /** Rebuilds Slots and the two active indices from the old fields, by the character's class: only a Generic's
-     *  bShowPrimary picks which of two weapons is in hand, and only a Resonator's adapter loadout has an active one
-     *  (everyone else's adapter is the primary one), as GetActiveWeapon / GetActiveRing / GetPrimaryRing. */
-    void RebuildSlotsFromLegacy(ECharacterClass CharacterClass);
+    /** B-309d4 (was RebuildSlotsFromLegacy): the load-time builder. Builds Slots, each in its WornGearLayout place, and
+     *  the two active indices from the old fields, by the character's class: only a Generic's bShowPrimary picks which
+     *  of two weapons is in hand, and only a Resonator's adapter loadout has an active one (everyone else's adapter is
+     *  the primary one), as GetActiveWeapon / GetActiveRing / GetPrimaryRing. For a loadout authored in the old fields
+     *  (a save, a preset, a spec) and EditSlots' way in. TODO: goes once B-309c (the save stores the slots) is merged
+     *  and B-309f moves the authored presets. */
+    void BuildSlotsFromOldFields(ECharacterClass CharacterClass);
+
+    /** B-309d4: the two active indices again from Slots (bShowPrimary or ActiveRingIndex moved); Slots unchanged. */
+    void RefreshActiveSlots(ECharacterClass CharacterClass);
 
     /** B-309d: the way back, the old fields rebuilt from Slots by each slot's Place (one direction, for the writers
      *  that move onto the slots): the primary weapon or adapter, the secondary weapon, the adapter loadout by index
@@ -268,12 +274,12 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     void RebuildLegacyFromSlots(ECharacterClass CharacterClass);
 
     /** B-309d2: the writers' way in. Brings Slots fully in step with the old fields (a full rebuild: an in-place edit of
-     *  an old entry is not something EnsureSlotsInStep sees), runs Edit, which changes the slots (and the fields that are
+     *  an old entry outside EditSlots is not otherwise seen), runs Edit, which changes the slots (and the fields that are
      *  not slots: the evolution primary, bShowPrimary, the type fields), then rebuilds the old fields from the slots.
      *  An old entry the class's mirror never holds (a weapon under a Ring or Evolution primary, a non-Generic's second
      *  weapon, a Caster's adapter loadout), or one its type would mirror but no slot held (picks with no gear, B-309d3), is
      *  kept as the edit left it; an edit that means to drop one clears it itself.
-     *  B-309d4 drops the first rebuild once nothing writes the old fields. */
+     *  The first build goes with BuildSlotsFromOldFields (B-309c, B-309f). */
     void EditSlots(ECharacterClass CharacterClass, TFunctionRef<void(FCombatLoadout &)> Edit);
 
     /** B-309d3: Edit on each weapon and adapter entry the loadout holds, with its WornGearLayout place (one of the two
@@ -291,12 +297,8 @@ struct WORLD_OF_REFRACTION_API FCombatLoadout
     /** B-309d2: takes the slot out of Place; false when the place was empty. */
     bool ClearSlotAt(int32 Place);
 
-    /** B-304: rebuilds the mirror only if it no longer holds the old fields' items (same items by asset and GUID, in
-     *  slot order), then refreshes the two active indices (bShowPrimary / ActiveRingIndex may have moved). Cheap:
-     *  a walk of at most the primary, the secondary and the adapters, no copies when in step. */
-    void EnsureSlotsInStep(ECharacterClass CharacterClass);
-
-    /** B-304: the old entry a slot mirrors, or null (the getters that still return the old entry types). */
+    /** B-304: the old entry behind a slot, by its place and kind (B-309d4), or null (the getters that still return the
+     *  old entry types). */
     const FWeaponLoadoutEntry *GetLegacyWeaponEntry(int32 SlotIndex) const;
     const FRingLoadoutEntry *GetLegacyRingEntry(int32 SlotIndex) const;
 
