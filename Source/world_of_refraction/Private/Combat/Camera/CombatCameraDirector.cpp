@@ -426,6 +426,10 @@ void UCombatCameraDirector::HandleMenuDepthChanged(AActor *Actor, int32 NewDepth
 	{
 		return;
 	}
+	if (bTurnStartDeferred && Actor && Actor == DeferredTurnActor.Get())
+	{
+		PlayDeferredTurnStart(); // B-600f review: the player is already in the held turn's menu, so its camera goes now
+	}
 	if (Actor != ViewedActor.Get())
 	{
 		UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatCamera] Menu depth %d for %s, not the viewed %s: ignored"), NewDepth,
@@ -505,6 +509,10 @@ void UCombatCameraDirector::HandleTargetHighlighted(AActor *Actor, AActor *Targe
 	if (!bInCombat)
 	{
 		return;
+	}
+	if (bTurnStartDeferred && Actor && Actor == DeferredTurnActor.Get())
+	{
+		PlayDeferredTurnStart(); // B-600f review: a pick inside the held turn: its camera goes now
 	}
 	if (Actor != ViewedActor.Get())
 	{
@@ -684,9 +692,9 @@ FString UCombatCameraDirector::GetTargetViewString() const
 	{
 		return FString::Printf(TEXT("target view: none (%d moves), %s"), TargetMoveCount, *Intel);
 	}
-	return FString::Printf(TEXT("target view: %s of %d (%s, %s, %d moves), %s"), *Target->GetName(), HighlightTargetCount,
-						   bTargetViewShowing ? TEXT("showing") : TEXT("held"),
-						   FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle) > 0.0f ? TEXT("re-aim") : TEXT("cut"), TargetMoveCount, *Intel);
+	return FString::Printf(TEXT("target view: %s of %d (%s, re-aim %.2f s, %d moves), %s"), *Target->GetName(), HighlightTargetCount,
+						   bTargetViewShowing ? TEXT("showing") : TEXT("held"), FCombatCameraRules::GetTargetViewBlendSeconds(TurnViewStyle),
+						   TargetMoveCount, *Intel);
 }
 
 void UCombatCameraDirector::HandleActionStarted(AActor *Executor, const FAction &Action, int32 EnergyCost)
