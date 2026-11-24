@@ -758,7 +758,8 @@ TOptional<FCameraShot> FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle S
 		if (Moment == ECameraShotMoment::WindUp)
 		{
 			FCameraShotContext Melee = Context;
-			Melee.bRanged = false; // the rush (unless camera movement is off), timed to the dash by the director
+			Melee.bRanged = false; // the rush (unless camera movement is off); it holds behind the attacker's start, and
+								   // the director cuts to ComputeArrivalShot when the dash ends (B-600c)
 			return ComputeShot(ECameraShotMoment::WindUp, Melee, Tuning);
 		}
 		if (bHit)
@@ -853,6 +854,19 @@ float FCombatCameraRules::GetPunchedFieldOfView(const FCameraShot &Shot, float E
 		return Shot.FieldOfView;
 	}
 	return Shot.FieldOfView - Shot.FovPunch * FMath::Sin(UE_PI * Elapsed / Shot.FovPunchSeconds);
+}
+
+TOptional<FCameraShot> FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle Style, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning)
+{
+	if (Style != ESkillCameraStyle::MeleeRush)
+	{
+		return {};
+	}
+	// B-600c: the side two-shot, cut to as the attacker arrives (before the swing), still: the hit punches in it later.
+	FCameraShot Side = CutAndHold(ComputeShot(ECameraShotMoment::Impact, Context, Tuning));
+	Side.FieldOfView = DefaultFieldOfView;
+	Side.ShakeScale = 0.0f;
+	return Side;
 }
 
 ECameraShotMoment FCombatCameraRules::OpeningMomentFor(const FSkillCameraTuning &Tuning, bool bCasterIsEnemy)
