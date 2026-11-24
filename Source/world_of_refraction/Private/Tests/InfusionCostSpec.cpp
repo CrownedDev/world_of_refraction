@@ -4,7 +4,7 @@
 // charge level (L0 / L1 x1, L2 x2), for spells and abilities alike; an infused ability's base carries
 // INFUSION_ENERGY_MULTIPLIER (D-035 stands: x1.5 at L1, x3.0 at L2); the stat surcharge is gone (Q-334).
 // Crystal-powered casts and a deferred fire cost no EP. The HP cost is the infused EP as a share of max
-// EP, applied to max HP, less Resistance, and only at L2 (ApplyCommitCosts, checked through the friend
+// EP, applied to max HP, x HP_BACKLASH_MULTIPLIER, less Efficiency (capped 50%) and Resistance (D-271), and only at L2 (ApplyCommitCosts, checked through the friend
 // access). Expectations are literals, so a changed number fails here on purpose.
 // Damage and status charge bands are WoR.Status.InfusedBuildup; wear is WoR.Durability.CrystalBreak.
 
@@ -45,16 +45,27 @@ namespace
 	constexpr float COST_TEST_STAT_SWING_PERCENT = 20.0f;
 	constexpr int32 COST_TEST_STAT_EFFECT_ID = 9601;
 	constexpr int32 COST_TEST_DURATION_TURNS = 3;
-	/** 100 EP of 200 is half: half of 400 HP is 200, less 25% Resistance is 150. */
+	/** 100 EP of 200 is half: half of 400 HP is 200, x0.15 (D-271) is 30, less 25% Resistance is 22.5 (rounds to 23). */
 	constexpr int32 COST_TEST_MAX_EP = 200;
 	constexpr int32 COST_TEST_MAX_HP = 400;
-	constexpr int32 COST_TEST_HP_COST = 200;
+	constexpr int32 COST_TEST_HP_COST = 30;
 	constexpr float COST_TEST_RESIST_PERCENT = 25.0f;
-	constexpr int32 COST_TEST_HP_COST_RESISTED = 150;
-	/** An L2 innate spell's 200 EP is all of 200 max EP: all of 400 max HP. */
-	constexpr int32 COST_TEST_SPELL_L2_HP_COST = 400;
-	/** An L2 Raw ability's 300 EP is 1.5x of 200 max EP: 1.5x of 400 max HP. */
-	constexpr int32 COST_TEST_ABILITY_L2_HP_COST = 600;
+	constexpr int32 COST_TEST_HP_COST_RESISTED = 23;
+	/** An L2 innate spell's 200 EP is all of 200 max EP: all of 400 max HP, x0.15. */
+	constexpr int32 COST_TEST_SPELL_L2_HP_COST = 60;
+	/** An L2 Raw ability's 300 EP is 1.5x of 200 max EP: 1.5x of 400 max HP, x0.15. */
+	constexpr int32 COST_TEST_ABILITY_L2_HP_COST = 90;
+	/** D-271 scaling of a 100 HP basis: x0.15 is 15; 30% Efficiency leaves 10.5; gear's 80% is capped at 50% (7.5);
+	 *  a net debuff below 0 cuts nothing (15); then 50% Resistance halves (3.75). */
+	constexpr float COST_TEST_BACKLASH_BASIS = 100.0f;
+	constexpr float COST_TEST_BACKLASH_PLAIN = 15.0f;
+	constexpr float COST_TEST_EFFICIENCY_STATS = 0.3f;
+	constexpr float COST_TEST_BACKLASH_STATS_EFFICIENCY = 10.5f;
+	constexpr float COST_TEST_EFFICIENCY_GEAR = 0.8f;
+	constexpr float COST_TEST_BACKLASH_CAPPED = 7.5f;
+	constexpr float COST_TEST_EFFICIENCY_DEBUFFED = -0.2f;
+	constexpr float COST_TEST_RESISTANCE_HALF = 0.5f;
+	constexpr float COST_TEST_BACKLASH_CAPPED_RESISTED = 3.75f;
 	constexpr float COST_TEST_TOLERANCE = 0.001f;
 }
 
@@ -238,6 +249,22 @@ void FInfusionCostSpec::Define()
 		GiveStatEffect(ESkillEffectType::ModifyStatusResist, COST_TEST_RESIST_PERCENT);
 		TestEqual(TEXT("25% Resistance takes a quarter off"), UInfusionCostHelper::CalculateHPCost(Caster, COST_TEST_BASE_EP),
 				  COST_TEST_HP_COST_RESISTED);
+	});
+
+	It("scales the backlash by its multiplier, then Efficiency capped at the stats-only max, then Resistance (D-271)", [this]()
+	{
+		TestNearlyEqual(TEXT("x0.15 with no Efficiency or Resistance"),
+						UInfusionCostHelper::ScaleHPBacklash(COST_TEST_BACKLASH_BASIS, 0.0f, 0.0f), COST_TEST_BACKLASH_PLAIN, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("stats Efficiency cuts it"),
+						UInfusionCostHelper::ScaleHPBacklash(COST_TEST_BACKLASH_BASIS, COST_TEST_EFFICIENCY_STATS, 0.0f), COST_TEST_BACKLASH_STATS_EFFICIENCY, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("gear Efficiency past 50% cuts HP by 50% only"),
+						UInfusionCostHelper::ScaleHPBacklash(COST_TEST_BACKLASH_BASIS, COST_TEST_EFFICIENCY_GEAR, 0.0f), COST_TEST_BACKLASH_CAPPED, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("a net Efficiency debuff adds nothing"),
+						UInfusionCostHelper::ScaleHPBacklash(COST_TEST_BACKLASH_BASIS, COST_TEST_EFFICIENCY_DEBUFFED, 0.0f), COST_TEST_BACKLASH_PLAIN, COST_TEST_TOLERANCE);
+		TestNearlyEqual(TEXT("Resistance still applies after"),
+						UInfusionCostHelper::ScaleHPBacklash(COST_TEST_BACKLASH_BASIS, COST_TEST_EFFICIENCY_GEAR, COST_TEST_RESISTANCE_HALF),
+						COST_TEST_BACKLASH_CAPPED_RESISTED, COST_TEST_TOLERANCE);
+		TestTrue(TEXT("the cap is the stats-only max, below EP's gear ceiling"), CombatConstants::EFFICIENCY_MAX < CombatConstants::EFFICIENCY_GEAR_CEILING);
 	});
 }
 
