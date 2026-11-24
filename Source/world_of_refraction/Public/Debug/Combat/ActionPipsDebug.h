@@ -30,7 +30,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Debug|Actions", meta = (WorldContext = "WorldContextObject"))
 	static void AddDebugActionPoints(const UObject *WorldContextObject, int32 Points);
 
-	/** Sets every combatant to its fight-start actions (the regain, capped at Max), then prints. */
+	/** Sets every combatant to its fight-start actions (1, capped at Max; D-274), then prints. */
 	UFUNCTION(BlueprintCallable, Category = "Debug|Actions", meta = (WorldContext = "WorldContextObject"))
 	static void ResetActionsForFight(const UObject *WorldContextObject);
 };
