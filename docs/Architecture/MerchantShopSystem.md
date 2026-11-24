@@ -67,7 +67,7 @@ is removed from the code; its stock line on each merchant now loads as an empty 
 |---|---|---|
 | `DA_Merchant_Blacksmith` | Blacksmith | 32 = 18 weapons + 12 crystals + 2 potions |
 | `DA_Merchant_Jewler` *(sic)* | Jeweler | 53 = 51 lines (rings per `Resources_Design.md` §5.1c, and the 12 crystal lines) + 2 potions |
-| `DA_Merchant_CombatMaster` | CombatMaster | 158 = 144 abilities + 12 crystals + 2 potions |
+| `DA_Merchant_CombatMaster` | CombatMaster | 160 = 146 abilities + 12 crystals + 2 potions |
 | `DA_Merchant_Refractor` | SpellShop | 29 = 15 spells + 12 crystals + 2 potions |
 | `DA_Merchant_Evolutionist` | Spiritualist | 41 = 27 evolutions + 12 crystals + 2 potions |
 
@@ -232,3 +232,4 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 | 2026-11-18 | B-571 (D-225, trial pool stage 7): `MerchantStockRoll::RollWithPool`, `TRIAL_POOL_SHARE`, `TRIAL_POOL_SEED_SALT`, `IsSameLine`; `UTrialRunSubsystem::GetMerchantStock` rolls a trial vendor's shelf half from its own list, half from the trial's pool (`TrialVendorPool`, gathered once when the trial becomes active). The shelf follows from the run seed, the trial and the authored assets alone, so a co-op client rolls the same once it has the seed and the trial. `StockFor` is OBSOLETE in a trial. | `feature/B-571-trial-merchant` |
 | 2026-11-22 | B-579 (D-253, Q-579): a potion stock row (`FMerchantStockEntry::Crystal` = Health Potion or Energy Potion) is priced by `EconomyYield::GetPotionPrisms`: half the tier F Prisms price, no essence. A potion can't be sold or dismantled (`WoRVendorServices::GetRefusal`) or merged. **No asset was changed, so no merchant stocks potions yet:** the five merchant assets in the table above each need the two rows, added in the editor. | `feature/B-579-potions` |
 | 2026-11-22 | B-579 (assets): the five merchants got their two potion stock lines, at the end of each list; the table above corrected to the counts read in the editor (the Jeweler had 51, not 49). | `feature/B-579-merchant-stock` |
+| 2026-11-24 | B-595e: the Combat Master stocks Quick Strike and Force Strike (after Wrath Cut; 158 to 160 lines). Both are tier F, so 25 Gold + 10 Dormant Essence (Q-595, Q-595e); each later B-595 sword skill joins the same way. | `feature/B-595e-force-strike` |
