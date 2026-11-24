@@ -166,7 +166,7 @@ void UHubHUDWidget::BuildTree()
 	}
 
 	BuildPartyStrip(Canvas);
-	BuildFieldAttackWheel(Canvas); // on top: built last. B-528 (D-218): the hub too; only the card strip stays a trial's
+	BuildFieldAttackWheel(Canvas); // on top: built last. B-528 (D-218): the hub too (B-597: and the card strip)
 
 	SetShown(PromptBox, false);
 	SetShown(MoneyBox, false);
@@ -379,7 +379,7 @@ void UHubHUDWidget::RefreshFieldAttack()
 {
 	if (AttackStrips.IsEmpty())
 	{
-		return; // headless, or the hub: no card strips
+		return; // headless: no card strips
 	}
 	const APawn *Pawn = GetOwningPlayerPawn();
 	const UFieldMovementComponent *FieldMovement = Pawn ? Pawn->FindComponentByClass<UFieldMovementComponent>() : nullptr;
@@ -391,7 +391,7 @@ void UHubHUDWidget::ShowFieldAttack(const FFieldAttackEntry &Entry)
 {
 	if (!AttackStrips.IsValidIndex(AttackStripCard))
 	{
-		return; // headless, the hub (no card strips), or no card for the pawn
+		return; // headless (no card strips), or no card for the pawn
 	}
 	SetFieldAttack(Entry); // B-503m: no flash (Crown: the text change is enough)
 }
