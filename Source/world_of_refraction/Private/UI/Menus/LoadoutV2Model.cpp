@@ -1,6 +1,7 @@
 // LoadoutV2Model.cpp
 
 #include "UI/Menus/LoadoutV2Model.h"
+#include "Loadout/WornGear.h"
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Equipment/Crystals/StatStone.h"
 #include "Equipment/Rings/RingData.h"
@@ -356,14 +357,26 @@ namespace LoadoutV2Build
 		return Loadout.RingLoadout.IsValidIndex(Entry.AdapterIndex) ? &Loadout.RingLoadout[Entry.AdapterIndex] : nullptr;
 	}
 
-	FWeaponLoadoutEntry *FindWeaponSet(FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry)
+	/** B-309d2: Entry's WornGearLayout place; INDEX_NONE for the evolution seat (not a slot). */
+	int32 PlaceOf(const FLoadoutV2Entry &Entry)
 	{
-		return const_cast<FWeaponLoadoutEntry *>(FindWeaponSet(static_cast<const FCombatLoadout &>(Loadout), Entry));
+		switch (Entry.Place)
+		{
+		case ELoadoutV2Place::Primary:
+			return WornGearLayout::PRIMARY_INDEX;
+		case ELoadoutV2Place::Secondary:
+			return WornGearLayout::SECONDARY_INDEX;
+		case ELoadoutV2Place::Adapter:
+			return Entry.AdapterIndex == INDEX_NONE ? INDEX_NONE : WornGearLayout::FIRST_ADAPTER_INDEX + Entry.AdapterIndex;
+		default:
+			return INDEX_NONE;
+		}
 	}
 
-	FRingLoadoutEntry *FindAdapter(FCombatLoadout &Loadout, const FLoadoutV2Entry &Entry)
+	/** B-309d2: puts a piece in a place through the slots. */
+	void PutPiece(FCombatLoadout &Loadout, ECharacterClass Class, int32 Place, const FLoadoutSlot &Piece)
 	{
-		return const_cast<FRingLoadoutEntry *>(FindAdapter(static_cast<const FCombatLoadout &>(Loadout), Entry));
+		Loadout.EditSlots(Class, [Place, &Piece](FCombatLoadout &Edited) { Edited.PutSlotAt(Place, Piece); });
 	}
 
 	/** Today's screen's row for Entry (its place and piece), so its rules (TakeOffGear) act on it. */
@@ -554,13 +567,12 @@ bool WoRLoadoutV2::ApplyDraft(FCombatLoadout &Loadout, ECharacterClass Class, co
 		if (PrimaryIsFree(Loadout))
 		{
 			Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
-			Loadout.PrimaryWeapon = Set;
+			PutPiece(Loadout, Class, WornGearLayout::PRIMARY_INDEX, FLoadoutSlot::FromWeaponLoadoutEntry(Set));
 			return true;
 		}
 		if (Class == ECharacterClass::Generic && !Loadout.SecondaryWeapon.IsValid())
 		{
-			Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
-			Loadout.SecondaryWeapon = Set;
+			PutPiece(Loadout, Class, WornGearLayout::SECONDARY_INDEX, FLoadoutSlot::FromWeaponLoadoutEntry(Set));
 			return true;
 		}
 		OutRefusal = LOCTEXT("RefuseNoWeaponEntry", "No free weapon entry.");
@@ -585,7 +597,7 @@ bool WoRLoadoutV2::ApplyDraft(FCombatLoadout &Loadout, ECharacterClass Class, co
 				return false;
 			}
 			Loadout.PrimarySlotType = EPrimarySlotType::Ring;
-			Loadout.PrimaryRing = Ring;
+			PutPiece(Loadout, Class, WornGearLayout::PRIMARY_INDEX, FLoadoutSlot::FromRingLoadoutEntry(Ring));
 			return true;
 		}
 		const FLoadoutClassLimits Limits = LoadoutClassTable::Get(Class);
@@ -594,7 +606,8 @@ bool WoRLoadoutV2::ApplyDraft(FCombatLoadout &Loadout, ECharacterClass Class, co
 			OutRefusal = LOCTEXT("RefuseNoAdapterEntry", "No free adapter entry.");
 			return false;
 		}
-		Loadout.RingLoadout.Add(Ring); // a Resonator's adapters, a Generic's adapter entry (D-210)
+		// A Resonator's adapters, a Generic's adapter entry (D-210): a new place after the last adapter entry.
+		PutPiece(Loadout, Class, WornGearLayout::FIRST_ADAPTER_INDEX + Loadout.RingLoadout.Num(), FLoadoutSlot::FromRingLoadoutEntry(Ring));
 		return true;
 	}
 	case ELoadoutV2DraftKind::Evolution:
@@ -812,12 +825,14 @@ namespace LoadoutV2Replace
 			return false;
 		}
 		OutRefusal = FText::GetEmpty();
-		Loadout.PrimaryWeapon.Clear(); // as WoRLoadoutScreen's ClearPrimary
-		Loadout.PrimaryRing.Clear();
-		Loadout.PrimaryEvolution = FEvolutionAttachment();
-		Loadout.PrimaryEvolutionInstance = FGuid();
-		Loadout.EvolutionSpells.Reset();
-		Loadout.PrimarySlotType = EPrimarySlotType::None;
+		Loadout.EditSlots(Class, [](FCombatLoadout &Edited) // as WoRLoadoutScreen's ClearPrimary
+		{
+			Edited.ClearSlotAt(WornGearLayout::PRIMARY_INDEX);
+			Edited.PrimaryEvolution = FEvolutionAttachment();
+			Edited.PrimaryEvolutionInstance = FGuid();
+			Edited.EvolutionSpells.Reset();
+			Edited.PrimarySlotType = EPrimarySlotType::None;
+		});
 		return true;
 	}
 
@@ -998,8 +1013,8 @@ bool WoRLoadoutV2::ReplaceEntry(FCombatLoadout &Loadout, ECharacterClass Class, 
 	{
 	case ELoadoutV2EntryKind::Weapon:
 	{
-		FWeaponLoadoutEntry *Set = FindWeaponSet(Loadout, Entry);
-		if (Draft.Kind != ELoadoutV2DraftKind::Weapon || !Set || !Set->IsValid())
+		const FWeaponLoadoutEntry *Current = FindWeaponSet(Loadout, Entry);
+		if (Draft.Kind != ELoadoutV2DraftKind::Weapon || !Current || !Current->IsValid() || PlaceOf(Entry) == INDEX_NONE)
 		{
 			OutRefusal = WrongPlace;
 			return false;
@@ -1009,33 +1024,37 @@ bool WoRLoadoutV2::ReplaceEntry(FCombatLoadout &Loadout, ECharacterClass Class, 
 			OutRefusal = LOCTEXT("RefuseNoMainHand", "Pick a main hand.");
 			return false;
 		}
-		const bool bSamePiece = Set->WeaponEntry.PersistentID == Draft.MainHand.PersistentID;
-		Set->WeaponEntry = Draft.MainHand;
-		Set->WeaponEntry.AttachedItem = Draft.Socket1; // the entry's sockets are the main hand's (D-210)
-		Set->WeaponEntry.StoneSocket = Draft.Socket2;
-		Set->OffHandEntry = Draft.OffHand;
+		FWeaponLoadoutEntry Set = *Current;
+		const bool bSamePiece = Set.WeaponEntry.PersistentID == Draft.MainHand.PersistentID;
+		Set.WeaponEntry = Draft.MainHand;
+		Set.WeaponEntry.AttachedItem = Draft.Socket1; // the entry's sockets are the main hand's (D-210)
+		Set.WeaponEntry.StoneSocket = Draft.Socket2;
+		Set.OffHandEntry = Draft.OffHand;
 		if (!bSamePiece)
 		{
-			Set->InitializeFromWeapon(); // a new main hand starts with no slotted picks of the old one
+			Set.InitializeFromWeapon(); // a new main hand starts with no slotted picks of the old one
 		}
+		PutPiece(Loadout, Class, PlaceOf(Entry), FLoadoutSlot::FromWeaponLoadoutEntry(Set));
 		return true;
 	}
 	case ELoadoutV2EntryKind::Adapter:
 	{
-		FRingLoadoutEntry *Ring = FindAdapter(Loadout, Entry);
-		if (Draft.Kind != ELoadoutV2DraftKind::Adapter || !Ring || !Ring->IsValid() || !Draft.Adapter.IsValid())
+		const FRingLoadoutEntry *Current = FindAdapter(Loadout, Entry);
+		if (Draft.Kind != ELoadoutV2DraftKind::Adapter || !Current || !Current->IsValid() || !Draft.Adapter.IsValid() || PlaceOf(Entry) == INDEX_NONE)
 		{
 			OutRefusal = WrongPlace;
 			return false;
 		}
-		const bool bSamePiece = Ring->RingEntry.PersistentID == Draft.Adapter.PersistentID;
-		Ring->RingEntry = Draft.Adapter;
-		Ring->RingEntry.AttachedItem = Draft.Socket1;
-		Ring->RingEntry.StoneSocket = Draft.Socket2;
+		FRingLoadoutEntry Ring = *Current;
+		const bool bSamePiece = Ring.RingEntry.PersistentID == Draft.Adapter.PersistentID;
+		Ring.RingEntry = Draft.Adapter;
+		Ring.RingEntry.AttachedItem = Draft.Socket1;
+		Ring.RingEntry.StoneSocket = Draft.Socket2;
 		if (!bSamePiece)
 		{
-			Ring->InitializeFromRing();
+			Ring.InitializeFromRing();
 		}
+		PutPiece(Loadout, Class, PlaceOf(Entry), FLoadoutSlot::FromRingLoadoutEntry(Ring));
 		return true;
 	}
 	case ELoadoutV2EntryKind::Evolution:
@@ -1082,21 +1101,17 @@ bool WoRLoadoutV2::RemoveEntry(FCombatLoadout &Loadout, ECharacterClass Class, c
 int32 WoRLoadoutV2::RemoveAllGear(FCombatLoadout &Loadout, ECharacterClass Class)
 {
 	int32 Removed = 0;
-	if (Loadout.SecondaryWeapon.IsValid())
+	Loadout.EditSlots(Class, [&Removed](FCombatLoadout &Edited)
 	{
-		Loadout.SecondaryWeapon.Clear();
-		Loadout.SecondarySlotType = ESecondarySlotType::None;
-		++Removed;
-	}
-	Loadout.bShowPrimary = true;
-	if (Class != ECharacterClass::Caster)
-	{
-		for (const FRingLoadoutEntry &Ring : Loadout.RingLoadout)
+		if (Edited.ClearSlotAt(WornGearLayout::SECONDARY_INDEX))
 		{
-			Removed += Ring.IsValid() ? 1 : 0;
+			Edited.SecondarySlotType = ESecondarySlotType::None;
+			++Removed;
 		}
-		Loadout.RingLoadout.Reset();
-	}
+		Edited.bShowPrimary = true;
+		// The mirror holds no Caster adapter loadout, so this takes adapters off a Resonator or a Generic only.
+		Removed += Edited.Slots.RemoveAll([](const FLoadoutSlot &Slot) { return Slot.Place >= WornGearLayout::FIRST_ADAPTER_INDEX; });
+	});
 	return Removed; // D-116: the first entry stays
 }
 
