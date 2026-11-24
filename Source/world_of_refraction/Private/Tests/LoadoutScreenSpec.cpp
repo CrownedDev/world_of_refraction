@@ -296,11 +296,11 @@ void FLoadoutScreenSpec::Define()
 		}
 		TestTrue(TEXT("put in hand first"), Choices[0].bMakeActive);
 		FCombatLoadout InHand = Loadout;
-		TestTrue(TEXT("put in hand"), WoRLoadoutScreen::PutGearChoice(InHand, Page.Rows[LOADOUT_SCREEN_TEST_SECOND], Choices[0]));
+		TestTrue(TEXT("put in hand"), WoRLoadoutScreen::PutGearChoice(InHand, ECharacterClass::Generic, Page.Rows[LOADOUT_SCREEN_TEST_SECOND], Choices[0]));
 		TestTrue(TEXT("the hammer is in hand"), WoRLoadoutScreen::BuildGearPage(InHand, ECharacterClass::Generic).Rows[LOADOUT_SCREEN_TEST_SECOND].bActive);
 
 		FCombatLoadout Swapped = Loadout;
-		TestTrue(TEXT("swapped"), WoRLoadoutScreen::PutGearChoice(Swapped, Page.Rows[LOADOUT_SCREEN_TEST_SECOND], Choices[1]));
+		TestTrue(TEXT("swapped"), WoRLoadoutScreen::PutGearChoice(Swapped, ECharacterClass::Generic, Page.Rows[LOADOUT_SCREEN_TEST_SECOND], Choices[1]));
 		TestEqual(TEXT("the spare is the second weapon"), Swapped.SecondaryWeapon.WeaponEntry.PersistentID, Spare.PersistentID);
 
 		FText Refusal;
@@ -433,7 +433,7 @@ void FLoadoutScreenSpec::Define()
 			return;
 		}
 		FCombatLoadout Added = Loadout;
-		TestTrue(TEXT("added"), WoRLoadoutScreen::PutGearChoice(Added, *Free, Choices[0]));
+		TestTrue(TEXT("added"), WoRLoadoutScreen::PutGearChoice(Added, ECharacterClass::Resonator, *Free, Choices[0]));
 		TestEqual(TEXT("two adapters"), Added.RingLoadout.Num(), 2);
 
 		FText Refusal;

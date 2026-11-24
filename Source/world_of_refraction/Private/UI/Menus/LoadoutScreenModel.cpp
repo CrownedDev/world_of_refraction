@@ -31,6 +31,7 @@
 #include "Loadout/FLoadoutSlot.h"
 #include "Loadout/LoadoutConstants.h"
 #include "Loadout/LoadoutRules.h"
+#include "Loadout/WornGear.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
@@ -228,10 +229,10 @@ namespace LoadoutScreenBuild
 		return Place == ELoadoutScreenPlace::Adapter || (Place == ELoadoutScreenPlace::Primary && Class != ECharacterClass::Resonator);
 	}
 
+	/** Inside FCombatLoadout::EditSlots: the primary place emptied, and the evolution seat with it. */
 	void ClearPrimary(FCombatLoadout &Loadout)
 	{
-		Loadout.PrimaryWeapon.Clear();
-		Loadout.PrimaryRing.Clear();
+		Loadout.ClearSlotAt(WornGearLayout::PRIMARY_INDEX);
 		Loadout.PrimaryEvolution = FEvolutionAttachment();
 		Loadout.PrimaryEvolutionInstance = FGuid();
 		Loadout.EvolutionSpells.Reset();
@@ -430,7 +431,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildGearChoices(const FCombatLoa
 	const auto Finish = [&](FLoadoutScreenChoice &Choice, const FGuid &GearID)
 	{
 		FCombatLoadout After = Loadout;
-		PutGearChoice(After, Row, Choice);
+		PutGearChoice(After, Class, Row, Choice);
 		Choice.NewSpent = BuildGearPage(After, Class).Spent;
 		if (WornElsewhere.Contains(GearID))
 		{
@@ -487,7 +488,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildGearChoices(const FCombatLoa
 	return Choices;
 }
 
-bool WoRLoadoutScreen::PutGearChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, const FLoadoutScreenChoice &Choice)
+bool WoRLoadoutScreen::PutGearChoice(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row, const FLoadoutScreenChoice &Choice)
 {
 	using namespace LoadoutScreenBuild;
 
@@ -505,45 +506,37 @@ bool WoRLoadoutScreen::PutGearChoice(FCombatLoadout &Loadout, const FLoadoutScre
 	{
 		return false;
 	}
+	const FLoadoutSlot Piece = bWeapon ? FLoadoutSlot::FromWeaponLoadoutEntry(Choice.Weapon) : FLoadoutSlot::FromRingLoadoutEntry(Choice.Adapter);
+	int32 Place = INDEX_NONE;
 	switch (Row.Place)
 	{
 	case ELoadoutScreenPlace::Primary:
-		ClearPrimary(Loadout);
-		Loadout.PrimarySlotType = bWeapon ? EPrimarySlotType::Weapon : EPrimarySlotType::Ring;
-		if (bWeapon)
-		{
-			Loadout.PrimaryWeapon = Choice.Weapon;
-		}
-		else
-		{
-			Loadout.PrimaryRing = Choice.Adapter;
-		}
-		return true;
+		Place = WornGearLayout::PRIMARY_INDEX;
+		break;
 	case ELoadoutScreenPlace::Secondary:
-		if (!bWeapon)
-		{
-			return false;
-		}
-		Loadout.SecondarySlotType = ESecondarySlotType::Weapon;
-		Loadout.SecondaryWeapon = Choice.Weapon;
-		return true;
+		Place = bWeapon ? WornGearLayout::SECONDARY_INDEX : INDEX_NONE;
+		break;
 	case ELoadoutScreenPlace::Adapter:
-		if (bWeapon)
-		{
-			return false;
-		}
-		if (Loadout.RingLoadout.IsValidIndex(Row.AdapterIndex))
-		{
-			Loadout.RingLoadout[Row.AdapterIndex] = Choice.Adapter;
-		}
-		else
-		{
-			Loadout.RingLoadout.Add(Choice.Adapter);
-		}
-		return true;
+		// The row's own place, or a new one after the last adapter entry (as the old list appended).
+		Place = bWeapon ? INDEX_NONE : WornGearLayout::FIRST_ADAPTER_INDEX + (Loadout.RingLoadout.IsValidIndex(Row.AdapterIndex) ? Row.AdapterIndex : Loadout.RingLoadout.Num());
+		break;
 	default:
+		break;
+	}
+	if (Place == INDEX_NONE)
+	{
 		return false;
 	}
+	Loadout.EditSlots(Class, [&Piece, Place](FCombatLoadout &Edited)
+	{
+		if (Place == WornGearLayout::PRIMARY_INDEX)
+		{
+			ClearPrimary(Edited); // the evolution seat goes with what was there
+			Edited.PrimarySlotType = Piece.Gear.IsWeapon() ? EPrimarySlotType::Weapon : EPrimarySlotType::Ring;
+		}
+		Edited.PutSlotAt(Place, Piece);
+	});
+	return true;
 }
 
 bool WoRLoadoutScreen::TakeOffGear(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row, FText &OutRefusal)
@@ -564,12 +557,16 @@ bool WoRLoadoutScreen::TakeOffGear(FCombatLoadout &Loadout, ECharacterClass Clas
 	// D-116: the primary is never left empty; a Generic's second weapon moves up into it.
 	if (Class == ECharacterClass::Generic && Loadout.SecondarySlotType == ESecondarySlotType::Weapon && Loadout.SecondaryWeapon.IsValid())
 	{
-		ClearPrimary(Loadout);
-		Loadout.PrimarySlotType = EPrimarySlotType::Weapon;
-		Loadout.PrimaryWeapon = Loadout.SecondaryWeapon;
-		Loadout.SecondaryWeapon.Clear();
-		Loadout.SecondarySlotType = ESecondarySlotType::None;
-		Loadout.bShowPrimary = true;
+		Loadout.EditSlots(Class, [](FCombatLoadout &Edited)
+		{
+			const FLoadoutSlot Second = *Edited.FindSlotAt(WornGearLayout::SECONDARY_INDEX); // the mirror holds a Generic's valid second weapon
+			ClearPrimary(Edited);
+			Edited.ClearSlotAt(WornGearLayout::SECONDARY_INDEX);
+			Edited.PutSlotAt(WornGearLayout::PRIMARY_INDEX, Second);
+			Edited.PrimarySlotType = EPrimarySlotType::Weapon;
+			Edited.SecondarySlotType = ESecondarySlotType::None;
+			Edited.bShowPrimary = true;
+		});
 		return true;
 	}
 	OutRefusal = LOCTEXT("RefuseKeepPrimary", "Every loadout keeps a weapon or adapter here. Change it instead.");
@@ -631,12 +628,12 @@ FText WoRLoadoutScreen::ApplyGearChoice(UWorld *World, const FLoadoutScreenMembe
 		return Choice.Refusal;
 	}
 	FCombatLoadout Probe = Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
-	if (!PutGearChoice(Probe, Row, Choice))
+	if (!PutGearChoice(Probe, Member.Class, Row, Choice))
 	{
 		return LOCTEXT("RefusePlace", "It can't go in this place.");
 	}
 	FText Refusal;
-	Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&Row, &Choice](FCombatLoadout &Changed) { PutGearChoice(Changed, Row, Choice); }, Refusal);
+	Loadout->TryChangeGear(Inventory->ActiveLoadoutIndex, [&Row, &Choice, &Member](FCombatLoadout &Changed) { PutGearChoice(Changed, Member.Class, Row, Choice); }, Refusal);
 	return Refusal;
 }
 

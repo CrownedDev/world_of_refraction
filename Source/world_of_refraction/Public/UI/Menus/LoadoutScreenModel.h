@@ -190,8 +190,9 @@ namespace WoRLoadoutScreen
 																	   const TArray<FWeaponInventoryEntry> &OwnedWeapons, const TArray<FRingInventoryEntry> &OwnedAdapters,
 																	   const TSet<FGuid> &WornElsewhere);
 
-	/** Puts Choice in Row's place of Loadout (or Row's weapon in hand). False when the place can't take it. */
-	WORLD_OF_REFRACTION_API bool PutGearChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, const FLoadoutScreenChoice &Choice);
+	/** Puts Choice in Row's place of Loadout (or Row's weapon in hand), through the slots (B-309d2). False when the
+	 *  place can't take it. */
+	WORLD_OF_REFRACTION_API bool PutGearChoice(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row, const FLoadoutScreenChoice &Choice);
 
 	/** Empties Row's place of Loadout. The primary can't be empty (D-116): a Generic's second weapon moves up into it,
 	 *  otherwise it is refused with the reason. */
