@@ -385,6 +385,10 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	/** B-600c: the shot cut to when the attacker's dash ends, before the swing (Context.Caster at the striking spot).
 	 *  Melee Rush: the side two-shot, still, no punch (the hit punches in it). Unset for every other style. */
 	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, const FCameraShotContext &Context, const FSkillCameraTuning &Tuning);
+	/** B-604: as above, and an enemy's melee rush (its style is Standard, Q-600) cuts on arrival too: a rush camera timed
+	 *  to the enemy's dash met it at the lens. A party member's Standard skill keeps its timed rush. */
+	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, bool bCasterIsEnemy, const FCameraShotContext &Context,
+													 const FSkillCameraTuning &Tuning);
 
 	/** B-600d (Q-600d): the skill's attacker starts its leap home. A party member's shots end there and the camera
 	 *  follows it home (PlanLeapHome), never holding on the target alone. An enemy's shots hold on the party member it

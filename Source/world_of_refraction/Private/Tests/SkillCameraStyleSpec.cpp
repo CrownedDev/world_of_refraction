@@ -106,6 +106,32 @@ void FSkillCameraStyleSpec::Define()
 		}
 	});
 
+	It("B-604: an enemy's melee rush holds behind its start and cuts to the side view on arrival; party Standard skills unchanged", [this, Tuning]()
+	{
+		// The enemy at its start (StyleTestContext's caster), rushing the party member at STYLE_TEST_TARGET.
+		const FCameraShotContext Context = StyleTestContext();
+		const ESkillCameraStyle EnemyStyle = FCombatCameraRules::GetCameraStyle(nullptr, /*bCasterIsEnemy=*/true);
+		const TOptional<FCameraShot> Rush = FCombatCameraRules::ComputeStyledShot(EnemyStyle, ECameraShotMoment::WindUp, Context, Tuning);
+		const FVector ToTarget = (STYLE_TEST_TARGET - Context.Caster).GetSafeNormal2D();
+		TestTrue(TEXT("the rush ends behind the enemy's start: it runs away from the lens, never through it"),
+				 Rush.IsSet() && FVector::DotProduct(Rush->End.GetLocation() - Context.Caster, ToTarget) < 0.0f);
+
+		FCameraShotContext Arrived = Context;
+		Arrived.Caster = STYLE_TEST_STRIKE_SPOT;
+		const TOptional<FCameraShot> Arrival = FCombatCameraRules::ComputeArrivalShot(EnemyStyle, /*bCasterIsEnemy=*/true, Arrived, Tuning);
+		TestTrue(TEXT("on arrival: a cut that holds, no punch or shake yet"), Arrival.IsSet() && Arrival->bCut && IsStill(*Arrival) &&
+																				 FMath::IsNearlyZero(Arrival->FovPunch) && FMath::IsNearlyZero(Arrival->ShakeScale));
+		TestTrue(FString::Printf(TEXT("the enemy at least %.0f cm from the lens (it never fills the frame)"), STYLE_TEST_MIN_LENS_DISTANCE),
+				 Arrival.IsSet() && FVector::Dist(Arrival->End.GetLocation(), STYLE_TEST_STRIKE_SPOT) >= STYLE_TEST_MIN_LENS_DISTANCE);
+		TestTrue(TEXT("the enemy and its target both in frame"),
+				 Arrival.IsSet() && CameraFraming::IsOnScreen(Arrival->End, Arrival->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_STRIKE_SPOT) &&
+					 CameraFraming::IsOnScreen(Arrival->End, Arrival->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
+		TestFalse(TEXT("a party member's Standard skill keeps its timed rush (no arrival cut)"),
+				  FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::Standard, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
+		TestTrue(TEXT("a party member's Melee Rush still cuts (B-600c)"),
+				 FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::MeleeRush, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
+	});
+
 	It("B-600d: a party member's leap home leaves its shot; an enemy's keeps its shot", [this]()
 	{
 		TestTrue(TEXT("a party member leaving its own shot: the camera follows it, never the target alone"),
