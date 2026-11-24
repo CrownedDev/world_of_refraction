@@ -399,7 +399,8 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 
 	/** B-600c: the shot cut to when the attacker's dash ends, before the swing (Context.Caster at the striking spot).
 	 *  Melee Rush: the side two-shot, still, no punch (the hit punches in it). B-604 (Q-604): an enemy's melee rush too
-	 *  (its style is Standard, Q-600): a rush camera timed to its dash met it at the lens. Unset for every other style and
+	 *  (its style is Standard, Q-600): a rush camera timed to its dash met it at the lens. B-595c: Heavy Wind-Up, its low
+	 *  hero angle (the hit's shot without the punch), for a heavy blow that dashes in. Unset for every other style and
 	 *  for a party member's Standard skill (it keeps its timed rush). */
 	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, bool bCasterIsEnemy, const FCameraShotContext &Context,
 													 const FSkillCameraTuning &Tuning);

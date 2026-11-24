@@ -24,7 +24,6 @@ namespace
 	// B-604b: the test trial enemy's real skills (BP_Enemy_Generic in the B-604 check).
 	const TCHAR *const STYLE_TEST_WRATH_CUT = TEXT("/Game/Data/Pool/Generic/Weapons/Sword/Slash/Abilities/DA_Sword_Ability_WrathCut.DA_Sword_Ability_WrathCut");
 	const TCHAR *const STYLE_TEST_LUNGE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_Lunge.DA_Sword_Abilities_Lunge");
-	const TCHAR *const STYLE_TEST_HEAVY_STRIKE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_HeavyStrike.DA_Sword_Abilities_HeavyStrike");
 	constexpr float STYLE_TEST_TURN_BEFORE_HIT = 0.25f; // B-604b check: the next turn started up to 0.25 s before the hit
 
 	FCameraShotContext StyleTestContext()
@@ -106,8 +105,7 @@ void FSkillCameraStyleSpec::Define()
 													 CameraFraming::IsOnScreen(Arrival->End, Arrival->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
 		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Impact, Arrived, Tuning);
 		TestTrue(TEXT("the hit's view is the arrival's (it punches there, no second cut)"), Hit.IsSet() && Arrival.IsSet() && Hit->End.Equals(Arrival->End));
-		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::RangedRelease, ESkillCameraStyle::HeavyWindUp, ESkillCameraStyle::AreaSweep,
-											  ESkillCameraStyle::Cinematic})
+		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::RangedRelease, ESkillCameraStyle::AreaSweep, ESkillCameraStyle::Cinematic})
 		{
 			TestFalse(FString::Printf(TEXT("%s: no arrival cut"), *UEnum::GetValueAsString(Style)), FCombatCameraRules::ComputeArrivalShot(Style, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
 		}
@@ -139,9 +137,10 @@ void FSkillCameraStyleSpec::Define()
 				 FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::MeleeRush, /*bCasterIsEnemy=*/false, Arrived, Tuning).IsSet());
 	});
 
-	It("B-604c: with the enemy's real Wrath Cut and Heavy Strike timing, the defend camera holds until the hit lands and is seen", [this]()
+	It("B-604c: with the enemy's real Wrath Cut timing, the defend camera holds until the hit lands and is seen", [this]()
 	{
-		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_HEAVY_STRIKE})
+		// B-595c: Heavy Attack left this case: it now has an Impact notify on its contact frame.
+		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT})
 		{
 			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
 			if (!TestNotNull(FString::Printf(TEXT("%s loads (renamed? point this case at the enemy's skill)"), Path), Skill) ||
@@ -301,6 +300,11 @@ void FSkillCameraStyleSpec::Define()
 		TestTrue(TEXT("low, looking up"), Hit.IsSet() && Hit->End.GetLocation().Z - Context.Caster.Z < STYLE_TEST_LOW_CAMERA_HEIGHT && Hit->End.GetRotation().Rotator().Pitch > 0.0f);
 		TestTrue(TEXT("both fighters in frame"), Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster) &&
 													 CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
+		// B-595c: a heavy blow that dashes in cuts to the same low angle as the dash ends, still; the hit punches there.
+		const TOptional<FCameraShot> Arrival = FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle::HeavyWindUp, /*bCasterIsEnemy=*/false, Context, Tuning);
+		TestTrue(TEXT("on arrival: the hit's low angle, a cut that holds, no punch or shake yet"),
+				 Arrival.IsSet() && Hit.IsSet() && Arrival->End.Equals(Hit->End) && Arrival->bCut && IsStill(*Arrival) && FMath::IsNearlyZero(Arrival->FovPunch) &&
+					 FMath::IsNearlyZero(Arrival->ShakeScale));
 	});
 
 	It("Area Sweep: one wide still shot of the attacker and every target, held through the hit", [this, Tuning]()
