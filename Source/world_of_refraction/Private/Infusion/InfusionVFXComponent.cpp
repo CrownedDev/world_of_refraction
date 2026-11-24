@@ -24,7 +24,7 @@ namespace
 {
     /** The display's own glow, else the default glow on DA_ImpactVisualDefaults (Raw's, Physical's or the element's);
      *  null with neither. */
-    UNiagaraSystem *FindGlowSystem(const UInfusionDisplayData *Display, ESpellElement Element, bool bRaw)
+    UNiagaraSystem *FindGlowSystem(const UInfusionDisplayData *Display, ESpellElement Element, bool bRaw, bool bIce)
     {
         if (Display && Display->HasVFX())
         {
@@ -32,7 +32,7 @@ namespace
         }
         const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
         // shortcut: loads the default glow on first use, which may hitch once; preload with the fight's assets when the art lands.
-        return Defaults ? Defaults->GetInfusionGlowVFX(Element, bRaw).LoadSynchronous() : nullptr;
+        return Defaults ? Defaults->GetInfusionGlowVFX(Element, bRaw, bIce).LoadSynchronous() : nullptr;
     }
 }
 
@@ -178,6 +178,16 @@ void UInfusionVFXComponent::SetWeaponInfusion(bool bWeapon)
     RespawnKeepingLevel();
 }
 
+void UInfusionVFXComponent::SetDealsIce(bool bIce)
+{
+    if (bDealsIce == bIce)
+    {
+        return;
+    }
+    bDealsIce = bIce;
+    RespawnKeepingLevel();
+}
+
 void UInfusionVFXComponent::HandleWeaponMeshRebuilt()
 {
     if (bWeaponInfusion)
@@ -223,11 +233,12 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
     const ESpellElement Element = GetElementForSource(Source);
     const bool bRaw = Source == EInfusionSourceOption::Raw;
-    UNiagaraSystem *Glow = FindGlowSystem(InfusionDisplay, Element, bRaw);
+    const bool bIce = !bRaw && bDealsIce && Element == ESpellElement::Water;
+    UNiagaraSystem *Glow = FindGlowSystem(InfusionDisplay, Element, bRaw, bIce);
     if (!Glow)
     {
         UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No glow: the display has no VFX and %s has no default glow"),
-               bRaw ? TEXT("Raw") : *UEnum::GetValueAsString(Element));
+               bRaw ? TEXT("Raw") : (bIce ? TEXT("Ice") : *UEnum::GetValueAsString(Element)));
         return;
     }
 
@@ -243,7 +254,8 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     SpawnVFX(Glow, InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
 
     // Element color, brightened and sized by the level
-    CurrentGlowColor = (InfusionDisplay && InfusionDisplay->bOverrideElementColor) ? InfusionDisplay->ColorOverride : GetElementColor(CurrentElement);
+    CurrentGlowColor = (InfusionDisplay && InfusionDisplay->bOverrideElementColor) ? InfusionDisplay->ColorOverride
+                       : (bIce ? ElementColors::Ice : GetElementColor(CurrentElement));
     ApplyLevelToVFX();
 
     bIsInfusionActive = true;
@@ -514,7 +526,7 @@ void UInfusionVFXComponent::DebugActivateWithElement(ESpellElement TestElement)
     CurrentElement = TestElement;
 
     UInfusionDisplayData *InfusionDisplay = LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr;
-    SpawnVFX(FindGlowSystem(InfusionDisplay, TestElement, false), InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
+    SpawnVFX(FindGlowSystem(InfusionDisplay, TestElement, false, false),InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
     CurrentGlowColor = GetElementColor(TestElement);
     ApplyLevelToVFX();
 

@@ -175,6 +175,11 @@ public:
     void SetWeaponInfusion(bool bWeapon);
     bool IsWeaponInfusion() const { return bWeaponInfusion; }
 
+    /** Crown 2026-11-24: the infused hit deals Ice (a Water infusion on a Deals Ice skill): a Water glow plays Ice's
+     *  default glow and colour. Set per action by the executor; the picker clears it. */
+    void SetDealsIce(bool bIce);
+    bool DealsIce() const { return bDealsIce; }
+
     /** The element of the infusion showing now; None with none (and for Physical or Raw). */
     ESpellElement GetActiveElement() const { return bIsInfusionActive ? CurrentElement : ESpellElement::None; }
 
@@ -214,6 +219,8 @@ protected:
     bool bSuppressForImmuneAction = false;
 
     bool bWeaponInfusion = false;
+
+    bool bDealsIce = false;
 
     // ==================== INTERNAL ====================
 

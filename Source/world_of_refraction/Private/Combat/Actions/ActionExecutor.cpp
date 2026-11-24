@@ -949,6 +949,8 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 		if (UInfusionVFXComponent *InfusionVFX = Actor->FindComponentByClass<UInfusionVFXComponent>())
 		{
 			InfusionVFX->SetWeaponInfusion(Action.ActionType == EActionType::Ability);
+			const ESpellElement GlowElement = GetElementForSourceOption(Actor, Action.SelectedSource);
+			InfusionVFX->SetDealsIce(Action.SpellData && Action.SpellData->GetDealtTypeOverride(GlowElement) == EWoRDamageType::Ice);
 			InfusionVFX->SetInfusionLevel(MaxInfusionLevel);
 		}
 	}
