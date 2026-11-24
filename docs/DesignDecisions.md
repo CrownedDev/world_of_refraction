@@ -1313,17 +1313,15 @@ The queue of questions only Crown can answer.
   - Rejected as magic-looking: Mythforge Air Magic VFX, the fiery MohmmadAslam slash pack.
 **Open:** B-596 (player-picked trail look) assumed every swing trails; Crown to say whether it stays as a style pick or is dropped.
 
-### D-272 — The player picks the weapon trail's look
-**Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, while choosing a weapon VFX pack) · **Blocks:** B-596
-**Crown:** one customisable weapon trail; players pick the trail they want. Think about two weapons and shields.
-**Ruled (reference-backed defaults, Crown may change):**
-- Still **one universal trail** (the weapon glow change); its **look** (colour or style) is a per-character cosmetic picked in the loadout. No stats.
-- **One pick per character**, shown on every weapon that character swings.
-- **Two weapons:** both blades carry the trail, but only the swinging one shows it.
-- **Shield:** no trail, except on a shield bash.
-- **Infused:** the element's glow and colour take over the trail while the infusion lasts; the chosen look returns after.
-- Reference: chosen trail cosmetics are a long-liked cosmetic (Fortnite's contrails).
-**Notes for Claude:** needs a trail VFX pack with a few looks first (Crown is choosing one, 2026-11-24).
+### D-272 — The player picks the weapon glow's style (was: the trail's look)
+**Status:** ANSWERED (Crown, 2026-11-24; changed the same day) · **Raised:** 2026-11-24 (Crown, while choosing weapon VFX) · **Blocks:** B-596
+**Crown:** first, a customisable weapon trail. Then (after D-273 made the trail show only while infused): the L2 blade infusion stays fixed, but the glow can be changed, e.g. energy flowers floating around the weapon.
+**Ruled:**
+- The **glow around an infused weapon** has a **player-picked style** (a cosmetic, no stats), for example floating flower petals. The element always sets its **colour**.
+- The **L2 blade infusion** (D-273) is fixed per element; the player cannot change it.
+- The **trail** is not customisable: element look only, shown only while infused (D-273).
+- **Default (reference-backed, Crown may change):** one pick per character; the style shows at both levels, small at L1 and bigger at L2; on two weapons it shows on both; a shield shows none. Reference: picked weapon effects (Destiny 2 ornaments, Warframe weapon energy colours) are well-liked cosmetics.
+**Notes for Claude:** styles come from the glow pack's effects recoloured, plus new ones later.
 
 ### D-271 — Ice infusion from a Water source; the infusion HP backlash scaled and cut by Efficiency
 **Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, during the weapon glow change) · **Blocks:** B-593, B-594
