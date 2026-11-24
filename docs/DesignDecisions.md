@@ -1277,6 +1277,12 @@ The queue of questions only Crown can answer.
 - **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
+### Q-604 — How the enemy's melee rush is framed
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-604) · **Blocks:** nothing
+**Question:** the enemy's rush camera followed its dash and met it at the lens. Cut to a side view on arrival (as B-600c did for Melee Rush), or a framing that stays clear the whole way?
+**Answer (default, built):** the same as B-600c. The rush shot holds behind the enemy's start (it runs away from the lens toward your party), then cuts to the low side two-shot as its dash ends, before the swing; the Defence view comes at its usual moment. Enemy skills keep the Standard style otherwise (Q-600).
+**Reference:** Expedition 33 shows an enemy's approach from behind or beside it with your party in view, so you can read the parry timing, and cuts to a side angle for the strike; Persona 5 cuts to the hit too. Neither lets the attacker run into the camera.
+
 ### Q-600 — Which camera styles skills pick from
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-600) · **Blocks:** nothing
 **Question:** Crown likes the standard attack camera and the enemy-attack camera, and wants a fixed set of camera styles each skill picks instead of a camera tuned per skill. Which styles?
