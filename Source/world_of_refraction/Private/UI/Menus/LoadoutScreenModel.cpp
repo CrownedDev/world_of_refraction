@@ -706,14 +706,61 @@ void WoRLoadoutScreen::FindRowGear(FCombatLoadout &Loadout, const FLoadoutScreen
 	}
 }
 
+bool WoRLoadoutScreen::EditRowGear(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row,
+									TFunctionRef<bool(FWeaponLoadoutEntry *, FRingLoadoutEntry *)> Edit)
+{
+	int32 Place = INDEX_NONE;
+	switch (Row.Place)
+	{
+	case ELoadoutScreenPlace::Primary:
+		Place = WornGearLayout::PRIMARY_INDEX;
+		break;
+	case ELoadoutScreenPlace::Secondary:
+		Place = WornGearLayout::SECONDARY_INDEX;
+		break;
+	case ELoadoutScreenPlace::Adapter:
+		Place = Row.AdapterIndex == INDEX_NONE ? INDEX_NONE : WornGearLayout::FIRST_ADAPTER_INDEX + Row.AdapterIndex;
+		break;
+	default:
+		return false;
+	}
+	bool bChanged = false;
+	Loadout.EditSlots(Class, [&](FCombatLoadout &Edited)
+	{
+		const FLoadoutSlot *Slot = Place == INDEX_NONE ? nullptr : Edited.FindSlotAt(Place);
+		if (!Slot)
+		{
+			FWeaponLoadoutEntry *Weapon = nullptr;
+			FRingLoadoutEntry *Adapter = nullptr;
+			FindRowGear(Edited, Row, Weapon, Adapter);
+			bChanged = (Weapon || Adapter) && Edit(Weapon, Adapter);
+			return;
+		}
+		if (Slot->Kind() == EGearKind::Weapon)
+		{
+			FWeaponLoadoutEntry Entry = Slot->ToWeaponLoadoutEntry();
+			bChanged = Edit(&Entry, nullptr);
+			if (bChanged)
+			{
+				Edited.PutSlotAt(Place, FLoadoutSlot::FromWeaponLoadoutEntry(Entry));
+			}
+			return;
+		}
+		FRingLoadoutEntry Entry = Slot->ToRingLoadoutEntry();
+		bChanged = Edit(nullptr, &Entry);
+		if (bChanged)
+		{
+			Edited.PutSlotAt(Place, FLoadoutSlot::FromRingLoadoutEntry(Entry));
+		}
+	});
+	return bChanged;
+}
+
 namespace LoadoutScreenBuild
 {
-	/** Row's Socket in the loadout's own copy of the piece (the legacy entry its place mirrors), or null. */
-	FRuntimeAttachedItem *FindSocketItem(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, int32 Socket)
+	/** Socket in the piece's entry, or null. */
+	FRuntimeAttachedItem *FindSocketItem(FWeaponLoadoutEntry *WeaponSlot, FRingLoadoutEntry *RingSlot, int32 Socket)
 	{
-		FWeaponLoadoutEntry *WeaponSlot = nullptr;
-		FRingLoadoutEntry *RingSlot = nullptr;
-		WoRLoadoutScreen::FindRowGear(Loadout, Row, WeaponSlot, RingSlot);
 		FWeaponInventoryEntry *Weapon = WeaponSlot ? &WeaponSlot->WeaponEntry : nullptr;
 		FRingInventoryEntry *Ring = RingSlot ? &RingSlot->RingEntry : nullptr;
 		if (Socket == LoadoutScreenSockets::CRYSTAL)
@@ -745,7 +792,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 	const auto Finish = [&](FLoadoutScreenChoice &Choice, bool bInUse)
 	{
 		FCombatLoadout After = Loadout;
-		PutSocketChoice(After, Row, Socket, Choice);
+		PutSocketChoice(After, Class, Row, Socket, Choice);
 		Choice.NewSpent = BuildGearPage(After, Class).Spent;
 		Choice.Row.bCountsToBudget = false; // the line shows what it adds, not a cost of its own
 		Choice.Row.CostLine = FText::Format(LOCTEXT("SocketAdds", "+{0}"), FText::AsNumber(Choice.NewSpent - Before.Spent));
@@ -832,15 +879,22 @@ TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(const FCombatL
 	return Choices;
 }
 
-bool WoRLoadoutScreen::PutSocketChoice(FCombatLoadout &Loadout, const FLoadoutScreenRow &Row, int32 Socket, const FLoadoutScreenChoice &Choice)
+bool WoRLoadoutScreen::PutSocketChoice(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutScreenRow &Row, int32 Socket,
+									   const FLoadoutScreenChoice &Choice)
 {
-	FRuntimeAttachedItem *Item = LoadoutScreenBuild::HasSocket(Row, Socket) ? LoadoutScreenBuild::FindSocketItem(Loadout, Row, Socket) : nullptr;
-	if (!Item || Choice.Attachment.IsEmpty())
+	if (!LoadoutScreenBuild::HasSocket(Row, Socket) || Choice.Attachment.IsEmpty())
 	{
 		return false;
 	}
-	*Item = Choice.Attachment;
-	return true;
+	return EditRowGear(Loadout, Class, Row, [&](FWeaponLoadoutEntry *Weapon, FRingLoadoutEntry *Adapter)
+	{
+		FRuntimeAttachedItem *Item = LoadoutScreenBuild::FindSocketItem(Weapon, Adapter, Socket);
+		if (Item)
+		{
+			*Item = Choice.Attachment;
+		}
+		return Item != nullptr;
+	});
 }
 
 TArray<FLoadoutScreenChoice> WoRLoadoutScreen::BuildSocketChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutScreenRow &Row, int32 Socket,
