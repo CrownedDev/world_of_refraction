@@ -48,7 +48,11 @@ void UInfusionVFXComponent::BeginPlay()
     }
 
     WeaponMeshComponent = Owner->FindComponentByClass<UWeaponMeshComponent>();
-    if (!WeaponMeshComponent)
+    if (WeaponMeshComponent)
+    {
+        WeaponMeshComponent->OnWeaponMeshRebuilt.AddUObject(this, &UInfusionVFXComponent::HandleWeaponMeshRebuilt);
+    }
+    else
     {
         UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No WeaponMeshComponent found"));
     }
@@ -138,6 +142,34 @@ void UInfusionVFXComponent::SetImmuneToInfusion(bool bImmune)
 
     UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Immunity flag set: %s"),
            bImmune ? TEXT("true") : TEXT("false"));
+}
+
+void UInfusionVFXComponent::SetWeaponInfusion(bool bWeapon)
+{
+    if (bWeaponInfusion == bWeapon)
+    {
+        return;
+    }
+    bWeaponInfusion = bWeapon;
+    RespawnKeepingLevel();
+}
+
+void UInfusionVFXComponent::HandleWeaponMeshRebuilt()
+{
+    if (bWeaponInfusion)
+    {
+        RespawnKeepingLevel();
+    }
+}
+
+void UInfusionVFXComponent::RespawnKeepingLevel()
+{
+    if (!bIsInfusionActive)
+    {
+        return;
+    }
+    RefreshVFX();
+    SetInfusionLevel(CurrentInfusionLevel);
 }
 
 // ==================== PUBLIC API ====================
@@ -269,6 +301,22 @@ void UInfusionVFXComponent::SpawnVFX(UNiagaraSystem *VFXSystem, EInfusionDisplay
     // Clear any existing VFX first
     ClearVFX();
 
+    UMeshComponent *WeaponMesh = (bWeaponInfusion && WeaponMeshComponent) ? WeaponMeshComponent->GetWeaponVFXMesh() : nullptr;
+    if (WeaponMesh)
+    {
+        ActiveVFXComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
+            VFXSystem, WeaponMesh, NAME_None, FVector::ZeroVector, FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true);
+        if (ActiveVFXComponent)
+        {
+            SetMeshParameterForLocation(EInfusionDisplayLocation::Weapon);
+        }
+        return;
+    }
+    if (bWeaponInfusion)
+    {
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Weapon infusion with no weapon mesh shown - using the display's place"));
+    }
+
     switch (Location)
     {
     case EInfusionDisplayLocation::Weapon:
@@ -347,16 +395,18 @@ void UInfusionVFXComponent::SetMeshParameterForLocation(EInfusionDisplayLocation
     switch (Location)
     {
     case EInfusionDisplayLocation::Weapon:
-        // Pass weapon static mesh component for surface sampling
-        if (WeaponMeshComponent)
+        // Pass the weapon in hand's mesh (static or skeletal) for surface sampling
+        if (UMeshComponent *WeaponMesh = WeaponMeshComponent ? WeaponMeshComponent->GetWeaponVFXMesh() : nullptr)
         {
-            UStaticMeshComponent *WeaponStaticMesh = WeaponMeshComponent->GetPrimaryStaticMeshComp();
-            if (WeaponStaticMesh)
+            if (UStaticMeshComponent *WeaponStaticMesh = Cast<UStaticMeshComponent>(WeaponMesh))
             {
                 UNiagaraFunctionLibrary::OverrideSystemUserVariableStaticMeshComponent(
-                    ActiveVFXComponent,
-                    WeaponMeshParameterName.ToString(),
-                    WeaponStaticMesh);
+                    ActiveVFXComponent, WeaponMeshParameterName.ToString(), WeaponStaticMesh);
+            }
+            else if (USkeletalMeshComponent *WeaponSkeletalMesh = Cast<USkeletalMeshComponent>(WeaponMesh))
+            {
+                UNiagaraFunctionLibrary::OverrideSystemUserVariableSkeletalMeshComponent(
+                    ActiveVFXComponent, WeaponMeshParameterName.ToString(), WeaponSkeletalMesh);
             }
         }
         break;

@@ -170,6 +170,14 @@ public:
     UFUNCTION(BlueprintPure, Category = "InfusionVFX")
     bool IsImmuneToInfusion() const { return bSuppressForImmuneAction; }
 
+    /** Crown 2026-11-24: an attack's or a weapon skill's infusion. Its glow rides the weapon in hand's own mesh,
+     *  whatever the display's DisplayLocation says, and follows swaps; a spell's keeps the display's place. */
+    void SetWeaponInfusion(bool bWeapon);
+    bool IsWeaponInfusion() const { return bWeaponInfusion; }
+
+    /** The element of the infusion showing now; None with none (and for Physical or Raw). */
+    ESpellElement GetActiveElement() const { return bIsInfusionActive ? CurrentElement : ESpellElement::None; }
+
 protected:
     // ==================== CACHED REFERENCES ====================
 
@@ -205,7 +213,15 @@ protected:
     UPROPERTY()
     bool bSuppressForImmuneAction = false;
 
+    bool bWeaponInfusion = false;
+
     // ==================== INTERNAL ====================
+
+    /** The weapon meshes were rebuilt (a swap): a weapon glow moves onto the new piece. */
+    void HandleWeaponMeshRebuilt();
+
+    /** Re-spawn the glow where it belongs now, keeping its level's scale. */
+    void RespawnKeepingLevel();
 
     /** Spawn VFX at location specified by weapon's display data */
     void SpawnVFX(UNiagaraSystem *VFXSystem, EInfusionDisplayLocation Location);

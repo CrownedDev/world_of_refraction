@@ -948,6 +948,7 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 	{
 		if (UInfusionVFXComponent *InfusionVFX = Actor->FindComponentByClass<UInfusionVFXComponent>())
 		{
+			InfusionVFX->SetWeaponInfusion(Action.ActionType == EActionType::Ability);
 			InfusionVFX->SetInfusionLevel(MaxInfusionLevel);
 		}
 	}
