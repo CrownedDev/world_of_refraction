@@ -692,6 +692,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-600d](B-600d.md) | `fix/B-600d-camera-follows-return` (built 2026-11-24) | After a party member's melee skill the camera goes home with the attacker, no shot of the enemy alone (Q-600d) | Pending |
 | [B-600e](B-600e.md) | `fix/B-600e-leap-home-wide-beat` (built 2026-11-24) | The leap home goes to the wide view from where the attacker lands: no leap past the lens, no shot of the enemy alone (Q-600d) | Pending |
 | [B-604](B-604.md) | `fix/B-604-enemy-rush-clear-of-lens` (built 2026-11-24) | The enemy's melee rush holds behind it and cuts to the side view on arrival: never near the lens (Q-604) | Pending |
+| [B-604d](B-604d.md) | `fix/B-604d-defend-camera-wider` (built 2026-11-24) | The defend camera is a low side view of the enemy and your character, wide for a hit on the whole party (Q-604d) | Pending |
 | [B-604b](B-604b.md) | `fix/B-604b-enemy-rush-named-attack` (built 2026-11-24) | Enemy attacks play the defend camera: behind your character, facing the enemy, never near the lens (Q-604b) | Pending |
 | [B-604c](B-604c.md) | `fix/B-604c-defend-hold-until-hit` (built 2026-11-24) | The defend camera holds until the enemy's hit is seen (Wrath Cut, Heavy Strike); DEFEND! readable (Q-604b) | Pending |
 | [B-605](B-605.md) | `feature/B-605-one-action-at-fight-start` (built 2026-11-24) | Every fighter, party and enemy, starts a fight with 1 action; the regain from the second turn (D-274) | Pending |
