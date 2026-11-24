@@ -115,6 +115,28 @@ enum class EBossCinematicKind : uint8
 	Phase
 };
 
+/** B-600 (Q-600, Crown 2026-11-24): the camera style a skill picks instead of per-skill camera tuning. Rule (study R5,
+ *  R6, R8; Persona 5, Expedition 33): never change a shot's size along one axis; change size only with a cut to a new
+ *  angle; each shot moves one way or holds; big effects get a still camera; one blend back to the turn view. An
+ *  enemy's skill keeps Standard. */
+UENUM(BlueprintType)
+enum class ESkillCameraStyle : uint8
+{
+	/** Today's attack camera: wind-up, Cast, Impact / Spread. */
+	Standard UMETA(DisplayName = "Standard"),
+	/** A melee rush timed to the dash, a cut to the side two-shot on the hit, held. No Cast shot. */
+	MeleeRush UMETA(DisplayName = "Melee Rush"),
+	/** A cut to a low over-the-shoulder shot that holds; at the release a cut to a still side two-shot the projectile
+	 *  crosses; on the hit a quick FOV punch and a small shake, same shot. */
+	RangedRelease UMETA(DisplayName = "Ranged Release"),
+	/** A slow one-way push during the charge; a cut to a low hero angle at the hit, held. */
+	HeavyWindUp UMETA(DisplayName = "Heavy Wind-Up"),
+	/** A wide, higher still shot of the attacker and every target, held throughout. */
+	AreaSweep UMETA(DisplayName = "Area Sweep"),
+	/** The skill's CameraSequence (a signature move); Standard's shots when it has none. */
+	Cinematic UMETA(DisplayName = "Cinematic")
+};
+
 /** B-371 (Q-371): per-skill tuning of the code-built shots, without Sequencer. A skill with its own CameraSequence
  *  plays that instead (signature moves). */
 USTRUCT(BlueprintType)
@@ -173,6 +195,11 @@ struct WORLD_OF_REFRACTION_API FCameraShot
 	float MotionBlur = 0.0f;
 	/** B-424: the camera holds at Start this long before it moves (a rush timed to an approach's burst). */
 	float DelaySeconds = 0.0f;
+	/** B-600: the shot cuts to Start instead of blending from where the camera is. */
+	bool bCut = false;
+	/** B-600: an FOV punch that narrows by FovPunch and comes back over FovPunchSeconds (0: FieldOfView holds). */
+	float FovPunch = 0.0f;
+	float FovPunchSeconds = 0.0f;
 };
 
 /** Where the fight is, from the camera's point of view. */
@@ -334,8 +361,22 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	/** The field of view every view but an impact punch uses. */
 	static constexpr float DefaultFieldOfView = 90.0f;
 
-	/** B-371 (Q-371): a skill plays the code-built shots unless it has its own CameraSequence (a signature move). */
-	static bool UsesShotPatterns(const USkillDataBase *Skill);
+	/** B-371 (Q-371): a skill plays the code-built shots unless it has its own CameraSequence (a signature move).
+	 *  B-600: a skill with a shot style (Melee Rush, Ranged Release, Heavy Wind-Up, Area Sweep) plays its shots
+	 *  whatever its sequence; Standard and Cinematic play the sequence when there is one. */
+	static bool UsesShotPatterns(const USkillDataBase *Skill, bool bCasterIsEnemy = false);
+
+	/** B-600: the style Skill's shots follow: its CameraStyle; Standard for an enemy's skill (enemy attacks keep
+	 *  today's camera) or with no skill. */
+	static ESkillCameraStyle GetCameraStyle(const USkillDataBase *Skill, bool bCasterIsEnemy);
+
+	/** B-600 (Q-600): Style's shot for Moment. Standard and Cinematic: ComputeShot's. Unset: the style plays nothing at
+	 *  that moment and the shot showing holds. Ranged Release ignores Tuning.bFollowProjectile (its shots hold still). */
+	static TOptional<FCameraShot> ComputeStyledShot(ESkillCameraStyle Style, ECameraShotMoment Moment, const FCameraShotContext &Context,
+													const FSkillCameraTuning &Tuning);
+
+	/** B-600: Shot's field of view Elapsed seconds in: narrowed by FovPunch at the punch's middle, back by its end. */
+	static float GetPunchedFieldOfView(const FCameraShot &Shot, float Elapsed);
 
 	/** B-371: the moment an impact plays: Spread for several targets, else Impact. */
 	static ECameraShotMoment ImpactMomentFor(int32 TargetCount);
