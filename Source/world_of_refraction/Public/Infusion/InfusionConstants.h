@@ -11,7 +11,8 @@ namespace InfusionConstants
 	// ==================== CHARGE HP COSTS ====================
 	// RETIRED (rework 6-2-3): the flat 5%/10%-of-current-HP charge cost is replaced
 	// by an EP-derived basis — HP = (pre-Efficiency infused EP / MaxEP) × MaxHP ×
-	// (1 − Resistance), computed in UInfusionCostHelper::CalculateHPCost.
+	// HP_BACKLASH_MULTIPLIER × (1 − Efficiency, capped at EFFICIENCY_MAX) × (1 − Resistance)
+	// (D-271), computed in UInfusionCostHelper::CalculateHPCost.
 
 	// ==================== CHARGE EFFECT BONUSES (MODE-ROUTED) ====================
 	// Infusion charge effect bonuses (multiplier form). The mode (EInfusionMode) routes which pair
@@ -97,6 +98,10 @@ namespace InfusionConstants
 
 	/** The lowest charge level that pays the HP cost. */
 	constexpr int32 HP_COST_MIN_LEVEL = 2;
+
+	/** D-271: the HP backlash's share of the EP-derived basis. At 1.0 an L2 Heavy Attack killed a 119 HP character.
+	 *  TODO: Crown tune (placeholder). */
+	constexpr float HP_BACKLASH_MULTIPLIER = 0.15f;
 
 	/** EP multiplier for a charge level: the level itself (clamped to MAX_INFUSION_LEVEL), x1 with no charge. */
 	inline float ChargeLevelCostMultiplier(int32 Level)
