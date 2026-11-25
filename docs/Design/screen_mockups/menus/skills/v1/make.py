@@ -35,7 +35,7 @@ def tabs_top(d):
 
 def skill_row(d, y, i, focus):
     name, short, ep, kind = SLOTS[i]
-    box = (GX0 + 28, y, GX1 - 16, y + 48)
+    box = (GX0 + 16, y, GX1 - 16, y + 48)
     if kind == "empty":
         cut(d, box, BG, (60, 62, 70), 7)
         text(d, (box[0] + 16, y + 25), "Empty slot", 15, fill=OFF, anchor="lm")
@@ -52,21 +52,14 @@ def skill_row(d, y, i, focus):
 def left_slots(d, focus_i):
     panel(d, (GX0, TOP, GX1, BOTTOM))
     text(d, (GX0 + 18, TOP + 14), "Skill slots", 17, True)
-    text(d, (GX1 - 16, TOP + 16), "2 entries", 13, True, DIM, anchor="ra")
-    text(d, (GX0 + 18, TOP + 38), "each entry opens and closes", 14, fill=DIM)
-    # each entry is a drop-down (Crown): click / A on its header opens or closes its slots
-    y = TOP + 60
-    for entry, used, is_open in (("Arming Sword + Round Shield", "5 / 7", True), ("Hand Axe", "2 / 6", False)):
-        cut(d, (GX0 + 16, y, GX1 - 16, y + 32), PLATE, STEEL, 6)
-        text(d, (GX0 + 30, y + 16), "▼" if is_open else "▶", 13, True, CYAN, anchor="lm")
-        text(d, (GX0 + 50, y + 16), entry, 15, True, anchor="lm")
-        text(d, (GX1 - 30, y + 16), used, 13, True, DIM, anchor="rm")
-        y += 38
-        if is_open:
-            for i in range(len(SLOTS)):
-                skill_row(d, y, i, i == focus_i)
-                y += 54
-            y += 4
+    text(d, (GX1 - 16, TOP + 16), "5 / 7", 13, True, DIM, anchor="ra")
+    text(d, (GX0 + 18, TOP + 38), "one list for the whole entry", 14, fill=DIM)
+    # the entry side-scrolls like the journal's kind selector (Crown: back from the drop-down)
+    kind_selector(d, GX0 + 16, TOP + 62, ["Sword + Shield", "Hand Axe"], 0)
+    y = TOP + 110
+    for i in range(len(SLOTS)):
+        skill_row(d, y, i, i == focus_i)
+        y += 54
 
 
 def skill_details(d, name, tier, line, stats, effects, req, req_ok, note=None):
@@ -120,7 +113,7 @@ def screen_tab():
     for key, verb, primary in (("A", "Change this slot", True), ("Y", "Take it out", False), ("X", "Short / full", False)):
         action_button(d, (SX0 + 16, y, SX1 - 16, y + 38), key, verb, primary)
         y += 46
-    footer(d, [("A", "Change / open"), ("‹ ›", "Entry"), ("Y", "Take out"), ("X", "Short / full"), ("B", "Back")])
+    footer(d, [("A", "Change"), ("‹ ›", "Entry"), ("Y", "Take out"), ("X", "Short / full"), ("B", "Back")])
     return im
 
 
