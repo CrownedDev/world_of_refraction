@@ -82,7 +82,7 @@ namespace
 	}
 
 	/** Runs Change on the active loadout through the screen's door; the refusal (the door's or the change's) in Lines. */
-	bool ChangeGear(ULoadoutComponent &Loadout, const UInventoryComponent &Inventory, TFunctionRef<bool(FCombatLoadout &, FText &)> Change, const TCHAR *What,
+	bool ChangeSetGear(ULoadoutComponent &Loadout, const UInventoryComponent &Inventory, TFunctionRef<bool(FCombatLoadout &, FText &)> Change, const TCHAR *What,
 					TArray<FString> &Lines)
 	{
 		bool bApplied = false;
@@ -195,7 +195,7 @@ namespace
 		Lines.Add(FString::Printf(TEXT("tier %s: %s"), *UEnum::GetValueAsString(Tier), Raised.IsEmpty() ? TEXT("every piece already") : *FString::Join(Raised, TEXT(", "))));
 	}
 
-	bool FindPlayedMember(UWorld *World, const ULoadoutComponent *PawnLoadout, FLoadoutScreenMember &OutMember)
+	bool FindSetMember(UWorld *World, const ULoadoutComponent *PawnLoadout, FLoadoutScreenMember &OutMember)
 	{
 		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
 		{
@@ -549,7 +549,7 @@ FString WoRTestSet::Apply(UWorld *World)
 			const FWeaponInventoryEntry OffHandCopy = *OffHand;
 			const FRingInventoryEntry AdapterCopy = *Adapter;
 			const FEvolutionInventoryEntry SeatCopy = *Seat;
-			bKitWorn = ChangeGear(*Loadout, *Inventory,
+			bKitWorn = ChangeSetGear(*Loadout, *Inventory,
 					   [&](FCombatLoadout &Changed, FText &Refusal)
 					   {
 						   FCombatLoadout Kit = Changed; // all or nothing: a refusal leaves the worn gear as it was
@@ -632,7 +632,7 @@ FString WoRTestSet::Apply(UWorld *World)
 
 	// Every skill slot of the worn entries filled, so each source has its skills ready in a fight.
 	FLoadoutScreenMember Member;
-	Lines.Add(FindPlayedMember(World, Loadout, Member) ? FillSkillSlots(World, Member) : TEXT("skill slots: the played character is not a party member here"));
+	Lines.Add(FindSetMember(World, Loadout, Member) ? FillSkillSlots(World, Member) : TEXT("skill slots: the played character is not a party member here"));
 
 	if (UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Pawn))
 	{
