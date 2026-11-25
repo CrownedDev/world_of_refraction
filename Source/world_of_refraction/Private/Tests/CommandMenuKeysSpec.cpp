@@ -26,6 +26,8 @@
 #include "InputCoreTypes.h"
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
+#include "Skills/Definitions/SupportSkillRules.h"
+#include "Skills/Effects/EffectDefinition.h"
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
@@ -38,6 +40,35 @@ namespace
 	constexpr int32 MENU_KEYS_SETTLE_FRAMES = 3;
 	/** Infusion levels 0, 1, 2 (UInfusionVFXComponent::CycleInfusionLevel). */
 	constexpr int32 MENU_KEYS_INFUSION_LEVELS = 3;
+	/** B-613: enough EP for any infusion the specs pick. */
+	constexpr int32 MENU_KEYS_PLENTY_EP = 100;
+	/** B-613: an attack that costs EP, so an infused one costs more than this. */
+	constexpr int32 MENU_KEYS_STRIKE_EP = 10;
+	/** B-620: the test buff's heal. */
+	constexpr float MENU_KEYS_BUFF_HEAL = 10.0f;
+
+	/** B-620: Skill with one effect of Type (a heal by default) and no damage, aimed at Target. */
+	template <typename TSkill>
+	TSkill *MakeNoDamageSkill(ETargetType Target, ESkillEffectType Type = ESkillEffectType::HealthRestore)
+	{
+		UEffectDefinition *Def = NewObject<UEffectDefinition>(GetTransientPackage());
+		FSkillEffectPayload Payload;
+		Payload.EffectType = Type;
+		Payload.Magnitude = MENU_KEYS_BUFF_HEAL;
+		FSkillEffect Effect;
+		Effect.Payloads.Add(Payload);
+		Def->Effects.Add(Effect);
+		TSkill *Skill = NewObject<TSkill>(GetTransientPackage());
+		Skill->BaseDamage = 0;
+		Skill->TargetType = Target;
+		Skill->ReferencedEffects.Add(Def);
+		return Skill;
+	}
+
+	UAbilityData *MakeWeaponBuff(ETargetType Target)
+	{
+		return MakeNoDamageSkill<UAbilityData>(Target);
+	}
 
 	void MenuKeysAddLoadout(AActor *Actor)
 	{
@@ -1198,6 +1229,177 @@ void FCommandMenuKeysSpec::Define()
 									CommandMenuRules::IsMainMenuKey(Key.Category);
 			TestTrue(FString::Printf(TEXT("%s presses a category PressMenuKey knows"), *Key.ActionName.ToString()), bKnownRule);
 		}
+	});
+
+	It("keeps a fighter's infusion on for its next actions until turned off, off for one it can't pay, for one fight (B-613, Q-613)", [this]()
+	{
+		if (!StartTwoWeaponDuel())
+		{
+			return;
+		}
+		UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestNotNull(TEXT("hero data"), HeroData))
+		{
+			return;
+		}
+		HeroData->MaxEP = HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
+		ULoadoutComponent *Loadout = Hero->FindComponentByClass<ULoadoutComponent>();
+		UWeaponData *Sword = Loadout ? Loadout->GetPrimaryWeapon() : nullptr;
+		if (!TestNotNull(TEXT("the sword in hand"), Sword))
+		{
+			return;
+		}
+		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
+		Strike->BaseEnergyCost = MENU_KEYS_STRIKE_EP;
+		Sword->WeaponAttack = Strike;
+		const auto OpenAttack = [this]()
+		{
+			FPieMenuButtonData Attack;
+			Attack.Category = EPieMenuCategory::Attack;
+			Menu->HandleSelection(Attack);
+		};
+		const auto PickLevel = [this](int32 Level)
+		{
+			Menu->PressMenuKey(EPieMenuCategory::Items); // 3 / Y: the infusion line (B-592)
+			Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, Level);
+		};
+		const auto HerosNextTurn = [this, HeroData]()
+		{
+			TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+			HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
+			Menu->OpenForActor(Hero);
+		};
+
+		OpenAttack();
+		TestEqual(TEXT("the first Attack: no infusion"), Menu->GetPendingInfusionLevel(), 0);
+		PickLevel(1);
+		const UInfusionVFXComponent *VFX = Hero->FindComponentByClass<UInfusionVFXComponent>();
+		const int32 RawIndex = VFX ? VFX->GetCachedSources().IndexOfByKey(EInfusionSourceOption::Raw) : INDEX_NONE;
+		if (!TestTrue(TEXT("Raw is offered"), RawIndex != INDEX_NONE))
+		{
+			return;
+		}
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Element, RawIndex); // an infused source: it costs EP
+		TestTrue(TEXT("attack at Raw, Lv I"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestEqual(TEXT("remembered"), Menu->GetStickyInfusionLevel(Hero), 1);
+		TestEqual(TEXT("not the foe's"), Menu->GetStickyInfusionLevel(Foe), 0);
+
+		HerosNextTurn();
+		OpenAttack();
+		TestEqual(TEXT("the next Attack opens at Lv I"), Menu->GetPendingInfusionLevel(), 1);
+		TestEqual(TEXT("on Raw"), VFX->GetCurrentSourceIndex(), RawIndex);
+		Menu->HandleBack();
+		TestEqual(TEXT("backing out keeps it"), Menu->GetStickyInfusionLevel(Hero), 1);
+
+		HeroData->CurrentEP = MENU_KEYS_STRIKE_EP; // the attack, not its infusion
+		OpenAttack();
+		TestEqual(TEXT("not the EP to infuse it: off for this action"), Menu->GetPendingInfusionLevel(), 0);
+		TestTrue(TEXT("and says so"), Menu->IsStickyInfusionDropped() &&
+										  Menu->GetTargetPanel().Summary.ToString().Contains(TEXT("not enough EP")));
+		Menu->HandleBack();
+		TestEqual(TEXT("still on for the next action"), Menu->GetStickyInfusionLevel(Hero), 1);
+
+		HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
+		OpenAttack();
+		TestTrue(TEXT("EP back: on again"), Menu->GetPendingInfusionLevel() == 1 && !Menu->IsStickyInfusionDropped());
+		PickLevel(0);
+		TestTrue(TEXT("attack at no infusion"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestEqual(TEXT("turned off"), Menu->GetStickyInfusionLevel(Hero), 0);
+
+		HerosNextTurn();
+		OpenAttack();
+		TestEqual(TEXT("the next Attack: no infusion"), Menu->GetPendingInfusionLevel(), 0);
+		PickLevel(2);
+		Menu->PressMenuKey(EPieMenuCategory::Attack);
+		TestEqual(TEXT("on at Lv II"), Menu->GetStickyInfusionLevel(Hero), 2);
+		Menu->SetCombatOrchestrator(Orchestrator); // a new fight
+		TestEqual(TEXT("forgotten with the fight"), Menu->GetStickyInfusionLevel(Hero), 0);
+	});
+
+	It("offers no infusion on a weapon buff, and using one keeps the infusion on (B-620, D-275)", [this]()
+	{
+		if (!StartTwoWeaponDuel())
+		{
+			return;
+		}
+		UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+		ULoadoutComponent *Loadout = Hero->FindComponentByClass<ULoadoutComponent>();
+		UWeaponData *Sword = Loadout ? Loadout->GetPrimaryWeapon() : nullptr;
+		const UInfusionVFXComponent *VFX = Hero->FindComponentByClass<UInfusionVFXComponent>();
+		if (!TestNotNull(TEXT("hero data"), HeroData) || !TestNotNull(TEXT("the sword in hand"), Sword) || !TestNotNull(TEXT("infusion"), VFX))
+		{
+			return;
+		}
+		HeroData->MaxEP = HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
+		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
+		Strike->BaseEnergyCost = MENU_KEYS_STRIKE_EP;
+		UAbilityData *Rally = MakeWeaponBuff(ETargetType::Self);
+		const auto OpenAttack = [this]()
+		{
+			FPieMenuButtonData Attack;
+			Attack.Category = EPieMenuCategory::Attack;
+			Menu->HandleSelection(Attack);
+		};
+
+		Sword->WeaponAttack = Strike;
+		OpenAttack();
+		Menu->PressMenuKey(EPieMenuCategory::Items); // 3 / Y: the infusion line (B-592)
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 1);
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Element, VFX->GetCachedSources().IndexOfByKey(EInfusionSourceOption::Raw));
+		TestTrue(TEXT("strike at Raw, Lv I"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestEqual(TEXT("infusion on"), Menu->GetStickyInfusionLevel(Hero), 1);
+
+		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+		HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
+		Menu->OpenForActor(Hero);
+		Sword->WeaponAttack = Rally;
+		OpenAttack();
+		TestEqual(TEXT("a weapon buff opens at no infusion"), Menu->GetPendingInfusionLevel(), 0);
+		Menu->PressMenuKey(EPieMenuCategory::Items);
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 2);
+		TestEqual(TEXT("a level can't be picked"), Menu->GetPendingInfusionLevel(), 0);
+		FPieMenuButtonData OnSelf; // a Self skill confirms on the caster's button
+		OnSelf.Category = EPieMenuCategory::Target;
+		OnSelf.Targets.Add(Hero);
+		Menu->HandleSelection(OnSelf);
+		TestFalse(TEXT("rally used: the menu closed"), Menu->IsOpen());
+		TestEqual(TEXT("the infusion stays on for the next strike"), Menu->GetStickyInfusionLevel(Hero), 1);
+	});
+
+	It("drops the infusion of a weapon buff's or debuff's action, not of a strike's or a spell buff's (B-620, D-275)", [this]()
+	{
+		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
+		Strike->BaseDamage = MENU_KEYS_STRIKE_EP; // any damage
+		UAbilityData *Rally = MakeWeaponBuff(ETargetType::Ally);
+		UAbilityData *Hex = MakeNoDamageSkill<UAbilityData>(ETargetType::Enemy, ESkillEffectType::DefenseDebuff);
+		UAbilityData *Utility = NewObject<UAbilityData>(GetTransientPackage()); // no damage, on self, no effect
+		Utility->BaseDamage = 0;
+		Utility->TargetType = ETargetType::Self;
+		USpellData *SpellBuff = MakeNoDamageSkill<USpellData>(ETargetType::Ally);
+		TestTrue(TEXT("Rally (a buff) counts"), SupportSkillRules::IsWeaponBuffOrDebuff(Rally));
+		TestTrue(TEXT("a debuff on a foe counts"), SupportSkillRules::IsWeaponBuffOrDebuff(Hex));
+		TestFalse(TEXT("a strike doesn't"), SupportSkillRules::IsWeaponBuffOrDebuff(Strike));
+		TestFalse(TEXT("a no-damage skill with no effect doesn't"), SupportSkillRules::IsWeaponBuffOrDebuff(Utility));
+		TestFalse(TEXT("a spell buff doesn't: spells are naturally infused"), SupportSkillRules::IsWeaponBuffOrDebuff(SpellBuff));
+
+		FAction SpellCast;
+		SpellCast.ActionType = EActionType::Spell;
+		SpellCast.SpellData = SpellBuff;
+		SpellCast.SpellInfusionLevel = 2;
+		TestEqual(TEXT("a spell buff keeps its infusion"), SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(SpellCast).SpellInfusionLevel, 2);
+
+		FAction Infused;
+		Infused.ActionType = EActionType::Ability;
+		Infused.SelectedSource = EInfusionSourceOption::Raw;
+		Infused.AbilityInfusionLevel = 2;
+		Infused.bIceInfusion = true;
+		Infused.SkillData = Rally;
+		const FAction Dropped = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(Infused);
+		TestTrue(TEXT("the buff's infusion is dropped"), Dropped.SelectedSource == EInfusionSourceOption::None &&
+															 Dropped.AbilityInfusionLevel == 0 && !Dropped.bIceInfusion);
+		Infused.SkillData = Strike;
+		const FAction Kept = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(Infused);
+		TestTrue(TEXT("the strike's is kept"), Kept.SelectedSource == EInfusionSourceOption::Raw && Kept.AbilityInfusionLevel == 2);
 	});
 }
 

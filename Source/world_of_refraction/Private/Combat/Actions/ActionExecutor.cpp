@@ -180,8 +180,9 @@ float UActionExecutor::GetSpellInfusionCostMultiplier(int32 InfusionLevel)
 // VALIDATION
 // ========================================
 
-FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAction &Action) const
+FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAction &InAction) const
 {
+	const FAction Action = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(InAction); // B-620 (D-275): ignored, so never refused for it
 	if (!Actor)
 	{
 		return FActionValidationResult(false, TEXT("Invalid actor"));
@@ -990,8 +991,16 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 // ========================================
 // EXECUTION - ASYNC
 // ========================================
-void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete)
+void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &InAction, FOnActionComplete OnComplete)
 {
+	// B-620 (D-275): a weapon buff or debuff can't be infused; any infusion it carries is dropped, not refused.
+	const FAction Action = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(InAction);
+	if (Action.AbilityInfusionLevel != InAction.AbilityInfusionLevel || Action.SelectedSource != InAction.SelectedSource)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[ActionExecutor] %s: %s is a weapon buff or debuff, its infusion is ignored (D-275)"), *GetNameSafe(Actor),
+			   *GetNameSafe(Action.SkillData));
+	}
+
 	// Lazy-bind to DefenseSystem on first use. Subsystem init order is alphabetical, so
 	// ActionExecutor::Initialize runs before DefenseSystem exists; binding there silently no-ops.
 	// By the time any action runs, DefenseSystem exists. Idempotent — bDefenseEventsBound guards re-binding.
@@ -1485,6 +1494,22 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// Per-cast-entry hybrid flags (B1), parallel to ResolvedCastDifficulty (indexed by CastEntryIndex).
 	CurrentExecutionContext->ResolvedCastFlags = ResolveCastFlags(Spell->CastArray);
 
+	// B-621: a no-damage Self / Ally spell (a buff or heal) lands no hit, as the ability path: no defend window, no
+	// damage; its targets are the affected ones and its effects apply at finalize (the support VFX still plays).
+	if (SupportSkillRules::IsFriendlyNoDamageSkill(Spell))
+	{
+		PendingSpellDamage = 0;
+		CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = 0;
+		for (AActor *Target : ValidTargets)
+		{
+			CurrentExecutionContext->PartialResult.AffectedTargets.AddUnique(Target);
+		}
+		UE_LOG(LogWoRCombat, Log, TEXT("[ActionExecutor] %s is a no-damage %s spell: no hit, its effects go to %d target(s) (B-621)"),
+			   *Spell->Name, *UEnum::GetDisplayValueAsText(Spell->TargetType).ToString(), ValidTargets.Num());
+		LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, 0, ValidTargets.Num());
+		return;
+	}
+
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
 		Caster,
@@ -1647,6 +1672,21 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 
 	// Play animation (merged path — PlaySkillAnimation reads the unified base SkillMontage)
 	PlaySkillAnimation(User, Ability, ActionMods);
+
+	// B-621: a no-damage Self / Ally ability (a buff) lands no hit. No defend window opens, so no prompt, no damage
+	// and no hit reaction; its targets are the affected ones, and its effects apply to them at finalize.
+	if (SupportSkillRules::IsFriendlyNoDamageSkill(Ability))
+	{
+		CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = 0;
+		for (AActor *Target : ValidTargets)
+		{
+			CurrentExecutionContext->PartialResult.AffectedTargets.AddUnique(Target);
+		}
+		UE_LOG(LogWoRCombat, Log, TEXT("[ActionExecutor] %s is a no-damage %s ability: no hit, its effects go to %d target(s) (B-621)"),
+			   *Ability->Name, *UEnum::GetDisplayValueAsText(Ability->TargetType).ToString(), ValidTargets.Num());
+		LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, 0, ValidTargets.Num());
+		return;
+	}
 
 	// Buildup amount only. Session Y: trigger type resolves in the manager from
 	// (Element, PhysicalType). Abilities have no physical type - if the action
@@ -5974,9 +6014,10 @@ void UActionExecutor::GetEffectTargets(
 			Others.Remove(User);
 			AddRandomDistinct(Others, 1, OutTargets);
 		}
-		else // Single — for abilities, Ally typically means self (TODO: ally selection)
+		else // Single — the chosen ally (B-621); the user when the action's target is not on its side (an enemy, none)
 		{
-			OutTargets.Add(User);
+			AActor *Chosen = ActionTargets.Num() > 0 ? ActionTargets[0] : nullptr;
+			OutTargets.Add(Chosen && GetAllAllies(User, UserTeam).Contains(Chosen) ? Chosen : User);
 		}
 		break;
 
