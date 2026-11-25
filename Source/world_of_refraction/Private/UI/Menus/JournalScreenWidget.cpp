@@ -156,9 +156,12 @@ void UJournalScreenWidget::BuildTree()
 	};
 	AddArrow(LOCTEXT("KindPrev", "‹"), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	FilterTabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	// shortcut: a page with many kinds (a memory per character, lore per place) clips at the plate's end; scroll or a
-	// one-word plate when a save has that many.
-	AddToRow(Plate, FilterTabBox, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	// Many kinds (a memory per character, lore per place) scroll sideways; the lit word is kept in view (Refresh).
+	FilterScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+	FilterScroll->SetOrientation(Orient_Horizontal);
+	FilterScroll->SetScrollBarVisibility(ESlateVisibility::Collapsed);
+	FilterScroll->AddChild(FilterTabBox);
+	AddToRow(Plate, FilterScroll, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	AddArrow(LOCTEXT("KindNext", "›"), FMargin(SectionGap, 0.0f, 0.0f, 0.0f));
 	AddToColumn(Left, FilterRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	RowScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
@@ -348,6 +351,10 @@ void UJournalScreenWidget::Refresh(bool bScrollIntoView)
 		FilterTabLabels[Index]->SetText(bShown ? View.Filters[Index] : FText::GetEmpty());
 		FilterTabLabels[Index]->SetColorAndOpacity(FSlateColor(bLit ? TextColor : DimColor));
 		FilterUnderlines[Index]->SetVisibility(bLit ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
+	if (FilterTabs.IsValidIndex(Filter))
+	{
+		FilterScroll->ScrollWidgetIntoView(FilterTabs[Filter], /*AnimateScroll=*/false);
 	}
 
 	while (RowWidgets.Num() < View.Rows.Num())
@@ -793,7 +800,10 @@ FReply UJournalScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry
 	const int32 Button = FindButtonUnder(InMouseEvent);
 	if (ShownButtons.IsValidIndex(Button))
 	{
-		PressButton(ShownButtons[Button].Kind);
+		if (ShownButtons[Button].Refusal.IsEmpty()) // a greyed button only shows why
+		{
+			PressButton(ShownButtons[Button].Kind);
+		}
 		return FReply::Handled();
 	}
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);

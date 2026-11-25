@@ -159,6 +159,8 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UBorder> FilterRow;
 	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> FilterScroll;
+	UPROPERTY(Transient)
 	TObjectPtr<UHorizontalBox> FilterTabBox;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> FilterTabs;
