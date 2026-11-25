@@ -1258,6 +1258,10 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 		MoveMergeTarget(IsRightKey(Key) ? 1 : -1); // the tier to make
 		return FReply::Handled();
 	}
+	if (IsOnFilters() && (IsSecondActionKey(Key) || IsToggleKey(Key)))
+	{
+		return FReply::Handled(); // no tile is lit up there: nothing for them to act on
+	}
 	if (IsSecondActionKey(Key))
 	{
 		PressSecond(); // Buy: take one back; Upgrade: the tier. Held, it repeats.
@@ -1331,7 +1335,14 @@ FReply UVendorScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const
 	// Only a moving mouse picks, so a resting cursor doesn't fight the keys.
 	if (!InMouseEvent.GetCursorDelta().IsZero())
 	{
-		SelectRow(FindRowUnder(InMouseEvent), /*bScrollIntoView=*/false); // the list mustn't move under the cursor
+		const int32 Over = FindRowUnder(InMouseEvent);
+		if (Over != INDEX_NONE && IsOnFilters())
+		{
+			bOnFilters = false; // B-616b: a tile under the mouse takes the keys back to the tiles
+			RefreshData();
+			RefreshSelection(/*bScrollIntoView=*/false);
+		}
+		SelectRow(Over, /*bScrollIntoView=*/false); // the list mustn't move under the cursor
 	}
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
