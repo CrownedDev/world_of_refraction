@@ -145,6 +145,17 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Trial|Encounter")
     void ExitEncounter();
 
+    /** B-611 (Q-611): a practice fight against the training dummy, from the hub (not during a run). The party's living
+     *  members against PracticeDummy on PracticeLevel (DefaultGame.ini); the leader's stand is kept so the return puts
+     *  them back where they stood. False, with a log, when a run is active, nothing is configured or no one can fight. */
+    bool EnterPracticeEncounter();
+
+    /** B-611: the fight under way (or about to start) is a practice fight: no rewards, wear, item use, Gold or save. */
+    bool IsPracticeFight() const { return bPracticeFight; }
+
+    /** B-611: IsPracticeFight for any object in a world (false with no world, game instance or subsystem). */
+    static bool IsPracticeFight(const UObject *WorldContext);
+
     /** True while a stashed roster awaits an ABattleGameMode to consume it. */
     UFUNCTION(BlueprintPure, Category = "Trial|Encounter")
     bool HasPendingEncounter() const { return PendingBattleParty.Num() > 0 && PendingOpposingParty.Num() > 0; }
@@ -574,6 +585,21 @@ private:
     /** B-511 (D-221): the class default kits, authored in DefaultGame.ini. */
     UPROPERTY(Config)
     TSoftObjectPtr<UClassDefaultLoadoutData> ClassDefaultLoadouts;
+
+    /** B-611: the battle level a practice fight opens, and the enemy it puts there (DefaultGame.ini). */
+    UPROPERTY(Config)
+    TSoftObjectPtr<UWorld> PracticeLevel;
+    UPROPERTY(Config)
+    TSoftObjectPtr<UCharacterData> PracticeDummy;
+
+    /** B-611: set by EnterPracticeEncounter, cleared as ExitEncounter leaves. Crosses the level travel with the rest of
+     *  the pending encounter (D-064: moves with the co-op plumbing, as the Pending* fields). */
+    bool bPracticeFight = false;
+    friend class FPracticeFightSpec; // sets the flag without a level travel
+
+    /** B-611: a trial or a real fight starting while the practice flag is still up (quit to the title mid-practice)
+     *  clears it and the dummy's return stand, so that fight keeps its rewards, wear and save. */
+    void EndAbandonedPractice();
 
     /** Strong (B-070): in a packaged build nothing else may hold the trial asset,
      *  so a weak pointer let GC drop it mid-run. Cleared on ExitTrial. */

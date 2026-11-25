@@ -498,8 +498,9 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 
 	// A finished fight, won or lost (ER-35): destroy the crystals that broke, BEFORE repair so they
 	// aren't candidates, then the between-fight repair. A flee or draw keeps its wear (Q-115b); an
-	// aborted fight (Idle) is not a battle.
-	if (Result == ECombatState::Victory || Result == ECombatState::Defeat)
+	// aborted fight (Idle) is not a battle. B-611: a practice fight keeps nothing, whatever ended it.
+	const bool bPractice = UTrialRunSubsystem::IsPracticeFight(this);
+	if (!bPractice && (Result == ECombatState::Victory || Result == ECombatState::Defeat))
 	{
 		ApplyBetweenCombatCrystalDestruction();
 		// B-096 (Q-096): the run-end payout reads the passives the party wore in this fight. Before the repair, which
@@ -512,10 +513,14 @@ void ACombatOrchestrator::FinishCombat(ECombatState Result, bool bTurnManagerEnd
 		ApplyBetweenCombatRepair();
 	}
 
-	CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
+	// B-611: its gear goes home as it came.
+	if (!bPractice)
+	{
+		CombatOwnedGearSync::WriteActiveLoadoutsToOwned(LocalPartyCombatants);
+	}
 
 	// B-279: a won fight fills the character-form meters from what the party wore.
-	if (Result == ECombatState::Victory)
+	if (!bPractice && Result == ECombatState::Victory)
 	{
 		if (UCharacterFormSubsystem *Forms = GetGameInstance() ? GetGameInstance()->GetSubsystem<UCharacterFormSubsystem>() : nullptr)
 		{
@@ -968,7 +973,9 @@ void ACombatOrchestrator::BeginFlee()
 	// not once per member.
 	int32 TotalGoldLost = 0;
 	TSet<UCurrencyComponent *> ChargedWallets;
-	for (AActor *Member : LocalPartyCombatants)
+	// B-611: leaving a practice fight (End practice) costs nothing.
+	const bool bPractice = UTrialRunSubsystem::IsPracticeFight(this);
+	for (AActor *Member : bPractice ? TArray<AActor *>() : LocalPartyCombatants)
 	{
 		UCurrencyComponent *Currency = CurrencyWallet::FindFor(Member);
 		if (!Currency || ChargedWallets.Contains(Currency))
@@ -1794,6 +1801,23 @@ void ACombatOrchestrator::RequestActionFromActor(AActor *Actor)
 		bHoldingForBossCinematic = true;
 		bWaitingForAsyncAction = true;
 		UE_LOG(LogWoRCombat, Log, TEXT("[CombatOrchestrator] %s's action waits for the boss cinematic"), *Actor->GetName());
+		return;
+	}
+
+	// B-611: the training dummy never acts. Its turn passes next tick (not inside the turn start that asked).
+	const UCharacterDataComponent *ActorData = Actor->FindComponentByClass<UCharacterDataComponent>();
+	if (ActorData && ActorData->bTrainingDummy)
+	{
+		bWaitingForAsyncAction = true; // nothing else may start before the pass
+		GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this, Dummy = TWeakObjectPtr<AActor>(Actor)]()
+		{
+			if (CombatState == ECombatState::InProgress && CurrentActor == Dummy.Get())
+			{
+				UE_LOG(LogWoRCombat, Verbose, TEXT("[CombatOrchestrator] %s (training dummy) passes its turn"), *GetNameSafe(CurrentActor));
+				bWaitingForAsyncAction = false;
+				EndTurnByChoice();
+			}
+		}));
 		return;
 	}
 

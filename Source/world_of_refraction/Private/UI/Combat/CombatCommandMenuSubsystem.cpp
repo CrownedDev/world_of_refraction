@@ -38,6 +38,7 @@
 #include "Combat/Actions/ActionPipsText.h"
 #include "UI/WoRIconTable.h"
 #include "UI/Combat/CombatHUD.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -1204,7 +1205,9 @@ FPieMenuButtonData UCombatCommandMenuSubsystem::CreateFleeButton() const
 {
     FPieMenuButtonData Button;
     Button.ButtonID = TEXT("Flee");
-    Button.DisplayName = NSLOCTEXT("CombatCommandMenu", "Flee", "Flee");
+    // B-611: in the training dummy's practice fight the same row leaves it.
+    Button.DisplayName = UTrialRunSubsystem::IsPracticeFight(this) ? NSLOCTEXT("CombatCommandMenu", "EndPractice", "End practice")
+                                                                    : NSLOCTEXT("CombatCommandMenu", "Flee", "Flee");
     Button.Category = EPieMenuCategory::Flee;
     Button.bEnabled = true;
 

@@ -79,6 +79,7 @@
 #include "GameFramework/Character.h"
 #include "Combat/CombatControl.h"
 #include "Combat/Tuning/CombatTuningData.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -3097,8 +3098,12 @@ FActionResult UActionExecutor::ExecuteItem(
 
 	// === Consume item use from loadout ===
 	// Q-060 (B-201): a use that failed to land still spends its charge, like a missed
-	// throw; the result keeps reporting the failure (B-060).
-	if (bFromPouch)
+	// throw; the result keeps reporting the failure (B-060). B-611: a practice fight spends no item.
+	if (UTrialRunSubsystem::IsPracticeFight(User))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Practice fight: %s keeps its use"), *ItemIdentity::GetDisplayName(Id));
+	}
+	else if (bFromPouch)
 	{
 		Loadout->UseCarriedItem(Id);
 	}
