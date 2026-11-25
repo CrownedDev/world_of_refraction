@@ -195,6 +195,21 @@ void FGateScreenSpec::Define()
 		TestTrue(TEXT("a step's own message comes first"), ULoadoutV2ScreenWidget::PickMessageLine(Refusal, Note).EqualTo(Refusal));
 		TestTrue(TEXT("no note, no message: nothing"), ULoadoutV2ScreenWidget::PickMessageLine(FText::GetEmpty(), FText::GetEmpty()).IsEmpty());
 	});
+
+	It("B-615: the kit note goes when the screen closes, so a reused Loadout opened from the game menu has none", [this]()
+	{
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(TestWorld->GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen))
+		{
+			return;
+		}
+		Screen->ActivateWidget();
+		Screen->SetStandingNote(WoRGateScreen::GetLoadoutKitNote());
+		TestFalse(TEXT("the gate's note is kept"), Screen->GetStandingNote().IsEmpty());
+		Screen->PressBack();
+		Screen->ActivateWidget();
+		TestTrue(TEXT("opened again: no note"), Screen->GetStandingNote().IsEmpty());
+	});
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

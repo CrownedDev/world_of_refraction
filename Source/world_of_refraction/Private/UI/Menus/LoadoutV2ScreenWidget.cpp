@@ -458,6 +458,7 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	Message = FText::GetEmpty();
+	StandingNote = FText::GetEmpty(); // the stack reuses a closed screen: the Gate sets its note after each open
 	Mode = ELoadoutV2Mode::List;
 	bEditing = false;
 	Draft = FLoadoutV2Draft();

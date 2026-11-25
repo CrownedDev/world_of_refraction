@@ -271,6 +271,7 @@ public:
 	const TArray<FLoadoutV2DetailLine> &GetDetails() const { return Details; }
 	int32 GetSelected() const { return Selected; }
 	const FText &GetMessage() const { return Message; }
+	const FText &GetStandingNote() const { return StandingNote; }
 	const FLoadoutSavedList &GetSavedList() const { return Saved; }
 	ELoadoutV2Tab GetTab() const { return Tab; }
 	const FLoadoutV2InventoryPage &GetInventoryPage() const { return InventoryPage; }
