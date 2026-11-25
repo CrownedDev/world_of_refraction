@@ -1,7 +1,7 @@
 // InventoryScreenSpec.cpp
 // B-441 (D-181, D-177, D-195): the inventory screen. The model: each tab lists its own things (Gear: the member's
-// weapons and adapters, worn ones marked; Pouch: its stacks and its slots; Chest: what is stored), a tile's verb
-// menu is Give and Store with Take only on the Chest tab, a verb that can't run carries its reason, and "Give to"
+// weapons and adapters, worn ones marked; Pouch: its stacks and its slots; no Chest tab, B-575c), a tile's verb
+// menu is Give only (B-575c: no Store / Take), a verb that can't run carries its reason, and "Give to"
 // says who has room. The screen, headless: A opens the verb menu, Give asks who, Back steps out one level at a time.
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -194,8 +194,7 @@ void FInventoryScreenSpec::Define()
 		Screen->MoveInventoryTab(1);
 		TestTrue(TEXT("RB on the inventory: the Pouch"), Screen->GetInventoryTab() == EInventoryScreenTab::Pouch);
 		Screen->MoveInventoryTab(1);
-		Screen->MoveInventoryTab(1);
-		TestTrue(TEXT("in a ring, back to Gear"), Screen->GetInventoryTab() == EInventoryScreenTab::Gear);
+		TestTrue(TEXT("no Chest tab (B-575c): in a ring, straight back to Gear"), Screen->GetInventoryTab() == EInventoryScreenTab::Gear);
 		Screen->MoveInventoryTile(0, -1);
 		TestTrue(TEXT("Up off the top row: the filter row"), Screen->IsOnInventoryFilters());
 		Screen->MoveInventoryTile(0, 1);
@@ -242,39 +241,36 @@ void FInventoryScreenSpec::Define()
 		const FInventoryScreenPage WithAdapter = PageOf(EInventoryScreenTab::Gear);
 		const FInventoryScreenTile *Adapter = WithAdapter.Tiles.FindByPredicate([](const FInventoryScreenTile &Tile) { return Tile.Kind == EInventoryScreenKind::Adapter; });
 		TestTrue(TEXT("an adapter tile uses the adapter icon"), Adapter && Adapter->Icon.Kind == EWoRIconKind::Adapter && Adapter->Icon.Element == Adapter->Element);
-		TestFalse(TEXT("an empty tab says so"), PageOf(EInventoryScreenTab::Chest).EmptyNote.IsEmpty());
+		TestFalse(TEXT("an empty tab says so"), PageOf(EInventoryScreenTab::Pouch).EmptyNote.IsEmpty());
 	});
 
-	It("lists Give and Store on a tile, and Take only on the Chest tab (D-195)", [this]()
+	It("lists Give only on a tile, and has no Chest tab (B-575c, D-250: the chest is off)", [this]()
 	{
 		if (!IsReady()) return;
+		TestFalse(TEXT("no Chest tab"), WoRInventoryScreen::GetTabs().Contains(EInventoryScreenTab::Chest));
+		TestEqual(TEXT("Gear and Pouch"), WoRInventoryScreen::GetTabs().Num(), 2);
 		const FGuid DaggerID = AddDagger();
+		Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), SCREEN_GEM, SCREEN_GEM_COUNT);
 		const FInventoryScreenPage Gear = PageOf(EInventoryScreenTab::Gear);
 		const int32 DaggerTile = FindGear(Gear, DaggerID);
 		if (!TestTrue(TEXT("the dagger is a tile"), DaggerTile != INDEX_NONE)) return;
+		const FInventoryScreenPage Pouch = PageOf(EInventoryScreenTab::Pouch);
+		if (!TestEqual(TEXT("one stack carried"), Pouch.Tiles.Num(), 1)) return;
 		const TArray<FInventoryScreenVerb> Own = VerbsOf(EInventoryScreenTab::Gear, Gear.Tiles[DaggerTile]);
+		const TArray<FInventoryScreenVerb> Stack = VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]);
+		for (const TArray<FInventoryScreenVerb> *Verbs : {&Own, &Stack})
+		{
+			TestEqual(TEXT("one verb on the tile"), Verbs->Num(), 1);
+			TestNull(TEXT("no Store"), FindVerb(*Verbs, EInventoryVerb::Store));
+			TestNull(TEXT("no Take"), FindVerb(*Verbs, EInventoryVerb::Take));
+		}
 		const FInventoryScreenVerb *Give = FindVerb(Own, EInventoryVerb::Give);
-		const FInventoryScreenVerb *Store = FindVerb(Own, EInventoryVerb::Store);
-		TestNull(TEXT("no Take on the Gear tab"), FindVerb(Own, EInventoryVerb::Take));
-		if (!TestTrue(TEXT("Give and Store are listed"), Give && Store)) return;
-		TestTrue(TEXT("a spare piece can be given and stored"), Give->Refusal.IsEmpty() && Store->Refusal.IsEmpty());
-
-		TestTrue(TEXT("stored"), WoRInventoryVerbs::Run(World(), EInventoryVerb::Store, KeyOf(SCREEN_MEMBER), NAME_None, Gear.Tiles[DaggerTile].Row, 1).IsEmpty());
-		const FInventoryScreenPage Chest = PageOf(EInventoryScreenTab::Chest);
-		const int32 StoredTile = FindGear(Chest, DaggerID);
-		if (!TestTrue(TEXT("the dagger is on the Chest tab"), StoredTile != INDEX_NONE)) return;
-		TestEqual(TEXT("and off the Gear tab"), FindGear(PageOf(EInventoryScreenTab::Gear), DaggerID), static_cast<int32>(INDEX_NONE));
-		const TArray<FInventoryScreenVerb> Stored = VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[StoredTile]);
-		const FInventoryScreenVerb *Take = FindVerb(Stored, EInventoryVerb::Take);
-		if (!TestNotNull(TEXT("Take is listed on the Chest tab"), Take)) return;
-		TestTrue(TEXT("and can run"), Take->Refusal.IsEmpty());
-		const FInventoryScreenVerb *StoredGive = FindVerb(Stored, EInventoryVerb::Give);
-		const FInventoryScreenVerb *StoredStore = FindVerb(Stored, EInventoryVerb::Store);
-		TestTrue(TEXT("Give and Store are greyed there, each with a reason"),
-				 StoredGive && StoredStore && !StoredGive->Refusal.IsEmpty() && !StoredStore->Refusal.IsEmpty());
+		TestTrue(TEXT("a spare piece can be given"), Give && Give->Refusal.IsEmpty());
+		TestTrue(TEXT("the hub placeholder offers Give only too"),
+				 WoRInventoryVerbs::GetShownVerbs().Num() == 1 && WoRInventoryVerbs::GetShownVerbs()[0] == EInventoryVerb::Give);
 	});
 
-	It("greys a verb with the code's reason: a worn primary isn't given or stored", [this]()
+	It("greys Give with the code's reason for a worn primary; the hidden Store rule still refuses it (B-575c)", [this]()
 	{
 		if (!IsReady()) return;
 		const FInventoryScreenPage Gear = PageOf(EInventoryScreenTab::Gear);
@@ -282,30 +278,28 @@ void FInventoryScreenSpec::Define()
 		if (!TestTrue(TEXT("the sword is a tile"), SwordTile != INDEX_NONE)) return;
 		const TArray<FInventoryScreenVerb> Verbs = VerbsOf(EInventoryScreenTab::Gear, Gear.Tiles[SwordTile]);
 		const FInventoryScreenVerb *Give = FindVerb(Verbs, EInventoryVerb::Give);
-		const FInventoryScreenVerb *Store = FindVerb(Verbs, EInventoryVerb::Store);
-		if (!TestTrue(TEXT("both listed, not hidden"), Give && Store)) return;
+		if (!TestNotNull(TEXT("Give listed, not hidden"), Give)) return;
 		TestFalse(TEXT("Give says why not"), Give->Refusal.IsEmpty());
-		TestFalse(TEXT("Store says why not"), Store->Refusal.IsEmpty());
 
-		// In a run the chest is at home: Store names that instead.
-		const FText AtHome = Store->Refusal;
+		// B-575c: Store is off the screen; its OBSOLETE rule stays until Crown's PIE pass. In a run the chest is at
+		// home: Store names that instead.
+		const FName Member = KeyOf(SCREEN_MEMBER);
+		const FText AtHome = WoRInventoryVerbs::GetRefusal(World(), EInventoryVerb::Store, Member, NAME_None, Gear.Tiles[SwordTile].Row);
+		TestFalse(TEXT("Store says why not"), AtHome.IsEmpty());
 		Pool->BeginRunLayer();
 		const FInventoryScreenPage InRun = PageOf(EInventoryScreenTab::Gear);
 		const int32 RunTile = FindGear(InRun, IDOf(Sword));
 		if (!TestTrue(TEXT("the worn sword came on the run"), RunTile != INDEX_NONE)) return;
-		const TArray<FInventoryScreenVerb> RunVerbs = VerbsOf(EInventoryScreenTab::Gear, InRun.Tiles[RunTile]);
-		const FInventoryScreenVerb *RunStore = FindVerb(RunVerbs, EInventoryVerb::Store);
-		if (!TestNotNull(TEXT("Store is still listed"), RunStore)) return;
-		TestFalse(TEXT("refused in a run"), RunStore->Refusal.IsEmpty());
-		TestFalse(TEXT("for the chest's own reason"), RunStore->Refusal.EqualTo(AtHome));
+		const FText InRunRefusal = WoRInventoryVerbs::GetRefusal(World(), EInventoryVerb::Store, Member, NAME_None, InRun.Tiles[RunTile].Row);
+		TestFalse(TEXT("refused in a run"), InRunRefusal.IsEmpty());
+		TestFalse(TEXT("for the chest's own reason"), InRunRefusal.EqualTo(AtHome));
 
 		// Q-441: a pouch stack isn't stored during a run either, and the press itself is refused.
 		Pool->CarryOrStore(KeyOf(SCREEN_MEMBER), SCREEN_GEM, SCREEN_GEM_COUNT);
 		const FInventoryScreenPage Pouch = PageOf(EInventoryScreenTab::Pouch);
 		if (!TestEqual(TEXT("one stack carried"), Pouch.Tiles.Num(), 1)) return;
-		const TArray<FInventoryScreenVerb> StackVerbs = VerbsOf(EInventoryScreenTab::Pouch, Pouch.Tiles[0]); // kept: FindVerb points into it
-		const FInventoryScreenVerb *StackStore = FindVerb(StackVerbs, EInventoryVerb::Store);
-		TestTrue(TEXT("a stack's Store is greyed in a run"), StackStore && !StackStore->Refusal.IsEmpty());
+		TestFalse(TEXT("a stack's Store is refused in a run"),
+				  WoRInventoryVerbs::GetRefusal(World(), EInventoryVerb::Store, Member, NAME_None, Pouch.Tiles[0].Row).IsEmpty());
 		TestFalse(TEXT("and Run refuses it"),
 				  WoRInventoryVerbs::Run(World(), EInventoryVerb::Store, KeyOf(SCREEN_MEMBER), NAME_None, Pouch.Tiles[0].Row, 1).IsEmpty());
 		TestEqual(TEXT("nothing left the pouch"), Pool->GetCarriedCount(KeyOf(SCREEN_MEMBER), SCREEN_GEM), SCREEN_GEM_COUNT);
@@ -345,10 +339,12 @@ void FInventoryScreenSpec::Define()
 		TestTrue(TEXT("stored"), WoRInventoryVerbs::Run(World(), EInventoryVerb::Store, KeyOf(SCREEN_MEMBER), NAME_None, Pouch.Tiles[0].Row, SCREEN_GEM_COUNT).IsEmpty());
 		FInventoryScreenPage Chest = PageOf(EInventoryScreenTab::Chest);
 		int32 Stored = Chest.Tiles.IndexOfByPredicate([](const FInventoryScreenTile &Tile) { return !Tile.Row.IsGear() && Tile.Row.Item == SCREEN_GEM; });
-		if (!TestTrue(TEXT("the stack is on the Chest tab"), Stored != INDEX_NONE)) return;
-		TArray<FInventoryScreenVerb> ChestVerbs = VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]); // kept: FindVerb points into it
-		const FInventoryScreenVerb *Take = FindVerb(ChestVerbs, EInventoryVerb::Take);
-		TestTrue(TEXT("Take can run with room"), Take && Take->Refusal.IsEmpty());
+		if (!TestTrue(TEXT("the stack is on the (hidden) Chest page"), Stored != INDEX_NONE)) return;
+		// B-575c: Take is off the screen and the stored row is hidden from the hub placeholder; the OBSOLETE rule is
+		// checked at the verb level until Crown's PIE pass.
+		TestFalse(TEXT("the hub placeholder hides the chest's rows"),
+				  WoRInventoryVerbs::GatherShownRows(World(), KeyOf(SCREEN_MEMBER)).ContainsByPredicate([](const WoRInventoryVerbs::FInventoryRow &Row) { return Row.bInChest; }));
+		TestTrue(TEXT("Take can run with room"), WoRInventoryVerbs::GetRefusal(World(), EInventoryVerb::Take, KeyOf(SCREEN_MEMBER), NAME_None, Chest.Tiles[Stored].Row).IsEmpty());
 
 		for (const ECrystalType Kind : SCREEN_FILLER_KINDS)
 		{
@@ -359,10 +355,9 @@ void FInventoryScreenSpec::Define()
 		}
 		Chest = PageOf(EInventoryScreenTab::Chest);
 		Stored = Chest.Tiles.IndexOfByPredicate([](const FInventoryScreenTile &Tile) { return !Tile.Row.IsGear() && Tile.Row.Item == SCREEN_GEM; });
-		if (!TestTrue(TEXT("still on the Chest tab"), Stored != INDEX_NONE)) return;
-		ChestVerbs = VerbsOf(EInventoryScreenTab::Chest, Chest.Tiles[Stored]);
-		Take = FindVerb(ChestVerbs, EInventoryVerb::Take);
-		TestTrue(TEXT("every slot picked, and Take still runs: carrying has no limit"), Take && Take->Refusal.IsEmpty());
+		if (!TestTrue(TEXT("still on the Chest page"), Stored != INDEX_NONE)) return;
+		TestTrue(TEXT("every slot picked, and Take still runs: carrying has no limit"),
+				 WoRInventoryVerbs::GetRefusal(World(), EInventoryVerb::Take, KeyOf(SCREEN_MEMBER), NAME_None, Chest.Tiles[Stored].Row).IsEmpty());
 	});
 
 	It("says who has a free fight-item slot in Give to, and never refuses a pouch for room (D-250)", [this]()
@@ -495,7 +490,7 @@ void FInventoryScreenSpec::Define()
 		TestTrue(TEXT("the Pouch has no filter row to reach"), Screen->GetFocus() == EInventoryScreenFocus::Grid);
 	});
 
-	It("gives, stores and steps back one level at a time (the screen, headless)", [this]()
+	It("gives and steps back one level at a time (the screen, headless)", [this]()
 	{
 		if (!IsReady()) return;
 		const FGuid DaggerID = AddDagger();
@@ -522,18 +517,16 @@ void FInventoryScreenSpec::Define()
 		TestTrue(TEXT("the keys are back on the tiles"), Screen->GetFocus() == EInventoryScreenFocus::Grid);
 		TestFalse(TEXT("and it says what happened"), Screen->GetStatus().IsEmpty());
 
-		// Store the whole stack from the Pouch tab.
+		// B-575c: the Pouch tab's stack has Give only, no Store (the chest is off).
 		Screen->MoveTab(1);
 		TestTrue(TEXT("the Pouch is next to Gear (D-249: the Loadout tab is gone)"), Screen->GetTab() == EInventoryScreenTab::Pouch);
 		Screen->ToggleWholeStack();
 		TestTrue(TEXT("X switches to the whole stack"), Screen->IsWholeStack());
-		const int32 StoredBefore = Pool->GetStoredCount(SCREEN_GEM);
 		Screen->Confirm();
-		Screen->MoveChoice(1);
-		if (!TestTrue(TEXT("down to Store"), Screen->GetVerbs().IsValidIndex(Screen->GetChoice()) && Screen->GetVerbs()[Screen->GetChoice()].Verb == EInventoryVerb::Store)) return;
-		Screen->Confirm();
-		TestEqual(TEXT("the whole stack is stored"), Pool->GetStoredCount(SCREEN_GEM), StoredBefore + SCREEN_GEM_COUNT);
-		TestTrue(TEXT("the pouch tab is empty"), Screen->GetPage().Tiles.IsEmpty());
+		TestTrue(TEXT("A opens the stack's verb menu"), Screen->GetFocus() == EInventoryScreenFocus::Verbs);
+		TestTrue(TEXT("Give only, no Store"), Screen->GetVerbs().Num() == 1 && Screen->GetVerbs()[0].Verb == EInventoryVerb::Give);
+		Screen->PressBack();
+		TestTrue(TEXT("Back returns to the tiles"), Screen->GetFocus() == EInventoryScreenFocus::Grid);
 
 		Screen->PressBack();
 		TestFalse(TEXT("Back on the tiles closes it"), Screen->IsActivated());

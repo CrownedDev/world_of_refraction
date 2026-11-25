@@ -82,6 +82,17 @@ namespace WoRInventoryVerbs
 		return Verbs;
 	}
 
+	const TArray<EInventoryVerb> &GetShownVerbs()
+	{
+		static const TArray<EInventoryVerb> Verbs = {EInventoryVerb::Give}; // B-575c: no chest, so no Store / Take
+		return Verbs;
+	}
+
+	TArray<FInventoryRow> GatherShownRows(const UWorld *World, FName Member)
+	{
+		return GatherRows(World, Member).FilterByPredicate([](const FInventoryRow &Row) { return !Row.bInChest; });
+	}
+
 	FText GetVerbName(const UObject *WorldContext, EInventoryVerb Verb)
 	{
 		return WoRGameNames::GetInventoryVerbName(Verb, UEconomyService::GetPlaceCurrency(WorldContext));

@@ -31,6 +31,11 @@ namespace WoRInventoryVerbs
 	/** Every verb, in the screen's button order. */
 	WORLD_OF_REFRACTION_API const TArray<EInventoryVerb> &GetAllVerbs();
 
+	/** B-575c (D-250, Crown 2026-11-25: "the chest since theres no limit to our items"): the verbs a screen offers,
+	 *  Give only. OBSOLETE: Store, Take and the chest rows stay in GetAllVerbs / GatherRows / Run, hidden, until Crown's
+	 *  PIE pass; then they are deleted. */
+	WORLD_OF_REFRACTION_API const TArray<EInventoryVerb> &GetShownVerbs();
+
 	/** The verb as the player reads it ("Give", "Store", ...): WoRGameNames::GetInventoryVerbName. B-366b: Convert names
 	 *  the currency of the place WorldContext is in (UEconomyService::GetPlaceCurrency). */
 	WORLD_OF_REFRACTION_API FText GetVerbName(const UObject *WorldContext, EInventoryVerb Verb);
@@ -50,6 +55,8 @@ namespace WoRInventoryVerbs
 
 	/** Member's gear and pouch stacks, then the chest's gear and the stored stacks. */
 	WORLD_OF_REFRACTION_API TArray<FInventoryRow> GatherRows(const UWorld *World, FName Member);
+	/** B-575c: the rows a screen shows, the member's own only (no chest rows, GetShownVerbs). */
+	WORLD_OF_REFRACTION_API TArray<FInventoryRow> GatherShownRows(const UWorld *World, FName Member);
 
 	/** Why Verb can't run on Row for Member (Receiver for Give), for the player; empty when it can. Covers the
 	 *  rules the old screens and the economy refuse on: chest rows only Take; worn gear isn't stored; no give to

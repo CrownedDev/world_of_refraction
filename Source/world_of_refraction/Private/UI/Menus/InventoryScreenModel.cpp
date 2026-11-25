@@ -263,7 +263,9 @@ const TArray<EInventoryScreenTab> &WoRInventoryScreen::GetTabs()
 	// D-249: the Loadout tab (B-543, next to Gear) is gone: the merged screen's Loadout button replaces it.
 	// OBSOLETE (D-249; delete after Crown's PIE pass): EInventoryScreenTab::Loadout and what handles it here and in
 	// UInventoryScreenWidget (OpenLoadoutScreen).
-	static const TArray<EInventoryScreenTab> Tabs = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch, EInventoryScreenTab::Chest};
+	// B-575c (D-250): no Chest tab, items have no limit. OBSOLETE: EInventoryScreenTab::Chest and its page code here,
+	// hidden until Crown's PIE pass, then deleted.
+	static const TArray<EInventoryScreenTab> Tabs = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch};
 	return Tabs;
 }
 
@@ -434,12 +436,8 @@ TArray<FInventoryScreenVerb> WoRInventoryScreen::BuildVerbs(UWorld *World, FName
 						 : Tile.Kind == EInventoryScreenKind::Apparel ? LOCTEXT("ApparelNoVerbs", "Apparel can't be given or stored yet")
 																		 : FText::GetEmpty();
 	TArray<FInventoryScreenVerb> Verbs;
-	for (const EInventoryVerb Verb : WoRInventoryVerbs::GetAllVerbs())
+	for (const EInventoryVerb Verb : WoRInventoryVerbs::GetShownVerbs()) // B-575c: Give only, no Store / Take
 	{
-		if (Verb == EInventoryVerb::Take && Tab != EInventoryScreenTab::Chest)
-		{
-			continue; // D-195: Take is listed only at storage
-		}
 		FInventoryScreenVerb &Line = Verbs.AddDefaulted_GetRef();
 		Line.Verb = Verb;
 		Line.Name = WoRInventoryVerbs::GetVerbName(World, Verb);

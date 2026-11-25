@@ -8,7 +8,10 @@
 // The rules and the moves are WoRInventoryVerbs' (Inventory/InventoryVerbs.h).
 // B-461 (Q-461): the Gear tab also lists the member's evolutions and apparel (no verbs run on them yet, Q-323); a
 // filter row over the Gear and Chest tabs (only the kinds the tab can hold); a sort (as found, by tier, by name).
-// Debug: wor.UI.PrintInventory logs GetInventoryScreenString (every party member's three tabs).
+// B-575c (D-250): the chest is off (Crown: "the chest since theres no limit to our items"). GetTabs is Gear and Pouch;
+// the verb menu is Give only (WoRInventoryVerbs::GetShownVerbs). The Chest tab code stays, hidden and OBSOLETE, until
+// Crown's PIE pass.
+// Debug: wor.UI.PrintInventory logs GetInventoryScreenString (every party member's tabs).
 
 #pragma once
 
@@ -23,6 +26,7 @@ enum class EInventoryScreenTab : uint8
 {
 	Gear,
 	Pouch,
+	/** OBSOLETE (B-575c, D-250): not in GetTabs; deleted after Crown's PIE pass. */
 	Chest,
 	/** B-543: not a list: A (or a click on the tab) opens the Equipment screen for the same character. */
 	Loadout
@@ -137,7 +141,7 @@ namespace WoRInventoryScreen
 	/** A crystal or stone stack's tile (Row.Item, Row.Count), as the Pouch tab words it; a vendor's stock reads the same (B-456b). */
 	WORLD_OF_REFRACTION_API FInventoryScreenTile BuildStackTile(const WoRInventoryVerbs::FInventoryRow &Row);
 
-	/** Give and Store; Take too on the Chest tab, and nowhere else (D-195). Give is refused only when no other
+	/** Give only (B-575c: no Store / Take, the chest is off; Tab is unused until the OBSOLETE chest code goes). Give is refused only when no other
 	 *  member can receive the tile (the reason is the first member's). An evolution or apparel tile lists them
 	 *  refused: nothing moves those yet (Q-323). */
 	WORLD_OF_REFRACTION_API TArray<FInventoryScreenVerb> BuildVerbs(UWorld *World, FName Member, EInventoryScreenTab Tab, const FInventoryScreenTile &Tile);

@@ -104,9 +104,10 @@ TSharedRef<SWidget> UInventoryWidget::RebuildWidget()
 		ReceiverText = AddText(WidgetTree, Box);
 		AddButton(WidgetTree, Box, LOCTEXT("NextReceiver", "Next receiver"))->OnClicked.AddDynamic(this, &UInventoryWidget::HandleNextReceiverClicked);
 
-		// One button per verb, in GetAllVerbs order (dynamic delegates need one handler each).
+		// One button per shown verb (B-575c: Give only; the Store / Take handlers are OBSOLETE, deleted after Crown's PIE
+		// pass). Dynamic delegates need one handler each.
 		VerbButtons.Reset();
-		for (const EInventoryVerb Verb : WoRInventoryVerbs::GetAllVerbs())
+		for (const EInventoryVerb Verb : WoRInventoryVerbs::GetShownVerbs())
 		{
 			UButton *Button = AddButton(WidgetTree, Box, WoRInventoryVerbs::GetVerbName(this, Verb));
 			switch (Verb)
@@ -191,7 +192,7 @@ void UInventoryWidget::Refresh()
 	const TArray<TPair<FName, FText>> Members = GatherMembers();
 	MemberIndex = Members.IsEmpty() ? 0 : FMath::Clamp(MemberIndex, 0, Members.Num() - 1);
 	ReceiverIndex = Members.IsEmpty() ? 0 : FMath::Clamp(ReceiverIndex, 0, Members.Num() - 1);
-	const TArray<WoRInventoryVerbs::FInventoryRow> Rows = WoRInventoryVerbs::GatherRows(GetWorld(), MemberKey());
+	const TArray<WoRInventoryVerbs::FInventoryRow> Rows = WoRInventoryVerbs::GatherShownRows(GetWorld(), MemberKey());
 	RowIndex = Rows.IsEmpty() ? 0 : FMath::Clamp(RowIndex, 0, Rows.Num() - 1);
 
 	MemberText->SetText(Members.IsEmpty() ? LOCTEXT("NoParty", "No party")
@@ -211,7 +212,7 @@ void UInventoryWidget::Refresh()
 	const TArray<EInventoryVerb> Applicable = Rows.IsValidIndex(RowIndex)
 												  ? WoRInventoryVerbs::GetVerbsFor(GetWorld(), MemberKey(), ReceiverKey(), Rows[RowIndex])
 												  : TArray<EInventoryVerb>();
-	const TArray<EInventoryVerb> &AllVerbs = WoRInventoryVerbs::GetAllVerbs();
+	const TArray<EInventoryVerb> &AllVerbs = WoRInventoryVerbs::GetShownVerbs();
 	for (int32 Index = 0; Index < VerbButtons.Num() && Index < AllVerbs.Num(); ++Index)
 	{
 		VerbButtons[Index]->SetIsEnabled(Applicable.Contains(AllVerbs[Index]));
@@ -228,7 +229,7 @@ void UInventoryWidget::Refresh()
 
 void UInventoryWidget::RunVerb(EInventoryVerb Verb)
 {
-	const TArray<WoRInventoryVerbs::FInventoryRow> Rows = WoRInventoryVerbs::GatherRows(GetWorld(), MemberKey());
+	const TArray<WoRInventoryVerbs::FInventoryRow> Rows = WoRInventoryVerbs::GatherShownRows(GetWorld(), MemberKey());
 	if (!Rows.IsValidIndex(RowIndex))
 	{
 		return;
@@ -280,7 +281,7 @@ void UInventoryWidget::HandleNextMemberClicked()
 
 void UInventoryWidget::HandleNextRowClicked()
 {
-	const int32 Count = WoRInventoryVerbs::GatherRows(GetWorld(), MemberKey()).Num();
+	const int32 Count = WoRInventoryVerbs::GatherShownRows(GetWorld(), MemberKey()).Num();
 	RowIndex = Count > 0 ? (RowIndex + 1) % Count : 0;
 	ClearPending();
 	Refresh();
@@ -324,7 +325,7 @@ void UInventoryWidget::HandleCloseClicked()
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GInventoryUICommand(
 	TEXT("wor.UI.Inventory"),
-	TEXT("PLACEHOLDER UI (B-339): a character's store and the shared chest with Give, Store, Take, Dismantle and Convert."),
+	TEXT("PLACEHOLDER UI (B-339): a character's store with Give (B-575c: the chest, Store and Take are off)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda(
 		[](UWorld *World)
 		{
