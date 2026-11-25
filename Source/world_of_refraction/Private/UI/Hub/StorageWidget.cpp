@@ -335,6 +335,7 @@ void UStorageWidget::HandleCloseClicked()
 	RemoveFromParent();
 }
 
+// OBSOLETE (B-575c, D-250: the chest is off): console only, no screen opens it; deleted after Crown's PIE pass.
 static FAutoConsoleCommandWithWorld GStorageUICommand(
 	TEXT("wor.UI.Storage"),
 	TEXT("PLACEHOLDER UI: the shared chest: put a character's unworn gear or pouch stacks in, take the chest's gear or items out (B-324)."),
