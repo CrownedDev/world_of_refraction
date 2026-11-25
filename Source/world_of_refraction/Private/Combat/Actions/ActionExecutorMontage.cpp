@@ -5,6 +5,7 @@
 #include "Combat/Actions/ActionExecutor.h"
 #include "Combat/CombatPresentationComponent.h"
 #include "Combat/Presentation/CastVisuals.h"
+#include "Combat/Presentation/EffectTint.h"
 #include "Combat/Presentation/WeaponTrail.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
@@ -699,6 +700,11 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 		ForClients.bTinted = true;
 		ForClients.CoreColor = Colors.PrimaryColor;
 		ForClients.EdgeColor = Colors.BlendedColor;
+		if (EffectTint::ShouldSetSoftTofuColour(Element)) // B-619
+		{
+			EffectTint::SetSoftTofuColour(*Spawned, Colors.PrimaryColor);
+			ForClients.bSoftTofuColour = true;
+		}
 	}
 	if (Spawned)
 	{

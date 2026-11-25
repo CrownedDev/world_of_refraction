@@ -3,6 +3,7 @@
 #include "Combat/CombatPresentationComponent.h"
 #include "Animation/AnimMontage.h"
 #include "Combat/CombatAnimInstance.h"
+#include "Combat/Presentation/EffectTint.h"
 #include "NiagaraComponent.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Character/CombatCharacter.h"
@@ -161,6 +162,10 @@ UNiagaraComponent *UCombatPresentationComponent::SpawnLocally(const FCosmeticVFX
 	{
 		Spawned->SetColorParameter(FName("CoreColor"), VFX.CoreColor);
 		Spawned->SetColorParameter(FName("EdgeColor"), VFX.EdgeColor);
+		if (VFX.bSoftTofuColour)
+		{
+			EffectTint::SetSoftTofuColour(*Spawned, VFX.CoreColor);
+		}
 	}
 	return Spawned;
 }
