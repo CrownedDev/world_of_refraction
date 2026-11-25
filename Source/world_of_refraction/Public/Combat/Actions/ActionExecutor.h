@@ -976,6 +976,7 @@ private:
 	 *  impact now through RouteImpactFrame: its own defense resolve, AI press and interrupt check, as a notify would. */
 	void LandFallbackImpacts();
 	friend class FPerImpactDefenseSpec; // B-032d: drives the animation-end fallback headless
+	friend class FFriendlyNoDamageSkillSpec; // B-621: the same fallback, for a no-damage Self / Ally ability
 
 	/** Spend energy from actor */
 	bool SpendEnergy(AActor *Actor, int32 Amount);

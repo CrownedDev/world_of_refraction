@@ -105,6 +105,9 @@ namespace CombatCameraStyles
 	constexpr float MeleeTargetSide = 260.0f;
 	constexpr float MeleeTargetHeight = 40.0f;
 	constexpr float MeleeTargetLookHeight = 20.0f;
+	// B-600k: a long reach (a strike spot farther out than MeleeTargetBack) would put the attacker beside or behind the
+	// lens; the camera then stands this far behind the attacker along the line, its side offset growing to keep the angle.
+	constexpr float MeleeBehindAttacker = 80.0f;
 	// Area Sweep (B-600i, E33: low to mid height, behind and beside the caster): back from everyone's centre past the
 	// attacker, out to the tuned side so the attacker sits near-left.
 	constexpr float AreaBack = 700.0f;
@@ -871,7 +874,10 @@ FCameraShot FCombatCameraRules::ComputeComboHitShot(const FCameraShotContext &Co
 	if (Angle < ComboRecutAngles - 1) // the last angle is the side two-shot already in Shot
 	{
 		const float Mirror = Angle == 0 ? 1.0f : -1.0f;
-		Shot.End = LookAtTargetFrom(Context, MeleeTargetBack * Scale, MeleeTargetSide * SideSign * Mirror * Scale, MeleeTargetHeight, MeleeTargetLookHeight);
+		const float Gap = Context.Targets.IsEmpty() ? 0.0f : static_cast<float>(FVector::Dist2D(Context.Caster, Context.Targets[0]));
+		const float Back = FMath::Max(MeleeTargetBack * Scale, Gap + MeleeBehindAttacker); // B-600k: the attacker stays in front of the lens
+		const float Side = Back * (MeleeTargetSide / MeleeTargetBack);
+		Shot.End = LookAtTargetFrom(Context, Back, Side * SideSign * Mirror, MeleeTargetHeight, MeleeTargetLookHeight);
 	}
 	return CutAndHold(Shot);
 }
