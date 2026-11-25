@@ -95,6 +95,100 @@ namespace CharacterSheetBuild
 		return true;
 	}
 
+	FText FormatValue(float Value, EStatUnit Unit)
+	{
+		return Unit == EStatUnit::Multiplier ? WoRCharacterSheet::FormatMultiplier(Value) : WoRCharacterSheet::FormatPercent(Value, /*bSigned=*/false);
+	}
+
+	/** B-635: what each sheet stat does, in the Profile's Details. */
+	FText GetStatDescription(ESubStat Stat)
+	{
+		switch (Stat)
+		{
+		case ESubStat::Efficiency:
+			return LOCTEXT("DescEfficiency", "Lowers the EP cost of spells and skills.");
+		case ESubStat::SpellDamage:
+			return LOCTEXT("DescSpellDamage", "Multiplies the damage of spells.");
+		case ESubStat::CritDamage:
+			return LOCTEXT("DescCritDamage", "How hard a critical hit lands, as a multiple of a normal hit.");
+		case ESubStat::SpellSpeed:
+			return LOCTEXT("DescSpellSpeed", "How fast spells are cast; a faster cast gives the target less time to defend.");
+		case ESubStat::Defense:
+			return LOCTEXT("DescDefense", "Cuts the damage of every hit taken.");
+		case ESubStat::ActionSpeed:
+			return LOCTEXT("DescActionSpeed", "How fast weapon actions play; a faster attack gives the target less time to defend.");
+		case ESubStat::RawDamage:
+			return LOCTEXT("DescRawDamage", "Multiplies the damage of weapon hits and physical skills.");
+		case ESubStat::Reflex:
+			return LOCTEXT("DescReflex", "Widens the window to dodge or parry a hit.");
+		case ESubStat::Resistance:
+			return LOCTEXT("DescResistance", "Slows the status buildup hits put on you.");
+		case ESubStat::StatusMultiplier:
+			return LOCTEXT("DescStatusMultiplier", "Multiplies the status buildup your hits put on a target.");
+		case ESubStat::Luck:
+			return LOCTEXT("DescLuck", "Helps crits, dodges and drops.");
+		default:
+			return FText::GetEmpty();
+		}
+	}
+
+	/** A layer's factor as its share: x1.05 reads "+5%"; none when it changes nothing. */
+	void AddFactor(TArray<FCharacterSheetSource> &Sources, const FText &Label, float Factor)
+	{
+		if (!FMath::IsNearlyEqual(Factor, 1.0f))
+		{
+			Sources.Add({Label, WoRCharacterSheet::FormatPercent(Factor - 1.0f, /*bSigned=*/true)});
+		}
+	}
+
+	/** B-635: the stat's bar, its layers and what it does. Stats with no layers (Resistance) show only their total. */
+	void FillStatDetails(const UCharacterDataComponent &Character, const FCharacterSheetPillar &Pillar, const FStatRow &Row, float Value,
+						 FCharacterSheetStat &Stat)
+	{
+		Stat.Description = GetStatDescription(Row.Stat);
+		FWoRStatLayers Layers;
+		const bool bHasLayers = Character.GetStatLayers(Row.Stat, Layers);
+		// The bar is full at the stat's ceiling; an unbounded stat (Reflex) uses the usual modifier ceiling.
+		const bool bBounded = bHasLayers && Layers.Max < TNumericLimits<float>::Max();
+		const float BarMax = bBounded ? Layers.Max : Row.Unit == EStatUnit::Percent ? 1.0f : CombatConstants::STAT_MODIFIER_MAX;
+		Stat.Fill = FMath::Clamp(Value / FMath::Max(BarMax, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
+		if (!bHasLayers)
+		{
+			return;
+		}
+		Stat.Sources.Add({FText::Format(LOCTEXT("SourcePillar", "{0} {1}"), Pillar.Name, FText::AsNumber(Pillar.Level)), FormatValue(Layers.StatBase, Row.Unit)});
+		AddFactor(Stat.Sources, LOCTEXT("SourceGear", "Gear"), Layers.GearFactor);
+		AddFactor(Stat.Sources, LOCTEXT("SourceStone", "Stone"), Layers.StoneFactor);
+		AddFactor(Stat.Sources, LOCTEXT("SourceBuffs", "Buffs"), Layers.TransientFactor);
+		const float Unclamped = Layers.StatBase * Layers.GearFactor * Layers.StoneFactor * Layers.TransientFactor;
+		if (Layers.Clamp(Unclamped) < Unclamped - UE_KINDA_SMALL_NUMBER)
+		{
+			Stat.Sources.Add({LOCTEXT("SourceCap", "Capped at"), FormatValue(Layers.Max, Row.Unit)});
+		}
+	}
+
+	/** B-635: each pillar's Profile row and heading line. */
+	void SetPillarLines(EWorldPillar Pillar, FCharacterSheetPillar &Out)
+	{
+		switch (Pillar)
+		{
+		case EWorldPillar::Mind:
+			Out.Blurb = LOCTEXT("BlurbMind", "Efficiency, spell damage, crits");
+			Out.Subtitle = LOCTEXT("SubtitleMind", "Spell force and cost");
+			break;
+		case EWorldPillar::Body:
+			Out.Blurb = LOCTEXT("BlurbBody", "Defence, speed, raw damage");
+			Out.Subtitle = LOCTEXT("SubtitleBody", "Toughness and weapon force");
+			break;
+		case EWorldPillar::Spirit:
+			Out.Blurb = LOCTEXT("BlurbSpirit", "Resistance, status, luck");
+			Out.Subtitle = LOCTEXT("SubtitleSpirit", "Status and fortune");
+			break;
+		default:
+			break;
+		}
+	}
+
 	template <int32 Count>
 	FCharacterSheetPillar MakePillar(const UCharacterDataComponent &Character, EWorldPillar Pillar, const FStatRow (&Rows)[Count])
 	{
@@ -102,14 +196,16 @@ namespace CharacterSheetBuild
 		Out.Name = WoRLevelDrops::GetPillarName(Pillar);
 		Out.Level = Character.GetWorldStat(Pillar);
 		Out.MaxLevel = WorldStatConstants::LIVE_MAX;
+		SetPillarLines(Pillar, Out);
 		for (const FStatRow &Row : Rows)
 		{
 			float Value = 0.0f;
 			const bool bHasValue = GetComposedStat(Character, Row.Stat, Value);
-			const FText Shown = !bHasValue ? LOCTEXT("NoValue", "-")
-											: Row.Unit == EStatUnit::Multiplier ? WoRCharacterSheet::FormatMultiplier(Value)
-																				: WoRCharacterSheet::FormatPercent(Value, /*bSigned=*/false);
-			Out.Stats.Add({WoRGameNames::GetSubStatName(Row.Stat), Shown});
+			FCharacterSheetStat &Stat = Out.Stats.Add_GetRef({WoRGameNames::GetSubStatName(Row.Stat), bHasValue ? FormatValue(Value, Row.Unit) : LOCTEXT("NoValue", "-")});
+			if (bHasValue)
+			{
+				FillStatDetails(Character, Out, Row, Value, Stat);
+			}
 		}
 		return Out;
 	}
@@ -180,17 +276,7 @@ FCharacterSheetPage WoRCharacterSheet::BuildPage(UWorld *World, int32 MemberInde
 	Page.Who = Party[MemberIndex];
 	Page.PointsPerAction = ActionPipsConstants::ACTION_POINTS_PER_ACTION;
 
-	// BuildParty skips members with no character data, so the same walk finds this row's member.
-	const FPartyMember *Member = nullptr;
-	int32 Shown = 0;
-	for (const FPartyMember &Candidate : LocalParty->Members)
-	{
-		if (Candidate.CharacterData && Shown++ == MemberIndex)
-		{
-			Member = &Candidate;
-			break;
-		}
-	}
+	const FPartyMember *Member = FindPartyMember(World, MemberIndex);
 	const UCharacterDataComponent *Character = Member ? WoRLevelDrops::FindSpawnedMember(World, *Member) : nullptr;
 	if (!Character)
 	{
@@ -215,6 +301,95 @@ FCharacterSheetPage WoRCharacterSheet::BuildPage(UWorld *World, int32 MemberInde
 		}
 	}
 	return Page;
+}
+
+TArray<FCharacterSheetGroup> WoRCharacterSheet::BuildGroups(const FCharacterSheetPage &Page)
+{
+	TArray<FCharacterSheetGroup> Groups;
+	if (!Page.Refusal.IsEmpty())
+	{
+		return Groups;
+	}
+	for (const FCharacterSheetPillar &Pillar : Page.Pillars)
+	{
+		Groups.Add({Pillar.Name, FText::AsNumber(Pillar.Level), Pillar.Blurb, Pillar.Subtitle, Pillar.Stats});
+	}
+
+	FCharacterSheetGroup Resistances{LOCTEXT("GroupResistances", "Resistances"), FText::GetEmpty(), LOCTEXT("BlurbResistances", "Physical, spell, each element"),
+									 LOCTEXT("SubtitleResistances", "Less damage taken, by type")};
+	for (int32 Index = 0; Index < Page.Resistances.Num(); ++Index)
+	{
+		const FCharacterSheetResistance &Line = Page.Resistances[Index];
+		FCharacterSheetStat &Entry = Resistances.Entries.AddDefaulted_GetRef();
+		Entry.Label = Line.Label;
+		Entry.Value = FormatPercent(Line.Fraction, /*bSigned=*/true);
+		Entry.Fill = FMath::Clamp(FMath::Abs(Line.Fraction) / FMath::Max(Line.Cap, UE_KINDA_SMALL_NUMBER), 0.0f, 1.0f);
+		Entry.bWeak = Line.Fraction < 0.0f;
+		const FText Cap = FormatPercent(Line.Cap, /*bSigned=*/false);
+		Entry.Description = Index == 0 ? FText::Format(LOCTEXT("DescResistAll", "Your Defence: cuts the damage of every hit. It stops at {0}."), Cap)
+									   : FText::Format(LOCTEXT("DescResistLine", "How much less {0} damage you take; below zero, how much more. It stops at {1}."),
+													   Line.Label, Cap);
+	}
+	Groups.Add(MoveTemp(Resistances));
+
+	FCharacterSheetGroup Curses{LOCTEXT("GroupCurses", "Curses"), Page.Curses.IsEmpty() ? FText::GetEmpty() : FText::AsNumber(Page.Curses.Num()),
+								LOCTEXT("BlurbCurses", "Held by you; on every sheet"), LOCTEXT("SubtitleCurses", "Cleared at the Spiritualist")};
+	UE_CLOG(Page.Curses.Num() > MAX_GROUP_ENTRIES, LogWoRUI, Warning, TEXT("[CharacterSheet] %d curses held; the Profile lists the first %d"),
+			Page.Curses.Num(), MAX_GROUP_ENTRIES);
+	for (int32 Index = 0; Index < Page.Curses.Num() && Index < MAX_GROUP_ENTRIES; ++Index)
+	{
+		const FCharacterSheetCurse &Curse = Page.Curses[Index];
+		FCharacterSheetStat &Entry = Curses.Entries.AddDefaulted_GetRef();
+		Entry.Label = Curse.Title;
+		Entry.Description = Curse.Description;
+	}
+	Groups.Add(MoveTemp(Curses));
+	checkSlow(Page.Pillars.IsEmpty() || Groups.Num() == GROUP_COUNT);
+	return Groups;
+}
+
+namespace CharacterSheetBuild
+{
+	static const UParty *FindLocalParty(UWorld *World)
+	{
+		const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+		const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
+		return PartySession ? PartySession->GetLocalParty() : nullptr;
+	}
+}
+
+const FPartyMember *WoRCharacterSheet::FindPartyMember(UWorld *World, int32 MemberIndex)
+{
+	// BuildParty skips members with no character data, so the same walk finds this row's member.
+	const UParty *Party = CharacterSheetBuild::FindLocalParty(World);
+	if (!Party)
+	{
+		return nullptr;
+	}
+	int32 Shown = 0;
+	for (const FPartyMember &Candidate : Party->Members)
+	{
+		if (Candidate.CharacterData && Shown++ == MemberIndex)
+		{
+			return &Candidate;
+		}
+	}
+	return nullptr;
+}
+
+int32 WoRCharacterSheet::FindMemberIndex(UWorld *World, int32 PartySlot)
+{
+	const UParty *Party = CharacterSheetBuild::FindLocalParty(World);
+	if (!Party || !Party->Members.IsValidIndex(PartySlot) || !Party->Members[PartySlot].CharacterData)
+	{
+		return INDEX_NONE;
+	}
+	int32 MemberIndex = 0;
+	for (int32 Slot = 0; Slot < PartySlot; ++Slot)
+	{
+		MemberIndex += Party->Members[Slot].CharacterData ? 1 : 0;
+	}
+	return MemberIndex;
 }
 
 FString WoRCharacterSheet::GetCharacterSheetString(UWorld *World)
