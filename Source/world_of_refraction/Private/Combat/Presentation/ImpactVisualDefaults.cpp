@@ -52,6 +52,11 @@ FString UImpactVisualDefaults::GetDefaultsString() const
 						   PhysicalInfusionGlowVFX.IsNull() ? TEXT("(none)") : *PhysicalInfusionGlowVFX.GetAssetName(),
 						   RawInfusionGlowVFX.IsNull() ? TEXT("(none)") : *RawInfusionGlowVFX.GetAssetName(),
 						   IceInfusionGlowVFX.IsNull() ? TEXT("(none)") : *IceInfusionGlowVFX.GetAssetName());
+	// B-626: the looks by source.
+	Out += FString::Printf(TEXT("\n  Ring flames: %d element(s), default %s; body auras: %d element(s), default %s; fingers: %s"),
+						   RingFlameLooks.ElementVFX.Num(), RingFlameLooks.DefaultVFX.IsNull() ? TEXT("(none)") : *RingFlameLooks.DefaultVFX.GetAssetName(),
+						   BodyAuraLooks.ElementVFX.Num(), BodyAuraLooks.DefaultVFX.IsNull() ? TEXT("(none)") : *BodyAuraLooks.DefaultVFX.GetAssetName(),
+						   *FString::JoinBy(RingFingerSockets, TEXT(", "), [](const FName &Socket) { return Socket.ToString(); }));
 	for (int32 Row = 0; Row < InfusionLevelVisuals.Num(); ++Row)
 	{
 		Out += FString::Printf(TEXT("\n  Level %d: intensity x%.2f, size x%.2f"), Row + 1, InfusionLevelVisuals[Row].Intensity, InfusionLevelVisuals[Row].Size);
@@ -73,6 +78,17 @@ UImpactVisualDefaults::UImpactVisualDefaults()
 	LevelTwo.Intensity = LEVEL_TWO_INTENSITY;
 	LevelTwo.Size = LEVEL_TWO_SIZE;
 	InfusionLevelVisuals = {LevelOne, LevelTwo};
+	RingFingerSockets = InfusionLook::GetDefaultRingFingerSockets();
+}
+
+TSoftObjectPtr<UNiagaraSystem> UImpactVisualDefaults::GetInfusionLookVFX(EInfusionLookKind Kind, ESpellElement Element, bool bRaw, bool bIce) const
+{
+	const FInfusionLookSet *Set = Kind == EInfusionLookKind::Ring ? &RingFlameLooks : (Kind == EInfusionLookKind::Aura ? &BodyAuraLooks : nullptr);
+	if (!Set)
+	{
+		return Kind == EInfusionLookKind::Weapon ? GetInfusionGlowVFX(Element, bRaw, bIce) : TSoftObjectPtr<UNiagaraSystem>();
+	}
+	return bRaw ? Set->DefaultVFX : Set->GetVFX(Element); // Ice is Water's damage type: Water's row, tinted Ice
 }
 
 TSoftObjectPtr<UNiagaraSystem> UImpactVisualDefaults::GetInfusionGlowVFX(ESpellElement Element, bool bRaw, bool bIce) const

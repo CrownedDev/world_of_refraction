@@ -18,6 +18,9 @@
 #include "Loadout/LoadoutComponent.h"
 #include "Infusion/InfusionChargeManager.h"
 #include "Combat/Presentation/ImpactVisualDefaults.h"
+#include "Combat/Presentation/EffectTint.h"
+#include "Combat/WoRFightSubsystem.h"
+#include "Loadout/FCombatLoadout.h"
 #include "NiagaraSystem.h"
 
 namespace
@@ -138,8 +141,11 @@ void UInfusionVFXComponent::ApplyLevelToVFX()
         return;
     }
     const FInfusionLevelVisual Visual = UImpactVisualDefaults::ForInfusionLevel(CurrentInfusionLevel);
-    ActiveVFXComponent->SetVariableInt(InfusionLevelParameterName, CurrentInfusionLevel);
-    ActiveVFXComponent->SetVariableFloat(ScaleParameterName, Visual.Size);
+    ForEachLook([this, &Visual](UNiagaraComponent &Look) // B-626: every stacked look plays the level
+                {
+                    Look.SetVariableInt(InfusionLevelParameterName, CurrentInfusionLevel);
+                    Look.SetVariableFloat(ScaleParameterName, Visual.Size);
+                });
     ApplyColorToVFX(Visual.Brighten(CurrentGlowColor));
     UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Level %d - intensity x%.2f, size x%.2f"), CurrentInfusionLevel, Visual.Intensity, Visual.Size);
 }
@@ -235,24 +241,39 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
     const bool bRaw = Source == EInfusionSourceOption::Raw;
     const bool bIcePicked = IsCurrentSourceIce() && CachedSources[CurrentSourceIndex] == Source; // B-593: the picker's Ice entry
     const bool bIce = !bRaw && (bDealsIce || bIcePicked) && Element == ESpellElement::Water;
-    UNiagaraSystem *Glow = FindGlowSystem(InfusionDisplay, Element, bRaw, bIce);
-    if (!Glow)
+    // B-626 (D-277): the source picks its look kind. A ring flame or an aura with no art yet plays the glow, as before.
+    const EInfusionLookKind Kind = InfusionLook::KindForSource(Source);
+    UNiagaraComponent *Look = (Kind == EInfusionLookKind::Ring || Kind == EInfusionLookKind::Aura) ? SpawnLook(Kind, Element, bRaw, bIce) : nullptr;
+    UNiagaraSystem *Glow = Look ? nullptr : FindGlowSystem(InfusionDisplay, Element, bRaw, bIce);
+    if (!Look && !Glow)
     {
         UE_LOG(LogTemp, Warning, TEXT("[InfusionVFX] No glow: the display has no VFX and %s has no default glow"),
                bRaw ? TEXT("Raw") : (bIce ? TEXT("Ice") : *UEnum::GetValueAsString(Element)));
         return;
     }
 
-    // Clear existing VFX if source changed
-    if (bIsInfusionActive && CurrentSource != Source)
-    {
-        ClearVFX();
-    }
-
     CurrentSource = Source;
     CurrentElement = Element;
 
-    SpawnVFX(Glow, InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon);
+    if (Look)
+    {
+        ClearVFX();
+        ActiveVFXComponent = Look;
+    }
+    else
+    {
+        SpawnVFX(Glow, InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon); // clears first
+    }
+    // B-626: each other stacked source's kind shows too (a kind the glow above already covers isn't doubled).
+    const EInfusionLookKind ShownKind = Look ? Kind : EInfusionLookKind::Weapon;
+    for (const EInfusionLookKind StackKind : GetLookKindsFor(Source, CurrentInfusionLevel))
+    {
+        UNiagaraComponent *Extra = StackKind != ShownKind && StackKind != Kind ? SpawnLook(StackKind, Element, bRaw, bIce) : nullptr;
+        if (Extra)
+        {
+            StackLookComponents.Add(Extra);
+        }
+    }
 
     // Element color, brightened and sized by the level
     CurrentGlowColor = (InfusionDisplay && InfusionDisplay->bOverrideElementColor) ? InfusionDisplay->ColorOverride
@@ -333,7 +354,9 @@ void UInfusionVFXComponent::SpawnVFX(UNiagaraSystem *VFXSystem, EInfusionDisplay
     // Clear any existing VFX first
     ClearVFX();
 
-    UMeshComponent *WeaponMesh = (bWeaponInfusion && WeaponMeshComponent) ? WeaponMeshComponent->GetWeaponVFXMesh() : nullptr;
+    // B-626 (D-277): a weapon crystal's glow is on the weapon, whatever the action.
+    const bool bOnWeapon = bWeaponInfusion || CurrentSource == EInfusionSourceOption::WeaponCrystal;
+    UMeshComponent *WeaponMesh = (bOnWeapon && WeaponMeshComponent) ? WeaponMeshComponent->GetWeaponVFXMesh() : nullptr;
     if (WeaponMesh)
     {
         ActiveVFXComponent = UNiagaraFunctionLibrary::SpawnSystemAttached(
@@ -344,7 +367,7 @@ void UInfusionVFXComponent::SpawnVFX(UNiagaraSystem *VFXSystem, EInfusionDisplay
         }
         return;
     }
-    if (bWeaponInfusion)
+    if (bOnWeapon)
     {
         UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Weapon infusion with no weapon mesh shown - using the display's place"));
     }
@@ -400,21 +423,105 @@ void UInfusionVFXComponent::SpawnVFX(UNiagaraSystem *VFXSystem, EInfusionDisplay
 
 void UInfusionVFXComponent::ClearVFX()
 {
-    if (ActiveVFXComponent)
-    {
-        ActiveVFXComponent->DestroyComponent();
-        ActiveVFXComponent = nullptr;
-    }
+    ForEachLook([](UNiagaraComponent &Look) { Look.DestroyComponent(); });
+    ActiveVFXComponent = nullptr;
+    StackLookComponents.Reset();
 }
 
 void UInfusionVFXComponent::ApplyColorToVFX(FLinearColor Color)
 {
-    if (!ActiveVFXComponent)
-    {
-        return;
-    }
+    // B-626: the ring flames and auras may be SoftTofu effects, which read User.Color_ (EffectTint, an element only).
+    const bool bSoftTofu = EffectTint::ShouldSetSoftTofuColour(CurrentElement);
+    ForEachLook([this, &Color, bSoftTofu](UNiagaraComponent &Look)
+                {
+                    Look.SetVariableLinearColor(ColorParameterName, Color);
+                    if (bSoftTofu)
+                    {
+                        EffectTint::SetSoftTofuColour(Look, Color);
+                    }
+                });
+}
 
-    ActiveVFXComponent->SetVariableLinearColor(ColorParameterName, Color);
+void UInfusionVFXComponent::ForEachLook(TFunctionRef<void(UNiagaraComponent &)> Visit) const
+{
+    if (ActiveVFXComponent)
+    {
+        Visit(*ActiveVFXComponent);
+    }
+    for (UNiagaraComponent *Look : StackLookComponents)
+    {
+        if (Look)
+        {
+            Visit(*Look);
+        }
+    }
+}
+
+TArray<EInfusionSourceOption> UInfusionVFXComponent::ResolveShownStack(EInfusionSourceOption Source, int32 Level) const
+{
+    const UActionExecutor *Executor = WoRFight::Get<UActionExecutor>(this);
+    if (!Executor || !InfusionSourceOptionHelpers::HasElement(Source))
+    {
+        return {Source};
+    }
+    // shortcut: the stack as an infused ability's (every same-element source); a spell's origin rule (B-435b) isn't
+    // applied to the look. Resolve it from the pending action if a spell's look must match its stack exactly.
+    FAction Probe;
+    Probe.ActionType = EActionType::Ability;
+    Probe.SelectedSource = Source;
+    Probe.AbilityInfusionLevel = FMath::Max(1, Level);
+    TArray<EInfusionSourceOption> Stack = Executor->GetSameElementInfusionSources(GetOwner(), Probe);
+    if (Stack.IsEmpty())
+    {
+        Stack.Add(Source);
+    }
+    return Stack;
+}
+
+TArray<EInfusionLookKind> UInfusionVFXComponent::GetLookKindsFor(EInfusionSourceOption Source, int32 Level) const
+{
+    return InfusionLook::KindsForStack(ResolveShownStack(Source, Level));
+}
+
+UNiagaraComponent *UInfusionVFXComponent::SpawnLook(EInfusionLookKind Kind, ESpellElement Element, bool bRaw, bool bIce) const
+{
+    const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
+    // shortcut: loads on first use, which may hitch once; preload with the fight's assets when the art lands.
+    UNiagaraSystem *System = Defaults ? Defaults->GetInfusionLookVFX(Kind, Element, bRaw, bIce).LoadSynchronous() : nullptr;
+    if (!System)
+    {
+        return nullptr; // no art for this kind yet (the editor worker fills DA_ImpactVisualDefaults)
+    }
+    switch (Kind)
+    {
+    case EInfusionLookKind::Weapon:
+    {
+        UMeshComponent *WeaponMesh = WeaponMeshComponent ? WeaponMeshComponent->GetWeaponVFXMesh() : nullptr;
+        return WeaponMesh ? UNiagaraFunctionLibrary::SpawnSystemAttached(System, WeaponMesh, NAME_None, FVector::ZeroVector,
+                                                                         FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true)
+                          : nullptr;
+    }
+    case EInfusionLookKind::Ring:
+    {
+        const FLoadoutSlot *Adapter = LoadoutComponent ? LoadoutComponent->GetActiveSlot(EGearKind::Adapter) : nullptr;
+        const int32 Finger = Adapter ? InfusionLook::RingFingerIndex(LoadoutComponent->GetActiveLoadout().Slots, Adapter) : INDEX_NONE;
+        const FName Socket = InfusionLook::FingerSocket(Defaults->RingFingerSockets, Finger);
+        if (!OwnerMesh || Socket.IsNone())
+        {
+            return nullptr;
+        }
+        UE_LOG(LogWoRCombat, Verbose, TEXT("[InfusionVFX] Ring flame on finger %d (%s)"), Finger, *Socket.ToString());
+        return UNiagaraFunctionLibrary::SpawnSystemAttached(System, OwnerMesh, Socket, FVector::ZeroVector, FRotator::ZeroRotator,
+                                                            EAttachLocation::SnapToTarget, true);
+    }
+    case EInfusionLookKind::Aura:
+        return GetOwner() && GetOwner()->GetRootComponent()
+                   ? UNiagaraFunctionLibrary::SpawnSystemAttached(System, GetOwner()->GetRootComponent(), NAME_None, AuraOffset,
+                                                                  FRotator::ZeroRotator, EAttachLocation::KeepRelativeOffset, true)
+                   : nullptr;
+    default:
+        return nullptr;
+    }
 }
 
 void UInfusionVFXComponent::SetMeshParameterForLocation(EInfusionDisplayLocation Location)
@@ -496,6 +603,13 @@ void UInfusionVFXComponent::DebugLogVFXState()
     UE_LOG(LogTemp, Display, TEXT("Current Source: %d"), (int32)CurrentSource);
     UE_LOG(LogTemp, Display, TEXT("Current Element: %d"), (int32)CurrentElement);
     UE_LOG(LogTemp, Display, TEXT("VFX Component: %s"), ActiveVFXComponent ? TEXT("Spawned") : TEXT("None"));
+    if (bIsInfusionActive) // B-626: the kinds the source and its stack show, and how many looks spawned (art present)
+    {
+        UE_LOG(LogTemp, Display, TEXT("Look kinds: %s (%d stacked look(s) spawned)"),
+               *FString::JoinBy(GetLookKindsFor(CurrentSource, CurrentInfusionLevel), TEXT(", "),
+                                [](EInfusionLookKind Kind) { return UEnum::GetDisplayValueAsText(Kind).ToString(); }),
+               StackLookComponents.Num());
+    }
 
     if (CharacterDataComponent && CharacterDataComponent->CharacterData)
     {

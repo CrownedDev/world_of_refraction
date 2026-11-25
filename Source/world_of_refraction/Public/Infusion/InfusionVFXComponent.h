@@ -9,6 +9,7 @@
 #include "Infusion/EInfusionDisplayLocation.h"
 #include "Skills/Definitions/ESpellElement.h"
 #include "Infusion/EChargeInfusionType.h"
+#include "Infusion/InfusionLook.h"
 #include "InfusionVFXComponent.generated.h"
 
 class UNiagaraComponent;
@@ -193,6 +194,10 @@ public:
     /** The element of the infusion showing now; None with none (and for Physical or Raw). */
     ESpellElement GetActiveElement() const { return bIsInfusionActive ? CurrentElement : ESpellElement::None; }
 
+    /** B-626 (D-277): the look kinds an infusion from Source at Level shows: Source's first, then each other stacked
+     *  source's (B-435), each kind once. A kind with no art yet still counts here (it plays nothing until filled). */
+    TArray<EInfusionLookKind> GetLookKindsFor(EInfusionSourceOption Source, int32 Level) const;
+
 protected:
     // ==================== CACHED REFERENCES ====================
 
@@ -236,7 +241,21 @@ protected:
 
     bool bDealsIce = false;
 
+    /** B-626: the other stacked sources' looks (a ring flame, an aura, a weapon glow), beside ActiveVFXComponent. */
+    UPROPERTY()
+    TArray<TObjectPtr<UNiagaraComponent>> StackLookComponents;
+
     // ==================== INTERNAL ====================
+
+    /** B-626: an infusion's stack, Source first (UActionExecutor::GetSameElementInfusionSources). */
+    TArray<EInfusionSourceOption> ResolveShownStack(EInfusionSourceOption Source, int32 Level) const;
+
+    /** B-626: Kind's default look (UImpactVisualDefaults::GetInfusionLookVFX) where that kind shows: the weapon in
+     *  hand, the adapter's finger, the body. Null when the kind has no art or no place to attach. */
+    UNiagaraComponent *SpawnLook(EInfusionLookKind Kind, ESpellElement Element, bool bRaw, bool bIce) const;
+
+    /** Every look showing (the picked source's and the stack's). */
+    void ForEachLook(TFunctionRef<void(UNiagaraComponent &)> Visit) const;
 
     /** The weapon meshes were rebuilt (a swap): a weapon glow moves onto the new piece. */
     void HandleWeaponMeshRebuilt();
