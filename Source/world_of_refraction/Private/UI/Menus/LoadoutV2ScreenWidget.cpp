@@ -240,9 +240,13 @@ namespace LoadoutV2ScreenStyle
 	}
 
 	/** The option lines Y opens, in order. */
-	const ELoadoutV2Option OptionOrder[] = {ELoadoutV2Option::SetActive, ELoadoutV2Option::SavedLoadouts, ELoadoutV2Option::RemoveAllGear,
+	const ELoadoutV2Option OptionOrder[] = {ELoadoutV2Option::SetActive, ELoadoutV2Option::Skills, ELoadoutV2Option::SavedLoadouts, ELoadoutV2Option::RemoveAllGear,
 											ELoadoutV2Option::Help, ELoadoutV2Option::CosmeticsShortcuts};
 	constexpr int32 OptionCount = UE_ARRAY_COUNT(OptionOrder);
+
+	/** B-610 (InputMap): on the Equipment tab, the focused entry's skill slots. Free there: X is the view, L3 / 6 set
+	 *  active, Y Options. */
+	inline bool IsSkillsJumpKey(const FKey &Key) { return Key == EKeys::K || Key == EKeys::Gamepad_RightThumbstick; }
 }
 
 ULoadoutV2ScreenWidget::ULoadoutV2ScreenWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -558,6 +562,7 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		{
 			Mode = ELoadoutV2Mode::SkillEntries; // the member left: no slots to change
 			Selected = 0;
+			SkillsReturnLine = INDEX_NONE; // B-610: no slots open, nothing to return from
 		}
 		bRenaming = false; // the member left: no name to keep, and the keys go back to the screen
 		WoRMenuStyle::SetShown(NameBox, false);
@@ -627,6 +632,7 @@ void ULoadoutV2ScreenWidget::RefreshSkills()
 	{
 		Mode = ELoadoutV2Mode::SkillEntries; // the entry went (gear changed elsewhere)
 		Selected = 0;
+		SkillsReturnLine = INDEX_NONE; // B-610
 		return;
 	}
 	SkillRows = WoRLoadoutV2Skills::GetRows(SkillsPage, SkillEntry);
@@ -847,6 +853,8 @@ FText ULoadoutV2ScreenWidget::GetLineName(int32 Line) const
 		{
 		case ELoadoutV2Option::SetActive:
 			return LOCTEXT("OptionSetActive", "Set active");
+		case ELoadoutV2Option::Skills:
+			return LOCTEXT("OptionSkills", "Skills");
 		case ELoadoutV2Option::SavedLoadouts:
 			return LOCTEXT("OptionSaved", "Saved loadouts");
 		case ELoadoutV2Option::RemoveAllGear:
@@ -972,6 +980,10 @@ FText ULoadoutV2ScreenWidget::GetLineDetail(int32 Line) const
 			return Entry && Entry->Kind == ELoadoutV2EntryKind::Weapon && !Entry->bActive
 					   ? FText::FormatNamed(LOCTEXT("OptionSetActiveLine", "{What} becomes the active weapon ({SetActive})"), TEXT("What"), Entry->Name)
 					   : LOCTEXT("OptionSetActiveOff", "Focus a weapon entry that isn't active");
+		case ELoadoutV2Option::Skills:
+			return Entry && Entry->Kind != ELoadoutV2EntryKind::Evolution
+					   ? FText::FormatNamed(LOCTEXT("OptionSkillsLine", "{What}'s skill slots ({Skills})"), TEXT("What"), Entry->Name)
+					   : LOCTEXT("OptionSkillsOff", "Focus a weapon or an adapter");
 		case ELoadoutV2Option::SavedLoadouts:
 			return LOCTEXT("OptionSavedList", "Use another, make a new one, duplicate or rename"); // B-440e
 		case ELoadoutV2Option::RemoveAllGear:
@@ -1217,7 +1229,9 @@ bool ULoadoutV2ScreenWidget::IsLineRefused(int32 Line) const
 		const ELoadoutV2Option Option = OptionOrder[Line];
 		const FLoadoutV2Entry *Entry = GetFocusedEntry();
 		const bool bSetActive = Option == ELoadoutV2Option::SetActive && Entry && Entry->Kind == ELoadoutV2EntryKind::Weapon && !Entry->bActive;
-		return Option == ELoadoutV2Option::CosmeticsShortcuts || (Option == ELoadoutV2Option::SetActive && !bSetActive);
+		const bool bSkills = Entry && Entry->Kind != ELoadoutV2EntryKind::Evolution;
+		return Option == ELoadoutV2Option::CosmeticsShortcuts || (Option == ELoadoutV2Option::SetActive && !bSetActive) ||
+			   (Option == ELoadoutV2Option::Skills && !bSkills);
 	}
 	case ELoadoutV2Mode::WindowKind:
 		return Kinds.IsValidIndex(Line) && !Kinds[Line].Refusal.IsEmpty();
@@ -1337,8 +1351,14 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		{
 			return LOCTEXT("HintsApparelList", "{Confirm}  Change / Remove        {Toggle}  {ViewName}        {Second}  Options        {Back}  Back");
 		}
-		return bCanSetActive ? LOCTEXT("HintsListActive", "{Confirm}  Edit        {Toggle}  {ViewName}        {SetActive}  Set active        {Second}  Options        {Back}  Back")
-							 : LOCTEXT("HintsList", "{Confirm}  Edit        {Toggle}  {ViewName}        {Second}  Options        {Back}  Back");
+		// B-610: a weapon or adapter line opens its skill slots ({Skills}); the evolution line has none.
+		if (bCanSetActive)
+		{
+			return LOCTEXT("HintsListActive", "{Confirm}  Edit        {Toggle}  {ViewName}        {SetActive}  Set active        {Skills}  Skills        {Second}  Options        {Back}  Back");
+		}
+		return Entry && Entry->Kind != ELoadoutV2EntryKind::Evolution
+				   ? LOCTEXT("HintsListSkills", "{Confirm}  Edit        {Toggle}  {ViewName}        {Skills}  Skills        {Second}  Options        {Back}  Back")
+				   : LOCTEXT("HintsList", "{Confirm}  Edit        {Toggle}  {ViewName}        {Second}  Options        {Back}  Back");
 	}
 	}
 }
@@ -2939,6 +2959,7 @@ void ULoadoutV2ScreenWidget::ShowTab(ELoadoutV2Tab NewTab)
 {
 	Tab = NewTab;
 	Mode = Tab == ELoadoutV2Tab::Skills ? ELoadoutV2Mode::SkillEntries : ELoadoutV2Mode::List; // the tab's top level
+	SkillsReturnLine = INDEX_NONE; // B-610: a tab change ends a jump from Equipment
 	Selected = 0;
 	Message = FText::GetEmpty();
 	RefreshData();
@@ -2998,6 +3019,7 @@ void ULoadoutV2ScreenWidget::PressA()
 			return;
 		}
 		SkillEntry = Selected;
+		SkillsReturnLine = INDEX_NONE; // B-610: opened from the Skills tab itself, Back goes to its entries
 		Mode = ELoadoutV2Mode::SkillRows;
 		Selected = 0;
 		Message = FText::GetEmpty();
@@ -3198,6 +3220,36 @@ void ULoadoutV2ScreenWidget::PressSetActive()
 	RefreshData();
 }
 
+bool ULoadoutV2ScreenWidget::JumpToEntrySkills()
+{
+	if (Mode != ELoadoutV2Mode::List && Mode != ELoadoutV2Mode::Options)
+	{
+		return false;
+	}
+	const int32 Line = Mode == ELoadoutV2Mode::List ? Selected : ListSelected;
+	const FLoadoutV2Entry *Entry = GetFocusedEntry();
+	// The Skills tab's entries, built as that tab builds them, to find this line's.
+	const int32 Found = Entry && Members.IsValidIndex(MemberIndex)
+							? WoRLoadoutV2Skills::FindEntryFor(WoRLoadoutV2Skills::Build(WoRLoadoutSkills::BuildSkillsPage(GetWorld(), Members[MemberIndex]), Page), Line)
+							: INDEX_NONE;
+	if (Found == INDEX_NONE)
+	{
+		Mode = ELoadoutV2Mode::List;
+		Selected = Line;
+		Message = LOCTEXT("SkillsJumpNone", "This line has no skill slots. Focus a weapon or an adapter.");
+		RefreshData();
+		return false;
+	}
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: Equipment line %d -> its skill slots (Skills entry %d)"), *Members[MemberIndex].Name.ToString(), Line, Found);
+	ShowTab(ELoadoutV2Tab::Skills); // the Skills tab's own refresh (and its log)
+	SkillsReturnLine = Line;
+	SkillEntry = Found;
+	Mode = ELoadoutV2Mode::SkillRows;
+	Selected = 0;
+	RefreshData();
+	return Mode == ELoadoutV2Mode::SkillRows;
+}
+
 bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 {
 	PlayCue(EWoRMenuCue::Back);
@@ -3228,6 +3280,15 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		RefreshData();
 		return true;
 	case ELoadoutV2Mode::SkillRows:
+		if (SkillsReturnLine != INDEX_NONE)
+		{
+			// B-610: slots opened from the Equipment tab go back there, on the same line.
+			const int32 Line = SkillsReturnLine;
+			ShowTab(ELoadoutV2Tab::Weapons); // clears SkillsReturnLine
+			Selected = Line;
+			RefreshData();
+			return true;
+		}
 		Mode = ELoadoutV2Mode::SkillEntries;
 		Selected = SkillEntry;
 		RefreshData();
@@ -3385,6 +3446,14 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 		}
 		return FReply::Handled();
 	}
+	if (LoadoutV2ScreenStyle::IsSkillsJumpKey(Key) && Mode == ELoadoutV2Mode::List && Tab == ELoadoutV2Tab::Weapons && !IsInventoryBox()) // B-610
+	{
+		if (!InKeyEvent.IsRepeat())
+		{
+			PlayCue(JumpToEntrySkills() ? EWoRMenuCue::Confirm : EWoRMenuCue::Refused);
+		}
+		return FReply::Handled();
+	}
 	if (IsConfirmKey(Key) || IsToggleKey(Key) || IsSecondActionKey(Key))
 	{
 		if (!InKeyEvent.IsRepeat())
@@ -3422,6 +3491,9 @@ void ULoadoutV2ScreenWidget::SelectOption()
 	{
 	case ELoadoutV2Option::SetActive:
 		PressSetActive();
+		return;
+	case ELoadoutV2Option::Skills:
+		JumpToEntrySkills();
 		return;
 	case ELoadoutV2Option::RemoveAllGear:
 	{
@@ -3462,7 +3534,7 @@ void ULoadoutV2ScreenWidget::SelectOption()
 	}
 	case ELoadoutV2Option::Help:
 		Message = LOCTEXT("HelpText", "Left: your entries; the box shows the focused one. {Confirm} edits an entry, or adds one on the frame. {Toggle} switches the full and "
-									  "simple view. {SetActive} puts a weapon entry in hand. Cells: only what sits in the sockets costs (crystal or stone 1, "
+									  "simple view. {SetActive} puts a weapon entry in hand. {Skills} opens a weapon's or adapter's skill slots. Cells: only what sits in the sockets costs (crystal or stone 1, "
 									  "evolution 2).");
 		RefreshView();
 		return;

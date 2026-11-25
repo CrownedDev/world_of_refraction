@@ -63,7 +63,7 @@ namespace WoRKeyHints
 	WORLD_OF_REFRACTION_API bool IsGamepad(const UWidget *Context);
 
 	/** The key names a pattern may use, for one device (InputMap.md, Menus): {Confirm} {Back} {Toggle} {Second} {Tabs}
-	 *  {TabPrev} {TabNext} {SubTabs} {SubTabPrev} {SubTabNext} {SetActive} {Arrows} {Interact} {ViewButton}. */
+	 *  {TabPrev} {TabNext} {SubTabs} {SubTabPrev} {SubTabNext} {SetActive} {Skills} {Arrows} {Interact} {ViewButton}. */
 	WORLD_OF_REFRACTION_API FFormatNamedArguments GetKeyNames(bool bGamepad);
 
 	/** Pattern with its key names filled for the device; Extra adds the caller's own arguments ("{What}"). */

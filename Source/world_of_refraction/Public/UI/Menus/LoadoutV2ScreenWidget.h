@@ -127,6 +127,8 @@ enum class ELoadoutV2Slot : uint8
 enum class ELoadoutV2Option : uint8
 {
 	SetActive,
+	/** B-610: the focused entry's skill slots (JumpToEntrySkills). */
+	Skills,
 	SavedLoadouts,
 	RemoveAllGear,
 	Help,
@@ -193,6 +195,12 @@ public:
 	void PressConfirm();
 	/** L3 / 6: the focused weapon entry becomes the one in hand (D-207). */
 	void PressSetActive();
+	/** B-610, R3 / K (and Options' Skills): from the Equipment tab, the focused weapon's or adapter's skill slots open on
+	 *  the Skills tab; Back from there returns to Equipment on the same line. False (with the reason shown) when the
+	 *  focused line has no slots. */
+	bool JumpToEntrySkills();
+	/** B-610: the Equipment line Back returns to from slots opened by JumpToEntrySkills; INDEX_NONE otherwise. */
+	int32 GetSkillsReturnLine() const { return SkillsReturnLine; }
 	// B-482: what a mouse click does (the specs call these too).
 	/** A tab chip: goes to that tab; the greyed one (Cosmetics) only says it comes later. From a tab's top level. */
 	void ClickTabChip(int32 Chip);
@@ -523,6 +531,8 @@ private:
 	FLoadoutV2SkillsPage SkillsPage;
 	/** The entry whose slots are open (SkillRows, SkillPicker). */
 	int32 SkillEntry = 0;
+	/** B-610: set while slots opened from the Equipment tab are open (JumpToEntrySkills). */
+	int32 SkillsReturnLine = INDEX_NONE;
 	TArray<FLoadoutV2SkillRowRef> SkillRows;
 	/** The slot the picker is for. */
 	int32 SkillRowSelected = 0;

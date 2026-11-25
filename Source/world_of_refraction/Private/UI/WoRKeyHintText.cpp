@@ -49,6 +49,7 @@ namespace WoRKeyHintsTable
 			{TEXT("SubTabPrev"), LOCTEXT("SubTabPrevPad", "LT"), LOCTEXT("SubTabPrevKey", "Z"), EWoRKeyCapStyle::Framed, EKeys::Z},
 			{TEXT("SubTabNext"), LOCTEXT("SubTabNextPad", "RT"), LOCTEXT("SubTabNextKey", "C"), EWoRKeyCapStyle::Framed, EKeys::C},
 			{TEXT("SetActive"), LOCTEXT("SetActivePad", "L3"), LOCTEXT("SetActiveKey", "6"), EWoRKeyCapStyle::Framed, EKeys::Six},
+			{TEXT("Skills"), LOCTEXT("SkillsPad", "R3"), LOCTEXT("SkillsKey", "K"), EWoRKeyCapStyle::Framed, EKeys::K}, // B-610: the loadout's Equipment tab
 			{TEXT("Arrows"), LOCTEXT("ArrowsPad", "D-pad"), LOCTEXT("ArrowsKey", "Arrows"), EWoRKeyCapStyle::Framed, EKeys::Invalid},
 			{TEXT("Interact"), LOCTEXT("InteractPad", "X"), LOCTEXT("InteractKey", "E"), EWoRKeyCapStyle::FaceX, EKeys::Invalid},
 			{TEXT("ViewButton"), LOCTEXT("ViewButtonPad", "View"), LOCTEXT("ViewButtonKey", "Tab"), EWoRKeyCapStyle::Framed, EKeys::Invalid},
