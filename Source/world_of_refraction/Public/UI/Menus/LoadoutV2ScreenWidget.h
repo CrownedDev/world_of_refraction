@@ -220,6 +220,10 @@ public:
 	// The specs call these too.
 	/** Opens the screen with the loadout already in and the keys on its side (the game menu's Loadout page, the Gate). */
 	static ULoadoutV2ScreenWidget *OpenWithLoadout(APlayerController *PC);
+	/** B-615: a line that stays under the screen while it is open (the Gate: a trial starts you on the class kit). */
+	void SetStandingNote(const FText &Note);
+	/** B-615: the message line: this step's message, else the standing note. */
+	static FText PickMessageLine(const FText &StepMessage, const FText &Note) { return StepMessage.IsEmpty() ? Note : StepMessage; }
 	bool IsLoadoutOpen() const { return bLoadoutOpen; }
 	/** The keys are on the inventory's side (its tiles, or its filter row). */
 	bool IsOnInventorySide() const { return !bOnLoadoutSide; }
@@ -577,6 +581,7 @@ private:
 	/** The list's line when Options or the window opened (back to it after). */
 	int32 ListSelected = 0;
 	FText Message;
+	FText StandingNote;
 	/** B-440e: the loadout in use, shown top right before the cells (UIScreens #2). */
 	FText LoadoutName;
 
