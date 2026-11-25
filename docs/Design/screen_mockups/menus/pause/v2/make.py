@@ -80,9 +80,8 @@ def run_right(d):
     d.line((SX0 + 18, y, SX1 - 18, y), fill=(52, 54, 62))
     y += 14
     text(d, (SX0 + 18, y), "Equipment", 15, True)
-    y = wrap(d, (SX0 + 18, y + 26), "Change gear, skills and apparel. In a trial, only at a rest spot; here you can look.",
-             SX1 - SX0 - 36, 14, DIM, gap=4)
-    text(d, (SX0 + 18, y + 6), "Sera is low on HP.", 14, True, WARN)
+    wrap(d, (SX0 + 18, y + 26), "Change gear, skills and apparel. In a trial, only at a rest spot; here you can look.",
+         SX1 - SX0 - 36, 14, DIM, gap=4)
 
 
 def screen_pause():
