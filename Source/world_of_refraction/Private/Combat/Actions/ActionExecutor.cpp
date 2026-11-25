@@ -990,8 +990,16 @@ FActionResult UActionExecutor::ExecuteAction(AActor *Actor, const FAction &Actio
 // ========================================
 // EXECUTION - ASYNC
 // ========================================
-void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &Action, FOnActionComplete OnComplete)
+void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &InAction, FOnActionComplete OnComplete)
 {
+	// B-620 (D-275): a weapon buff can't be infused; any infusion it carries is dropped, not refused.
+	const FAction Action = SupportSkillRules::WithoutWeaponBuffInfusion(InAction);
+	if (Action.AbilityInfusionLevel != InAction.AbilityInfusionLevel || Action.SelectedSource != InAction.SelectedSource)
+	{
+		UE_LOG(LogWoR, Log, TEXT("[ActionExecutor] %s: %s is a weapon buff, its infusion is ignored (D-275)"), *GetNameSafe(Actor),
+			   *GetNameSafe(Action.SkillData));
+	}
+
 	// Lazy-bind to DefenseSystem on first use. Subsystem init order is alphabetical, so
 	// ActionExecutor::Initialize runs before DefenseSystem exists; binding there silently no-ops.
 	// By the time any action runs, DefenseSystem exists. Idempotent — bDefenseEventsBound guards re-binding.
