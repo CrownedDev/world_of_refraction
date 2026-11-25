@@ -16,16 +16,21 @@
 
 namespace JournalScreenStyle
 {
-	// This screen's own layout (screen_mockups/menus/journal, 1280x720, at 1080p); the shared look is WoRMenuStyle.
+	// B-630 (mockup menus/journal/v2, 1280x720 shown at 1080p): the loadout screen's three columns (v5); the shared look
+	// is WoRMenuStyle.
 	using namespace WoRMenuStyle;
 	constexpr float HeaderGap = 24.0f;
-	constexpr float ListWidth = 768.0f;
+	constexpr float LeftWidth = 600.0f;
+	constexpr float MiddleWidth = 618.0f;
+	constexpr float RightWidth = 504.0f;
+	constexpr float PanelGap = 27.0f;
+	constexpr float PanelPadding = 24.0f;
 	constexpr float RowPadding = 15.0f;
 	constexpr float KindStripWidth = 6.0f;
-	constexpr float PanelGap = 45.0f;
-	constexpr float PanelPadding = 30.0f;
 	constexpr float StepMarkWidth = 36.0f;
 	constexpr float ReaderScrollStep = 120.0f;
+	/** The kind plate's lit word: a line under it (as the loadout screen's selectors). */
+	constexpr float KindUnderlineHeight = 3.0f;
 	/** Between two hints on the bottom line (as the settings screen's). */
 	const TCHAR *const HintGap = TEXT("        ");
 	// The quest kinds' colours (UIScreens #6: Main gold, Side grey, Secret violet). TODO: UI_Theme.md's shades.
@@ -83,6 +88,17 @@ TSharedRef<SWidget> UJournalScreenWidget::RebuildWidget()
 	return Super::RebuildWidget();
 }
 
+UBorder *UJournalScreenWidget::MakePanel(UVerticalBox *&OutColumn) const
+{
+	using namespace JournalScreenStyle;
+	UBorder *Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Panel->SetBrushColor(PanelColor);
+	Panel->SetPadding(FMargin(PanelPadding));
+	OutColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Panel->SetContent(OutColumn);
+	return Panel;
+}
+
 void UJournalScreenWidget::BuildTree()
 {
 	using namespace JournalScreenStyle;
@@ -113,43 +129,97 @@ void UJournalScreenWidget::BuildTree()
 
 	UHorizontalBox *Body = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToColumn(Main, Body, FMargin(0.0f, HeaderGap, 0.0f, SectionGap))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	UVerticalBox *Left = nullptr;
+	UVerticalBox *Middle = nullptr;
+	UVerticalBox *Right = nullptr;
+	AddToRow(Body, MakeSized(WidgetTree, LeftWidth, 0.0f, MakePanel(Left)), FMargin(0.0f), VAlign_Fill);
+	AddToRow(Body, MakeSized(WidgetTree, MiddleWidth, 0.0f, MakePanel(Middle)), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+	AddToRow(Body, MakeSized(WidgetTree, RightWidth, 0.0f, MakePanel(Right)), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
-	// Left: the sub-tabs, the list, the line under it.
-	UVerticalBox *ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	FilterRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(FilterRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
+	// Left: the page's name and count, the ‹ kind › plate, the list, the line under it.
+	UHorizontalBox *ListHead = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	ListTitle = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	AddToRow(ListHead, ListTitle, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	CountText = MakeText(WidgetTree, SmallFontSize, DimColor, true);
+	AddToRow(ListHead, CountText, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center);
+	AddToColumn(Left, ListHead, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	FilterRow = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	FilterRow->SetBrushColor(PlateColor);
+	FilterRow->SetPadding(FMargin(TabPaddingX, TabPaddingY));
+	UHorizontalBox *Plate = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	FilterRow->SetContent(Plate);
+	const auto AddArrow = [this, Plate](const FText &Arrow, const FMargin &ArrowPadding)
+	{
+		UTextBlock *Text = MakeText(WidgetTree, RowFontSize, CyanColor, true);
+		Text->SetText(Arrow);
+		return AddToRow(Plate, Text, ArrowPadding, VAlign_Center);
+	};
+	AddArrow(LOCTEXT("KindPrev", "‹"), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	FilterTabBox = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToRow(FilterRow, FilterTabBox);
-	AddToRow(FilterRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
-	AddToColumn(ListColumn, FilterRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	// Many kinds (a memory per character, lore per place) scroll sideways; the lit word is kept in view (Refresh).
+	FilterScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+	FilterScroll->SetOrientation(Orient_Horizontal);
+	FilterScroll->SetScrollBarVisibility(ESlateVisibility::Collapsed);
+	FilterScroll->AddChild(FilterTabBox);
+	AddToRow(Plate, FilterScroll, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddArrow(LOCTEXT("KindNext", "›"), FMargin(SectionGap, 0.0f, 0.0f, 0.0f));
+	AddToColumn(Left, FilterRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	RowScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
-	AddToColumn(ListColumn, RowScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToColumn(Left, RowScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	ListNote = MakeWrappedText(WidgetTree, SmallFontSize, OffColor);
-	AddToColumn(ListColumn, ListNote, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-	AddToRow(Body, MakeSized(WidgetTree, ListWidth, 0.0f, ListColumn), FMargin(0.0f), VAlign_Fill);
+	AddToColumn(Left, ListNote, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
-	// Right: the reader for the focused row.
-	UBorder *Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Panel->SetBrushColor(PanelColor);
-	Panel->SetPadding(FMargin(PanelPadding));
-	UVerticalBox *PanelColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Panel->SetContent(PanelColumn);
+	// Middle: the focused entry, always open.
 	ReaderTitle = MakeWrappedText(WidgetTree, NameFontSize, TextColor, true);
 	ReaderKicker = MakeWrappedText(WidgetTree, LineFontSize, DimColor, true);
 	StepBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	ReaderScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
-	ReaderBody = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+	ReaderBody = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
 	ReaderScroll->AddChild(ReaderBody);
-	ReaderNote = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(PanelColumn, ReaderTitle);
-	AddToColumn(PanelColumn, ReaderKicker, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-	AddToColumn(PanelColumn, StepBox, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
-	AddToColumn(PanelColumn, ReaderScroll, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	AddToColumn(PanelColumn, ReaderNote, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
-	AddToRow(Body, Panel, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToColumn(Middle, ReaderTitle);
+	AddToColumn(Middle, ReaderKicker, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	AddToColumn(Middle, StepBox, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
+	AddToColumn(Middle, ReaderScroll, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+
+	// Right: Details, the facts, the buttons, the note.
+	UTextBlock *DetailsHeading = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	DetailsHeading->SetText(LOCTEXT("Details", "Details"));
+	AddToColumn(Right, DetailsHeading);
+	DetailsName = MakeText(WidgetTree, SmallFontSize, DimColor);
+	DetailsName->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+	AddToColumn(Right, DetailsName, FMargin(0.0f, LineGap, 0.0f, SectionGap));
+	FactBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	AddToColumn(Right, FactBox, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	ButtonBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	AddToColumn(Right, ButtonBox);
+	ReaderNote = MakeWrappedText(WidgetTree, SmallFontSize, DimColor);
+	AddToColumn(Right, ReaderNote, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
 	HintText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	AddToColumn(Main, HintText)->SetHorizontalAlignment(HAlign_Right);
+}
+
+void UJournalScreenWidget::AddFilterWord()
+{
+	using namespace JournalScreenStyle;
+
+	UBorder *Word = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Word->SetBrushColor(FLinearColor::Transparent);
+	Word->SetPadding(FMargin(0.0f));
+	UVerticalBox *Stack = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	UTextBlock *Label = MakeText(WidgetTree, RowFontSize, DimColor, true);
+	AddToColumn(Stack, Label);
+	UBorder *Line = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Line->SetBrushColor(CyanColor);
+	USizeBox *Under = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	Under->SetHeightOverride(KindUnderlineHeight);
+	Under->AddChild(Line);
+	AddToColumn(Stack, Under)->SetHorizontalAlignment(HAlign_Fill);
+	Word->SetContent(Stack);
+	AddToRow(FilterTabBox, Word, FMargin(0.0f, 0.0f, SectionGap, 0.0f), VAlign_Center);
+	FilterTabs.Add(Word);
+	FilterTabLabels.Add(Label);
+	FilterUnderlines.Add(Under);
 }
 
 UJournalScreenWidget::FRowWidgets UJournalScreenWidget::BuildRow()
@@ -166,12 +236,20 @@ UJournalScreenWidget::FRowWidgets UJournalScreenWidget::BuildRow()
 	AddToRow(Line, MakeSized(WidgetTree, KindStripWidth, 0.0f, KindStrip), FMargin(0.0f, 0.0f, RowPadding, 0.0f), VAlign_Fill);
 	UVerticalBox *Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UTextBlock *Title = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	Title->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
 	UTextBlock *Subtitle = MakeWrappedText(WidgetTree, SmallFontSize, DimColor);
 	AddToColumn(Words, Title);
 	AddToColumn(Words, Subtitle);
 	AddToRow(Line, Words)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	UVerticalBox *Marks = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UTextBlock *Tag = MakeText(WidgetTree, SmallFontSize, CyanColor, true);
-	AddToRow(Line, Tag, FMargin(RowPadding, 0.0f, 0.0f, 0.0f), VAlign_Top);
+	Tag->SetJustification(ETextJustify::Right);
+	UTextBlock *Tracked = MakeText(WidgetTree, SmallFontSize, CyanColor, true);
+	Tracked->SetJustification(ETextJustify::Right);
+	Tracked->SetText(LOCTEXT("RowTracked", "tracked"));
+	AddToColumn(Marks, Tag)->SetHorizontalAlignment(HAlign_Right);
+	AddToColumn(Marks, Tracked, FMargin(0.0f, LineGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
+	AddToRow(Line, Marks, FMargin(RowPadding, 0.0f, 0.0f, 0.0f), VAlign_Top);
 
 	if (UScrollBoxSlot *RowSlot = Cast<UScrollBoxSlot>(RowScroll->AddChild(Frame)))
 	{
@@ -182,6 +260,7 @@ UJournalScreenWidget::FRowWidgets UJournalScreenWidget::BuildRow()
 	Widgets.Title = Title;
 	Widgets.Subtitle = Subtitle;
 	Widgets.Tag = Tag;
+	Widgets.Tracked = Tracked;
 	return Widgets;
 }
 
@@ -245,6 +324,7 @@ void UJournalScreenWidget::Refresh(bool bScrollIntoView)
 	}
 	if (!RowScroll)
 	{
+		ShownButtons = GetButtons();
 		return; // headless: no tree
 	}
 
@@ -254,26 +334,27 @@ void UJournalScreenWidget::Refresh(bool bScrollIntoView)
 		PageTabs[Index]->SetBrushColor(bShownPage ? FocusColor : PlateColor);
 		PageTabLabels[Index]->SetColorAndOpacity(FSlateColor(bShownPage ? TextColor : DimColor));
 	}
+	ListTitle->SetText(WoRJournalScreen::GetPageName(Page));
+	CountText->SetText(View.CountLine);
 
-	// Sub-tabs and rows are made as a page first needs them and refilled after (never rebuilt).
+	// The kind words and the rows are made as a page first needs them and refilled after (never rebuilt).
 	while (FilterTabs.Num() < View.Filters.Num())
 	{
-		UTextBlock *Label = nullptr;
-		FilterTabs.Add(MakeTab(WidgetTree, Label));
-		FilterTabLabels.Add(Label);
-		AddToRow(FilterTabBox, FilterTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
+		AddFilterWord();
 	}
 	SetShown(FilterRow, View.Filters.Num() > 0);
 	for (int32 Index = 0; Index < FilterTabs.Num(); ++Index)
 	{
 		const bool bShown = View.Filters.IsValidIndex(Index);
+		const bool bLit = bShown && Index == Filter;
 		SetShown(FilterTabs[Index], bShown);
-		if (bShown)
-		{
-			FilterTabLabels[Index]->SetText(View.Filters[Index]);
-			FilterTabs[Index]->SetBrushColor(Index == Filter ? FocusColor : PlateColor);
-			FilterTabLabels[Index]->SetColorAndOpacity(FSlateColor(Index == Filter ? TextColor : DimColor));
-		}
+		FilterTabLabels[Index]->SetText(bShown ? View.Filters[Index] : FText::GetEmpty());
+		FilterTabLabels[Index]->SetColorAndOpacity(FSlateColor(bLit ? TextColor : DimColor));
+		FilterUnderlines[Index]->SetVisibility(bLit ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
+	if (FilterTabs.IsValidIndex(Filter))
+	{
+		FilterScroll->ScrollWidgetIntoView(FilterTabs[Filter], /*AnimateScroll=*/false);
 	}
 
 	while (RowWidgets.Num() < View.Rows.Num())
@@ -297,15 +378,18 @@ void UJournalScreenWidget::Refresh(bool bScrollIntoView)
 		Widgets.Subtitle->SetText(Row.Subtitle);
 		SetShown(Widgets.Subtitle.Get(), !Row.Subtitle.IsEmpty());
 		Widgets.Tag->SetText(Row.Tag);
-		Widgets.Tag->SetColorAndOpacity(FSlateColor(Row.bQuest ? GetKindColor(Row.Kind) : CyanColor));
+		Widgets.Tag->SetColorAndOpacity(FSlateColor(Row.bDone ? OffColor : Row.bQuest ? GetKindColor(Row.Kind) : CyanColor));
+		SetShown(Widgets.Tracked.Get(), Row.bTracked);
 		// Collapsing the strip's sized box keeps a row without a kind flush left.
 		SetShown(Widgets.KindStrip->GetParent(), Row.bQuest);
 		Widgets.KindStrip->SetBrushColor(GetKindColor(Row.Kind));
 	}
 	ListNote->SetText(View.ListNote);
-	SetShown(ListNote, !View.ListNote.IsEmpty());
+	// Memories and Lore count in the note too: it shows once, beside the title.
+	SetShown(ListNote, !View.ListNote.IsEmpty() && !View.ListNote.EqualTo(View.CountLine));
 
 	RefreshReader();
+	RefreshDetails();
 	WoRKeyHints::SetHint(HintText, GetHints());
 
 	if (bScrollIntoView && RowWidgets.IsValidIndex(SelectedRow))
@@ -343,9 +427,9 @@ void UJournalScreenWidget::RefreshReader()
 		{
 			continue;
 		}
-		// A done step is dim; the one in progress is lit. TODO: the tick and arrow icons come with the art pass.
+		// B-630 (mockup v2): a done step is ticked and dim; the one in progress has the arrow and is lit.
 		const FJournalStep &Step = Shown.Steps[Index];
-		Widgets.Mark->SetText(Step.bDone ? LOCTEXT("StepDoneMark", "·") : LOCTEXT("StepCurrentMark", "›"));
+		Widgets.Mark->SetText(Step.bDone ? LOCTEXT("StepDoneMark", "✓") : LOCTEXT("StepCurrentMark", "►"));
 		Widgets.Mark->SetColorAndOpacity(FSlateColor(Step.bDone ? GoodColor : CyanColor));
 		Widgets.Text->SetText(Step.Text);
 		Widgets.Text->SetColorAndOpacity(FSlateColor(Step.bDone ? OffColor : TextColor));
@@ -356,8 +440,94 @@ void UJournalScreenWidget::RefreshReader()
 	// Visible, not SelfHitTestInvisible: the scroll box itself has to take the mouse wheel.
 	ReaderScroll->SetVisibility(Shown.Body.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::Visible);
 	ReaderScroll->ScrollToStart();
-	ReaderNote->SetText(Shown.Note);
-	SetShown(ReaderNote, !Shown.Note.IsEmpty());
+}
+
+TArray<UJournalScreenWidget::FJournalButton> UJournalScreenWidget::GetButtons() const
+{
+	TArray<FJournalButton> Buttons;
+	const FJournalRow *Row = GetFocusedRow();
+	if (Row && !Row->SelectVerb.IsEmpty())
+	{
+		Buttons.Add({EJournalButton::Select, FText::FormatNamed(LOCTEXT("ButtonSelect", "{Confirm}  {Verb}"), TEXT("Verb"), Row->SelectVerb)});
+	}
+	if (Row && Row->IsSecret())
+	{
+		Buttons.Add({EJournalButton::Toggle, FText::FormatNamed(LOCTEXT("ButtonToggle", "{Toggle}  {Verb}"), TEXT("Verb"), Row->ToggleVerb)});
+	}
+	if (Page == EJournalPage::Quests)
+	{
+		Buttons.Add({EJournalButton::HideAll, LOCTEXT("ButtonHideAll", "{Second}  Hide all secret quests"),
+					 State.ShownSecrets.IsEmpty() ? LOCTEXT("NoneShown", "No secret quest is shown.") : FText::GetEmpty()});
+	}
+	return Buttons;
+}
+
+void UJournalScreenWidget::RefreshDetails()
+{
+	using namespace JournalScreenStyle;
+
+	const FJournalRow *Row = GetFocusedRow();
+	DetailsName->SetText(Row ? Row->Title : FText::GetEmpty());
+	const TArray<FJournalFact> NoFacts;
+	const TArray<FJournalFact> &Facts = Row ? Row->Facts : NoFacts;
+	while (FactWidgets.Num() < Facts.Num())
+	{
+		UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UTextBlock *Label = MakeText(WidgetTree, LineFontSize, DimColor);
+		UTextBlock *Value = MakeText(WidgetTree, LineFontSize, TextColor, true);
+		Value->SetJustification(ETextJustify::Right);
+		Value->SetTextOverflowPolicy(ETextOverflowPolicy::Ellipsis);
+		AddToRow(Line, Label, FMargin(0.0f), VAlign_Center);
+		AddToRow(Line, Value, FMargin(WordGap, 0.0f, 0.0f, 0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToColumn(FactBox, Line, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		FactWidgets.Add({Line, Label, Value});
+	}
+	for (int32 Index = 0; Index < FactWidgets.Num(); ++Index)
+	{
+		const FFactWidgets &Widgets = FactWidgets[Index];
+		const bool bShown = Facts.IsValidIndex(Index);
+		SetShown(Widgets.Line.Get(), bShown);
+		if (bShown && Widgets.Label.IsValid() && Widgets.Value.IsValid())
+		{
+			Widgets.Label->SetText(Facts[Index].Label);
+			Widgets.Value->SetText(Facts[Index].Value);
+			Widgets.Value->SetColorAndOpacity(FSlateColor(Facts[Index].bLit ? CyanColor : TextColor));
+		}
+	}
+
+	ShownButtons = GetButtons();
+	while (ButtonWidgets.Num() < ShownButtons.Num())
+	{
+		UBorder *Plate = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Plate->SetBrushColor(PlateColor);
+		Plate->SetPadding(FMargin(TabPaddingX, TabPaddingY));
+		UVerticalBox *Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Plate->SetContent(Lines);
+		UTextBlock *Verb = MakeHintText(WidgetTree, LineFontSize, TextColor, true);
+		UTextBlock *Reason = MakeWrappedText(WidgetTree, SmallFontSize, WarnColor);
+		AddToColumn(Lines, Verb);
+		AddToColumn(Lines, Reason);
+		AddToColumn(ButtonBox, Plate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		ButtonWidgets.Add({Plate, Verb, Reason});
+	}
+	for (int32 Index = 0; Index < ButtonWidgets.Num(); ++Index)
+	{
+		const FButtonWidgets &Widgets = ButtonWidgets[Index];
+		const bool bShown = ShownButtons.IsValidIndex(Index);
+		SetShown(Widgets.Plate.Get(), bShown);
+		if (!bShown || !Widgets.Verb.IsValid() || !Widgets.Reason.IsValid())
+		{
+			continue;
+		}
+		const FJournalButton &Button = ShownButtons[Index];
+		WoRKeyHints::SetHint(Widgets.Verb.Get(), Button.Label);
+		Widgets.Verb->SetColorAndOpacity(FSlateColor(Button.Refusal.IsEmpty() ? TextColor : OffColor));
+		Widgets.Reason->SetText(Button.Refusal);
+		SetShown(Widgets.Reason.Get(), !Button.Refusal.IsEmpty());
+	}
+
+	ReaderNote->SetText(Row ? Row->Note : FText::GetEmpty());
+	SetShown(ReaderNote, Row && !Row->Note.IsEmpty());
 }
 
 FText UJournalScreenWidget::GetHints() const
@@ -366,7 +536,7 @@ FText UJournalScreenWidget::GetHints() const
 	Parts.Add(LOCTEXT("HintPage", "{Tabs}  Page"));
 	if (View.Filters.Num() > 1)
 	{
-		Parts.Add(LOCTEXT("HintFilter", "{SubTabs}  Filter"));
+		Parts.Add(LOCTEXT("HintKind", "‹ ›  Kind"));
 	}
 	if (const FJournalRow *Row = GetFocusedRow())
 	{
@@ -473,6 +643,23 @@ void UJournalScreenWidget::PressHideAll()
 	}
 }
 
+void UJournalScreenWidget::PressButton(EJournalButton Button)
+{
+	UE_LOG(LogWoRUI, Verbose, TEXT("[Journal] Button %d"), static_cast<int32>(Button));
+	switch (Button)
+	{
+	case EJournalButton::Select:
+		PressSelect();
+		break;
+	case EJournalButton::Toggle:
+		PressToggle();
+		break;
+	case EJournalButton::HideAll:
+		PressHideAll();
+		break;
+	}
+}
+
 FReply UJournalScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
 {
 	using namespace JournalScreenStyle;
@@ -492,7 +679,8 @@ FReply UJournalScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 		return FReply::Handled();
 	}
 	const bool bPageKey = IsTabPrevKey(Key) || IsTabNextKey(Key);
-	const bool bFilterKey = IsSubTabPrevKey(Key) || IsSubTabNextKey(Key);
+	// B-630: Left / Right turn the kind plate; LT / RT still do.
+	const bool bFilterKey = IsLeftKey(Key) || IsRightKey(Key) || IsSubTabPrevKey(Key) || IsSubTabNextKey(Key);
 	if (bPageKey || bFilterKey || IsConfirmKey(Key) || IsToggleKey(Key) || IsSecondActionKey(Key) || IsBackKey(Key))
 	{
 		if (InKeyEvent.IsRepeat())
@@ -505,7 +693,7 @@ FReply UJournalScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const 
 		}
 		else if (bFilterKey)
 		{
-			MoveFilter(IsSubTabNextKey(Key) ? 1 : -1);
+			MoveFilter(IsRightKey(Key) || IsSubTabNextKey(Key) ? 1 : -1);
 		}
 		else if (IsConfirmKey(Key))
 		{
@@ -549,6 +737,19 @@ int32 UJournalScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 											  MouseEvent.GetScreenSpacePosition());
 }
 
+int32 UJournalScreenWidget::FindButtonUnder(const FPointerEvent &MouseEvent) const
+{
+	for (int32 Index = 0; Index < FMath::Min(ButtonWidgets.Num(), ShownButtons.Num()); ++Index)
+	{
+		const UBorder *Plate = ButtonWidgets[Index].Plate.Get();
+		if (Plate && Plate->IsVisible() && Plate->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
+}
+
 FReply UJournalScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
 	// Only a moving mouse picks a row, so a resting cursor doesn't fight the keys.
@@ -588,12 +789,21 @@ FReply UJournalScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry
 	const int32 Row = FindRowUnder(InMouseEvent);
 	if (View.Rows.IsValidIndex(Row))
 	{
+		// B-630: a click only lights a row; the Details buttons act.
 		if (Row != SelectedRow)
 		{
 			SelectedRow = Row;
 			Refresh(/*bScrollIntoView=*/false);
 		}
-		PressSelect();
+		return FReply::Handled();
+	}
+	const int32 Button = FindButtonUnder(InMouseEvent);
+	if (ShownButtons.IsValidIndex(Button))
+	{
+		if (ShownButtons[Button].Refusal.IsEmpty()) // a greyed button only shows why
+		{
+			PressButton(ShownButtons[Button].Kind);
+		}
 		return FReply::Handled();
 	}
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
@@ -602,7 +812,7 @@ FReply UJournalScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GJournalScreenOpenCommand(
 	TEXT("wor.UI.Journal"),
-	TEXT("B-463: open the journal screen, as the game menu's Journal page does."),
+	TEXT("B-463 / B-630: open the journal screen, as the game menu's Journal page does."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		if (!UJournalScreenWidget::Open(World ? World->GetFirstPlayerController() : nullptr))

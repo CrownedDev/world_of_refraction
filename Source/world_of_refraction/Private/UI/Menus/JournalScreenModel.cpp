@@ -142,13 +142,19 @@ namespace JournalScreenBuild
 		{
 			Row.ToggleVerb = bShown ? LOCTEXT("Hide", "Hide") : LOCTEXT("Show", "Show");
 		}
+		const FText StatusLabel = LOCTEXT("FactStatus", "Status");
 		if (MaskNumber && !bShown)
 		{
 			Row.Title = FText::Format(LOCTEXT("MaskedQuestName", "Secret Quest {0}"), FText::AsNumber(*MaskNumber)); // D-196
 			Row.Subtitle = Quest.bFinished ? Done : LOCTEXT("MaskedQuestSubtitle", "hidden · X to show");
 			Row.Body = LOCTEXT("MaskedQuestBody", "Hidden.");
+			Row.Facts.Add({StatusLabel, LOCTEXT("FactHidden", "Hidden")});
 			return Row;
 		}
+		// B-630: a secret quest's step number would tell how far it goes (D-171): it reads "In progress".
+		Row.Facts.Add({StatusLabel, Quest.bFinished ? LOCTEXT("FactDone", "Done")
+								  : MaskNumber	   ? LOCTEXT("FactInProgress", "In progress")
+												   : FText::Format(LOCTEXT("FactStep", "Step {0}"), FText::AsNumber(Quest.DoneGoals.Num() + 1))});
 		Row.Title = Quest.Title;
 		Row.Subtitle = Quest.bFinished ? Done : Quest.Goal;
 		if (!MaskNumber && !Quest.bFinished)
@@ -159,6 +165,8 @@ namespace JournalScreenBuild
 			{
 				Row.Kicker = FText::Format(LOCTEXT("TrackedKicker", "{0} quest · tracked"), Row.Tag);
 			}
+			Row.bTracked = bTracked;
+			Row.Facts.Add({LOCTEXT("FactTracked", "Tracked"), bTracked ? LOCTEXT("FactTrackedYes", "Yes, on the HUD") : LOCTEXT("FactTrackedNo", "No"), bTracked});
 		}
 		if (MaskNumber)
 		{
@@ -215,6 +223,9 @@ namespace JournalScreenBuild
 										   Quests->GetTrackedQuest() == Quest.QuestId));
 			}
 		}
+		const int32 DoneCount = View.Rows.FilterByPredicate([](const FJournalRow &Row) { return Row.bDone; }).Num();
+		View.CountLine = View.Rows.IsEmpty() ? FText::GetEmpty()
+											 : FText::Format(LOCTEXT("QuestCount", "{0} open · {1} done"), View.Rows.Num() - DoneCount, DoneCount);
 		if (View.Rows.IsEmpty())
 		{
 			View.ListNote = LOCTEXT("NoQuests", "No quests yet.");
@@ -296,9 +307,18 @@ namespace JournalScreenBuild
 			Row.Kicker = Place.IsEmpty() ? JoinNames(Names)
 										 : FText::Format(LOCTEXT("MemoryKicker", "{0} · found in {1}"), JoinNames(Names), Place);
 			Row.Body = Memory->Text;
+			if (!Names.IsEmpty())
+			{
+				Row.Facts.Add({LOCTEXT("FactBelongsTo", "Belongs to"), JoinNames(Names)});
+			}
+			if (!Place.IsEmpty())
+			{
+				Row.Facts.Add({LOCTEXT("FactFoundIn", "Found in"), Place});
+			}
 		}
 		View.ListNote = View.Rows.IsEmpty() ? LOCTEXT("NoMemories", "No memories yet.")
 											: FText::Format(LOCTEXT("MemoriesFound", "{0} found"), FText::AsNumber(View.Rows.Num()));
+		View.CountLine = View.Rows.IsEmpty() ? FText::GetEmpty() : View.ListNote;
 	}
 
 	void BuildLore(const UGameInstance *GameInstance, int32 Filter, FJournalView &View)
@@ -337,9 +357,15 @@ namespace JournalScreenBuild
 			Row.Subtitle = GetLoreKindName(Entry.Kind);
 			Row.Kicker = Entry.Place.IsEmpty() ? Row.Subtitle
 											   : FText::Format(LOCTEXT("LoreKicker", "{0} · {1}"), Row.Subtitle, Entry.Place);
+			Row.Facts.Add({LOCTEXT("FactKind", "Kind"), Row.Subtitle});
+			if (!Entry.Place.IsEmpty())
+			{
+				Row.Facts.Add({LOCTEXT("FactFoundIn", "Found in"), Entry.Place});
+			}
 		}
 		View.ListNote = View.Rows.IsEmpty() ? LOCTEXT("NoLore", "Nothing read yet.")
 											: FText::Format(LOCTEXT("LoreFound", "{0} found"), FText::AsNumber(View.Rows.Num()));
+		View.CountLine = View.Rows.IsEmpty() ? FText::GetEmpty() : View.ListNote;
 	}
 
 	/** The conversation being played stays under Ready until another is started or the journal closes, so its
@@ -379,15 +405,22 @@ namespace JournalScreenBuild
 			Row.Id = Talk->ConversationId;
 			Row.Title = Talk->Title;
 			Row.Subtitle = JoinNames(Names);
+			if (!Names.IsEmpty())
+			{
+				Row.Facts.Add({LOCTEXT("FactWith", "With"), Row.Subtitle});
+			}
 			if (!bShowReady)
 			{
 				Row.Kicker = LOCTEXT("TalkPlayed", "Played");
 				Row.Body = JoinLines(Talk->Lines);
+				Row.Facts.Add({LOCTEXT("FactStatus", "Status"), Row.Kicker});
 				continue;
 			}
 			const int32 LinesOut = Talk->ConversationId == State.TalkId ? FMath::Min(State.TalkLines, Talk->Lines.Num()) : 0;
 			const bool bEnded = LinesOut > 0 && LinesOut >= Talk->Lines.Num();
 			Row.Kicker = LOCTEXT("TalkReady", "Ready");
+			Row.Facts.Add({LOCTEXT("FactStatus", "Status"), Row.Kicker});
+			Row.Facts.Add({LOCTEXT("FactLines", "Lines"), FText::Format(LOCTEXT("FactLinesValue", "{0} of {1}"), LinesOut, Talk->Lines.Num())});
 			Row.Tag = bEnded ? FText::GetEmpty() : LOCTEXT("TalkNew", "NEW");
 			Row.Body = JoinLines(TArray<FText>(Talk->Lines.GetData(), LinesOut));
 			Row.Note = bEnded ? LOCTEXT("TalkEnded", "The talk is kept under Played to re-read.")
@@ -397,6 +430,8 @@ namespace JournalScreenBuild
 				Row.SelectVerb = LinesOut > 0 ? LOCTEXT("TalkNext", "Next") : LOCTEXT("TalkPlay", "Play");
 			}
 		}
+		View.CountLine = Unlocked.IsEmpty() ? FText::GetEmpty()
+											: FText::Format(LOCTEXT("TalkCount", "{0} ready · {1} played"), ReadyCount, Unlocked.Num() - ReadyCount);
 		if (bShowReady)
 		{
 			View.ListNote = LOCTEXT("TalkListNote", "New talks unlock as memories return.");
@@ -532,10 +567,18 @@ FString WoRJournalScreen::GetJournalString(UGameInstance *GameInstance, const TA
 			const FJournalView View = BuildView(GameInstance, Page, Filter, Closed, Story);
 			Out += FString::Printf(TEXT("\n  %s%s:"), *GetPageName(Page).ToString(),
 								   View.Filters.IsValidIndex(Filter) ? *FString::Printf(TEXT(" (%s)"), *View.Filters[Filter].ToString()) : TEXT(""));
+			if (!View.CountLine.IsEmpty())
+			{
+				Out += FString::Printf(TEXT(" %s"), *View.CountLine.ToString());
+			}
 			for (const FJournalRow &Row : View.Rows)
 			{
 				Out += FString::Printf(TEXT("\n    %s%s%s"), Row.Tag.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("[%s] "), *Row.Tag.ToString()),
 									   *Row.Title.ToString(), Row.Subtitle.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(": %s"), *Row.Subtitle.ToString()));
+				for (const FJournalFact &Fact : Row.Facts)
+				{
+					Out += FString::Printf(TEXT(" | %s: %s"), *Fact.Label.ToString(), *Fact.Value.ToString());
+				}
 			}
 			if (!View.ListNote.IsEmpty())
 			{
