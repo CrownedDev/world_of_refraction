@@ -1322,6 +1322,15 @@ The queue of questions only Crown can answer.
 - The dummy is the test trial's Generic enemy (`DA_Enemy_Generic`) on the trials' battle level (`TestLevel_Encounter`), both in `DefaultGame.ini` (`PracticeLevel`, `PracticeDummy`) until a dummy asset and arena exist.
 - Refused during a trial run (the dummy is a hub thing).
 **Reference:** FFXIV's striking dummies and Monster Hunter's training area: free practice, nothing at stake, damage numbers shown, leave any time (Crown's brief).
+### Q-595h — Rally's numbers (the sword charge, a self damage buff)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-595h) · **Blocks:** nothing
+**Question:** Rally is a charge with the sword that raises the user's damage (Crown: "keep it simple"). How much, for how long, and what does it cost next to the other sword skills (Quick Strike 10 EP, Force Strike 12, WhirlWind 20)?
+**Answer (default, built):** **+25% damage (`DamageBuff`, scope All) for 2 turns, on the user only; 10 EP, 1 action, tier F; no damage, no buildup.**
+- 2 turns (Crown's default): the next two turns' hits get it, so it pays off only if you follow up; it doesn't stack with itself (a second Rally refreshes it).
+- +25% sits above the shop's Might spell (+15% raw and spell for 3 turns, 15 EP): one turn shorter, one kind of damage boost, a cheap opener for a sword user.
+- 10 EP like Quick Strike: the turn you spend charging is the real cost.
+- **Price:** tier F, so the Combat Master sells it for 25 Gold + 10 Dormant Essence, like the other refined sword skills.
+**Reference:** Pokémon's Swords Dance and Final Fantasy's Focus / Persona's Charge: spend a turn to power up your next hits, a staple players use and like; the short timer keeps it a set-up move, not a permanent stat. The deckbuilder has no rule for it.
 
 ### Q-621 — A buff on yourself or an ally lands no hit, and a single-ally buff goes to the ally you picked
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-621, Crown: a self buff opened a DEFEND prompt and hit its user for 34) · **Blocks:** nothing

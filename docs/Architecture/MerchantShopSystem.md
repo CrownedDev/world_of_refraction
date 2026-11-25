@@ -237,3 +237,4 @@ with the window's detail panel. Line cost = one-entry `PreviewCartCost`.
 | 2026-11-24 | B-595b: Over Under joins the Combat Master's stock after Quick Strike and Force Strike (2 to 3 lines); tier F, 25 Gold + 10 Dormant Essence (Q-595b). | `feature/B-595b-sword-over-under` |
 | 2026-11-24 | B-595c: Heavy Attack joins the Combat Master's stock after Quick Strike and Force Strike (2 to 3 lines; tier F, 25 Gold + 10 Dormant Essence, Q-595c). | `feature/B-595c-sword-heavy-attack` |
 | 2026-11-24 | B-595d: WhirlWind joins the Combat Master's stock after Quick Strike and Force Strike (2 to 3 lines; priced by its tier, Q-595d). | `feature/B-595d-sword-whirlwind` |
+| 2026-11-25 | B-595h: Rally joins the Combat Master's stock after WhirlWind (5 to 6 lines; tier F, 25 Gold + 10 Dormant Essence, Q-595h). | `feature/B-595h-rally` |
