@@ -41,6 +41,8 @@ def pages_left(d, focus_i):
 def party_middle(d):
     panel(d, (DX0, TOP, DX1, BOTTOM))
     text(d, (DX0 + 20, TOP + 14), "Party", 22, True)
+    # the cards can be picked (Right, or a click); A on one opens the Party screen on that member (Crown: keep Pause simple)
+    text(d, (DX1 - 20, TOP + 20), "►  pick  ·  A  details", 13, True, DIM, anchor="ra")
     y = TOP + 52
     for (name, cls, elem, hp, ep, kind, weapon), msb in zip(PARTY, MSB):
         box = (DX0 + 16, y, DX1 - 16, y + 132)
@@ -66,22 +68,39 @@ def party_middle(d):
 
 
 def run_right(d):
-    panel(d, (SX0, TOP, SX1, BOTTOM))
-    text(d, (SX0 + 18, TOP + 14), "Details", 17, True)
-    text(d, (SX0 + 18, TOP + 38), "Ember Trial  ·  this run", 14, fill=DIM)
-    rows = [("Fights won", "3", TXT), ("Next", "Mini-boss", WARN), ("Run gold", "240", GOLD), ("Fight items", "6 left", TXT),
-            ("Time", "18:42", TXT), ("Saved", "at the last rest spot", DIM)]
-    y = TOP + 70
+    """The run's summary, the whole right side (Crown: Menu left, run summary right; the party cards go to Party)."""
+    x0, x1 = DX0, SX1
+    panel(d, (x0, TOP, x1, BOTTOM))
+    text(d, (x0 + 20, TOP + 14), "This run", 22, True)
+    text(d, (x0 + 20, TOP + 46), "Ember Trial", 14, fill=DIM)
+    rows = [("Fights won", "3", TXT), ("Run gold", "240", GOLD), ("Items found", "4", TXT),
+            ("Time", "18:42", TXT)]
+    y = TOP + 84
     for label, value, col in rows:
-        text(d, (SX0 + 18, y), label, 15, fill=DIM)
-        text(d, (SX1 - 18, y), value, 15, True, col, anchor="ra")
-        y += 25
+        text(d, (x0 + 20, y), label, 16, fill=DIM)
+        text(d, (x0 + 200, y), value, 16, True, col)
+        y += 30
     y += 10
-    d.line((SX0 + 18, y, SX1 - 18, y), fill=(52, 54, 62))
-    y += 14
-    text(d, (SX0 + 18, y), "Equipment", 15, True)
-    wrap(d, (SX0 + 18, y + 26), "Change gear, skills and apparel. In a trial, only at a rest spot; here you can look.",
-         SX1 - SX0 - 36, 14, DIM, gap=4)
+    d.line((x0 + 20, y, x1 - 20, y), fill=(52, 54, 62))
+    y += 16
+    text(d, (x0 + 20, y), "Mind  ·  Body  ·  Spirit", 16, True)  # each member's current MSB (Crown)
+    y += 32
+    for (name, cls, elem, *_), msb in zip(PARTY, MSB):
+        d.ellipse((x0 + 20, y - 2, x0 + 40, y + 18), fill=ELEMENT[elem])
+        text(d, (x0 + 52, y), name, 16, True)
+        text(d, (x0 + 140, y), cls, 14, fill=DIM)
+        mx = x0 + 280
+        for label, value in zip(("Mind", "Body", "Spirit"), msb):
+            text(d, (mx, y), label, 15, fill=DIM)
+            text(d, (mx + 56, y), str(value), 15, True)
+            mx += 110
+        y += 30
+    y += 10
+    d.line((x0 + 20, y, x1 - 20, y), fill=(52, 54, 62))
+    y += 16
+    text(d, (x0 + 20, y), "Equipment", 16, True)
+    wrap(d, (x0 + 20, y + 28), "Change gear, skills and apparel. In a trial, only at a rest spot; here you can look.",
+         x1 - x0 - 40, 15, DIM, gap=4)
 
 
 def screen_pause():
@@ -89,7 +108,6 @@ def screen_pause():
     d.text((48, 26), "Paused", font=T(30), fill=TXT)
     text(d, (48, 66), "Ember Trial", 15, fill=DIM)
     pages_left(d, 1)
-    party_middle(d)
     run_right(d)
     footer(d, [("A", "Open"), ("B", "Resume")])
     return im
