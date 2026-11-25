@@ -281,6 +281,10 @@ public:
 		FName Receiver;
 	};
 	const TArray<FInventoryAction> &GetInventoryActions() const { return InvActions; }
+	/** The buttons' places (not giving): Equip on… or Pick / unpick, Give to…, Sell. */
+	static constexpr int32 ACTION_PRIMARY = 0;
+	static constexpr int32 ACTION_GIVE = 1;
+	static constexpr int32 ACTION_SELL = 2;
 	EInventoryScreenTab GetInventoryTab() const { return InvTab; }
 	EInventoryScreenSort GetInventorySort() const { return InvSort; }
 	int32 GetInventoryTile() const { return InvSelected; }

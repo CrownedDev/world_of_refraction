@@ -758,7 +758,7 @@ void ULoadoutV2ScreenWidget::RefreshInventorySide()
 	}
 	bOnInvFilters = bOnInvFilters && InvFilters.Num() > 0;
 	bGiving = false; // the tiles are read again: a Give list in progress ends
-	InvPage =Members.IsValidIndex(MemberIndex) ? WoRInventoryScreen::BuildPage(GetWorld(), Members[MemberIndex].Key, InvTab, InvFilter, InvSort) : FInventoryScreenPage();
+	InvPage = Members.IsValidIndex(MemberIndex) ? WoRInventoryScreen::BuildPage(GetWorld(), Members[MemberIndex].Key, InvTab, InvFilter, InvSort) : FInventoryScreenPage();
 	InvSelected = InvPage.Tiles.Num() > 0 ? FMath::Clamp(InvSelected, 0, InvPage.Tiles.Num() - 1) : 0;
 	HoveredInvTile = INDEX_NONE; // the tiles may have changed under the mouse; its next move lights again
 }
@@ -2330,9 +2330,9 @@ void ULoadoutV2ScreenWidget::PressEquipOn()
 	{
 		return;
 	}
-	if (!InvActions[0].Refusal.IsEmpty())
+	if (!InvActions[ACTION_PRIMARY].Refusal.IsEmpty())
 	{
-		Message = InvActions[0].Refusal;
+		Message = InvActions[ACTION_PRIMARY].Refusal;
 		RefreshView();
 		return;
 	}
@@ -2350,9 +2350,9 @@ void ULoadoutV2ScreenWidget::PressFightPick()
 	{
 		return;
 	}
-	if (!InvActions[0].Refusal.IsEmpty())
+	if (!InvActions[ACTION_PRIMARY].Refusal.IsEmpty())
 	{
-		Message = InvActions[0].Refusal;
+		Message = InvActions[ACTION_PRIMARY].Refusal;
 		RefreshView();
 		return;
 	}
@@ -2366,13 +2366,13 @@ void ULoadoutV2ScreenWidget::PressFightPick()
 
 void ULoadoutV2ScreenWidget::PressGive()
 {
-	if (!IsInventoryBox() || IsAboveInventoryTiles() || bGiving || !InvActions.IsValidIndex(1))
+	if (!IsInventoryBox() || IsAboveInventoryTiles() || bGiving || !InvActions.IsValidIndex(ACTION_GIVE))
 	{
 		return;
 	}
-	if (!InvActions[1].Refusal.IsEmpty())
+	if (!InvActions[ACTION_GIVE].Refusal.IsEmpty())
 	{
-		Message = InvActions[1].Refusal;
+		Message = InvActions[ACTION_GIVE].Refusal;
 		RefreshView();
 		return;
 	}
@@ -2390,11 +2390,11 @@ void ULoadoutV2ScreenWidget::PressInventoryButton(int32 Button)
 	}
 	if (!bGiving)
 	{
-		if (Button == 0)
+		if (Button == ACTION_PRIMARY)
 		{
 			IsOnPouch() ? PressFightPick() : PressEquipOn();
 		}
-		else if (Button == 1)
+		else if (Button == ACTION_GIVE)
 		{
 			PressGive();
 		}
@@ -2626,6 +2626,7 @@ void ULoadoutV2ScreenWidget::OpenSlot(int32 Index)
 		if (Pending != INDEX_NONE)
 		{
 			Selected = Pending;
+			PendingEquipGear.Invalidate(); // lit once: a later slot opens as usual
 			RefreshView();
 		}
 	}
@@ -2712,7 +2713,8 @@ void ULoadoutV2ScreenWidget::ApplyGridFilter()
 
 void ULoadoutV2ScreenWidget::LogGrid() const
 {
-	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] grid, %s, filter %s, %d piece(s):\n%s"), Slots.IsValidIndex(SlotIndex) ? *GetSlotName(Slots[SlotIndex]).ToString() : TEXT("?"),
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] grid, %s, kind %s%s, filter %s, %d piece(s):\n%s"), Slots.IsValidIndex(SlotIndex) ? *GetSlotName(Slots[SlotIndex]).ToString() : TEXT("?"),
+		   *GetPieceKindName(GetGridKind()).ToString(), IsOnGridKinds() ? TEXT(" (keys on the selector)") : TEXT(""), // B-614
 		   bGridFiltered ? *WoRGameNames::GetWeaponTypeName(GridFilter).ToString() : TEXT("All"), GridPieceCount,
 		   *WoRLoadoutV2Grid::GetGridString(GetGridTiles(), WoRLoadoutV2Grid::COLUMNS, Selected));
 }
@@ -4074,7 +4076,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			else if (IsConfirmKey(Key) && InvPage.Tiles.IsValidIndex(InvSelected))
 			{
 				// B-598c piece 2: A is the Details column's first button (Equip on…), or gives to the lit receiver.
-				const int32 Button = bGiving ? GiveSelected : 0;
+				const int32 Button = bGiving ? GiveSelected : ACTION_PRIMARY;
 				const bool bRefused = !InvActions.IsValidIndex(Button) || !InvActions[Button].Refusal.IsEmpty();
 				UBorder *Pressed = bGiving && RightButtonPlates.IsValidIndex(Button) ? RightButtonPlates[Button].Get() : GetLitItem();
 				PressInventoryButton(Button);
@@ -4083,7 +4085,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			}
 			else if (IsToggleKey(Key) && !bGiving && InvPage.Tiles.IsValidIndex(InvSelected))
 			{
-				const bool bRefused = !InvActions.IsValidIndex(1) || !InvActions[1].Refusal.IsEmpty();
+				const bool bRefused = !InvActions.IsValidIndex(ACTION_GIVE) || !InvActions[ACTION_GIVE].Refusal.IsEmpty();
 				PressGive(); // X, Give to…
 				PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Confirm);
 			}
