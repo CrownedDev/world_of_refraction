@@ -68,12 +68,14 @@ void FMenuFeelSpec::Define()
 		TestTrue(TEXT("on the inventory's side every direction is the grid's"), Screen->MoveInDirection(1, 0) && Screen->MoveInDirection(0, 1));
 		TestTrue(TEXT("a move that moves nothing (an empty grid) is silent"), Screen->GetLastCue() == EWoRMenuCue::None);
 		Screen->ToggleLoadout();
-		TestTrue(TEXT("the Loadout button: the Confirm cue"), Screen->GetLastCue() == EWoRMenuCue::Confirm);
-		Screen->FocusLoadoutSide();
+		TestTrue(TEXT("to the Equipment page: the Confirm cue"), Screen->GetLastCue() == EWoRMenuCue::Confirm);
 		TestFalse(TEXT("Left on the loadout's list has nothing to do"), Screen->MoveInDirection(-1, 0));
+		TestFalse(TEXT("nor Right (B-598c: no inventory side beside it)"), Screen->MoveInDirection(1, 0));
 		TestTrue(TEXT("Down is the list's"), Screen->MoveInDirection(0, 1));
 		TestTrue(TEXT("still no Move cue: nothing moved"), Screen->GetLastCue() == EWoRMenuCue::Confirm);
-		TestTrue(TEXT("Right goes to the inventory's side"), Screen->MoveInDirection(1, 0) && Screen->IsOnInventorySide());
+		Screen->ToggleLoadout();
+		TestTrue(TEXT("back on the Inventory page"), Screen->IsOnInventoryPage());
+		TestTrue(TEXT("Up off the top row: the filter row"), Screen->MoveInDirection(0, -1) && Screen->IsOnInventoryFilters());
 		TestTrue(TEXT("and that is heard: the Move cue"), Screen->GetLastCue() == EWoRMenuCue::Move);
 		Screen->PressBack();
 		TestTrue(TEXT("Back: the Back cue"), Screen->GetLastCue() == EWoRMenuCue::Back);

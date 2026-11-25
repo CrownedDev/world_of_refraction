@@ -155,19 +155,19 @@ void FInventoryScreenSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("on the merged screen (D-249) the inventory is home: its tabs fill the grid, Y brings the loadout in, the keys cross sides at the grid's edge", [this]()
+	It("on the merged screen (B-598c) the Inventory is a page: the bag fills the grid, the pages turn in a ring, Up reaches the filters then the Gear / Pouch selector", [this]()
 	{
 		if (!IsReady()) return;
 		AddDagger();
 		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
 		if (!TestNotNull(TEXT("screen"), Screen)) return;
 		Screen->ActivateWidget();
-		TestTrue(TEXT("opens with the loadout out and the keys on the inventory"), !Screen->IsLoadoutOpen() && Screen->IsOnInventorySide());
+		TestTrue(TEXT("opens on the Inventory page"), Screen->IsOnInventoryPage() && Screen->IsOnInventorySide() && Screen->GetPageIndex() == ULoadoutV2ScreenWidget::INVENTORY_PAGE);
 		TestTrue(TEXT("on the Gear tab"), Screen->GetInventoryTab() == EInventoryScreenTab::Gear);
 		TestEqual(TEXT("the Gear tab's tiles are the inventory screen's"), Screen->GetInventorySide().Tiles.Num(), PageOf(EInventoryScreenTab::Gear).Tiles.Num());
 		TestTrue(TEXT("at least the sword and the dagger"), Screen->GetInventorySide().Tiles.Num() >= 2);
-		TestEqual(TEXT("the whole width: the wide row"), Screen->GetGridColumns(), WoRLoadoutV2Grid::COLUMNS_WIDE);
-		TestFalse(TEXT("the card has the lit tile's details"), Screen->GetDetails().IsEmpty());
+		TestEqual(TEXT("the left column's five to a row"), Screen->GetGridColumns(), WoRLoadoutV2Grid::COLUMNS);
+		TestFalse(TEXT("the middle column has the lit tile's details"), Screen->GetDetails().IsEmpty());
 		TestFalse(TEXT("no slot is being filled"), Screen->IsGridOpen());
 
 		// UI_Theme 5a: a move redraws only what changed (the light view), never the whole screen.
@@ -176,48 +176,57 @@ void FInventoryScreenSpec::Define()
 		Screen->MoveInventoryTile(1, 0);
 		TestEqual(TEXT("Right: the next tile"), Screen->GetInventoryTile(), 1);
 		TestTrue(TEXT("a tile move takes the light view only"), Screen->GetFullRefreshCount() == FullBefore && Screen->GetLightRefreshCount() == LightBefore + 1);
-		Screen->MoveSelection(1);
-		TestTrue(TEXT("so does a move down the loadout's list"), Screen->GetFullRefreshCount() == FullBefore && Screen->GetLightRefreshCount() == LightBefore + 2);
-		Screen->MoveSelection(-1);
 		Screen->MoveInventoryTile(-1, 0);
 		Screen->MoveInventoryTile(-1, 0);
-		TestTrue(TEXT("Left off the first column with the loadout out: stays on the inventory"), Screen->IsOnInventorySide() && Screen->GetInventoryTile() == 0);
+		TestTrue(TEXT("Left off the first column: stays on the first tile"), Screen->IsOnInventoryPage() && Screen->GetInventoryTile() == 0);
 
 		Screen->ToggleLoadout();
-		TestTrue(TEXT("Y: the loadout comes in; the keys stay on the inventory"), Screen->IsLoadoutOpen() && Screen->IsOnInventorySide());
-		TestEqual(TEXT("the grid narrows"), Screen->GetGridColumns(), WoRLoadoutV2Grid::COLUMNS);
-		Screen->MoveInventoryTile(-1, 0);
-		TestFalse(TEXT("Left off the first column: the loadout's side"), Screen->IsOnInventorySide());
+		TestTrue(TEXT("to the Equipment page: the keys are the loadout's"), Screen->IsLoadoutOpen() && !Screen->IsOnInventorySide() && Screen->GetPageIndex() == ULoadoutV2ScreenWidget::EQUIPMENT_PAGE);
 		TestTrue(TEXT("the loadout lists the member's weapon set"), Screen->GetPage().Entries.Num() > 0);
-		TestTrue(TEXT("Right from the list: back to the inventory's side"), Screen->FocusInventorySide() && Screen->IsOnInventorySide());
+		const int32 ListFullBefore = Screen->GetFullRefreshCount();
+		const int32 ListLightBefore = Screen->GetLightRefreshCount();
+		Screen->MoveSelection(1);
+		TestTrue(TEXT("a move down the loadout's list takes the light view too"), Screen->GetFullRefreshCount() == ListFullBefore && Screen->GetLightRefreshCount() == ListLightBefore + 1);
+		Screen->MoveSelection(-1);
+		TestFalse(TEXT("no inventory side to cross to (D-249's sides are gone)"), Screen->FocusInventorySide());
+		Screen->SwitchTab(-1);
+		TestTrue(TEXT("Q from Equipment: back to the Inventory page"), Screen->IsOnInventoryPage());
 
-		Screen->MoveInventoryTab(1);
-		TestTrue(TEXT("RB on the inventory: the Pouch"), Screen->GetInventoryTab() == EInventoryScreenTab::Pouch);
-		Screen->MoveInventoryTab(1);
-		TestTrue(TEXT("no Chest tab (B-575c): in a ring, straight back to Gear"), Screen->GetInventoryTab() == EInventoryScreenTab::Gear);
 		Screen->MoveInventoryTile(0, -1);
-		TestTrue(TEXT("Up off the top row: the filter row"), Screen->IsOnInventoryFilters());
+		TestTrue(TEXT("Up off the top row: the filter row"), Screen->IsOnInventoryFilters() && !Screen->IsOnInventoryKinds());
+		Screen->MoveInventoryTile(0, -1);
+		TestTrue(TEXT("Up again: the Gear / Pouch selector"), Screen->IsOnInventoryKinds() && !Screen->IsOnInventoryFilters());
+		Screen->MoveInventoryTile(1, 0);
+		TestTrue(TEXT("Right on the selector: the Pouch, the keys stay on it"), Screen->GetInventoryTab() == EInventoryScreenTab::Pouch && Screen->IsOnInventoryKinds());
 		Screen->MoveInventoryTile(0, 1);
-		TestFalse(TEXT("Down: back on the tiles"), Screen->IsOnInventoryFilters());
+		TestTrue(TEXT("Down: the Pouch has no filters, so the tiles"), !Screen->IsOnInventoryKinds() && !Screen->IsOnInventoryFilters());
+		Screen->MoveInventoryTile(0, -1);
+		TestTrue(TEXT("Up from the Pouch's top row: straight to the selector"), Screen->IsOnInventoryKinds());
+		Screen->MoveInventoryTile(1, 0);
+		TestTrue(TEXT("no Chest (B-575c): in a ring, straight back to Gear"), Screen->GetInventoryTab() == EInventoryScreenTab::Gear);
+		Screen->MoveInventoryTile(0, 1);
+		TestTrue(TEXT("Down from the selector on Gear: its filter row"), Screen->IsOnInventoryFilters());
+		Screen->MoveInventoryTile(0, -1);
+		Screen->PressBack();
+		TestTrue(TEXT("Back from the selector: the tiles, the screen stays"), !Screen->IsOnInventoryKinds() && Screen->IsActivated());
 		const EInventoryScreenSort SortBefore = Screen->GetInventorySort();
 		Screen->CycleInventorySort();
 		TestTrue(TEXT("the sort steps on"), Screen->GetInventorySort() == WoRInventoryScreen::GetNextSort(SortBefore));
 
-		// The loadout in the middle of something keeps the keys, and can't be closed under it.
-		TestTrue(TEXT("the keys go to the loadout"), Screen->FocusLoadoutSide());
+		// The loadout in the middle of something can't be left for the Inventory page under it.
+		Screen->ToggleLoadout();
 		Screen->PressA();
 		if (TestTrue(TEXT("A on the weapon set opens its window"), Screen->IsAdding()))
 		{
-			TestFalse(TEXT("the keys can't leave a window"), Screen->FocusInventorySide());
 			Screen->ToggleLoadout();
-			TestTrue(TEXT("nor can the loadout be closed"), Screen->IsLoadoutOpen() && !Screen->GetMessage().IsEmpty());
+			TestTrue(TEXT("the page can't change under a window"), Screen->IsLoadoutOpen() && !Screen->GetMessage().IsEmpty());
 			TestTrue(TEXT("and that is the Refused cue (UI_Theme 5a)"), Screen->GetLastCue() == EWoRMenuCue::Refused);
 			Screen->PressBack();
 			TestFalse(TEXT("Back leaves the window"), Screen->IsAdding());
 		}
 		Screen->ToggleLoadout();
-		TestTrue(TEXT("Y again (or the button): the loadout goes out and the keys are on the inventory"), !Screen->IsLoadoutOpen() && Screen->IsOnInventorySide());
-		TestFalse(TEXT("no loadout side to go to"), Screen->FocusLoadoutSide());
+		TestTrue(TEXT("and then back to the Inventory page"), Screen->IsOnInventoryPage() && Screen->IsOnInventorySide());
+		TestFalse(TEXT("FocusLoadoutSide is gone (OBSOLETE)"), Screen->FocusLoadoutSide());
 	});
 
 	It("lists the member's gear on the Gear tab and marks the worn piece", [this]()
