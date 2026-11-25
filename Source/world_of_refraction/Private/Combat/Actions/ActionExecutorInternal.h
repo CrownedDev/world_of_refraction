@@ -41,6 +41,13 @@ inline void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHit
 // re-entrantly removes the PendingDefenses entry, so we must not close mid-iteration.
 // B-032d: a SPELL window is left open: its projectiles may still be flying, and its arrivals (or the 8s failsafe /
 // action timeout, landing the rest per impact) close it.
+// B-607: so is any window of an action that sent projectiles or a wave (bArrivalsSent): a skill's far target is hit
+// when the shot reaches it, not when the swing ends.
+inline bool WaitsForArrivals(const FActionExecutionContext &ExecContext, const FPendingDefenseContext &Ctx)
+{
+	return Ctx.ActionType == EActionType::Spell || ExecContext.bArrivalsSent;
+}
+
 inline void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecContext, UDefenseSystem *DefenseSys)
 {
 	ExecContext.bAnimationFinished = true;
@@ -52,7 +59,7 @@ inline void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecConte
 	TArray<AActor *> DefendersToClose;
 	for (auto &Pair : ExecContext.PendingDefenses)
 	{
-		const bool bLeftForArrivals = Pair.Value.ActionType == EActionType::Spell;
+		const bool bLeftForArrivals = WaitsForArrivals(ExecContext, Pair.Value);
 		if (Pair.Value.ExpectedImpacts > 0 && !bLeftForArrivals)
 		{
 			if (AActor *Defender = Pair.Key.Get())

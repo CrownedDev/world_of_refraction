@@ -28,6 +28,7 @@
 #include "Equipment/Crystals/EvolutionItemData.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Skills/Definitions/ESpellSource.h"
+#include "Skills/Definitions/MultiTargetDelivery.h"
 #include "Combat/CombatConstants.h"
 #include "Infusion/InfusionConstants.h"
 #include "Inventory/ItemExecutor.h"
@@ -4137,6 +4138,15 @@ void UActionExecutor::DispatchSpellCast(
 	switch (Entry.DeliveryType)
 	{
 	case ESpellDeliveryType::Projectile:
+		if (CurrentExecutionContext.IsSet())
+		{
+			CurrentExecutionContext->bArrivalsSent = true; // B-607: the windows wait for these arrivals
+		}
+		if (Skill->MultiTargetDelivery == EMultiTargetDelivery::OneBigWave)
+		{
+			LaunchWave(Caster, Targets, Skill, Entry, InElement, FinalVisualScale, bIsBD, CastEntryIndex);
+			break;
+		}
 		for (AActor *Target : Targets)
 		{
 			// First spawn immediate; Count>1 queues the remainder on the
@@ -4220,6 +4230,79 @@ void UActionExecutor::SpawnNextBurstProjectile()
 		}
 		ActiveBurstSpell = nullptr;
 	}
+}
+
+namespace
+{
+	/** B-607: the wave's Niagara reads its speed here (units a second), so its front keeps pace with the hits. */
+	const FName WAVE_SPEED_PARAMETER(TEXT("WaveSpeed"));
+	/** As the burst chain's floor: Count hits never land in the same instant. */
+	constexpr float WAVE_MIN_HIT_INTERVAL = 0.01f;
+}
+
+void UActionExecutor::LaunchWave(AActor *Caster, const TArray<AActor *> &Targets, USkillDataBase *Skill, const FSkillCastEntry &Entry,
+								 ESpellElement InElement, float FinalVisualScale, bool bIsBrokenDarkness, int32 CastEntryIndex)
+{
+	UWorld *World = GetWorld();
+	if (!World || !Caster || !Skill)
+	{
+		return;
+	}
+	TArray<FVector> TargetLocations;
+	for (const AActor *Target : Targets)
+	{
+		TargetLocations.Add(Target ? Target->GetActorLocation() : Caster->GetActorLocation());
+	}
+	const FVector Start = Caster->GetActorLocation();
+	const FVector Forward = Caster->GetActorForwardVector();
+	const TArray<float> Arrivals = WoRMultiTargetDelivery::GetArrivalSeconds(EMultiTargetDelivery::OneBigWave, Start, TargetLocations,
+																			   Entry.ProjectileSpeed, Forward);
+	UE_LOG(LogTemp, Verbose, TEXT("[Runner] '%s' wave: %s"), *Entry.Label,
+		   *WoRMultiTargetDelivery::GetArrivalString(EMultiTargetDelivery::OneBigWave, Arrivals, Entry.ProjectileSpeed));
+
+	// TODO: B-231b's clients don't see the wave yet (projectiles send a cosmetic copy; this is server-side only).
+	if (UNiagaraSystem *WaveVFX = Entry.Trail.LoadSynchronous())
+	{
+		const FRotator Facing = WoRMultiTargetDelivery::GetWaveDirection(Start, TargetLocations, Forward).Rotation();
+		if (UNiagaraComponent *Wave = UNiagaraFunctionLibrary::SpawnSystemAtLocation(World, WaveVFX, Start, Facing, FVector(FinalVisualScale)))
+		{
+			const FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(InElement, bIsBrokenDarkness);
+			Wave->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
+			Wave->SetColorParameter(FName("EdgeColor"), Colors.BlendedColor);
+			Wave->SetColorParameter(FName("TrailColor"), Colors.SecondaryColor);
+			Wave->SetFloatParameter(WAVE_SPEED_PARAMETER, FMath::Max(Entry.ProjectileSpeed, WoRMultiTargetDelivery::MIN_SPEED));
+		}
+	}
+
+	const float HitInterval = FMath::Max(Entry.BurstInterval, WAVE_MIN_HIT_INTERVAL);
+	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
+	{
+		const TWeakObjectPtr<AActor> Target = Targets[TargetIndex];
+		for (int32 Hit = 0; Hit < Entry.Count; ++Hit)
+		{
+			const float Delay = Arrivals[TargetIndex] + Hit * HitInterval;
+			if (Delay <= 0.0f)
+			{
+				ResolveWaveArrival(Target, CastEntryIndex); // standing on the caster: hit as the wave leaves
+				continue;
+			}
+			FTimerHandle Handle;
+			World->GetTimerManager().SetTimer(
+				Handle, FTimerDelegate::CreateUObject(this, &UActionExecutor::ResolveWaveArrival, Target, CastEntryIndex), Delay, false);
+			TelegraphTimerHandles.Add(Handle);
+		}
+	}
+}
+
+void UActionExecutor::ResolveWaveArrival(TWeakObjectPtr<AActor> Target, int32 CastEntryIndex)
+{
+	// A cancelled or finished action clears these timers; this guards a stale one all the same.
+	if (!Target.IsValid() || !CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	{
+		return;
+	}
+	// Not a projectile arrival: no projectile spawns its own impact, so the skill's impact visual plays at the target.
+	ResolveSpellArrival(Target.Get(), CastEntryIndex, nullptr, nullptr, TEXT("Wave"), /*bProjectileArrival=*/false);
 }
 
 // ========================================

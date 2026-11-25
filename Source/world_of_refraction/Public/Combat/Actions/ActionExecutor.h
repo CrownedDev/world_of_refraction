@@ -1430,8 +1430,17 @@ protected:
 
 	/** Pending telegraph timers (the "incoming!" cues scheduled backward from each notify's time at
 	 *  montage start). Tracked so a cancelled/aborted action clears them — no stale tell fires for an
-	 *  impact that never lands. Cleared in FinalizeAsyncAction + CancelAsyncAction. */
+	 *  impact that never lands. Cleared in FinalizeAsyncAction + CancelAsyncAction. B-607: also holds a wave's
+	 *  per-target hit timers (LaunchWave), for the same reason. */
 	TArray<FTimerHandle> TelegraphTimerHandles;
+
+	/** B-607 (D-275): a OneBigWave Projectile entry. Spawns the entry's Trail once at the caster, facing the targets'
+	 *  middle, and lands each target's Count hits when the wave reaches it (WoRMultiTargetDelivery::GetArrivalSeconds,
+	 *  a hit every BurstInterval after the first). No projectile actor flies. */
+	void LaunchWave(AActor *Caster, const TArray<AActor *> &Targets, USkillDataBase *Skill, const FSkillCastEntry &Entry,
+					ESpellElement InElement, float FinalVisualScale, bool bIsBrokenDarkness, int32 CastEntryIndex);
+	/** One wave hit on Target, if the action that sent it is still running. */
+	void ResolveWaveArrival(TWeakObjectPtr<AActor> Target, int32 CastEntryIndex);
 
 	/** Spawn support skill VFX (Self/Ally - no defense window). B-043e: routed (RouteSpellResolve); the effect
 	 *  itself is ResolveSupportSpellEffect. */
