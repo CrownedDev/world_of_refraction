@@ -1396,6 +1396,12 @@ The queue of questions only Crown can answer.
 - **Left as it is:** items, a stunned fighter, and an action immune to infusion.
 - **Scope:** per fighter, for one fight (kept by the fight's command menu, cleared with the fight, as B-582's last target). Enemies are unchanged: the AI builds its own actions and never reads it. In co-op each machine's menu keeps its own players'.
 **Reference:** FFXIV's stances stay on until switched off, so a player sets them once per fight; Octopath Traveler's boost is picked per action. Crown asked for the first. The deckbuilder has no infusion carry rule.
+### Q-624 — When a ritual's infusion EP is paid
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-624) · **Blocks:** nothing
+**Question:** A ritual locks its infusion at the arm (D-276). Is the infusion's EP (and HP, crystal wear) paid at the arm or at the fire?
+**Answer (default):** **At the arm**, all of it, as every ritual cost already is (ET-28: costs are paid when you commit). The fire costs nothing, so turning infusion off or running low on EP in between can't stop or change it.
+**Reference:** charged and delayed attacks in turn-based RPGs take their cost when the charge starts (Final Fantasy X's Overdrive and Octopath Traveler's Boost are spent on the turn you commit; Expedition 33's charged skills pay AP on use). The "pay up front, the payoff is locked" feel is widely liked because nothing can fizzle it.
+
 ### Q-618 — When a skill's sounds play
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-618) · **Blocks:** nothing
 **Question:** Skills get a sound list (`SFXArray`). When does each sound play, and what about a guarded or dodged hit, a multi-hit skill and a spell that hits several targets?
@@ -1501,6 +1507,17 @@ Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wi
 **Answer (defaults):** (1) **A hit teaches its own type:** hitting an enemy with an element or a physical type shows that line's weakness or resistance; the rest stay "?". (2) **Kept for that enemy type until the run ends,** as Kit Sight's reads are (Q-572 point 4). (3) **Never hidden:** an enemy's bars and Effects, and everything about your own party. (4) **Keys:** V / R3 opens and closes Intel in a fight (`UIScreens.md`'s Details, `IA_UI_Details`); a click on a card opens it on that character's tab; Q / E and LB / RB move along the tabs while it is open, as in every tabbed menu.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
+
+### D-276 — A weapon ritual keeps the infusion it was armed with
+**Status:** ANSWERED (Crown, 2026-11-25) · **Raised:** 2026-11-25 (Crown, testing infusion on Rally's charge) · **Blocks:** B-624
+**Crown:** "what i ment is that when we use the vfx for other things the tint should show" / "so maybe we make a ritual cast using the charge and vfx" / "then we can test out the infusion" / "also the infusion should be applied when the ritual activates" / "so if i use the skill the ritual cast will be infused then if i turn infusion of when the ritual activates it will auto infuse for the attack".
+**Ruled:**
+- **A weapon ability can be a ritual:** armed now, it fires on a later turn (its `ActivationDelay`, the path spells use; ET-16).
+- **The arming cast** plays its charge montage and VFX. With an infusion picked, the charge VFX takes that element's tint (the same EffectTint path).
+- **The infusion picked at arming is locked into the ritual.** When the ritual fires, the attack is infused with it, even if the player turned infusion off in between.
+- **Infusion EP is paid at arming**, not again at the fire (Q-624).
+- It's an attack (it deals damage), so D-275 doesn't apply.
+**Built:** B-624 (`TryArmDeferredActivation` gives the arm the element it locked in); the fire already reused the armed action.
 
 ### D-275 — Weapon buffs and debuffs can't be infused
 **Status:** ANSWERED (Crown, 2026-11-25) · **Raised:** 2026-11-25 (Crown, planning the Rally buff) · **Blocks:** B-620
