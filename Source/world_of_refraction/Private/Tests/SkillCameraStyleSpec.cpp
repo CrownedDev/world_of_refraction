@@ -37,6 +37,8 @@ namespace
 	// B-600h (B-595c QA): Heavy Attack, a ritual that dashes about 7 m on its fire turn.
 	const TCHAR *const STYLE_TEST_HEAVY_ATTACK = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_HeavyStrike.DA_Sword_Abilities_HeavyStrike");
 	const FVector STYLE_TEST_DASH_TARGET(850.0f, 0.0f, 0.0f);
+	// B-600i (B-595b): Over Under, a two-hit sword skill.
+	const TCHAR *const STYLE_TEST_OVER_UNDER = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_OverUnder.DA_Sword_Abilities_OverUnder");
 	const FVector STYLE_TEST_STRIKE_SPOT(650.0f, 0.0f, 0.0f);	   // B-600c: where a melee dash ends, in reach of the target
 	constexpr float STYLE_TEST_MIN_LENS_DISTANCE = 250.0f;		   // B-600c: the attacker never fills the lens
 	// B-604b: the test trial enemy's real skills (BP_Enemy_Generic in the B-604 check).
@@ -535,6 +537,17 @@ void FSkillCameraStyleSpec::Define()
 														   ApproachWarp::GetApproachBurstSeconds());
 		TestTrue(FString::Printf(TEXT("its fire-turn montage dashes %.0f cm (%s)"), FVector::Dist2D(FVector::ZeroVector, Strike), *Burst.ToString()), Burst.bHasWindow);
 		TestEqual(TEXT("so its fire turn plays as Melee Rush"), FCombatCameraRules::GetStyleForDash(Skill->CameraStyle, Burst.bHasWindow), ESkillCameraStyle::MeleeRush);
+	});
+
+	It("B-600i: the real Over Under (two hits) is a Melee Rush with the re-cut on, so its second cut gets a new angle", [this]()
+	{
+		const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, STYLE_TEST_OVER_UNDER);
+		if (!TestNotNull(TEXT("Over Under loads (renamed? point this case at it)"), Skill))
+		{
+			return;
+		}
+		TestEqual(TEXT("Melee Rush"), Skill->CameraStyle, ESkillCameraStyle::MeleeRush);
+		TestTrue(TEXT("its re-cut on (the default)"), Skill->CameraTuning.bRecutEachHit);
 	});
 
 	It("B-600i Ranged Release, hold over the shoulder: no release cut, the hit punches in the shoulder shot; off by default", [this, Tuning]()
