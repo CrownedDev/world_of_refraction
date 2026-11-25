@@ -38,6 +38,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
+#include "Skills/Definitions/SpellData.h"
 #include "UI/Menus/VendorScreenModel.h"
 #include "UI/Menus/VendorScreenWidget.h"
 
@@ -200,7 +201,9 @@ void FVendorScreenSpec::Define()
 		TestTrue(TEXT("Jeweler"), WoRVendorScreen::GetTabs(EMerchantType::Jeweler) == Jeweler);
 		TestTrue(TEXT("Spiritualist"), WoRVendorScreen::GetTabs(EMerchantType::Spiritualist) == Spiritualist);
 		TestTrue(TEXT("a vendor D-193 doesn't name has Buy alone"),
-				 WoRVendorScreen::GetTabs(EMerchantType::CombatMaster) == TArray<EVendorScreenTab>({EVendorScreenTab::Buy}));
+				 WoRVendorScreen::GetTabs(EMerchantType::SpellShop) == TArray<EVendorScreenTab>({EVendorScreenTab::Buy}));
+		TestTrue(TEXT("B-616c: the Combat Master has Buy and the skills' Upgrade"),
+				 WoRVendorScreen::GetTabs(EMerchantType::CombatMaster) == TArray<EVendorScreenTab>({EVendorScreenTab::Buy, EVendorScreenTab::SkillUpgrade}));
 		for (const EVendorScreenTab Tab : Spiritualist)
 		{
 			TestFalse(TEXT("every tab is named"), WoRVendorScreen::GetTabName(Tab).IsEmpty());
@@ -669,6 +672,65 @@ void FVendorScreenSpec::Define()
 		if (!TestNotNull(TEXT("item slots screen"), Slots)) return;
 		TestFalse(TEXT("Item slots stays a list"), Slots->IsTileGrid());
 		TestTrue(TEXT("and has no filters"), Slots->GetFilters().IsEmpty());
+	});
+
+	It("B-616c (Q-616c): the Combat Master's Upgrade lists the learned skills one tier up; A asks, the second A raises it in the pool; S is refused", [this]()
+	{
+		if (!Inventory) return;
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Spell->Name = TEXT("Screen bolt");
+		Spell->Element = ESpellElement::None; // no Elemental co-cost
+		Spell->Tier = EItemTier::F_Tier;
+		if (!Pool->HasBankedSkills(Key()))
+		{
+			Pool->BankSkills(Key(), {}, {});
+		}
+		if (!TestTrue(TEXT("the member learns the spell"), Pool->LearnSkillCopy(Key(), Spell))) return;
+		const auto PoolTier = [this, Spell]()
+		{
+			const FPoolSkills *Skills = Pool->FindSkills(Key());
+			const FSpellInstance *Entry = Skills ? Skills->Spells.FindByPredicate([Spell](const FSpellInstance &Each) { return Each.Spell == Spell; }) : nullptr;
+			return Entry ? Entry->Tier : EItemTier::S_Tier;
+		};
+		const auto FindSpell = [Spell](const FVendorScreenPage &Page)
+		{
+			return Page.Rows.IndexOfByPredicate([Spell](const FVendorScreenRow &Each) { return Each.Skill.Get() == Spell; });
+		};
+		const EItemTier From = PoolTier();
+		const EItemTier Next = TierHelpers::GetTierFromValue(TierHelpers::GetTierValue(From) + 1);
+
+		Wallet()->Spend(ECurrencyType::GearEssence, Wallet()->GetBalance(ECurrencyType::GearEssence));
+		FVendorScreenPage Page = WoRVendorScreen::BuildSkillUpgradePage(World(), Key());
+		int32 Row = FindSpell(Page);
+		if (!TestTrue(TEXT("the spell is a tile"), Row != INDEX_NONE)) return;
+		TestTrue(TEXT("aims one tier up"), Page.Rows[Row].UpgradeTo == Next);
+		TestFalse(TEXT("its cost is shown"), Page.Rows[Row].Pay.IsEmpty());
+		TestFalse(TEXT("an empty wallet is refused with the reason"), Page.Rows[Row].Refusal.IsEmpty());
+
+		Wallet()->Add(ECurrencyType::GearEssence, VENDOR_SCREEN_WALLET);
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::SkillUpgrade, EMerchantType::CombatMaster);
+		if (!TestNotNull(TEXT("screen created"), Screen) || !TestTrue(TEXT("opens on the skills' Upgrade"), Screen->GetTab() == EVendorScreenTab::SkillUpgrade)) return;
+		TestTrue(TEXT("a tile grid"), Screen->IsTileGrid());
+		Row = FindSpell(Screen->GetPage());
+		if (!TestTrue(TEXT("the spell is a tile on the screen"), Row != INDEX_NONE)) return;
+		Screen->SelectRow(Row);
+		const int32 Before = Wallet()->GetBalance(ECurrencyType::GearEssence);
+		Screen->Confirm();
+		TestTrue(TEXT("the first A asks"), Screen->IsConfirming());
+		TestTrue(TEXT("nothing raised yet"), PoolTier() == From);
+		Screen->Confirm();
+		TestTrue(TEXT("the second A raises it one tier in the pool"), PoolTier() == Next);
+		TestEqual(TEXT("for one step's Dormant Essence"), Wallet()->GetBalance(ECurrencyType::GearEssence), Before - EconomyYield::GetTierUpCostForTier(From));
+
+		FPoolSkills AtS = *Pool->FindSkills(Key());
+		for (FSpellInstance &Each : AtS.Spells)
+		{
+			Each.Tier = Each.Spell == Spell ? EItemTier::S_Tier : Each.Tier;
+		}
+		Pool->SetSkills(Key(), AtS.Spells, AtS.Abilities);
+		Page = WoRVendorScreen::BuildSkillUpgradePage(World(), Key());
+		Row = FindSpell(Page);
+		TestTrue(TEXT("a skill at S is refused with the reason"), Row != INDEX_NONE && !Page.Rows[Row].Refusal.IsEmpty());
 	});
 }
 
