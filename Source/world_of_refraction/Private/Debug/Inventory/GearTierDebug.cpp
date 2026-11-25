@@ -18,17 +18,48 @@ namespace
 {
 	constexpr float GEAR_TIER_SCREEN_SECONDS = 6.0f;
 
-	/** Sets Entry.Tier when its asset's name contains NamePart; the GUID changed, or an invalid one. */
+	/** B-612: the shown name, the asset's name (DA_Weapon_Sword) or, for a weapon, its type word ("Sword"). */
+	bool IsNamed(const UWeaponData &Weapon, const FString &NamePart)
+	{
+		return Weapon.Name.Contains(NamePart, ESearchCase::IgnoreCase) || Weapon.GetName().Contains(NamePart, ESearchCase::IgnoreCase) ||
+			   Weapon.GetWeaponTypeName().Contains(NamePart, ESearchCase::IgnoreCase);
+	}
+
+	bool IsNamed(const URingData &Ring, const FString &NamePart)
+	{
+		return Ring.Name.Contains(NamePart, ESearchCase::IgnoreCase) || Ring.GetName().Contains(NamePart, ESearchCase::IgnoreCase);
+	}
+
+	/** Sets Entry.Tier when its asset is named NamePart; the GUID of every named piece (B-612: one already at Tier
+	 *  still refreshes its loadout copies, which may have drifted), or an invalid one. */
 	template <class TEntry, class TAsset>
 	FGuid SetTierIfNamed(TEntry &Entry, const TAsset *Asset, const FString &NamePart, EItemTier Tier, TArray<FString> &OutLines)
 	{
-		if (!Asset || Entry.Tier == Tier || !Asset->Name.Contains(NamePart, ESearchCase::IgnoreCase))
+		if (!Asset || !IsNamed(*Asset, NamePart))
 		{
 			return FGuid();
 		}
-		OutLines.Add(FString::Printf(TEXT("%s: %s -> %s"), *Asset->Name, *ItemIdentity::GetTierLetter(Entry.Tier), *ItemIdentity::GetTierLetter(Tier)));
-		Entry.Tier = Tier;
+		if (Entry.Tier != Tier)
+		{
+			OutLines.Add(FString::Printf(TEXT("%s: %s -> %s"), *Asset->Name, *ItemIdentity::GetTierLetter(Entry.Tier), *ItemIdentity::GetTierLetter(Tier)));
+			Entry.Tier = Tier;
+		}
 		return Entry.PersistentID;
+	}
+
+	/** "Arming Sword (S), Hand Axe (F)": what the command could have matched, for a report that changed nothing. */
+	FString GetOwnedGearString(const UInventoryComponent &Inventory)
+	{
+		TArray<FString> Names;
+		for (const FWeaponInventoryEntry &Entry : Inventory.Weapons)
+		{
+			Names.Add(FString::Printf(TEXT("%s (%s)"), *GetNameSafe(Entry.Weapon), *ItemIdentity::GetTierLetter(Entry.Tier)));
+		}
+		for (const FRingInventoryEntry &Entry : Inventory.Rings)
+		{
+			Names.Add(FString::Printf(TEXT("%s (%s)"), *GetNameSafe(Entry.Ring), *ItemIdentity::GetTierLetter(Entry.Tier)));
+		}
+		return Names.IsEmpty() ? TEXT("nothing") : FString::Join(Names, TEXT(", "));
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -60,7 +91,8 @@ namespace
 				const bool bSaved = Changed.Num() > 0 && Save && Save->SaveNow(World, /*bAsync=*/false);
 				const FString Report = Changed.Num() > 0
 										   ? FString::Printf(TEXT("SetGearTier: %s (%s)"), *FString::Join(Changed, TEXT(", ")), bSaved ? TEXT("saved") : TEXT("NOT saved"))
-										   : FString::Printf(TEXT("SetGearTier: nothing changed (no owned weapon or adapter named *%s* that isn't %s already)"), *Args[0], *Args[1]);
+										   : FString::Printf(TEXT("SetGearTier: nothing changed (no owned weapon or adapter named *%s* that isn't %s already; owned: %s)"),
+															 *Args[0], *Args[1], *GetOwnedGearString(*Inventory));
 				UE_LOG(LogWoR, Display, TEXT("[GearTierDebug] %s"), *Report);
 				if (GEngine)
 				{

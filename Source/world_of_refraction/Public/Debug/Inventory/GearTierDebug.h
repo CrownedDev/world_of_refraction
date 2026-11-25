@@ -13,7 +13,8 @@ class UInventoryComponent;
 
 namespace WoRGearTier
 {
-	/** Sets Tier on every owned weapon and ring of Inventory whose asset name contains NamePart (any case). Returns one
-	 *  line per piece changed ("Sword: F -> S"); a piece already at Tier is left alone and not listed. */
+	/** Sets Tier on every owned weapon and ring of Inventory whose shown name, asset name or (a weapon's) type word
+	 *  contains NamePart (any case). Returns one line per piece changed ("Sword: F -> S"); a piece already at Tier is not
+	 *  listed, but its loadout copies are refreshed from it (B-612: a copy that drifted shows the owned tier again). */
 	WORLD_OF_REFRACTION_API TArray<FString> SetOwnedGearTier(UInventoryComponent &Inventory, const FString &NamePart, EItemTier Tier);
 }

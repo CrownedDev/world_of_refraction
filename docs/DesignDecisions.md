@@ -1342,6 +1342,12 @@ The queue of questions only Crown can answer.
 **Known limits:** an enemy's return home does not cut to the wide; the wide comes at the next turn start. No motion blur on the sweep. The menu opens when the game asks for the action, as before, not timed to the end of the sweep. A boss's push-in framing is not checked yet (PIE). The per-skill attack shots are unchanged (a separate job after the second E33 study).
 **Reference:** Expedition 33 (`docs/analysis/TurnBasedCameraComparison.md` section 6 (on `claude/docs-camera-video-study-a23bbe`, 065f41016)): the cut to the low wide about 1 s after the hit, the fast sweep into the next hero's view, the slow push-in before an enemy's turn; widely praised for its readable, cinematic turns.
 
+### Q-612 — A socket filled from the picture grid: one press puts the crystal in
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-612, Crown: the Emerald would not go into the axe's augment socket; the grid stayed on All) · **Blocks:** nothing
+**Question:** on the Add gear window, how does a socket get its crystal or stone from the picture grid, and what does that grid list?
+**Answer (default, built):** (1) a socket opens a grid of its own choices: only the crystals, stones and evolutions that fit that socket, no weapon-type tabs (Q / E do nothing there); the count reads "N choices", not counting the Remove and Restore lines. (2) **A on a tile puts it in at once** (was: mark it in the left list, then Y Confirm); a refused one stays out with its reason in the details line. A full socket's line is Remove first (CL-28b), so one press never swaps out a gem unasked. (3) B-614 later adds the Crystal · Stone · Evolution kind selector on top (v5 mockup).
+**Reference:** Elden Ring and Dark Souls equip or attach the focused item on one confirm from the grid, with the details pane already showing what it does; Diablo IV socketing is the same one press. Players read the two-step mark-then-confirm as "nothing happened" (Crown's report).
+
 ### Q-609 — The gear upgrade screen: who, where and how much per press
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-609) · **Blocks:** nothing
 **Question:** Levelling a weapon or adapter (`UEconomyService::LevelUpWeapon` / `LevelUpRing`) has no screen. Which vendor offers it, where, and does one press raise one tier or pick a target tier?
