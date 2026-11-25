@@ -584,9 +584,7 @@ private:
     // ==================== ACTION SUBMISSION ====================
 
     FAction BuildActionFromButton(const FPieMenuButtonData &ButtonData) const;
-    /** B-622: a weapon buff or debuff's action with the fighter's sticky infusion source on it, for its look only. */
-    FAction WithStickyInfusionLook(const FAction &Action) const;
-    friend class FCommandMenuKeysSpec; // B-622: checks what a submitted weapon buff carries; B-625: the EP greying
+    friend class FCommandMenuKeysSpec; // B-625: the EP greying
     ESpellSource MapCategoryToSpellSource(EPieMenuCategory SubmenuCategory) const;
     void SubmitConfirmedAction(const FPieMenuButtonData &ButtonData);
 

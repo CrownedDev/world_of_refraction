@@ -2830,25 +2830,10 @@ FAction UCombatCommandMenuSubsystem::BuildActionFromButton(
     return Action;
 }
 
-FAction UCombatCommandMenuSubsystem::WithStickyInfusionLook(const FAction &Action) const
-{
-    // B-622 (D-275, Crown: "Yes, tint only"): a weapon buff or debuff takes no infusion, but its look takes the infusion
-    // that is on. The source rides at level 0 and the executor keeps it for the tint only (LookElement); with no
-    // infusion on it stays clear. Only on submit: the cost previews never see it.
-    const FStickyInfusion *Sticky = CurrentActor.IsValid() ? StickyInfusions.Find(CurrentActor.Get()) : nullptr;
-    if (!SupportSkillRules::IsWeaponBuffOrDebuff(Action.SkillData) || !Sticky || !Sticky->bHasSource || Sticky->Level <= 0)
-    {
-        return Action;
-    }
-    FAction Out = Action;
-    Out.SelectedSource = Sticky->Source; // shortcut: an Ice pick tints as Water (no Ice colour yet), add one when it exists
-    return Out;
-}
-
 void UCombatCommandMenuSubsystem::SubmitConfirmedAction(
     const FPieMenuButtonData &ButtonData)
 {
-    FAction Action = WithStickyInfusionLook(BuildActionFromButton(ButtonData));
+    FAction Action = BuildActionFromButton(ButtonData);
 
     UE_LOG(LogTemp, Verbose,
            TEXT("[CombatCommandMenu] Submitting action: type=%d targets=%d level(spell/ab)=%d/%d source=%d spellSource=%d"),
