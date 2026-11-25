@@ -1360,6 +1360,17 @@ The queue of questions only Crown can answer.
 - **(2) The Caster's kit row: nothing is missing.** Crown's first shape of the kits (`Design/AssetOverhaulPlan.md`, "the class kits", 2026-11-15) gives a Refractor **no pieces and no starting skills**: "since they have innate". A Refractor may go into a fight with no gear (`ABattleGameMode`, the Caster check), so the `no primary (D-116)` line is that warning and nothing breaks. Since D-224 a ring carries no spells (`URingData::PresetSpells` is obsolete; nothing reads it), so Flow and Healing Spring put on a ring do nothing. A Refractor's spells are its element row's innate spells: `Classes` > Caster > `Elements` > the element > `InnateSpells` (filled by Fill From Sources from today's Lords). Steps for the editor worker: `docs/PIE/B-615.md`. If Crown wants a Refractor to start with a ring, `Pieces[0]` = `/Game/Data/Pool/Generic/Rings/DA_Ring_Generic` (the B-512 row) is the one change.
 **Reference:** Hades keeps the House's lasting upgrades and the run's start on separate, labelled screens (the Mirror and the weapon pick); Dead Cells shows run-start gear apart from the Collector's lasting unlocks. Both tell the player what carries into a run, and both are praised for clear run structure. The deckbuilder has no hub loadout, so no rule there.
 
+### Q-613 — Infusion stays on: what carries, what turns it off
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-613) · **Blocks:** nothing
+**Question:** Crown wants a fighter's infusion to stay on from one action to the next. What carries over, what turns it off, and what happens on an action that can't pay for it?
+**Answer (default, built):**
+- **What carries:** the level, and the element where the player chose one (an attack, an ability, a Breakthrough spell). A spell of one fixed element keeps its own element and takes only the level.
+- **Turned off:** by confirming an action at no infusion. Backing out of a target step changes nothing.
+- **Can't pay:** an action that can't pay the infused EP opens with no infusion, and the target panel says "Infusion off: not enough EP". It stays on for the next action. Only EP is checked: L2's HP backlash stays the player's call, shown in the cost line as now.
+- **Left as it is:** items, a stunned fighter, and an action immune to infusion.
+- **Scope:** per fighter, for one fight (kept by the fight's command menu, cleared with the fight, as B-582's last target). Enemies are unchanged: the AI builds its own actions and never reads it. In co-op each machine's menu keeps its own players'.
+**Reference:** FFXIV's stances stay on until switched off, so a player sets them once per fight; Octopath Traveler's boost is picked per action. Crown asked for the first. The deckbuilder has no infusion carry rule.
+
 ### Q-609 — The gear upgrade screen: who, where and how much per press
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-609) · **Blocks:** nothing
 **Question:** Levelling a weapon or adapter (`UEconomyService::LevelUpWeapon` / `LevelUpRing`) has no screen. Which vendor offers it, where, and does one press raise one tier or pick a target tier?
