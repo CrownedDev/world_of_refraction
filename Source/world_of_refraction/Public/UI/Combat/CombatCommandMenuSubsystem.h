@@ -25,6 +25,7 @@ class UCharacterData;
 class USpellData;
 class UAbilityData;
 class UBrokenDarknessManager;
+class UInfusionVFXComponent;
 
 // ==================== DELEGATES ====================
 
@@ -309,6 +310,12 @@ public:
      *  opens on it while it is still offered. */
     AActor *GetLastAttackTarget(const AActor *Fighter) const;
 
+    /** B-613 (Q-613): the infusion level Fighter's next picker opens on (0: off), for this fight only. It stays on
+     *  until the player confirms an action at no infusion. */
+    int32 GetStickyInfusionLevel(const AActor *Fighter) const;
+    /** B-613: the open picker turned the sticky infusion off for this action, which can't pay its EP. */
+    bool IsStickyInfusionDropped() const { return bStickyInfusionDropped; }
+
     // ==================== STATE QUERIES ====================
 
     UFUNCTION(BlueprintPure, Category = "Combat Command Menu")
@@ -444,6 +451,21 @@ private:
     TWeakObjectPtr<AActor> HighlightedTarget;
     /** B-582 (D-266): each fighter's last confirmed Attack target, for this fight only (cleared with the orchestrator). */
     TMap<TWeakObjectPtr<const AActor>, TWeakObjectPtr<AActor>> LastAttackTargets;
+    /** B-613 (Q-613): each fighter's last confirmed infusion, for this fight only (cleared with the orchestrator). */
+    struct FStickyInfusion
+    {
+        /** Set once the player picked an element (an attack, an ability, a Breakthrough spell). */
+        bool bHasSource = false;
+        EInfusionSourceOption Source = EInfusionSourceOption::None;
+        bool bIce = false;
+        int32 Level = 0;
+    };
+    TMap<TWeakObjectPtr<const AActor>, FStickyInfusion> StickyInfusions;
+    bool bStickyInfusionDropped = false;
+    /** B-613: the open picker starts on the fighter's sticky infusion; off for this action when it can't pay the EP. */
+    void ApplyStickyInfusion(UInfusionVFXComponent &VFX);
+    /** B-613: on confirm, keeps the picked infusion for the next action; a confirm at no infusion turns it off. */
+    void RememberStickyInfusion();
 
     /** BrokenDarknessManager of the actor whose menu is open — bound to
      *  OnAlignmentChanged for live BD spell-pool refresh. */

@@ -155,6 +155,8 @@ void UCombatCommandMenuSubsystem::ClearCombatOrchestrator()
     DepthBeforeTargetSelection = ECombatMenuDepth::Main;
     CurrentCapabilities = FCombatCapabilities();
     LastAttackTargets.Reset(); // B-582: remembered for one fight
+    StickyInfusions.Reset();   // B-613: so is each fighter's infusion
+    bStickyInfusionDropped = false;
 
     UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Combat orchestrator cleared"));
 }
@@ -649,6 +651,71 @@ AActor *UCombatCommandMenuSubsystem::GetLastAttackTarget(const AActor *Fighter) 
 {
     const TWeakObjectPtr<AActor> *Last = Fighter ? LastAttackTargets.Find(Fighter) : nullptr;
     return Last ? Last->Get() : nullptr;
+}
+
+int32 UCombatCommandMenuSubsystem::GetStickyInfusionLevel(const AActor *Fighter) const
+{
+    const FStickyInfusion *Sticky = Fighter ? StickyInfusions.Find(Fighter) : nullptr;
+    return Sticky ? Sticky->Level : 0;
+}
+
+void UCombatCommandMenuSubsystem::ApplyStickyInfusion(UInfusionVFXComponent &VFX)
+{
+    const FStickyInfusion *Sticky = CurrentActor.IsValid() ? StickyInfusions.Find(CurrentActor.Get()) : nullptr;
+    if (!Sticky || !CanInfusePendingAction() || VFX.IsImmuneToInfusion())
+    {
+        return;
+    }
+    const TArray<EInfusionSourceOption> &Sources = VFX.GetCachedSources();
+    for (int32 Index = 0; Sticky->bHasSource && Index < Sources.Num(); ++Index)
+    {
+        if (Sources[Index] == Sticky->Source && VFX.IsSourceIce(Index) == Sticky->bIce)
+        {
+            VFX.SetSourceIndex(Index); // the remembered element where this action offers it; else its own
+            break;
+        }
+    }
+    SetPendingInfusionLevel(Sticky->Level);
+
+    const UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
+    const UCharacterDataComponent *CDC = CurrentActor->FindComponentByClass<UCharacterDataComponent>();
+    FPieMenuButtonData Pending;
+    Pending.Category = EPieMenuCategory::Target;
+    if (Exec && CDC && Exec->PreviewActionCost(CurrentActor.Get(), BuildActionFromButton(Pending)).EP > CDC->CurrentEP)
+    {
+        SetPendingInfusionLevel(0);
+        bStickyInfusionDropped = true; // still on for the next action
+        UE_LOG(LogTemp, Log, TEXT("[CombatCommandMenu] %s: infusion Lv %d off for %s, not enough EP (B-613)"),
+               *CurrentActor->GetName(), Sticky->Level, *PendingActionID);
+    }
+}
+
+void UCombatCommandMenuSubsystem::RememberStickyInfusion()
+{
+    const UInfusionVFXComponent *VFX = GetInfusionVFXComponent();
+    if (!VFX || !CurrentActor.IsValid() || !CanInfusePendingAction() || VFX->IsImmuneToInfusion())
+    {
+        return; // an item, a stunned fighter or an immune action leaves it as it was
+    }
+    if (PendingInfusionLevel <= 0)
+    {
+        if (!bStickyInfusionDropped)
+        {
+            StickyInfusions.Remove(CurrentActor.Get()); // confirmed at no infusion: turned off
+        }
+        return;
+    }
+    FStickyInfusion &Sticky = StickyInfusions.FindOrAdd(CurrentActor.Get());
+    Sticky.Level = PendingInfusionLevel;
+    // An origin-bound spell's one element is not a choice: the element picked last stays.
+    const TArray<EInfusionSourceOption> &Sources = VFX->GetCachedSources();
+    const int32 Index = VFX->GetCurrentSourceIndex();
+    if (CanChooseInfusionElement() && Sources.IsValidIndex(Index))
+    {
+        Sticky.bHasSource = true;
+        Sticky.Source = Sources[Index];
+        Sticky.bIce = VFX->IsSourceIce(Index);
+    }
 }
 
 void UCombatCommandMenuSubsystem::SetHighlightedTarget(AActor *Target)
@@ -1794,6 +1861,7 @@ void UCombatCommandMenuSubsystem::OpenTargetSelection(
                     VFX->SetImmuneToInfusion(true); // the spell's source is not on offer (e.g. a broken ring or weapon crystal, Q-163)
                 }
             }
+            ApplyStickyInfusion(*VFX); // B-613 (Q-613): the last confirmed infusion stays on
 
             UE_LOG(LogTemp, Verbose,
                    TEXT("[CombatCommandMenu] Picker opened — infusion reset to L0"));
@@ -2263,7 +2331,7 @@ FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
         };
         if (PendingInfusionLevel <= 0)
         {
-            Parts.Add(LOCTEXT("PanelNoInfusion", "No infusion"));
+            Parts.Add(bStickyInfusionDropped ? LOCTEXT("PanelInfusionDropped", "Infusion off: not enough EP") : LOCTEXT("PanelNoInfusion", "No infusion"));
         }
         else
         {
@@ -2494,6 +2562,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTarget(AActor *SelectedTarget
     {
         LastAttackTargets.Add(CurrentActor.Get(), SelectedTarget); // B-582 (D-266): the next Attack picker opens on it
     }
+    RememberStickyInfusion();
 
     // Clear pending state
     PendingActionCategory = EPieMenuCategory::None;
@@ -2516,6 +2585,7 @@ void UCombatCommandMenuSubsystem::ConfirmActionWithTargets(const TArray<AActor *
 
     UE_LOG(LogTemp, Verbose, TEXT("[CombatCommandMenu] Action confirmed: %s on %d targets"),
            *PendingActionID, SelectedTargets.Num());
+    RememberStickyInfusion();
 
     // Clear pending state — same pattern as ConfirmActionWithTarget
     PendingActionCategory = EPieMenuCategory::None;
@@ -2763,6 +2833,7 @@ bool UCombatCommandMenuSubsystem::IsInfusionLockedForPendingAction() const
 
 void UCombatCommandMenuSubsystem::SetPendingInfusionLevel(int32 Level)
 {
+    bStickyInfusionDropped = false; // any level set after the drop is the player's own
     PendingInfusionLevel = IsInfusionLockedForPendingAction()
                                ? 0
                                : FMath::Clamp(Level, 0, InfusionConstants::MAX_INFUSION_LEVEL);
@@ -2792,6 +2863,7 @@ void UCombatCommandMenuSubsystem::DebugLogCapabilities() const
     UE_LOG(LogTemp, Log, TEXT("RingLoadout:    %s (%d spells)"), CurrentCapabilities.bHasRingLoadout ? TEXT("YES") : TEXT("NO"), CurrentCapabilities.RingSpells.Num());
     UE_LOG(LogTemp, Log, TEXT("SwitchWeapon:   %s"), CurrentCapabilities.bCanSwitchWeapon ? TEXT("YES") : TEXT("NO"));
     UE_LOG(LogTemp, Log, TEXT("SwitchRing:     %s"), CurrentCapabilities.bCanSwitchRing ? TEXT("YES") : TEXT("NO"));
+    UE_LOG(LogTemp, Log, TEXT("StickyInfusion: Lv %d%s"), GetStickyInfusionLevel(CurrentActor.Get()), bStickyInfusionDropped ? TEXT(" (off for this action: EP)") : TEXT(""));
     if (const ULoadoutComponent *SwitchLC = GetLoadoutComponent())
     {
         UE_LOG(LogTemp, Log, TEXT("Turn switch:    %s"), SwitchLC->GetTurnSwitchRefusedReason().IsEmpty() ? TEXT("free") : TEXT("used"));
