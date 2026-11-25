@@ -517,7 +517,7 @@ void USettingsScreenWidget::ChangeSelected(int32 Direction)
 	const FSettingsRow &Row = Rows[SelectedRow];
 	if (!Row.CanChange())
 	{
-		UE_LOG(LogWoRUI, Log, TEXT("[Settings] %s refused: %s"), *Row.Label.ToString(), *Row.Refusal.ToString());
+		UE_CLOG(Row.Id != ESettingId::FixedKey, LogWoRUI, Log, TEXT("[Settings] %s refused: %s"), *Row.Label.ToString(), *Row.Refusal.ToString());
 		return;
 	}
 	if (WoRSettingsScreen::ChangeSetting(GetWorld(), Row.Id, Direction))
@@ -536,7 +536,7 @@ void USettingsScreenWidget::PickChoice(int32 Choice)
 	const FSettingsRow &Row = Rows[SelectedRow];
 	if (!Row.CanChange())
 	{
-		UE_LOG(LogWoRUI, Log, TEXT("[Settings] %s refused: %s"), *Row.Label.ToString(), *Row.Refusal.ToString());
+		UE_CLOG(Row.Id != ESettingId::FixedKey, LogWoRUI, Log, TEXT("[Settings] %s refused: %s"), *Row.Label.ToString(), *Row.Refusal.ToString());
 		return;
 	}
 	if (Choice != Row.Current && WoRSettingsScreen::SetSettingChoice(GetWorld(), Row.Id, Choice))

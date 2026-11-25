@@ -362,7 +362,7 @@ void FSettingsScreenSpec::Define()
 			TestFalse(TEXT("keyboard key"), Row.Keyboard.IsEmpty());
 			TestFalse(TEXT("gamepad key"), Row.Gamepad.IsEmpty());
 		}
-		TestEqual(TEXT("Field, Battle, Menus"), Headings, SETTINGS_TEST_KEY_SECTIONS);
+		TestEqual(TEXT("Battle, Field, Menus"), Headings, SETTINGS_TEST_KEY_SECTIONS);
 		TestFalse(TEXT("the Controls page says keys are fixed"), WoRSettingsScreen::GetPageNote(ESettingsPage::Controls).IsEmpty());
 	});
 
@@ -433,6 +433,11 @@ void FSettingsScreenSpec::Define()
 				}
 			}
 		}
+		// A choice list read by casting the setting's enum: one choice per value, so a new value can't light the wrong one.
+		const TArray<FSettingsRow> Accessibility = WoRSettingsScreen::BuildRows(TestWorld->GetWorld(), ESettingsPage::Accessibility);
+		TestEqual(TEXT("a choice per Turn View style"), Gameplay()[SETTINGS_TEST_TURN_VIEW_ROW].Choices.Num(), static_cast<int32>(StaticEnum<ETurnViewStyle>()->NumEnums()) - 1);
+		TestEqual(TEXT("a choice per text size"), Accessibility[SETTINGS_TEST_TEXT_SIZE_ROW].Choices.Num(), static_cast<int32>(StaticEnum<ETextSizeLevel>()->NumEnums()) - 1);
+		TestEqual(TEXT("a choice per shake level"), Accessibility[SETTINGS_TEST_SCREEN_SHAKE_ROW].Choices.Num(), static_cast<int32>(StaticEnum<EScreenShakeLevel>()->NumEnums()) - 1);
 		const FSettingsRow EndTurn = Gameplay()[SETTINGS_TEST_END_TURN_ROW];
 		TestTrue(TEXT("an On / Off row is a switch"), EndTurn.bSwitch);
 		TestFalse(TEXT("a list of styles isn't"), Gameplay()[SETTINGS_TEST_TURN_VIEW_ROW].bSwitch);
