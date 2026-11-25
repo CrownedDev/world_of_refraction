@@ -713,6 +713,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-608](B-608.md) | `fix/B-608-vendor-cart-rows` (built 2026-11-25) | Vendor screen: the cart scrolls (Total and Buy stay in view), one-line rows with a +, a click only selects | Pending |
 | [B-621](B-621.md) | `fix/B-621-self-buff-targettype` (built 2026-11-25) | A self or ally buff lands no hit (no DEFEND prompt, no damage) and a single-ally buff goes to the picked ally; Self / Ally survive a reload (redirect retired) | Pending |
 | [B-615](B-615.md) | `fix/B-615-gate-loadout-kit-note` (built 2026-11-25) | Gate: its Loadout says a trial starts on your class kit; the Caster kit row steps | Pending |
+| [B-619](B-619.md) | `feature/B-619-softtofu-color-tint` (built 2026-11-25) | An infused Force Strike's SoftTofu air slash takes the element colour; uninfused stays pale | Pending |
 | [B-613](B-613.md) | `feature/B-613-sticky-infusion` (built 2026-11-25) | Infusion stays on for your next actions in a fight, until you turn it off | Pending |
 | [B-620](B-620.md) | `feature/B-620-weapon-buffs-no-infusion` (built 2026-11-25, on B-613) | A weapon buff or debuff offers no infusion, and using one keeps the infusion on; spells unchanged | Pending |
 | [B-600k](B-600k.md) | `fix/B-600k-rush-frames-attacker` (built 2026-11-25) | The close Melee Rush hit shot keeps the attacker in frame, even on a long reach | Pending |

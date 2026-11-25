@@ -56,6 +56,10 @@ struct WORLD_OF_REFRACTION_API FCosmeticVFX
 
 	UPROPERTY()
 	FLinearColor EdgeColor = FLinearColor::White;
+
+	/** B-619: also the SoftTofu packs' Color_ (CoreColor), set only for a real element (EffectTint). */
+	UPROPERTY()
+	bool bSoftTofuColour = false;
 };
 
 /** B-391b: one hit or heal the server resolved on the owner, as every machine shows it (damage numbers). */
