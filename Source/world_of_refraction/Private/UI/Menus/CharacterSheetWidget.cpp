@@ -2,13 +2,16 @@
 
 #include "UI/Menus/CharacterSheetWidget.h"
 
-#include "Character/CharacterDataComponent.h"
 #include "Combat/Actions/ActionPipsRules.h"
+#include "Components/ScrollBox.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
+#include "Pool/PoolSubsystem.h"
+#include "UI/Menus/LoadoutV2ScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
+#include "UI/WoRIconTable.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -16,32 +19,23 @@
 
 namespace CharacterSheetStyle
 {
-	// This screen's own layout (screen_mockups/menus/character, 1280x720, at 1080p); the shared look is WoRMenuStyle.
+	// This screen's own layout (screen_mockups/menus/profile/v1, the loadout screen's v5 columns, 1280x720 at 1080p);
+	// the shared look is WoRMenuStyle.
 	using namespace WoRMenuStyle;
-	constexpr float HeaderGap = 27.0f;
-	constexpr float PanelGap = 30.0f;
-	constexpr float PanelPadding = 30.0f;
-	constexpr float IdentityWidth = 528.0f;
-	constexpr float PillarsWidth = 630.0f;
-	constexpr float ResistanceWidth = 558.0f;
-	constexpr float VitalLabelWidth = 60.0f;
-	constexpr float VitalBarWidth = 390.0f;
-	constexpr float LineLabelWidth = 255.0f;
-	constexpr float ActionPipSize = 21.0f;
-	constexpr float ActionPointBarWidth = 150.0f;
-	constexpr float ActionPointBarHeight = 9.0f;
-	constexpr float PillarNameWidth = 180.0f;
-	constexpr float PillarPipSize = 24.0f;
-	constexpr float StatIndent = 30.0f;
-	constexpr float ResistLabelWidth = 210.0f;
-	constexpr float ResistHalfBarWidth = 90.0f;
-	constexpr float ResistBarHeight = 12.0f;
-	constexpr float ResistMidlineWidth = 2.0f;
-	constexpr float ResistValueWidth = 105.0f;
-	constexpr float ResistLineGap = 21.0f;
-	constexpr int32 StatsPerPillar = 4;
-	constexpr int32 PillarCount = 3;
-	constexpr int32 MaxCurses = 3;
+	constexpr float LeftWidth = 600.0f;
+	constexpr float MiddleWidth = 618.0f;
+	constexpr float RightWidth = 504.0f;
+	constexpr float PanelGap = 27.0f;
+	constexpr float PanelPadding = 24.0f;
+	constexpr float PlatePaddingX = 21.0f;
+	constexpr float PlatePaddingY = 12.0f;
+	constexpr float PlateGap = 10.0f;
+	constexpr float BadgeSize = 84.0f;
+	constexpr float VitalBarWidth = 405.0f;
+	constexpr float EntryBarHeight = 15.0f;
+	constexpr float DividerHeight = 2.0f;
+	constexpr int32 MaxEntries = WoRCharacterSheet::MAX_GROUP_ENTRIES;
+	constexpr int32 MaxSources = 6; // the pillar, gear, stone, buffs, a cap, and one spare
 
 	UBorder *MakePanel(UWidgetTree *Tree, UVerticalBox *&OutColumn)
 	{
@@ -53,23 +47,29 @@ namespace CharacterSheetStyle
 		return Panel;
 	}
 
-	/** "Label ........ value" on one line; returns the value text. */
-	UTextBlock *AddLabelledValue(UWidgetTree *Tree, UVerticalBox *Column, const FText &Label, UWidget *Middle = nullptr, float TopGap = LineGap)
+	UBorder *MakePlate(UWidgetTree *Tree, UWidget *Content)
+	{
+		UBorder *Plate = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Plate->SetBrushColor(PlateColor);
+		Plate->SetPadding(FMargin(PlatePaddingX, PlatePaddingY));
+		Plate->SetContent(Content);
+		return Plate;
+	}
+
+	/** "Label ........ value" on one line; returns the line, with its two texts. */
+	UHorizontalBox *MakeLine(UWidgetTree *Tree, int32 FontSize, UTextBlock *&OutLabel, UTextBlock *&OutValue)
 	{
 		UHorizontalBox *Line = Tree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UTextBlock *LabelText = MakeText(Tree, LineFontSize, DimColor);
-		LabelText->SetText(Label);
-		AddToRow(Line, MakeSized(Tree, LineLabelWidth, 0.0f, LabelText));
-		if (Middle)
-		{
-			AddToRow(Line, Middle);
-		}
-		UTextBlock *Value = MakeText(Tree, LineFontSize, TextColor, true);
-		UHorizontalBoxSlot *ValueSlot = AddToRow(Line, Value);
-		ValueSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		ValueSlot->SetHorizontalAlignment(HAlign_Right);
-		AddToColumn(Column, Line, FMargin(0.0f, TopGap, 0.0f, 0.0f));
-		return Value;
+		OutLabel = MakeText(Tree, FontSize, DimColor);
+		OutValue = MakeText(Tree, FontSize, TextColor, true);
+		AddToRow(Line, OutLabel)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToRow(Line, OutValue)->SetHorizontalAlignment(HAlign_Right);
+		return Line;
+	}
+
+	FLinearColor PlateFill(bool bLit, bool bHovered)
+	{
+		return bLit ? FocusColor : bHovered ? HoverColor : PlateColor;
 	}
 }
 
@@ -79,7 +79,7 @@ UCharacterSheetWidget::UCharacterSheetWidget(const FObjectInitializer &ObjectIni
 	SetIsFocusable(true); // the screen takes the keys itself
 }
 
-UCharacterSheetWidget *UCharacterSheetWidget::Open(APlayerController *PC)
+UCharacterSheetWidget *UCharacterSheetWidget::Open(APlayerController *PC, int32 InMemberIndex)
 {
 	AWoRHubController *Hub = Cast<AWoRHubController>(PC);
 	UWoRRootLayout *Root = Hub ? Hub->GetRootLayout() : nullptr;
@@ -88,7 +88,13 @@ UCharacterSheetWidget *UCharacterSheetWidget::Open(APlayerController *PC)
 		UE_LOG(LogWoRUI, Warning, TEXT("[CharacterSheet] No AWoRHubController with a root layout - is RootLayoutClass set?"));
 		return nullptr;
 	}
-	return Cast<UCharacterSheetWidget>(Root->PushToMenu(UCharacterSheetWidget::StaticClass()));
+	UCharacterSheetWidget *Screen = Cast<UCharacterSheetWidget>(Root->PushToMenu(UCharacterSheetWidget::StaticClass()));
+	if (Screen && InMemberIndex != Screen->MemberIndex)
+	{
+		Screen->MemberIndex = InMemberIndex; // Refresh clamps it to the party
+		Screen->Refresh();
+	}
+	return Screen;
 }
 
 TSharedRef<SWidget> UCharacterSheetWidget::RebuildWidget()
@@ -111,6 +117,10 @@ void UCharacterSheetWidget::BuildTree()
 	UVerticalBox *Main = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Screen->SetContent(Main);
 
+	UTextBlock *Title = MakeText(WidgetTree, TitleFontSize, TextColor, true);
+	Title->SetText(LOCTEXT("Title", "Profile"));
+	AddToColumn(Main, Title);
+
 	UHorizontalBox *MemberRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabPrev", "{SubTabPrev}")), FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
@@ -121,175 +131,181 @@ void UCharacterSheetWidget::BuildTree()
 		AddToRow(MemberRow, MemberTabs.Last(), FMargin(0.0f, 0.0f, TabGap, 0.0f));
 	}
 	AddToRow(MemberRow, MakeKeyLabel(WidgetTree, LOCTEXT("KeySubTabNext", "{SubTabNext}")), FMargin(TabGap, 0.0f, 0.0f, 0.0f));
-	AddToColumn(Main, MemberRow);
+	AddToColumn(Main, MemberRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
 	RefusalText = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
 	AddToColumn(Main, RefusalText, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 
 	UHorizontalBox *Body = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToColumn(Main, Body, FMargin(0.0f, HeaderGap, 0.0f, SectionGap))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	AddToRow(Body, MakeSized(WidgetTree, IdentityWidth, 0.0f, BuildIdentityPanel()), FMargin(0.0f), VAlign_Fill);
-	AddToRow(Body, MakeSized(WidgetTree, PillarsWidth, 0.0f, BuildPillarsPanel()), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
-	AddToRow(Body, MakeSized(WidgetTree, ResistanceWidth, 0.0f, BuildResistancePanel()), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+	AddToColumn(Main, Body, FMargin(0.0f, SectionGap, 0.0f, SectionGap))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToRow(Body, MakeSized(WidgetTree, LeftWidth, 0.0f, BuildLeft()), FMargin(0.0f), VAlign_Fill);
+	AddToRow(Body, MakeSized(WidgetTree, MiddleWidth, 0.0f, BuildMiddle()), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+	AddToRow(Body, MakeSized(WidgetTree, RightWidth, 0.0f, BuildRight()), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
-	// Bottom right: the hints. TODO: "R3 Where it comes from" and "Y Loadout" when those are built.
-	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{SubTabs}  Character        {Back}  Back"));
-	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
+	HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
+	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
 }
 
-UWidget *UCharacterSheetWidget::BuildIdentityPanel()
+UWidget *UCharacterSheetWidget::BuildLeft()
 {
 	using namespace CharacterSheetStyle;
 
 	UVerticalBox *Column = nullptr;
 	UBorder *Panel = MakePanel(WidgetTree, Column);
+
+	// Who they are: the element badge, the name and tier, the class line.
+	UHorizontalBox *Who = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	ElementBadge = MakeIcon(WidgetTree, BadgeSize);
+	AddToRow(Who, ElementBadge, FMargin(0.0f, 0.0f, SectionGap, 0.0f), VAlign_Center);
+	UVerticalBox *WhoText = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	NameText = MakeText(WidgetTree, NameFontSize, TextColor, true);
 	ClassLineText = MakeText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(Column, NameText);
-	AddToColumn(Column, ClassLineText, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	AddToColumn(WhoText, NameText);
+	AddToColumn(WhoText, ClassLineText);
+	AddToRow(Who, WhoText, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToColumn(Column, Who, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 
-	const auto AddVital = [this, Column](const FText &Label, const FLinearColor &Color, TObjectPtr<UProgressBar> &OutBar, TObjectPtr<UTextBlock> &OutValue)
+	const auto AddVital = [this, Column](const FLinearColor &Color, TObjectPtr<UProgressBar> &OutBar, TObjectPtr<UTextBlock> &OutValue)
 	{
-		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UTextBlock *LabelText = MakeText(WidgetTree, SmallFontSize, DimColor, true);
-		LabelText->SetText(Label);
 		UProgressBar *Bar = nullptr;
 		UTextBlock *Value = nullptr;
 		UWidget *BarWithValue = MakeBarWithValue(WidgetTree, Color, Bar, Value);
-		AddToRow(Row, MakeSized(WidgetTree, VitalLabelWidth, 0.0f, LabelText));
-		AddToRow(Row, MakeSized(WidgetTree, VitalBarWidth, BarWithValueHeight, BarWithValue));
-		AddToColumn(Column, Row, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+		AddToColumn(Column, MakeSized(WidgetTree, 0.0f, BarWithValueHeight, BarWithValue), FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		OutBar = Bar;
 		OutValue = Value;
 	};
-	AddVital(LOCTEXT("HP", "HP"), HPColor, HPBar, HPValue);
-	AddVital(LOCTEXT("EP", "EP"), EPColor, EPBar, EPValue);
+	AddVital(HPColor, HPBar, HPValue);
+	AddVital(EPColor, EPBar, EPValue);
+	UTextBlock *ActionsLabel = nullptr;
+	UTextBlock *Actions = nullptr;
+	UHorizontalBox *ActionsLine = MakeLine(WidgetTree, LineFontSize, ActionsLabel, Actions);
+	ActionsLabel->SetText(LOCTEXT("MaxActions", "Max actions"));
+	ActionsValue = Actions;
+	AddToColumn(Column, ActionsLine, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 
-	UHorizontalBox *Pips = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	for (int32 Index = 0; Index < ActionPipsConstants::MAX_ACTIONS_CAP; ++Index)
+	for (int32 Index = 0; Index < WoRCharacterSheet::GROUP_COUNT; ++Index)
 	{
-		UBorder *Pip = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Pip->SetBrushColor(CyanColor);
-		ActionPips.Add(Pip);
-		AddToRow(Pips, MakeSized(WidgetTree, ActionPipSize, ActionPipSize, Pip), FMargin(0.0f, 0.0f, WordGap, 0.0f));
+		FGroupWidgets Widgets;
+		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UVerticalBox *Text = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		UTextBlock *Name = MakeText(WidgetTree, RowFontSize, TextColor, true);
+		UTextBlock *Blurb = MakeText(WidgetTree, SmallFontSize, DimColor);
+		AddToColumn(Text, Name);
+		AddToColumn(Text, Blurb);
+		AddToRow(Row, Text)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		UTextBlock *Count = MakeText(WidgetTree, NameFontSize, TextColor, true);
+		AddToRow(Row, Count, FMargin(0.0f), VAlign_Center);
+		UBorder *Frame = MakePlate(WidgetTree, Row);
+		AddToColumn(Column, Frame, FMargin(0.0f, 0.0f, 0.0f, PlateGap));
+		Widgets.Frame = Frame;
+		Widgets.Name = Name;
+		Widgets.Blurb = Blurb;
+		Widgets.Count = Count;
+		GroupWidgets.Add(MoveTemp(Widgets));
 	}
-	MaxActionsValue = AddLabelledValue(WidgetTree, Column, LOCTEXT("MaxActions", "Max Actions"), Pips, SectionGap);
-	ActionPointBar = MakeBar(WidgetTree, CyanColor);
-	ActionPointValue = AddLabelledValue(WidgetTree, Column, LOCTEXT("NextActionPoint", "next action point"),
-										MakeSized(WidgetTree, ActionPointBarWidth, ActionPointBarHeight, ActionPointBar));
-	ActionRegainValue = AddLabelledValue(WidgetTree, Column, LOCTEXT("ActionRegain", "Regains per turn"));
-
-	UTextBlock *CurseHeading = MakeText(WidgetTree, LineFontSize, DimColor, true);
-	CurseHeading->SetText(LOCTEXT("Curses", "Curses"));
-	AddToColumn(Column, CurseHeading, FMargin(0.0f, SectionGap + SectionGap, 0.0f, 0.0f));
-	for (int32 Index = 0; Index < MaxCurses; ++Index)
-	{
-		CurseTitles.Add(MakeText(WidgetTree, LineFontSize, TextColor, true));
-		CurseDescriptions.Add(MakeWrappedText(WidgetTree, SmallFontSize, DimColor));
-		AddToColumn(Column, CurseTitles.Last(), FMargin(0.0f, LineGap, 0.0f, 0.0f));
-		AddToColumn(Column, CurseDescriptions.Last());
-	}
-	CurseNote = MakeWrappedText(WidgetTree, SmallFontSize, OffColor);
-	AddToColumn(Column, CurseNote, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 	return Panel;
 }
 
-UWidget *UCharacterSheetWidget::BuildPillarsPanel()
+UWidget *UCharacterSheetWidget::BuildMiddle()
 {
 	using namespace CharacterSheetStyle;
 
 	UVerticalBox *Column = nullptr;
 	UBorder *Panel = MakePanel(WidgetTree, Column);
-	for (int32 PillarIndex = 0; PillarIndex < PillarCount; ++PillarIndex)
-	{
-		FPillarWidgets Widgets;
-		UHorizontalBox *Head = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UTextBlock *Name = MakeText(WidgetTree, RowFontSize, TextColor, true);
-		AddToRow(Head, MakeSized(WidgetTree, PillarNameWidth, 0.0f, Name));
-		for (int32 Pip = 0; Pip < WorldStatConstants::LIVE_MAX; ++Pip)
-		{
-			UBorder *PipWidget = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-			Widgets.Pips.Add(PipWidget);
-			AddToRow(Head, MakeSized(WidgetTree, PillarPipSize, PillarPipSize, PipWidget), FMargin(0.0f, 0.0f, WordGap, 0.0f));
-		}
-		UTextBlock *Level = MakeText(WidgetTree, LineFontSize, TextColor, true);
-		UHorizontalBoxSlot *LevelSlot = AddToRow(Head, Level);
-		LevelSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		LevelSlot->SetHorizontalAlignment(HAlign_Right);
-		AddToColumn(Column, Head, FMargin(0.0f, PillarIndex == 0 ? 0.0f : SectionGap, 0.0f, 0.0f));
+	UHorizontalBox *Head = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	GroupTitle = MakeText(WidgetTree, NameFontSize, TextColor, true);
+	GroupCount = MakeText(WidgetTree, TitleFontSize, CyanColor, true);
+	AddToRow(Head, GroupTitle)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToRow(Head, GroupCount);
+	AddToColumn(Column, Head);
+	GroupSubtitle = MakeText(WidgetTree, LineFontSize, DimColor);
+	AddToColumn(Column, GroupSubtitle, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	NoEntriesText = MakeText(WidgetTree, LineFontSize, OffColor);
+	NoEntriesText->SetText(LOCTEXT("NoEntries", "None"));
+	AddToColumn(Column, NoEntriesText);
 
-		for (int32 StatIndex = 0; StatIndex < StatsPerPillar; ++StatIndex)
-		{
-			UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-			UTextBlock *Label = MakeText(WidgetTree, LineFontSize, DimColor);
-			UTextBlock *Value = MakeText(WidgetTree, LineFontSize, TextColor, true);
-			AddToRow(Line, Label, FMargin(StatIndent, 0.0f, 0.0f, 0.0f));
-			UHorizontalBoxSlot *ValueSlot = AddToRow(Line, Value);
-			ValueSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-			ValueSlot->SetHorizontalAlignment(HAlign_Right);
-			AddToColumn(Column, Line, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-			Widgets.StatLines.Add(Line);
-			Widgets.StatLabels.Add(Label);
-			Widgets.StatValues.Add(Value);
-		}
-		Widgets.Name = Name;
-		Widgets.Level = Level;
-		PillarWidgets.Add(MoveTemp(Widgets));
+	EntryScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+	EntryScroll->SetScrollBarVisibility(ESlateVisibility::Visible); // the 12 resistance lines run past the panel
+	AddToColumn(Column, EntryScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	for (int32 Index = 0; Index < MaxEntries; ++Index)
+	{
+		FEntryWidgets Widgets;
+		UVerticalBox *Content = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		UTextBlock *Label = nullptr;
+		UTextBlock *Value = nullptr;
+		UHorizontalBox *Line = MakeLine(WidgetTree, RowFontSize, Label, Value);
+		Label->SetColorAndOpacity(FSlateColor(TextColor));
+		AddToColumn(Content, Line, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		UProgressBar *Bar = MakeBar(WidgetTree, DimColor);
+		AddToColumn(Content, MakeSized(WidgetTree, 0.0f, EntryBarHeight, Bar));
+		UTextBlock *Text = MakeWrappedText(WidgetTree, SmallFontSize, DimColor);
+		AddToColumn(Content, Text);
+		UBorder *Frame = MakePlate(WidgetTree, Content);
+		EntryScroll->AddChild(Frame);
+		Frame->SetPadding(FMargin(PlatePaddingX, PlatePaddingY)); // AddChild leaves the border's own padding as set
+		Widgets.Frame = Frame;
+		Widgets.Label = Label;
+		Widgets.Value = Value;
+		Widgets.Bar = Bar;
+		Widgets.Text = Text;
+		EntryWidgets.Add(MoveTemp(Widgets));
 	}
 	return Panel;
 }
 
-UWidget *UCharacterSheetWidget::BuildResistancePanel()
+UWidget *UCharacterSheetWidget::BuildRight()
 {
 	using namespace CharacterSheetStyle;
 
 	UVerticalBox *Column = nullptr;
 	UBorder *Panel = MakePanel(WidgetTree, Column);
 	UTextBlock *Heading = MakeText(WidgetTree, RowFontSize, TextColor, true);
-	Heading->SetText(LOCTEXT("Resistance", "Resistance"));
-	UTextBlock *Subheading = MakeText(WidgetTree, SmallFontSize, DimColor);
-	Subheading->SetText(LOCTEXT("ResistanceSub", "less damage taken, by type"));
+	Heading->SetText(LOCTEXT("Details", "Details"));
 	AddToColumn(Column, Heading);
-	AddToColumn(Column, Subheading, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	DetailName = MakeText(WidgetTree, LineFontSize, DimColor);
+	AddToColumn(Column, DetailName, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	DetailDescription = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+	AddToColumn(Column, DetailDescription, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 
-	const int32 ScopeLines = WoRCharacterSheet::SCOPE_LINE_COUNT;
-	for (int32 Index = 0; Index < WoRCharacterSheet::RESISTANCE_LINE_COUNT; ++Index)
+	// Where it comes from: the layers, a divider, the total.
+	UVerticalBox *Sources = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	UTextBlock *SourcesHeading = MakeText(WidgetTree, LineFontSize, TextColor, true);
+	SourcesHeading->SetText(LOCTEXT("WhereFrom", "Where it comes from"));
+	AddToColumn(Sources, SourcesHeading, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	for (int32 Index = 0; Index < MaxSources; ++Index)
 	{
-		FResistanceWidgets Widgets;
-		UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UTextBlock *Label = MakeText(WidgetTree, LineFontSize, TextColor);
-		UProgressBar *WeakBar = MakeBar(WidgetTree, LowHPColor);
-		WeakBar->SetBarFillType(EProgressBarFillType::RightToLeft);
-		UProgressBar *ResistBar = MakeBar(WidgetTree, GoodColor);
-		UBorder *Midline = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-		Midline->SetBrushColor(DimColor);
-		UTextBlock *Value = MakeText(WidgetTree, LineFontSize, OffColor, true);
-		AddToRow(Line, MakeSized(WidgetTree, ResistLabelWidth, 0.0f, Label));
-		AddToRow(Line, MakeSized(WidgetTree, ResistHalfBarWidth, ResistBarHeight, WeakBar));
-		AddToRow(Line, MakeSized(WidgetTree, ResistMidlineWidth, ResistBarHeight + ResistBarHeight, Midline));
-		AddToRow(Line, MakeSized(WidgetTree, ResistHalfBarWidth, ResistBarHeight, ResistBar));
-		UHorizontalBoxSlot *ValueSlot = AddToRow(Line, MakeSized(WidgetTree, ResistValueWidth, 0.0f, Value));
-		ValueSlot->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-		ValueSlot->SetHorizontalAlignment(HAlign_Right);
-		Value->SetJustification(ETextJustify::Right);
-		// The scope lines (All, Physical, Spell) sit apart from the elements.
-		AddToColumn(Column, Line, FMargin(0.0f, Index == ScopeLines ? ResistLineGap + SectionGap : ResistLineGap, 0.0f, 0.0f));
-		Widgets.Root = Line;
+		FSourceWidgets Widgets;
+		UTextBlock *Label = nullptr;
+		UTextBlock *Value = nullptr;
+		UHorizontalBox *Line = MakeLine(WidgetTree, LineFontSize, Label, Value);
+		AddToColumn(Sources, Line, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		Widgets.Row = Line;
 		Widgets.Label = Label;
-		Widgets.WeakBar = WeakBar;
-		Widgets.ResistBar = ResistBar;
 		Widgets.Value = Value;
-		ResistanceWidgets.Add(MoveTemp(Widgets));
+		SourceWidgets.Add(MoveTemp(Widgets));
 	}
+	UBorder *Divider = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Divider->SetBrushColor(TrackColor);
+	AddToColumn(Sources, MakeSized(WidgetTree, 0.0f, DividerHeight, Divider), FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	UTextBlock *TotalLabel = nullptr;
+	UTextBlock *Total = nullptr;
+	UHorizontalBox *TotalLine = MakeLine(WidgetTree, LineFontSize, TotalLabel, Total);
+	TotalLabel->SetText(LOCTEXT("Total", "Total"));
+	TotalLabel->SetColorAndOpacity(FSlateColor(TextColor));
+	Total->SetColorAndOpacity(FSlateColor(CyanColor));
+	TotalValue = Total;
+	AddToColumn(Sources, TotalLine);
+	SourcesBlock = Sources;
+	AddToColumn(Column, Sources);
 	return Panel;
 }
 
 void UCharacterSheetWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
+	bOnEntries = false;
 	Refresh();
-	UE_LOG(LogWoRUI, Log, TEXT("[CharacterSheet] Opened (%d member(s))"), Members.Num());
+	UE_LOG(LogWoRUI, Log, TEXT("[CharacterSheet] Opened (%d member(s), on %d)"), Members.Num(), MemberIndex);
 }
 
 UWidget *UCharacterSheetWidget::NativeGetDesiredFocusTarget() const
@@ -305,6 +321,19 @@ void UCharacterSheetWidget::Refresh()
 	Members = WoRPauseMenu::BuildParty(World);
 	MemberIndex = Members.Num() > 0 ? FMath::Clamp(MemberIndex, 0, Members.Num() - 1) : 0;
 	Page = WoRCharacterSheet::BuildPage(World, MemberIndex);
+	Groups = WoRCharacterSheet::BuildGroups(Page);
+	// A member with no groups (not in this level) keeps the lit group and entry for the next one.
+	if (Groups.Num() > 0)
+	{
+		GroupIndex = FMath::Clamp(GroupIndex, 0, Groups.Num() - 1);
+		const int32 EntryCount = Groups[GroupIndex].Entries.Num();
+		EntryIndex = EntryCount > 0 ? FMath::Clamp(EntryIndex, 0, EntryCount - 1) : 0;
+		bOnEntries = bOnEntries && EntryCount > 0;
+	}
+	else
+	{
+		bOnEntries = false;
+	}
 
 	for (int32 Index = 0; Index < MemberTabs.Num(); ++Index)
 	{
@@ -326,86 +355,109 @@ void UCharacterSheetWidget::Refresh()
 
 	const FPauseMenuMember &Who = Page.Who;
 	const FText ValueFormat = LOCTEXT("VitalValue", "{0} / {1}");
+	SetIcon(ElementBadge, WoRIcons::Find(Who.ElementIcon), /*bKeepSpace=*/true);
 	NameText->SetText(Who.Tier.IsEmpty() ? Who.Name : FText::Format(LOCTEXT("NameAndTier", "{0} ({1})"), Who.Name, Who.Tier));
 	ClassLineText->SetText(Who.SheetLine); // D-254: Spirit of ... / Body of ... stay on the sheet
-	const float HPFraction = Who.MaxHP > 0 ? static_cast<float>(Who.HP) / Who.MaxHP : 0.0f;
-	HPBar->SetPercent(HPFraction);
+	HPBar->SetPercent(Who.MaxHP > 0 ? static_cast<float>(Who.HP) / Who.MaxHP : 0.0f);
 	HPValue->SetText(FText::Format(ValueFormat, FText::AsNumber(Who.HP), FText::AsNumber(Who.MaxHP)));
 	EPBar->SetPercent(Who.MaxEP > 0 ? static_cast<float>(Who.EP) / Who.MaxEP : 0.0f);
 	EPValue->SetText(FText::Format(ValueFormat, FText::AsNumber(Who.EP), FText::AsNumber(Who.MaxEP)));
+	ActionsValue->SetText(Page.Refusal.IsEmpty() ? FText::Format(LOCTEXT("ActionsValue", "{0}  ·  regains {1} a turn"), FText::AsNumber(Page.MaxActions),
+																 FText::AsNumber(Page.ActionRegain))
+												 : FText::GetEmpty());
+	RefreshSelection();
+}
 
-	for (int32 Index = 0; Index < ActionPips.Num(); ++Index)
+void UCharacterSheetWidget::RefreshSelection()
+{
+	using namespace CharacterSheetStyle;
+	if (!GroupTitle)
 	{
-		SetShown(ActionPips[Index], Index < Page.MaxActions);
+		return; // headless
 	}
-	MaxActionsValue->SetText(FText::AsNumber(Page.MaxActions));
-	ActionPointBar->SetPercent(Page.PointsPerAction > 0 ? static_cast<float>(Page.ActionPointProgress) / Page.PointsPerAction : 0.0f);
-	ActionPointValue->SetText(FText::Format(ValueFormat, FText::AsNumber(Page.ActionPointProgress), FText::AsNumber(Page.PointsPerAction)));
-	ActionRegainValue->SetText(FText::AsNumber(Page.ActionRegain));
-
-	for (int32 Index = 0; Index < CurseTitles.Num(); ++Index)
+	for (int32 Index = 0; Index < GroupWidgets.Num(); ++Index)
 	{
-		const bool bShown = Page.Curses.IsValidIndex(Index);
-		SetShown(CurseTitles[Index], bShown);
-		SetShown(CurseDescriptions[Index], bShown);
-		if (bShown)
-		{
-			CurseTitles[Index]->SetText(Page.Curses[Index].Title);
-			CurseDescriptions[Index]->SetText(Page.Curses[Index].Description);
-		}
-	}
-	CurseNote->SetText(Page.Curses.Num() > 0 ? LOCTEXT("CurseNote", "Cleared at the Spiritualist") : LOCTEXT("NoCurses", "None"));
-
-	for (int32 PillarIndex = 0; PillarIndex < PillarWidgets.Num(); ++PillarIndex)
-	{
-		const FPillarWidgets &Widgets = PillarWidgets[PillarIndex];
-		const bool bHasPillar = Page.Pillars.IsValidIndex(PillarIndex);
-		const FCharacterSheetPillar Pillar = bHasPillar ? Page.Pillars[PillarIndex] : FCharacterSheetPillar();
-		if (!Widgets.Name.IsValid() || !Widgets.Level.IsValid())
+		const FGroupWidgets &Widgets = GroupWidgets[Index];
+		const bool bShown = Groups.IsValidIndex(Index);
+		SetShown(Widgets.Frame.Get(), bShown);
+		if (!bShown || !Widgets.Frame.IsValid() || !Widgets.Name.IsValid() || !Widgets.Blurb.IsValid() || !Widgets.Count.IsValid())
 		{
 			continue;
 		}
-		Widgets.Name->SetText(Pillar.Name);
-		Widgets.Level->SetText(bHasPillar ? FText::Format(ValueFormat, FText::AsNumber(Pillar.Level), FText::AsNumber(Pillar.MaxLevel)) : FText::GetEmpty());
-		for (int32 Pip = 0; Pip < Widgets.Pips.Num(); ++Pip)
-		{
-			if (UBorder *PipWidget = Widgets.Pips[Pip].Get())
-			{
-				SetShown(PipWidget, bHasPillar);
-				PipWidget->SetBrushColor(Pip < Pillar.Level ? CyanColor : TrackColor);
-			}
-		}
-		for (int32 StatIndex = 0; StatIndex < Widgets.StatLines.Num(); ++StatIndex)
-		{
-			const bool bShown = Pillar.Stats.IsValidIndex(StatIndex);
-			SetShown(Widgets.StatLines[StatIndex].Get(), bShown);
-			if (bShown && Widgets.StatLabels[StatIndex].IsValid() && Widgets.StatValues[StatIndex].IsValid())
-			{
-				Widgets.StatLabels[StatIndex]->SetText(Pillar.Stats[StatIndex].Label);
-				Widgets.StatValues[StatIndex]->SetText(Pillar.Stats[StatIndex].Value);
-			}
-		}
+		const bool bLit = Index == GroupIndex;
+		Widgets.Frame->SetBrushColor(PlateFill(bLit, HoverKind == EHoverKind::Group && HoverIndex == Index));
+		Widgets.Name->SetText(Groups[Index].Name);
+		Widgets.Blurb->SetText(Groups[Index].Blurb);
+		Widgets.Blurb->SetColorAndOpacity(FSlateColor(bLit ? TextColor : DimColor));
+		Widgets.Count->SetText(Groups[Index].Count);
+		Widgets.Count->SetColorAndOpacity(FSlateColor(bLit ? CyanColor : TextColor));
 	}
 
-	for (int32 Index = 0; Index < ResistanceWidgets.Num(); ++Index)
+	const FCharacterSheetGroup *Group = Groups.IsValidIndex(GroupIndex) ? &Groups[GroupIndex] : nullptr;
+	GroupTitle->SetText(Group ? Group->Name : FText::GetEmpty());
+	GroupCount->SetText(Group ? Group->Count : FText::GetEmpty());
+	GroupSubtitle->SetText(Group ? Group->Subtitle : FText::GetEmpty());
+	SetShown(NoEntriesText, Group && Group->Entries.IsEmpty());
+	for (int32 Index = 0; Index < EntryWidgets.Num(); ++Index)
 	{
-		const FResistanceWidgets &Widgets = ResistanceWidgets[Index];
-		const bool bShown = Page.Resistances.IsValidIndex(Index);
-		SetShown(Widgets.Root.Get(), bShown);
-		if (!bShown || !Widgets.Label.IsValid() || !Widgets.WeakBar.IsValid() || !Widgets.ResistBar.IsValid() || !Widgets.Value.IsValid())
+		const FEntryWidgets &Widgets = EntryWidgets[Index];
+		const bool bShown = Group && Group->Entries.IsValidIndex(Index);
+		SetShown(Widgets.Frame.Get(), bShown);
+		if (!bShown || !Widgets.Frame.IsValid() || !Widgets.Label.IsValid() || !Widgets.Value.IsValid() || !Widgets.Bar.IsValid() || !Widgets.Text.IsValid())
 		{
 			continue;
 		}
-		const FCharacterSheetResistance &Line = Page.Resistances[Index];
-		const bool bNothing = FMath::IsNearlyZero(Line.Fraction);
-		Widgets.Label->SetText(Line.Label);
-		Widgets.Label->SetColorAndOpacity(FSlateColor(bNothing ? DimColor : TextColor));
-		const float BarFullAt = FMath::Max(Line.Cap, UE_KINDA_SMALL_NUMBER);
-		Widgets.WeakBar->SetPercent(FMath::Clamp(-Line.Fraction / BarFullAt, 0.0f, 1.0f));
-		Widgets.ResistBar->SetPercent(FMath::Clamp(Line.Fraction / BarFullAt, 0.0f, 1.0f));
-		Widgets.Value->SetText(WoRCharacterSheet::FormatPercent(Line.Fraction, /*bSigned=*/true));
-		Widgets.Value->SetColorAndOpacity(FSlateColor(bNothing ? OffColor : Line.Fraction > 0.0f ? GoodColor : LowHPColor));
+		const FCharacterSheetStat &Entry = Group->Entries[Index];
+		const bool bLit = Index == EntryIndex;
+		// A curse has no number: its text in the bar's place.
+		const bool bHasBar = !Entry.Value.IsEmpty();
+		Widgets.Frame->SetBrushColor(PlateFill(bLit, HoverKind == EHoverKind::Entry && HoverIndex == Index));
+		Widgets.Label->SetText(Entry.Label);
+		Widgets.Value->SetText(Entry.Value);
+		Widgets.Value->SetColorAndOpacity(FSlateColor(Entry.bWeak ? LowHPColor : TextColor));
+		SetShown(Widgets.Bar->GetParent(), bHasBar);
+		Widgets.Bar->SetPercent(Entry.Fill);
+		Widgets.Bar->SetFillColorAndOpacity(Entry.bWeak ? LowHPColor : bLit ? CyanColor : DimColor);
+		SetShown(Widgets.Text.Get(), !bHasBar);
+		Widgets.Text->SetText(bHasBar ? FText::GetEmpty() : Entry.Description);
 	}
+	if (EntryScroll && EntryWidgets.IsValidIndex(EntryIndex) && EntryWidgets[EntryIndex].Frame.IsValid())
+	{
+		EntryScroll->ScrollWidgetIntoView(EntryWidgets[EntryIndex].Frame.Get(), /*AnimateScroll=*/false);
+	}
+	WoRKeyHints::SetHint(HintsText, bOnEntries ? LOCTEXT("HintsEntries", "{SubTabs}  Member        {Second}  Loadout        {Back}  Groups")
+											   : LOCTEXT("HintsGroups", "{SubTabs}  Member        {Confirm}  Select        {Second}  Loadout        {Back}  Back"));
+	RefreshDetails();
+}
+
+void UCharacterSheetWidget::RefreshDetails()
+{
+	if (!DetailName)
+	{
+		return; // headless
+	}
+	const FCharacterSheetStat *Entry = GetLitEntry();
+	DetailName->SetText(Entry ? Entry->Label : FText::GetEmpty());
+	DetailDescription->SetText(Entry ? Entry->Description : FText::GetEmpty());
+	const bool bHasSources = Entry && !Entry->Sources.IsEmpty();
+	WoRMenuStyle::SetShown(SourcesBlock, bHasSources);
+	for (int32 Index = 0; Index < SourceWidgets.Num(); ++Index)
+	{
+		const FSourceWidgets &Widgets = SourceWidgets[Index];
+		const bool bShown = bHasSources && Entry->Sources.IsValidIndex(Index);
+		WoRMenuStyle::SetShown(Widgets.Row.Get(), bShown);
+		if (bShown && Widgets.Label.IsValid() && Widgets.Value.IsValid())
+		{
+			Widgets.Label->SetText(Entry->Sources[Index].Label);
+			Widgets.Value->SetText(Entry->Sources[Index].Value);
+		}
+	}
+	TotalValue->SetText(bHasSources ? Entry->Value : FText::GetEmpty());
+}
+
+const FCharacterSheetStat *UCharacterSheetWidget::GetLitEntry() const
+{
+	return Groups.IsValidIndex(GroupIndex) && Groups[GroupIndex].Entries.IsValidIndex(EntryIndex) ? &Groups[GroupIndex].Entries[EntryIndex] : nullptr;
 }
 
 void UCharacterSheetWidget::MoveMember(int32 Delta)
@@ -415,54 +467,193 @@ void UCharacterSheetWidget::MoveMember(int32 Delta)
 		return;
 	}
 	MemberIndex = ((MemberIndex + Delta) % Members.Num() + Members.Num()) % Members.Num();
-	Refresh();
+	Refresh(); // the lit group and entry stay, so LT / RT compares one stat across the party
+}
+
+void UCharacterSheetWidget::MoveInColumn(int32 Delta)
+{
+	const int32 Count = bOnEntries ? (Groups.IsValidIndex(GroupIndex) ? Groups[GroupIndex].Entries.Num() : 0) : Groups.Num();
+	if (Count == 0)
+	{
+		return;
+	}
+	const int32 Current = bOnEntries ? EntryIndex : GroupIndex;
+	const int32 Next = ((Current + Delta) % Count + Count) % Count;
+	if (bOnEntries)
+	{
+		SelectEntry(Next);
+	}
+	else
+	{
+		SelectGroup(Next);
+	}
+}
+
+void UCharacterSheetWidget::SelectGroup(int32 Group)
+{
+	if (!Groups.IsValidIndex(Group))
+	{
+		return;
+	}
+	if (Group != GroupIndex)
+	{
+		GroupIndex = Group;
+		EntryIndex = 0;
+	}
+	bOnEntries = false;
+	RefreshSelection();
+}
+
+void UCharacterSheetWidget::SelectEntry(int32 Entry)
+{
+	if (!Groups.IsValidIndex(GroupIndex) || !Groups[GroupIndex].Entries.IsValidIndex(Entry))
+	{
+		return;
+	}
+	EntryIndex = Entry;
+	bOnEntries = true;
+	RefreshSelection();
+}
+
+void UCharacterSheetWidget::PressSelect()
+{
+	if (!bOnEntries)
+	{
+		SelectEntry(EntryIndex);
+	}
+}
+
+void UCharacterSheetWidget::PressBack()
+{
+	HandleBackAction();
+}
+
+bool UCharacterSheetWidget::NativeOnHandleBackAction()
+{
+	if (bOnEntries)
+	{
+		bOnEntries = false; // B-635: Back steps out of the entries before it leaves the screen
+		RefreshSelection();
+		return true;
+	}
+	return Super::NativeOnHandleBackAction();
+}
+
+void UCharacterSheetWidget::PressOpenLoadout()
+{
+	const FPartyMember *Member = WoRCharacterSheet::FindPartyMember(GetWorld(), MemberIndex);
+	if (!Member)
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[CharacterSheet] Loadout: no member %d"), MemberIndex);
+		return;
+	}
+	ULoadoutV2ScreenWidget::OpenWithLoadoutOn(GetOwningPlayer(), UPoolSubsystem::GetCharacterKey(*Member)); // over this screen: Back returns here
 }
 
 FReply UCharacterSheetWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
 {
 	using namespace WoRMenuStyle;
 	const FKey Key = InKeyEvent.GetKey();
-	if (IsSubTabPrevKey(Key) || IsSubTabNextKey(Key))
+	if (IsUpKey(Key) || IsDownKey(Key))
 	{
-		if (!InKeyEvent.IsRepeat())
+		MoveInColumn(IsDownKey(Key) ? 1 : -1);
+		return FReply::Handled();
+	}
+	const bool bAction = IsSubTabPrevKey(Key) || IsSubTabNextKey(Key) || IsConfirmKey(Key) || IsSecondActionKey(Key) || IsBackKey(Key);
+	if (!bAction)
+	{
+		return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+	}
+	if (!InKeyEvent.IsRepeat())
+	{
+		if (IsSubTabPrevKey(Key) || IsSubTabNextKey(Key))
 		{
 			MoveMember(IsSubTabNextKey(Key) ? 1 : -1);
 		}
-		return FReply::Handled();
-	}
-	if (IsBackKey(Key))
-	{
-		// Reached only when CommonUI's own Back action didn't take the key (BP_CommonInputData unset, B-103).
-		if (!InKeyEvent.IsRepeat())
+		else if (IsConfirmKey(Key))
 		{
+			PressSelect();
+		}
+		else if (IsSecondActionKey(Key))
+		{
+			PressOpenLoadout();
+		}
+		else
+		{
+			// Reached only when CommonUI's own Back action didn't take the key (BP_CommonInputData unset, B-103).
 			HandleBackAction();
 		}
-		return FReply::Handled();
 	}
-	return Super::NativeOnKeyDown(InGeometry, InKeyEvent);
+	return FReply::Handled();
 }
 
-int32 UCharacterSheetWidget::FindMemberTabUnder(const FPointerEvent &MouseEvent) const
+int32 UCharacterSheetWidget::FindUnder(const FPointerEvent &MouseEvent, EHoverKind Kind) const
 {
-	for (int32 Index = 0; Index < MemberTabs.Num() && Index < Members.Num(); ++Index)
+	const FVector2D Where = MouseEvent.GetScreenSpacePosition();
+	const auto IsUnder = [&Where](const UWidget *Widget)
 	{
-		if (MemberTabs[Index] && MemberTabs[Index]->GetCachedGeometry().IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
+		return Widget && Widget->IsVisible() && Widget->GetCachedGeometry().IsUnderLocation(Where);
+	};
+	switch (Kind)
+	{
+	case EHoverKind::Tab:
+		for (int32 Index = 0; Index < MemberTabs.Num() && Index < Members.Num(); ++Index)
 		{
-			return Index;
+			if (IsUnder(MemberTabs[Index]))
+			{
+				return Index;
+			}
 		}
+		break;
+	case EHoverKind::Group:
+		for (int32 Index = 0; Index < GroupWidgets.Num() && Index < Groups.Num(); ++Index)
+		{
+			if (IsUnder(GroupWidgets[Index].Frame.Get()))
+			{
+				return Index;
+			}
+		}
+		break;
+	case EHoverKind::Entry:
+		if (IsUnder(EntryScroll)) // a plate scrolled out of view keeps its last drawn place
+		{
+			for (int32 Index = 0; Index < EntryWidgets.Num(); ++Index)
+			{
+				if (IsUnder(EntryWidgets[Index].Frame.Get()))
+				{
+					return Index;
+				}
+			}
+		}
+		break;
+	default:
+		break;
 	}
 	return INDEX_NONE;
 }
 
 FReply UCharacterSheetWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
-	const int32 Tab = FindMemberTabUnder(InMouseEvent);
-	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton || Tab == INDEX_NONE)
+	if (InMouseEvent.GetEffectingButton() != EKeys::LeftMouseButton)
 	{
 		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 	}
-	MoveMember(Tab - MemberIndex);
-	return FReply::Handled();
+	if (const int32 Tab = FindUnder(InMouseEvent, EHoverKind::Tab); Tab != INDEX_NONE)
+	{
+		MoveMember(Tab - MemberIndex);
+		return FReply::Handled();
+	}
+	if (const int32 Group = FindUnder(InMouseEvent, EHoverKind::Group); Group != INDEX_NONE)
+	{
+		SelectGroup(Group);
+		return FReply::Handled();
+	}
+	if (const int32 Entry = FindUnder(InMouseEvent, EHoverKind::Entry); Entry != INDEX_NONE)
+	{
+		SelectEntry(Entry);
+		return FReply::Handled();
+	}
+	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
 }
 
 void UCharacterSheetWidget::PaintMemberTabs()
@@ -472,39 +663,57 @@ void UCharacterSheetWidget::PaintMemberTabs()
 	{
 		if (MemberTabs[Index])
 		{
-			MemberTabs[Index]->SetBrushColor(Index == MemberIndex ? FocusColor : Index == HoveredTab ? HoverColor : PlateColor);
+			MemberTabs[Index]->SetBrushColor(Index == MemberIndex ? FocusColor : HoverKind == EHoverKind::Tab && Index == HoverIndex ? HoverColor : PlateColor);
 		}
 	}
 }
 
-void UCharacterSheetWidget::SetHoveredTab(int32 Tab)
+void UCharacterSheetWidget::SetHover(EHoverKind Kind, int32 Index)
 {
-	if (Tab != HoveredTab)
+	if (Index == INDEX_NONE)
 	{
-		HoveredTab = Tab;
-		PaintMemberTabs();
+		Kind = EHoverKind::None;
 	}
+	if (Kind == HoverKind && Index == HoverIndex)
+	{
+		return;
+	}
+	HoverKind = Kind;
+	HoverIndex = Index;
+	PaintMemberTabs();
+	RefreshSelection();
 }
 
 FReply UCharacterSheetWidget::NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent)
 {
 	if (!InMouseEvent.GetCursorDelta().IsZero()) // a resting cursor doesn't light anything
 	{
-		SetHoveredTab(FindMemberTabUnder(InMouseEvent));
+		EHoverKind Kind = EHoverKind::None;
+		int32 Index = INDEX_NONE;
+		for (const EHoverKind Candidate : {EHoverKind::Tab, EHoverKind::Group, EHoverKind::Entry})
+		{
+			Index = FindUnder(InMouseEvent, Candidate);
+			if (Index != INDEX_NONE)
+			{
+				Kind = Candidate;
+				break;
+			}
+		}
+		SetHover(Kind, Index);
 	}
 	return Super::NativeOnMouseMove(InGeometry, InMouseEvent);
 }
 
 void UCharacterSheetWidget::NativeOnMouseLeave(const FPointerEvent &InMouseEvent)
 {
-	SetHoveredTab(INDEX_NONE);
+	SetHover(EHoverKind::None, INDEX_NONE);
 	Super::NativeOnMouseLeave(InMouseEvent);
 }
 
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GCharacterSheetOpenCommand(
 	TEXT("wor.UI.Sheet"),
-	TEXT("B-442: open the character sheet, as the game menu's Character page does."),
+	TEXT("B-442 / B-635: open the Profile (the character sheet), as the Party screen's A does (on the first member)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		if (!UCharacterSheetWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
