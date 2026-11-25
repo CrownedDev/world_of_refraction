@@ -106,7 +106,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UTextBlock> StatusLine;
 
-	/** One button per verb, in WoRInventoryVerbs::GetAllVerbs order. */
+	/** One button per verb, in WoRInventoryVerbs::GetShownVerbs order (B-575c: Give only). */
 	UPROPERTY()
 	TArray<TObjectPtr<UButton>> VerbButtons;
 

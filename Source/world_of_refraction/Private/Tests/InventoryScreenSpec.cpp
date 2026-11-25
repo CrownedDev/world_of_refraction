@@ -270,7 +270,7 @@ void FInventoryScreenSpec::Define()
 				 WoRInventoryVerbs::GetShownVerbs().Num() == 1 && WoRInventoryVerbs::GetShownVerbs()[0] == EInventoryVerb::Give);
 	});
 
-	It("greys a verb with the code's reason: a worn primary isn't given or stored", [this]()
+	It("greys Give with the code's reason for a worn primary; the hidden Store rule still refuses it (B-575c)", [this]()
 	{
 		if (!IsReady()) return;
 		const FInventoryScreenPage Gear = PageOf(EInventoryScreenTab::Gear);
