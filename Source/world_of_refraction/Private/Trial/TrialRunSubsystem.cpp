@@ -10,6 +10,7 @@
 #include "WoRLog.h"
 
 #include "Character/CharacterData.h"
+#include "Debug/Inventory/TestSetDebug.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -1082,6 +1083,17 @@ TArray<FMerchantStockEntry> UTrialRunSubsystem::GetMerchantStock(const UMerchant
     // RunSeed says a run is on: a trial vendor stocks for the run, a home vendor as a home shop.
     if (!Merchant || RunSeed == 0)
     {
+#if !UE_BUILD_SHIPPING
+        // B-634: a home vendor (a saved merchant asset, not a spec's) stocks its slice of the current test set when it has one.
+        if (Merchant && Merchant->IsAsset())
+        {
+            TArray<FMerchantStockEntry> TestStock = WoRTestSet::GetStock(*GetDefault<UWoRTestSet>(), Merchant->MerchantType);
+            if (!TestStock.IsEmpty())
+            {
+                return TestStock;
+            }
+        }
+#endif
         return Merchant ? Merchant->Stock : TArray<FMerchantStockEntry>();
     }
     // B-571 (D-225): half its own list, half the trial's pool (what a chest or a drop can give, sold instead). The
