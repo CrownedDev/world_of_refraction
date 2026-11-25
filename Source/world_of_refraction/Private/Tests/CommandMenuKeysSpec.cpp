@@ -510,9 +510,9 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("the panel shows"), Panel.bShown && Panel.Open == ETargetPanelLine::None);
 		TestTrue(TEXT("small: no weapon, element or level chips"), Panel.Weapons.IsEmpty() && Panel.Elements.IsEmpty() && Panel.Levels.IsEmpty());
 		TestTrue(TEXT("the summary names the weapon"), Panel.Summary.ToString().StartsWith(TEXT("Sword")));
-		TestTrue(TEXT("and the level"), Panel.Summary.ToString().Contains(TEXT("No infusion")));
+		TestEqual(TEXT("B-599: no infusion, no infusion line (was No infusion)"), Panel.Summary.ToString(), FString(TEXT("Sword")));
 		TestTrue(TEXT("hint 2 Weapon"), HasHint(View, TEXT("Weapon"), EKeys::Two));
-		TestTrue(TEXT("hint 3 Infusion"), HasHint(View, TEXT("Infusion"), EKeys::Three) || HasHint(View, TEXT("Infusion level"), EKeys::Three));
+		TestTrue(TEXT("hint 3 Infusion (the source is None: no element to name, B-599)"), HasHint(View, TEXT("Infusion"), EKeys::Three));
 		TestFalse(TEXT("no infusion key hints while it is closed"), HasHint(View, TEXT("Level"), EKeys::T));
 
 		TestTrue(TEXT("2 / X: the weapon line"), Menu->PressMenuKey(EPieMenuCategory::Skills));
@@ -545,11 +545,19 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("hint T Level while it is open"), HasHint(View, TEXT("Level"), EKeys::T));
 		TestTrue(TEXT("T steps the level, as now"), Menu->PressMenuKey(EPieMenuCategory::CycleLevel));
 		TestEqual(TEXT("the level chip follows"), View->GetPanel().ActiveLevel, 1);
+		TestEqual(TEXT("B-599: source None, so the heading names no element"), View->GetTitle().ToString(), FString(TEXT("Attack · infusion")));
+		const TArray<FText> Sources = View->GetPanel().Elements;
+		if (!TestTrue(TEXT("a second source to pick"), Sources.Num() > 1)) return;
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Element, 1);
+		const FString Source = Sources[1].ToString();
+		TestEqual(TEXT("B-599: the infused action's heading names its source"), View->GetTitle().ToString(), FString::Printf(TEXT("Attack (%s) · infusion"), *Source));
 
 		TestTrue(TEXT("3 / Y again closes it"), Menu->PressMenuKey(EPieMenuCategory::Items));
 		Panel = View->GetPanel();
 		TestTrue(TEXT("back to the small panel"), Panel.Open == ETargetPanelLine::None && Panel.Levels.IsEmpty());
 		TestTrue(TEXT("its summary has the level"), Panel.Summary.ToString().Contains(TEXT("Lv I")));
+		TestEqual(TEXT("B-599: Attack (source) · choose a target"), View->GetTitle().ToString(), FString::Printf(TEXT("Attack (%s) · choose a target"), *Source));
+		TestTrue(TEXT("B-599: hint 3 names the source"), HasHint(View, *FString::Printf(TEXT("%s infusion"), *Source), EKeys::Three));
 		Menu->PressMenuKey(EPieMenuCategory::Skills);
 		Menu->PressMenuKey(EPieMenuCategory::Back);
 		TestTrue(TEXT("Back closes an open line first"), View->GetPanel().bShown && View->GetPanel().Open == ETargetPanelLine::None);
@@ -558,6 +566,18 @@ void FCommandMenuKeysSpec::Define()
 			TestFalse(TEXT("no size line"), Label.ToString().Contains(TEXT("Size")));
 			TestFalse(TEXT("no backlash line"), Label.ToString().Contains(TEXT("backlash")));
 		}
+	});
+
+	It("B-599: names an infused action's element in its title and on the infusion button", [this]()
+	{
+		const FText Strike = FText::FromString(TEXT("Force Strike"));
+		const FText Fire = FText::FromString(TEXT("Fire"));
+		TestEqual(TEXT("infused: the element in brackets"), UCombatCommandMenuSubsystem::MakeInfusedActionName(Strike, Fire).ToString(), FString(TEXT("Force Strike (Fire)")));
+		TestEqual(TEXT("no infusion: the bare name"), UCombatCommandMenuSubsystem::MakeInfusedActionName(Strike, FText::GetEmpty()).ToString(), FString(TEXT("Force Strike")));
+		TestEqual(TEXT("the button names the source"), UCombatCommandMenuSubsystem::MakeInfusionButtonName(Fire, true).ToString(), FString(TEXT("Fire infusion")));
+		TestEqual(TEXT("level only"), UCombatCommandMenuSubsystem::MakeInfusionButtonName(Fire, false).ToString(), FString(TEXT("Fire infusion level")));
+		TestEqual(TEXT("no source named"), UCombatCommandMenuSubsystem::MakeInfusionButtonName(FText::GetEmpty(), true).ToString(), FString(TEXT("Infusion")));
+		TestEqual(TEXT("no source, level only"), UCombatCommandMenuSubsystem::MakeInfusionButtonName(FText::GetEmpty(), false).ToString(), FString(TEXT("Infusion level")));
 	});
 
 	It("shows no element for a spell of one fixed element, only its level (B-592, D-268)", [this]()
