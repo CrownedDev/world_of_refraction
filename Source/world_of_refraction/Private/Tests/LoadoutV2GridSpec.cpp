@@ -116,6 +116,16 @@ void FLoadoutV2GridSpec::Define()
 		}
 	});
 
+	It("B-612: the hands and the sockets fill from the picture grid; the other slots don't", [this]()
+	{
+		TestTrue(TEXT("main hand"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::MainHand));
+		TestTrue(TEXT("off hand"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::OffHand));
+		TestTrue(TEXT("the crystal socket: its fitting choices, not the inventory's All tab"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Socket1));
+		TestTrue(TEXT("the stone socket"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Socket2));
+		TestFalse(TEXT("the adapter: its list"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Adapter));
+		TestFalse(TEXT("the evolution: its list"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Evolution));
+	});
+
 	It("on the screen with no party the grid is closed and its keys do nothing (headless)", [this]()
 	{
 		FWoRTestWorld TestWorld;

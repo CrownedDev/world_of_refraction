@@ -352,6 +352,21 @@ void FLoadoutScreenSpec::Define()
 													   Carried, {Free}, {}).Num(), 0);
 	});
 
+	It("B-612 (Crown's path): an S Emerald fits an S axe's empty crystal socket when no other S crystal is in", [this]()
+	{
+		FCombatLoadout Loadout = TwoWeapons(); // a Garnet below S on the sword, a bare hammer
+		Loadout.SecondaryWeapon.WeaponEntry.Tier = EItemTier::S_Tier;
+		const FLoadoutScreenRow Axe = WoRLoadoutScreen::BuildGearPage(Loadout, ECharacterClass::Generic).Rows[LOADOUT_SCREEN_TEST_SECOND];
+		const FCrystalId Emerald(ECrystalType::Emerald, EItemTier::S_Tier);
+		const TArray<FLoadoutScreenChoice> Choices = WoRLoadoutScreen::BuildSocketChoices(Loadout, ECharacterClass::Generic, Axe, LoadoutScreenSockets::CRYSTAL,
+																						 {{Emerald, 1}}, {}, {});
+		if (TestEqual(TEXT("the Emerald is offered"), Choices.Num(), 1))
+		{
+			TestTrue(TEXT("the Emerald"), Choices[0].Crystal == Emerald);
+			TestTrue(FString::Printf(TEXT("it fits (refusal: '%s')"), *Choices[0].Refusal.ToString()), Choices[0].Refusal.IsEmpty());
+		}
+	});
+
 	It("D-231 point 5 (B-540): a piece set to one crystal type takes only that gem, says why, and unset takes any", [this]()
 	{
 		TestTrue(TEXT("unset takes any gem"), GearSockets::AcceptsCrystal(ECrystalType::None, ECrystalType::Garnet));

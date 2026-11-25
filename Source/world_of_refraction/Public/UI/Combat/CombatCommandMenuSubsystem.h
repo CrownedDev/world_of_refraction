@@ -350,6 +350,12 @@ public:
      *  target". Empty on the main menu and when closed. */
     FText GetViewTitle() const;
 
+    /** B-599: "Force Strike (Fire)" for an infused action, the bare name with no infusion (Source empty). */
+    static FText MakeInfusedActionName(const FText &Action, const FText &Source);
+    /** B-599: the infusion line's button, "Fire infusion" ("Fire infusion level" when only the level can change);
+     *  "Infusion" / "Infusion level" with no source named. */
+    static FText MakeInfusionButtonName(const FText &Source, bool bChooseElement);
+
     /** B-592 (D-268): the target step's panel: small (heading and summary) until X / 2 opens the weapon line or Y / 3
      *  the infusion lines. bShown false outside a target step. */
     FTargetPanelView GetTargetPanel() const;
@@ -580,6 +586,10 @@ private:
     ULoadoutComponent *GetLoadoutComponent() const;
     FLinearColor GetElementColor(int32 ElementIndex) const;
     class UInfusionVFXComponent *GetInfusionVFXComponent() const;
+    /** B-599: a cached infusion source's name ("Fire", "Ice", "Raw", "None"); empty for an index that isn't one. */
+    FText GetInfusionSourceName(int32 SourceIndex) const;
+    /** B-599: the chosen source's name for the title and the button; empty for None or no infusion component. */
+    FText GetCurrentInfusionSourceName() const;
     /** D-001: a stunned actor's menu offers only Attack + Defend, with no infusion (D-023 A). */
     bool IsCurrentActorStunned() const;
     /** Infusion controls are inert for this pick: immune action/equipment, or a stunned actor. */

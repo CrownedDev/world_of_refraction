@@ -281,6 +281,12 @@ ULoadoutV2ScreenWidget *ULoadoutV2ScreenWidget::OpenWithLoadout(APlayerControlle
 	return Screen;
 }
 
+void ULoadoutV2ScreenWidget::SetStandingNote(const FText &Note)
+{
+	StandingNote = Note;
+	RefreshView();
+}
+
 TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 {
 	using namespace LoadoutV2ScreenStyle;
@@ -452,6 +458,7 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	Message = FText::GetEmpty();
+	StandingNote = FText::GetEmpty(); // the stack reuses a closed screen: the Gate sets its note after each open
 	Mode = ELoadoutV2Mode::List;
 	bEditing = false;
 	Draft = FLoadoutV2Draft();
@@ -1312,6 +1319,10 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		{
 			return LOCTEXT("HintsItemsRestore", "{Confirm}  Restore        {Second}  Confirm        {Back}  Back");
 		}
+		if (IsSocketGrid() && !(Items.IsValidIndex(Selected) && Items[Selected].bEquipped))
+		{
+			return LOCTEXT("HintsGridSocket", "{Confirm}  Put in        {Toggle}  Compare        {Back}  Back"); // B-612: one kind, no filter
+		}
 		if (IsGridOpen())
 		{
 			// D-248 step 1: the tab keys turn the grid's filter.
@@ -2014,8 +2025,9 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 	}
 	CompareText->SetText(Compare);
 	SetShown(CompareText, !Compare.IsEmpty());
-	WoRKeyHints::SetHint(MessageText, Message);
-	SetShown(MessageText, !Message.IsEmpty());
+	const FText MessageLine = PickMessageLine(Message, StandingNote);
+	WoRKeyHints::SetHint(MessageText, MessageLine);
+	SetShown(MessageText, !MessageLine.IsEmpty());
 	// B-481: the footer is a pattern; {ViewName} is the view X switches to.
 	FFormatNamedArguments HintArguments;
 	HintArguments.Add(TEXT("ViewName"), bSimpleView ? LOCTEXT("ViewFull", "Full") : LOCTEXT("ViewSimple", "Simple"));
@@ -2026,21 +2038,36 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 
 bool ULoadoutV2ScreenWidget::IsGridOpen() const
 {
-	return Mode == ELoadoutV2Mode::WindowItems && Slots.IsValidIndex(SlotIndex) &&
-		   (Slots[SlotIndex] == ELoadoutV2Slot::MainHand || Slots[SlotIndex] == ELoadoutV2Slot::OffHand);
+	return Mode == ELoadoutV2Mode::WindowItems && Slots.IsValidIndex(SlotIndex) && HasSlotGrid(Slots[SlotIndex]);
+}
+
+bool ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot GearSlot)
+{
+	return GearSlot == ELoadoutV2Slot::MainHand || GearSlot == ELoadoutV2Slot::OffHand || GearSlot == ELoadoutV2Slot::Socket1 ||
+		   GearSlot == ELoadoutV2Slot::Socket2;
+}
+
+bool ULoadoutV2ScreenWidget::IsSocketGrid() const
+{
+	return IsGridOpen() && (Slots[SlotIndex] == ELoadoutV2Slot::Socket1 || Slots[SlotIndex] == ELoadoutV2Slot::Socket2);
 }
 
 TArray<FLoadoutV2GridTile> ULoadoutV2ScreenWidget::GetGridTiles() const
 {
 	TArray<FLoadoutV2GridTile> Tiles;
-	for (const FLoadoutV2WindowItem &Item : Items)
+	for (int32 Index = 0; Index < Items.Num(); ++Index)
 	{
+		const FLoadoutV2WindowItem &Item = Items[Index];
 		FLoadoutV2GridTile &Tile = Tiles.AddDefaulted_GetRef();
 		if (Item.Weapon.Weapon)
 		{
 			Tile.Icon.Kind = ELoadoutV2IconKind::WeaponType;
 			Tile.Icon.WeaponType = Item.Weapon.Weapon->WeaponType;
 			Tile.Icon.Name = WoRGameNames::GetWeaponTypeName(Item.Weapon.Weapon->WeaponType);
+		}
+		else
+		{
+			Tile.Icon = GetLineIcons(Index).Type; // B-612: a socket's crystal, stone or evolution, as its list line shows it
 		}
 		Tile.Count = Item.Count;
 		Tile.bWorn = Item.bWorn;
@@ -2058,8 +2085,9 @@ void ULoadoutV2ScreenWidget::ApplyGridFilter()
 		if (Item.Weapon.Weapon)
 		{
 			Types.Add(Item.Weapon.Weapon->WeaponType);
-			GridPieceCount += Item.Count;
 		}
+		const bool bSocketChoice = IsSocketGrid() && !Item.bEquipped && !Item.bRestore; // B-612: not the Remove / Restore lines
+		GridPieceCount += (Item.Weapon.Weapon || bSocketChoice) ? Item.Count : 0;
 	}
 	GridTypes = WoRLoadoutV2Grid::GetTypesPresent(Types);
 	bGridFiltered = bGridFiltered && GridTypes.Contains(GridFilter); // a type that left the list: back to All
@@ -2160,7 +2188,8 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 	if (bSlotGrid)
 	{
 		GridTitleText->SetText(GetSlotName(Slots[SlotIndex]));
-		GridCountText->SetText(FText::Format(LOCTEXT("GridCount", "{0} {0}|plural(one=weapon,other=weapons)"), GridPieceCount));
+		GridCountText->SetText(IsSocketGrid() ? FText::Format(LOCTEXT("GridCountSocket", "{0} {0}|plural(one=choice,other=choices)"), GridPieceCount)
+											  : FText::Format(LOCTEXT("GridCount", "{0} {0}|plural(one=weapon,other=weapons)"), GridPieceCount));
 	}
 	else
 	{
@@ -4207,7 +4236,19 @@ void ULoadoutV2ScreenWidget::PickItem()
 	Message = FText::GetEmpty();
 	if (!PutPieceInDraft(Slots[SlotIndex], Item))
 	{
-		PickedSocket = PickedSocket == Selected ? INDEX_NONE : Selected; // a socket goes in on Y Confirm
+		// B-612 (Crown): a socket's crystal, stone or evolution goes in on A (it was marked, then Y). A full socket's
+		// line is Remove first (CL-28b), so this never replaces a gem without asking.
+		PickedSocket = Selected;
+		ConfirmWindow();
+		if (Mode == ELoadoutV2Mode::WindowItems)
+		{
+			PickedSocket = INDEX_NONE; // refused: the reason is in Message, nothing stays marked
+			RefreshView();
+			return;
+		}
+		SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // put in: as a picked piece below, the grid's hover and compare end
+		HoveredGridTab = INDEX_NONE;
+		bComparing = false;
 		RefreshView();
 		return;
 	}
