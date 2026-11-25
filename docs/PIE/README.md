@@ -714,6 +714,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-621](B-621.md) | `fix/B-621-self-buff-targettype` (built 2026-11-25) | A self or ally buff lands no hit (no DEFEND prompt, no damage) and a single-ally buff goes to the picked ally; Self / Ally survive a reload (redirect retired) | Pending |
 | [B-615](B-615.md) | `fix/B-615-gate-loadout-kit-note` (built 2026-11-25) | Gate: its Loadout says a trial starts on your class kit; the Caster kit row steps | Pending |
 | [B-613](B-613.md) | `feature/B-613-sticky-infusion` (built 2026-11-25) | Infusion stays on for your next actions in a fight, until you turn it off | Pending |
+| [B-620](B-620.md) | `feature/B-620-weapon-buffs-no-infusion` (built 2026-11-25, on B-613) | A weapon buff or debuff offers no infusion, and using one keeps the infusion on; spells unchanged | Pending |
 | [B-600k](B-600k.md) | `fix/B-600k-rush-frames-attacker` (built 2026-11-25) | The close Melee Rush hit shot keeps the attacker in frame, even on a long reach | Pending |
 | [B-618](B-618.md) | `feature/B-618-skill-sounds` (built 2026-11-25) | Skills play their sounds: the SFX notify's sound and an impact sound on each landed hit (needs sounds set on a skill first) | Pending |
 | [B-602](B-602.md) | `fix/B-602-scroll-click-picks-stale-row` (built 2026-11-24) | A click after a wheel scroll picks the row now under the mouse (vendor, and every scrolling menu list) | Pending |

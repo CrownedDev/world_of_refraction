@@ -10,6 +10,7 @@
 #include "Skills/Definitions/SpellData.h"
 #include "Combat/Actions/ActionExecutor.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SupportSkillRules.h"
 #include "Skills/Definitions/SkillDataBase.h"
 #include "Equipment/Weapons/WeaponData.h"
 #include "Save/SaveSubsystem.h"
@@ -79,10 +80,10 @@ namespace
             }
         }
 
-        // Action-level immunity — single cast to base is sufficient
+        // Action-level immunity — single cast to base is sufficient. B-620 (D-275): a weapon buff or debuff takes no infusion either.
         if (const USkillDataBase *Skill = Cast<USkillDataBase>(ActionData))
         {
-            return bEquipmentImmune || Skill->bImmuneToInfusion;
+            return bEquipmentImmune || Skill->bImmuneToInfusion || SupportSkillRules::IsWeaponBuffOrDebuff(Skill);
         }
 
         return bEquipmentImmune;
@@ -2865,7 +2866,15 @@ bool UCombatCommandMenuSubsystem::IsCurrentActorStunned() const
 
 bool UCombatCommandMenuSubsystem::IsInfusionLockedForPendingAction() const
 {
-    return IsCurrentActorStunned() || ResolveImmuneFlag(PendingActionData.Get(), CurrentActor.Get());
+    UObject *ActionData = PendingActionData.Get();
+    if (!ActionData && PendingActionCategory == EPieMenuCategory::Attack) // B-620: the main-menu Attack carries none; the weapon's attack
+    {
+        if (const ULoadoutComponent *LC = GetLoadoutComponent())
+        {
+            ActionData = LC->GetCurrentAttack();
+        }
+    }
+    return IsCurrentActorStunned() || ResolveImmuneFlag(ActionData, CurrentActor.Get());
 }
 
 void UCombatCommandMenuSubsystem::SetPendingInfusionLevel(int32 Level)
