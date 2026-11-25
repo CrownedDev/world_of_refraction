@@ -722,8 +722,7 @@ void UActionExecutor::SpawnVFXArrayEntry(const FSkillVFXEntry &Entry, int32 Inde
 	if (Spawned && Entry.bElementTinted)
 	{
 		const bool bIsBD = UBrokenDarknessManager::IsInBDForm(Caster);
-		const ESpellElement Element = EffectTint::ChooseTintElement(CurrentExecutionContext->PartialResult.AttackElement,
-																	CurrentExecutionContext->PartialResult.LookElement); // B-622
+		const ESpellElement Element = CurrentExecutionContext->PartialResult.AttackElement;
 		const FHybridSpellColorData Colors = UHybridSpellColors::GetInfusionColors(Element, bIsBD);
 		Spawned->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
 		Spawned->SetColorParameter(FName("EdgeColor"), Colors.BlendedColor);

@@ -20,13 +20,6 @@ namespace EffectTint
 		return ParryVisuals::IsColouringElement(Element);
 	}
 
-	/** B-622 (D-275, Crown: "Yes, tint only"): the element a skill's VFX is tinted with. A weapon buff or debuff takes no
-	 *  infusion, but its look takes the caster's infusion element (LookElement) when one is on; else the action's own. */
-	inline ESpellElement ChooseTintElement(ESpellElement ActionElement, ESpellElement LookElement)
-	{
-		return ShouldSetSoftTofuColour(LookElement) ? LookElement : ActionElement;
-	}
-
 	inline void SetSoftTofuColour(UNiagaraComponent &Comp, const FLinearColor &Colour)
 	{
 		Comp.SetVectorParameter(SOFTTOFU_COLOR_PARAM, FVector(Colour.R, Colour.G, Colour.B));
