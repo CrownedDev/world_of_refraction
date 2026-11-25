@@ -26,9 +26,9 @@ struct FLoadoutV2GridTile
 
 namespace WoRLoadoutV2Grid
 {
-	/** Tiles in a row (the mockup's ten: step 2 gave the grid the details box's width). */
-	constexpr int32 COLUMNS = 10;
-	/** D-249: tiles in a row when the grid has the whole screen's width (the inventory alone, the loadout closed). */
+	/** Tiles in a row: B-598c (mockup menus/loadout/v5), the left column's five. */
+	constexpr int32 COLUMNS = 5;
+	/** OBSOLETE (B-598c: one grid width now; delete after Crown's PIE pass): D-249's whole-width row. */
 	constexpr int32 COLUMNS_WIDE = 14;
 
 	/** The filter tabs after All: each weapon type present, once, in the enum's order. */

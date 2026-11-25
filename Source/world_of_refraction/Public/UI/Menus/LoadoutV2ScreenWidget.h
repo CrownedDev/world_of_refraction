@@ -213,11 +213,19 @@ public:
 	/** B, Esc: one step back (the name box, the saved list, the ask, the list, the window, Options), else closes the screen. */
 	void PressBack() { HandleBackAction(); }
 
-	// D-249 piece 1: Inventory and Loadout are one screen. The inventory is home: the Gear / Pouch / Chest tabs and
-	// their things in the grid (read from the inventory screen's model, WoRInventoryScreen), the lit tile's details in
-	// the card. Y (and a click on the Loadout button, top right) brings the loadout in on the left and the grid narrows;
-	// Y again closes it. Left off the grid's first column goes to the loadout's side, Right from its list comes back.
-	// The specs call these too.
+	// D-249 piece 1: Inventory and Loadout are one screen. B-598c (mockups menus/loadout/v5, menus/inventory/v4, Crown
+	// 2026-11-25): it is pages, Inventory | Equipment | Skills | Apparel (Q / E, the tab chips), each in three fixed
+	// columns: the list or the picture grid on the left, the lit piece's details in the middle (no pop-up card), and
+	// Details on the right. The Inventory page is "the loadout out" (bLoadoutOpen false): its grid shows the bag, with
+	// the Gear / Pouch selector above the filter row (Up onto it, Left / Right turn it). The specs call these too.
+	/** B-598c: the page shown: 0 Inventory, then Equipment, Skills, Apparel. */
+	int32 GetPageIndex() const;
+	static constexpr int32 INVENTORY_PAGE = 0;
+	static constexpr int32 EQUIPMENT_PAGE = 1;
+	static constexpr int32 PAGE_COUNT = 4;
+	bool IsOnInventoryPage() const { return !bLoadoutOpen; }
+	/** B-598c: the keys are on the Gear / Pouch selector above the inventory's filter row. */
+	bool IsOnInventoryKinds() const { return bOnInvKinds; }
 	/** Opens the screen with the loadout already in and the keys on its side (the game menu's Loadout page, the Gate). */
 	static ULoadoutV2ScreenWidget *OpenWithLoadout(APlayerController *PC);
 	/** B-615: a line that stays under the screen while it is open (the Gate: a trial starts you on the class kit). */
@@ -225,19 +233,19 @@ public:
 	/** B-615: the message line: this step's message, else the standing note. */
 	static FText PickMessageLine(const FText &StepMessage, const FText &Note) { return StepMessage.IsEmpty() ? Note : StepMessage; }
 	bool IsLoadoutOpen() const { return bLoadoutOpen; }
-	/** The keys are on the inventory's side (its tiles, or its filter row). */
+	/** The keys are on the inventory's side (its tiles, or its filter row). B-598c: the Inventory page. */
 	bool IsOnInventorySide() const { return !bOnLoadoutSide; }
-	/** Y on the inventory's side, or the Loadout button: the loadout in or out. Refused while the loadout is in the
-	 *  middle of something (Options, a window, a slot's list): finish or leave that first. */
+	/** B-598c: the Inventory page or the Equipment page, the other way. Refused while the loadout is in the middle of
+	 *  something (Options, a window, a slot's list): finish or leave that first. */
 	void ToggleLoadout();
-	/** The keys go to the loadout's side (it must be open) or back to the inventory's (the loadout must be at a tab's
-	 *  top level). False when they can't. */
+	/** OBSOLETE (B-598c: pages replace D-249's two sides; delete after Crown's PIE pass): always false now, the keys are
+	 *  on the page shown. */
 	bool FocusLoadoutSide();
 	bool FocusInventorySide();
-	/** The arrows on the inventory's side: tile to tile; Up off the top row reaches the filter row (Left / Right pick,
-	 *  Down returns); Left off the first column goes to the loadout's side when it is open. */
+	/** The arrows on the Inventory page: tile to tile; Up off the top row reaches the filter row (Left / Right pick,
+	 *  Down returns), Up again the Gear / Pouch selector (Left / Right turn it, Down returns). */
 	void MoveInventoryTile(int32 DeltaX, int32 DeltaY);
-	/** LB / RB on the inventory's side: Gear, Pouch, Chest, in a ring. */
+	/** The Gear / Pouch selector: the next kind (Delta > 0) or the one before, in a ring. */
 	void MoveInventoryTab(int32 Delta);
 	/** The View button / H on the inventory's side: the next sort. */
 	void CycleInventorySort();
@@ -246,8 +254,8 @@ public:
 	int32 GetInventoryTile() const { return InvSelected; }
 	bool IsOnInventoryFilters() const { return bOnInvFilters; }
 	const FInventoryScreenPage &GetInventorySide() const { return InvPage; }
-	/** Tiles to a row: fewer while the loadout is in. */
-	int32 GetGridColumns() const { return bLoadoutOpen ? WoRLoadoutV2Grid::COLUMNS : WoRLoadoutV2Grid::COLUMNS_WIDE; }
+	/** Tiles to a row: B-598c, the left column's five. */
+	int32 GetGridColumns() const { return WoRLoadoutV2Grid::COLUMNS; }
 
 	// D-248 step 1: the picture grid (WoRLoadoutV2Grid), shown while a weapon slot (Main hand, Off hand) is being filled:
 	// the entry's slots stay in the list on the left, the choices are tiles beside it. The specs call these too.
@@ -455,8 +463,9 @@ private:
 	// D-249 piece 1: the inventory's side.
 	/** The loadout is at a tab's top level (its entries, the Skills tab's entries): the only place the keys may leave it. */
 	bool IsLoadoutAtTopLevel() const { return Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries; }
-	/** The grid shows the inventory's tab (always, but while a weapon slot is being filled: then it shows its choices). */
-	bool IsInventoryGrid() const { return !IsGridOpen(); }
+	/** The grid shows the inventory's tab. B-598c: on the Inventory page only (the loadout's pages show their list, or a
+	 *  slot's choices while one is being filled). */
+	bool IsInventoryGrid() const { return !bLoadoutOpen; }
 	/** B-612: the grid is a socket's choices (a crystal, stone or evolution goes in on A). */
 	bool IsSocketGrid() const;
 	/** The inventory's page for the shown member, tab, filter and sort, read fresh. */
@@ -469,9 +478,16 @@ private:
 	bool IsInventoryBox() const { return !bOnLoadoutSide && IsInventoryGrid(); }
 	void SelectInventoryTab(EInventoryScreenTab NewTab);
 	void SelectInventoryFilter(int32 Index);
+	/** B-598c: shows page NewPage (0 Inventory, then the loadout's tabs) at its top level. */
+	void ShowPage(int32 NewPage);
+	/** B-598c: the keys are above the inventory's tiles (the filter row or the selector): no tile is lit. */
+	bool IsAboveInventoryTiles() const { return bOnInvFilters || bOnInvKinds; }
+	/** B-598c: the Details column on the right: what the page is about (the character and loadout, or the lit piece). */
+	void RefreshRightPanel();
 	bool bLoadoutOpen = false;
 	bool bOnLoadoutSide = false;
 	bool bOnInvFilters = false;
+	bool bOnInvKinds = false;
 	EInventoryScreenTab InvTab = EInventoryScreenTab::Gear;
 	EInventoryScreenFilter InvFilter = EInventoryScreenFilter::All;
 	EInventoryScreenSort InvSort = EInventoryScreenSort::Kind;
@@ -482,7 +498,27 @@ private:
 	int32 HoveredInvTab = INDEX_NONE;
 	/** The columns the tiles were last laid out in (their rows and columns are set again when it changes). */
 	int32 GridColumnsLaidOut = 0;
+	/** B-598c: the Gear / Pouch selector's words (one chip each, in one plate). */
 	WoRMenuStyle::FChipRow InvTabChips;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> InvKindsPlate;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> InvKindUnderlines;
+	// B-598c: the Details column, and the middle panel's picture of the lit piece.
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> RightSubText;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> RightNoteText;
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> RightLines;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> RightLabels;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> RightValues;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> BoxPictureFrame;
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> BoxPicture;
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> LoadoutTabsPanel;
 	UPROPERTY(Transient)
@@ -497,7 +533,9 @@ private:
 	void RefreshGrid(bool bShown);
 	/** D-248 step 2: where the details box is drawn. While the grid shows it is the card beside the lit (or hovered)
 	 *  tile (WoRLoadoutV2Grid::PlaceCard), in a light frame; otherwise it sits right of the list, as before. Called
-	 *  once the box's lines are written, so the card's size is the one it will have. */
+	 *  once the box's lines are written, so the card's size is the one it will have.
+	 *  OBSOLETE (B-598c: the box is the fixed middle column, not on a canvas, so this returns at once; delete with
+	 *  WoRLoadoutV2Grid::PlaceCard after Crown's PIE pass). */
 	void PlaceBox(bool bGrid);
 	/** One more RefreshView on the next frame (once; not a Tick), asked for only before the screen's first draw, when
 	 *  its own height is not known yet (UI_Theme 5a: otherwise the card is measured and placed the same frame). The
