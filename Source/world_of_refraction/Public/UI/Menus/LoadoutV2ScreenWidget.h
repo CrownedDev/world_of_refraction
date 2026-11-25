@@ -188,6 +188,8 @@ public:
 	 *  Right to the inventory's side). False when the direction has nothing to do here. */
 	bool MoveInDirection(int32 DeltaX, int32 DeltaY);
 	void MoveMember(int32 Delta);
+	/** B-628: the shown character, an index of WoRLoadoutScreen::BuildMembers (the party screen's Y opens on its member). */
+	int32 GetMemberIndex() const { return MemberIndex; }
 	/** B-440f, LB / RB: the next tab (Delta > 0) or the one before, from a tab's top level only. B-476d: Weapons |
 	 *  Skills | Apparel in a ring. */
 	void SwitchTab(int32 Delta = 1);
