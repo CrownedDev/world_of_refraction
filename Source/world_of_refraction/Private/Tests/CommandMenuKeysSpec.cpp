@@ -551,6 +551,9 @@ void FCommandMenuKeysSpec::Define()
 		Menu->PickTargetPanelChoice(ETargetPanelChoice::Element, 1);
 		const FString Source = Sources[1].ToString();
 		TestEqual(TEXT("B-599: the infused action's heading names its source"), View->GetTitle().ToString(), FString::Printf(TEXT("Attack (%s) · infusion"), *Source));
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 0);
+		TestEqual(TEXT("B-599: a source at level 0 is no infusion, the heading bare"), View->GetTitle().ToString(), FString(TEXT("Attack · infusion")));
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 1);
 
 		TestTrue(TEXT("3 / Y again closes it"), Menu->PressMenuKey(EPieMenuCategory::Items));
 		Panel = View->GetPanel();
