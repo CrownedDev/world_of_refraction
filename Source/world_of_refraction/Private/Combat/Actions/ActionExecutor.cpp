@@ -1648,6 +1648,21 @@ void UActionExecutor::ExecuteSkillAsync(AActor *User, const FAction &Action, UCh
 	// Play animation (merged path — PlaySkillAnimation reads the unified base SkillMontage)
 	PlaySkillAnimation(User, Ability, ActionMods);
 
+	// B-621: a no-damage Self / Ally ability (a buff) lands no hit. No defend window opens, so no prompt, no damage
+	// and no hit reaction; its targets are the affected ones, and its effects apply to them at finalize.
+	if (SupportSkillRules::IsFriendlyNoDamageSkill(Ability))
+	{
+		CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = 0;
+		for (AActor *Target : ValidTargets)
+		{
+			CurrentExecutionContext->PartialResult.AffectedTargets.AddUnique(Target);
+		}
+		UE_LOG(LogWoRCombat, Log, TEXT("[ActionExecutor] %s is a no-damage %s ability: no hit, its effects go to %d target(s) (B-621)"),
+			   *Ability->Name, *UEnum::GetDisplayValueAsText(Ability->TargetType).ToString(), ValidTargets.Num());
+		LogActionDispatch(Action.ActionType, Action.AbilityInfusionLevel, 0, ValidTargets.Num());
+		return;
+	}
+
 	// Buildup amount only. Session Y: trigger type resolves in the manager from
 	// (Element, PhysicalType). Abilities have no physical type - if the action
 	// is non-infused (Element=None, Physical=None) the resolver returns None
@@ -5974,9 +5989,10 @@ void UActionExecutor::GetEffectTargets(
 			Others.Remove(User);
 			AddRandomDistinct(Others, 1, OutTargets);
 		}
-		else // Single — for abilities, Ally typically means self (TODO: ally selection)
+		else // Single — the chosen ally (B-621); the user when the action's target is not on its side (an enemy, none)
 		{
-			OutTargets.Add(User);
+			AActor *Chosen = ActionTargets.Num() > 0 ? ActionTargets[0] : nullptr;
+			OutTargets.Add(Chosen && GetAllAllies(User, UserTeam).Contains(Chosen) ? Chosen : User);
 		}
 		break;
 
