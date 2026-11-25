@@ -104,6 +104,7 @@ void UCombatCameraDirector::BeginCombat(const TArray<AActor *> &LocalParty, cons
 	DefencePunchesDropped = 0;
 	bActedSinceAsked = false; // B-401
 	SameTurnReturnCount = 0;
+	ComboRecutCount = 0; // B-600i
 	LocalCombatants.Append(LocalParty);
 	OpposingCombatants.Append(OpposingParty);
 
@@ -828,9 +829,22 @@ void UCombatCameraDirector::HandleDamageDealt(AActor *Attacker, AActor *Target, 
 {
 	MarkDefendHit(Attacker); // B-604c
 	// B-371: the caster's first hit plays the Impact shot (several targets: Spread), or cuts back when set to.
+	if (IsShotPlaying() && Attacker == ShotCaster.Get() && bShotImpactShown &&
+		FCombatCameraRules::RecutsOnLaterHit(ShotStyle, ShotTuning, GFrameCounter == LastShotHitFrame))
+	{
+		// B-600i (Q-600i, E33 combos): each later hit re-cuts to the next angle.
+		LastShotHitFrame = GFrameCounter;
+		++ShotHitIndex;
+		++ComboRecutCount;
+		PlayShot(ShotCamera.Get(), ECameraShotMoment::Impact, FCombatCameraRules::ComputeComboHitShot(BuildShotContext(bCritical), ShotTuning, ShotHitIndex));
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's hit %d: re-cut to angle %d"), *GetNameSafe(Attacker), ShotHitIndex + 1,
+			   ShotHitIndex % FCombatCameraRules::ComboRecutAngles);
+		return;
+	}
 	if (IsShotPlaying() && Attacker == ShotCaster.Get() && !bShotImpactShown)
 	{
 		bShotImpactShown = true;
+		LastShotHitFrame = GFrameCounter; // B-600i
 		ShotProjectile.Reset(); // review fix: the impact shot doesn't follow the projectile
 		// A hit on the frame the pattern started would cut it unseen; let that one show (as the sequence path does).
 		if (bSkipCinematicAfterHit && GFrameCounter != ShotStartFrame)
@@ -1402,6 +1416,16 @@ bool UCombatCameraDirector::StartShotPattern(AActor *Caster, const FAction &Acti
 		StopShotPattern(); // review fix: no viewer or camera, nothing left half-playing
 		return false;
 	}
+	// B-600i (E33 party buffs): a Support skill on an ally besides its caster cuts to the allies after the front shot.
+	const bool bAllyTarget = ShotTargets.ContainsByPredicate([this, Caster](const TWeakObjectPtr<AActor> &Target)
+															 { return Target.Get() && Target.Get() != Caster && !OpposingCombatants.Contains(Target.Get()); });
+	if (ShotStyle == ESkillCameraStyle::Support && bAllyTarget)
+	{
+		if (UWorld *World = GetWorld())
+		{
+			World->GetTimerManager().SetTimer(SupportWideTimer, this, &UCombatCameraDirector::CutToSupportWide, FCombatCameraRules::SupportCasterSeconds, false);
+		}
+	}
 	CurrentMode = ECombatCameraMode::Action;
 	UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] Shot pattern for %s's %s (%d target(s))"), *GetNameSafe(Caster), *GetNameSafe(Skill), ShotTargets.Num());
 	return true;
@@ -1687,6 +1711,16 @@ void UCombatCameraDirector::CutOnArrival()
 	}
 }
 
+void UCombatCameraDirector::CutToSupportWide()
+{
+	// B-600i: unless something else took the view, the front shot of the caster cuts to the wide of its allies.
+	if (IsShotPlaying() && ShotCamera.IsValid() &&
+		PlayShot(ShotCamera.Get(), ECameraShotMoment::Spread, FCombatCameraRules::ComputeSupportPartyShot(BuildShotContext(false), ShotTuning)))
+	{
+		UE_LOG(LogWoRCombat, Log, TEXT("[CombatCamera] %s's support: cut to the allies"), *GetNameSafe(ShotCaster.Get()));
+	}
+}
+
 void UCombatCameraDirector::StopShotPattern()
 {
 	if (UWorld *World = GetWorld())
@@ -1704,8 +1738,11 @@ void UCombatCameraDirector::StopShotPattern()
 	if (UWorld *World = GetWorld())
 	{
 		World->GetTimerManager().ClearTimer(ArrivalCutTimer); // B-600c
+		World->GetTimerManager().ClearTimer(SupportWideTimer); // B-600i
 	}
 	bArrivedOnSide = false;
+	ShotHitIndex = 0; // B-600i
+	LastShotHitFrame = 0;
 	bShotImpactShown = false;
 	bShotCastShown = false;
 	ShotElapsed = 0.0f;
@@ -1733,6 +1770,10 @@ FCameraShotContext UCombatCameraDirector::BuildShotContext(bool bCritical) const
 	Context.bRanged = bShotRanged;
 	Context.bCritical = bCritical;
 	Context.bAllowRush = !bCameraMovementOff; // B-403 (R15)
+	if (AActor *Caster = ShotCaster.Get(); Caster && LocalCombatants.Contains(Caster))
+	{
+		Context.EnemyCentre = BuildFrame(Caster).EnemyCentre; // B-600i: Support faces away from its allies
+	}
 	return Context;
 }
 
@@ -1745,11 +1786,13 @@ FString UCombatCameraDirector::GetShotString() const
 	const UCombatCameraComponent *Camera = ShotCamera.Get();
 	const UWorld *World = GetWorld();
 	const bool bArrivalPending = World && World->GetTimerManager().IsTimerActive(ArrivalCutTimer);
-	return FString::Printf(TEXT("shot: %s for %s on %s's camera (fov %.0f, shake %.2f, blur %.2f over %.2f s%s%s)"), *UEnum::GetValueAsString(ShotMoment),
-						   *GetNameSafe(ShotCaster.Get()), Camera ? *GetNameSafe(Camera->GetOwner()) : TEXT("no"),
-						   ActiveShot.FieldOfView, ActiveShot.ShakeScale, ActiveShot.MotionBlur, ActiveShot.BlendSeconds,
-						   ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""),
-						   bArrivalPending ? TEXT(", arrival cut pending") : bArrivedOnSide ? TEXT(", on the side view since the arrival") : TEXT("")); // B-600c
+	return FString::Printf(TEXT("shot: %s %s for %s on %s's camera (fov %.0f, shake %.2f, blur %.2f over %.2f s%s%s; hit %d, %d re-cuts this fight%s)"),
+						   *UEnum::GetValueAsString(ShotStyle), *UEnum::GetValueAsString(ShotMoment), *GetNameSafe(ShotCaster.Get()),
+						   Camera ? *GetNameSafe(Camera->GetOwner()) : TEXT("no"), ActiveShot.FieldOfView, ActiveShot.ShakeScale, ActiveShot.MotionBlur,
+						   ActiveShot.BlendSeconds, ShotProjectile.IsValid() ? TEXT(", following the projectile") : TEXT(""),
+						   bArrivalPending ? TEXT(", arrival cut pending") : bArrivedOnSide ? TEXT(", on the side view since the arrival") : TEXT(""), // B-600c
+						   ShotHitIndex + 1, ComboRecutCount,
+						   World && World->GetTimerManager().IsTimerActive(SupportWideTimer) ? TEXT(", support cut to the allies pending") : TEXT("")); // B-600i
 }
 
 EEnemyCameraHeight UCombatCameraDirector::GetFightCameraHeight() const

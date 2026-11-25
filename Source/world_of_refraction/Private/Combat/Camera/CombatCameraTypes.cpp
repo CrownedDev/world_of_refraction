@@ -99,11 +99,30 @@ namespace CombatCameraStyles
 	constexpr float HeavyTargetSide = 150.0f;
 	constexpr float HeavyTargetHeight = 40.0f;
 	constexpr float HeavyTargetLookHeight = 20.0f;
-	// Area Sweep: wide and higher, back from everyone's centre past the attacker.
+	// Melee Rush (B-600i, E33 section 7): the hit's close three-quarter on the target, from the caster's side of it, about
+	// 48 degrees off the fighters' line; far enough out that the attacker at the strike spot never fills the lens.
+	constexpr float MeleeTargetBack = 230.0f;
+	constexpr float MeleeTargetSide = 260.0f;
+	constexpr float MeleeTargetHeight = 40.0f;
+	constexpr float MeleeTargetLookHeight = 20.0f;
+	// Area Sweep (B-600i, E33: low to mid height, behind and beside the caster): back from everyone's centre past the
+	// attacker, out to the tuned side so the attacker sits near-left.
 	constexpr float AreaBack = 700.0f;
-	constexpr float AreaHeight = 450.0f;
+	constexpr float AreaHeight = 200.0f;
+	constexpr float AreaSide = 200.0f;
 	/** Extra distance back per cm the farthest fighter stands from the centre. */
 	constexpr float AreaPullback = 1.6f;
+	// Support (B-600i, E33 buffs and heals): a medium-close front shot of the caster at home, orbiting slightly one way.
+	constexpr float SupportFrontDistance = 300.0f;
+	constexpr float SupportFrontHeight = 40.0f;
+	constexpr float SupportLookHeight = 20.0f;
+	constexpr float SupportOrbitStart = 40.0f;
+	constexpr float SupportOrbitEnd = 100.0f;
+	// Support's wide of the allies: from the enemies' side, at most SupportWideMaxGapShare of the way to them.
+	constexpr float SupportWideBack = 550.0f;
+	constexpr float SupportWideHeight = 180.0f;
+	constexpr float SupportWidePullback = 1.6f;
+	constexpr float SupportWideMaxGapShare = 0.7f;
 }
 
 namespace CombatCameraTargetView
@@ -813,6 +832,72 @@ namespace
 		Shot.FieldOfView = FCombatCameraRules::DefaultFieldOfView;
 		return Shot;
 	}
+
+	/** B-600h/i (E33 section 7): a view of the first target from the caster's side of it: Back cm toward the caster,
+	 *  Side cm to the caster's right as it faces the target (negative: its left), Height cm up, at the target's chest. */
+	FTransform LookAtTargetFrom(const FCameraShotContext &Context, float Back, float Side, float Height, float LookHeight)
+	{
+		const FVector Target = Context.Targets.IsEmpty() ? Context.Caster + FVector::ForwardVector : Context.Targets[0];
+		const FVector ToCaster = (Context.Caster - Target).GetSafeNormal2D(UE_SMALL_NUMBER, -FVector::ForwardVector);
+		const FVector CasterRight = FVector::CrossProduct(FVector::UpVector, -ToCaster);
+		return LookFrom(Target + ToCaster * Back + CasterRight * Side + FVector::UpVector * Height, Target + FVector::UpVector * LookHeight);
+	}
+
+	/** B-600i: the centre of Context's targets and its caster, and how far the farthest stands from it. */
+	FVector GetGroupCentre(const FCameraShotContext &Context, float &OutSpread)
+	{
+		FVector Centre = Context.Caster;
+		for (const FVector &Target : Context.Targets)
+		{
+			Centre += Target;
+		}
+		Centre /= Context.Targets.Num() + 1;
+		OutSpread = static_cast<float>(FVector::Dist2D(Context.Caster, Centre));
+		for (const FVector &Target : Context.Targets)
+		{
+			OutSpread = FMath::Max(OutSpread, static_cast<float>(FVector::Dist2D(Target, Centre)));
+		}
+		return Centre;
+	}
+}
+
+FCameraShot FCombatCameraRules::ComputeComboHitShot(const FCameraShotContext &Context, const FSkillCameraTuning &Tuning, int32 HitIndex)
+{
+	using namespace CombatCameraStyles;
+	FCameraShot Shot = WithPassingPunch(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)); // its punch, shake, two-shot
+	const float Scale = FMath::Max(Tuning.DistanceScale, UE_KINDA_SMALL_NUMBER);
+	const float SideSign = Tuning.Side == ECameraShotSide::Left ? -1.0f : 1.0f;
+	const int32 Angle = FMath::Max(HitIndex, 0) % ComboRecutAngles;
+	if (Angle < ComboRecutAngles - 1) // the last angle is the side two-shot already in Shot
+	{
+		const float Mirror = Angle == 0 ? 1.0f : -1.0f;
+		Shot.End = LookAtTargetFrom(Context, MeleeTargetBack * Scale, MeleeTargetSide * SideSign * Mirror * Scale, MeleeTargetHeight, MeleeTargetLookHeight);
+	}
+	return CutAndHold(Shot);
+}
+
+bool FCombatCameraRules::RecutsOnLaterHit(ESkillCameraStyle Style, const FSkillCameraTuning &Tuning, bool bSameFrameAsLastHit)
+{
+	return Style == ESkillCameraStyle::MeleeRush && Tuning.bRecutEachHit && !bSameFrameAsLastHit;
+}
+
+FCameraShot FCombatCameraRules::ComputeSupportPartyShot(const FCameraShotContext &Context, const FSkillCameraTuning &Tuning)
+{
+	using namespace CombatCameraStyles;
+	const float Scale = FMath::Max(Tuning.DistanceScale, UE_KINDA_SMALL_NUMBER);
+	float Spread = 0.0f;
+	const FVector Centre = GetGroupCentre(Context, Spread);
+	const FVector TowardEnemies = Context.EnemyCentre.IsSet() ? (Context.EnemyCentre.GetValue() - Centre).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector)
+															  : FVector::ForwardVector;
+	float Out = (SupportWideBack + Spread * SupportWidePullback) * Scale;
+	if (Context.EnemyCentre.IsSet())
+	{
+		Out = FMath::Min(Out, static_cast<float>(FVector::Dist2D(Centre, Context.EnemyCentre.GetValue())) * SupportWideMaxGapShare); // never past them
+	}
+	FCameraShot Wide;
+	Wide.FieldOfView = DefaultFieldOfView;
+	Wide.End = LookFrom(Centre + TowardEnemies * Out + FVector::UpVector * SupportWideHeight * Scale, Centre + FVector::UpVector * SupportLookHeight);
+	return CutAndHold(Wide);
 }
 
 TOptional<FCameraShot> FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle Style, ECameraShotMoment Moment, const FCameraShotContext &Context,
@@ -849,23 +934,40 @@ TOptional<FCameraShot> FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle S
 		}
 		if (bHit)
 		{
-			return CutAndHold(WithPassingPunch(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)));
+			return ComputeComboHitShot(Context, Tuning, 0); // B-600i: the close three-quarter on the target
 		}
 		return {}; // no Cast pull-back
 	}
 	case ESkillCameraStyle::RangedRelease:
 	{
+		const FVector Shoulder = Caster - Forward * ReleaseShoulderBack * Scale + Right * ReleaseShoulderSide * SideSign * Scale +
+								 FVector::UpVector * ReleaseShoulderHeight * Scale;
 		if (Moment == ECameraShotMoment::WindUp || Moment == ECameraShotMoment::NamedAttack)
 		{
 			FCameraShot Shot;
 			Shot.FieldOfView = DefaultFieldOfView;
-			const FVector Shoulder = Caster - Forward * ReleaseShoulderBack * Scale + Right * ReleaseShoulderSide * SideSign * Scale +
-									 FVector::UpVector * ReleaseShoulderHeight * Scale;
 			Shot.Start = LookFrom(Shoulder, TargetCentre);
 			Shot.End = LookFrom(Shoulder + Forward * ReleaseCreep, TargetCentre);
 			Shot.BlendSeconds = ReleaseCreepSeconds;
 			Shot.bCut = true;
 			return Shot;
+		}
+		if (Tuning.bHoldShoulderThroughHit)
+		{
+			// B-600i (E33 ranged physical): no release cut; the projectile flies away from the lens and the hit is seen
+			// from the shoulder shot, its punch and shake there.
+			if (!bHit)
+			{
+				return {};
+			}
+			FCameraShot Held;
+			Held.FieldOfView = DefaultFieldOfView;
+			Held.End = LookFrom(Shoulder + Forward * ReleaseCreep, TargetCentre);
+			Held.Start = Held.End;
+			Held.FovPunch = (Context.bCritical ? CombatCameraShots::CritFovPunch : CombatCameraShots::ImpactFovPunch) * Tuning.ShakeScale;
+			Held.FovPunchSeconds = HitFovPunchSeconds;
+			Held.ShakeScale = ReleaseHitShake * Tuning.ShakeScale;
+			return Held;
 		}
 		// The release and the hit share one still side two-shot: the projectile crosses it, the hit punches in it.
 		FCameraShotContext Still = Context;
@@ -896,11 +998,7 @@ TOptional<FCameraShot> FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle S
 		{
 			// B-600h (E33: a spell's hit cuts to the target): a medium shot of the target, from the caster's side.
 			FCameraShot OnTarget = WithPassingPunch(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)); // its punch and shake
-			const FVector Target = Context.Targets.IsEmpty() ? TargetCentre : Context.Targets[0];
-			const FVector Back = (Caster - Target).GetSafeNormal2D(UE_SMALL_NUMBER, -Forward);
-			const FVector Across = FVector::CrossProduct(FVector::UpVector, Back);
-			OnTarget.End = LookFrom(Target + Back * HeavyTargetBack * Scale - Across * HeavyTargetSide * SideSign * Scale + FVector::UpVector * HeavyTargetHeight,
-									Target + FVector::UpVector * HeavyTargetLookHeight);
+			OnTarget.End = LookAtTargetFrom(Context, HeavyTargetBack * Scale, HeavyTargetSide * SideSign * Scale, HeavyTargetHeight, HeavyTargetLookHeight);
 			return CutAndHold(OnTarget);
 		}
 		return {};
@@ -911,21 +1009,33 @@ TOptional<FCameraShot> FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle S
 		{
 			return {}; // the wide shot holds to the end
 		}
-		FVector Centre = Caster;
-		for (const FVector &Target : Context.Targets)
-		{
-			Centre += Target;
-		}
-		Centre /= Context.Targets.Num() + 1;
-		float Spread = static_cast<float>(FVector::Dist2D(Caster, Centre));
-		for (const FVector &Target : Context.Targets)
-		{
-			Spread = FMath::Max(Spread, static_cast<float>(FVector::Dist2D(Target, Centre)));
-		}
+		float Spread = 0.0f;
+		const FVector Centre = GetGroupCentre(Context, Spread);
 		FCameraShot Wide;
 		Wide.FieldOfView = DefaultFieldOfView;
-		Wide.End = LookFrom(Centre - Forward * (AreaBack + Spread * AreaPullback) * Scale + FVector::UpVector * AreaHeight * Scale, Centre);
+		Wide.End = LookFrom(Centre - Forward * (AreaBack + Spread * AreaPullback) * Scale + Right * AreaSide * SideSign * Scale + FVector::UpVector * AreaHeight * Scale,
+							Centre);
 		return CutAndHold(Wide);
+	}
+	case ESkillCameraStyle::Support:
+	{
+		if (Moment != ECameraShotMoment::WindUp && Moment != ECameraShotMoment::NamedAttack)
+		{
+			return {}; // the front shot holds; the director cuts to ComputeSupportPartyShot for allies
+		}
+		// B-600i (E33 buffs): in front of the caster (toward the enemies, away from its allies), a slight one-way orbit.
+		const FVector TowardEnemies = Context.EnemyCentre.IsSet() ? (Context.EnemyCentre.GetValue() - Caster).GetSafeNormal2D(UE_SMALL_NUMBER, FVector::ForwardVector)
+																  : FVector::ForwardVector;
+		const FVector Across = FVector::CrossProduct(FVector::UpVector, TowardEnemies);
+		const FVector FrontSpot = Caster + TowardEnemies * SupportFrontDistance * Scale + FVector::UpVector * SupportFrontHeight;
+		const FVector LookAt = Caster + FVector::UpVector * SupportLookHeight;
+		FCameraShot Front;
+		Front.FieldOfView = DefaultFieldOfView;
+		Front.Start = LookFrom(FrontSpot + Across * SupportOrbitStart * SideSign * Scale, LookAt);
+		Front.End = LookFrom(FrontSpot + Across * SupportOrbitEnd * SideSign * Scale, LookAt);
+		Front.BlendSeconds = SupportCasterSeconds;
+		Front.bCut = true;
+		return Front;
 	}
 	case ESkillCameraStyle::Cinematic:
 	case ESkillCameraStyle::Standard:
@@ -950,8 +1060,11 @@ TOptional<FCameraShot> FCombatCameraRules::ComputeArrivalShot(ESkillCameraStyle 
 	{
 		return {};
 	}
-	// B-600c: the side two-shot, cut to as the attacker arrives (before the swing), still: the hit punches in it later.
-	FCameraShot Side = CutAndHold(ComputeShot(ECameraShotMoment::Impact, Context, Tuning));
+	// B-600c: cut to as the attacker arrives (before the swing), still: the hit punches there later. B-600i: a party
+	// member's Melee Rush arrives on its first hit's close three-quarter; an enemy's rush on the side two-shot.
+	FCameraShot Side = bCasterIsEnemy ? CutAndHold(ComputeShot(ECameraShotMoment::Impact, Context, Tuning)) : ComputeComboHitShot(Context, Tuning, 0);
+	Side.FovPunch = 0.0f;
+	Side.FovPunchSeconds = 0.0f;
 	Side.FieldOfView = DefaultFieldOfView;
 	Side.ShakeScale = 0.0f;
 	return Side;
