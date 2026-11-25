@@ -458,8 +458,21 @@ FReply UGateScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKe
 	if (IsToggleKey(Key) || IsSecondActionKey(Key))
 	{
 		// Over this screen: Back returns here.
-		if (bFresh && !(IsToggleKey(Key) ? static_cast<UObject *>(UPartyScreenWidget::Open(GetOwningPlayer()))
-										  : static_cast<UObject *>(ULoadoutV2ScreenWidget::OpenWithLoadout(GetOwningPlayer())))) // D-249: the loadout in
+		UObject *Opened = nullptr;
+		if (bFresh && IsToggleKey(Key))
+		{
+			Opened = UPartyScreenWidget::Open(GetOwningPlayer());
+		}
+		else if (bFresh)
+		{
+			ULoadoutV2ScreenWidget *Loadout = ULoadoutV2ScreenWidget::OpenWithLoadout(GetOwningPlayer()); // D-249: the loadout in
+			if (Loadout)
+			{
+				Loadout->SetStandingNote(WoRGateScreen::GetLoadoutKitNote()); // B-615 (D-221): the kit, not this gear, goes in
+			}
+			Opened = Loadout;
+		}
+		if (bFresh && !Opened)
 		{
 			UE_LOG(LogWoRUI, Warning, TEXT("[GateScreen] the %s screen didn't open"), IsToggleKey(Key) ? TEXT("party") : TEXT("loadout"));
 		}

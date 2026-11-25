@@ -112,6 +112,11 @@ FGateScreenPage WoRGateScreen::BuildPage(UWorld *World, const TArray<UTrialData 
 	return Page;
 }
 
+FText WoRGateScreen::GetLoadoutKitNote()
+{
+	return LOCTEXT("LoadoutKitNote", "A trial starts you on your class kit; changes here stay with your home gear and won't come with you.");
+}
+
 FText WoRGateScreen::GetEnterRefusal(const UGameInstance *GameInstance, const UTrialData *Gate, int32 TrialIndex)
 {
 	if (!Gate || Gate->Level.IsNull())
