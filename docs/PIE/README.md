@@ -706,6 +706,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-600i](B-600i.md) | `feature/B-600i-e33-skill-shots` (built 2026-11-25) | Melee Rush close three-quarter and a re-cut per hit, Area Sweep lower, the Support style and the Ranged Release hold option (Q-600i) | Pending |
 | [QA-kit](QA-kit.md) | `chore/qa-kit` (built 2026-11-24) | QA setup: `wor.Debug.QAKit` puts an ability that costs EP in the weapon in hand's skill slot (B-592b's HP ghost) and has a Caster join as your seat (the selector colour; Darkness, or the TestGear bd hint). QA save only | Pending |
 | [B-598](B-598.md) | `fix/B-598-no-hover-popups` (built 2026-11-24) | No hover pop-ups (Q-598): the loadout card follows the pick, no icon or tier tooltips; hover lighting stays | Pending |
+| [B-610](B-610.md) | `feature/B-610-equipment-skills-jump` (built 2026-11-25) | Loadout: K / R3 on a weapon or adapter opens its skill slots; Back returns to the same Equipment line | Pending |
 | [B-602](B-602.md) | `fix/B-602-scroll-click-picks-stale-row` (built 2026-11-24) | A click after a wheel scroll picks the row now under the mouse (vendor, and every scrolling menu list) | Pending |
 | [B-598b](B-598b.md) | `fix/B-598b-battle-hud-no-hover` (built 2026-11-24, on B-598) | No battle HUD tooltips (Q-598b): a greyed command's reason shows in the Act panel's second line when picked | Pending |
 
