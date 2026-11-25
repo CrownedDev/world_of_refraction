@@ -220,6 +220,10 @@ public:
 	// The specs call these too.
 	/** Opens the screen with the loadout already in and the keys on its side (the game menu's Loadout page, the Gate). */
 	static ULoadoutV2ScreenWidget *OpenWithLoadout(APlayerController *PC);
+	/** B-615: a line that stays under the screen while it is open (the Gate: a trial starts you on the class kit). */
+	void SetStandingNote(const FText &Note);
+	/** B-615: the message line: this step's message, else the standing note. */
+	static FText PickMessageLine(const FText &StepMessage, const FText &Note) { return StepMessage.IsEmpty() ? Note : StepMessage; }
 	bool IsLoadoutOpen() const { return bLoadoutOpen; }
 	/** The keys are on the inventory's side (its tiles, or its filter row). */
 	bool IsOnInventorySide() const { return !bOnLoadoutSide; }
@@ -248,6 +252,9 @@ public:
 	// D-248 step 1: the picture grid (WoRLoadoutV2Grid), shown while a weapon slot (Main hand, Off hand) is being filled:
 	// the entry's slots stay in the list on the left, the choices are tiles beside it. The specs call these too.
 	bool IsGridOpen() const;
+	/** B-612: the slots whose choices are the picture grid: the two hands (D-248) and the two sockets (the crystals,
+	 *  stones and evolutions that fit, not the inventory's tab). */
+	static bool HasSlotGrid(ELoadoutV2Slot GearSlot);
 	/** The tiles as drawn, one per line of GetItems(). */
 	TArray<FLoadoutV2GridTile> GetGridTiles() const;
 	/** The filter tabs after All: the weapon types among the slot's pieces. */
@@ -267,6 +274,7 @@ public:
 	const TArray<FLoadoutV2DetailLine> &GetDetails() const { return Details; }
 	int32 GetSelected() const { return Selected; }
 	const FText &GetMessage() const { return Message; }
+	const FText &GetStandingNote() const { return StandingNote; }
 	const FLoadoutSavedList &GetSavedList() const { return Saved; }
 	ELoadoutV2Tab GetTab() const { return Tab; }
 	const FLoadoutV2InventoryPage &GetInventoryPage() const { return InventoryPage; }
@@ -449,6 +457,8 @@ private:
 	bool IsLoadoutAtTopLevel() const { return Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries; }
 	/** The grid shows the inventory's tab (always, but while a weapon slot is being filled: then it shows its choices). */
 	bool IsInventoryGrid() const { return !IsGridOpen(); }
+	/** B-612: the grid is a socket's choices (a crystal, stone or evolution goes in on A). */
+	bool IsSocketGrid() const;
 	/** The inventory's page for the shown member, tab, filter and sort, read fresh. */
 	void RefreshInventorySide();
 	/** The inventory's tiles as grid tiles (FInventoryScreenTile to FLoadoutV2GridTile). */
@@ -577,6 +587,7 @@ private:
 	/** The list's line when Options or the window opened (back to it after). */
 	int32 ListSelected = 0;
 	FText Message;
+	FText StandingNote;
 	/** B-440e: the loadout in use, shown top right before the cells (UIScreens #2). */
 	FText LoadoutName;
 

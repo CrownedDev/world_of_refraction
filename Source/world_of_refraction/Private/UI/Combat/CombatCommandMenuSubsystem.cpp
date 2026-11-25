@@ -999,15 +999,18 @@ FText UCombatCommandMenuSubsystem::GetViewTitle() const
     {
         // B-592 (D-268): the panel's open line names the step (refine_v4).
         const bool bTargets = CurrentDepth == ECombatMenuDepth::TargetSelection;
+        // B-599: an infused action names its element in the title ("Force Strike (Fire) · choose a target").
+        const bool bInfused = PendingInfusionLevel > 0 && CanInfusePendingAction();
+        const FText Action = MakeInfusedActionName(PendingActionLabel, bInfused ? GetCurrentInfusionSourceName() : FText::GetEmpty());
         if (bTargets && OpenTargetPanelLine == ETargetPanelLine::Weapon)
         {
-            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleWeapon", "{0} · weapon"), PendingActionLabel);
+            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleWeapon", "{0} · weapon"), Action);
         }
         if (bTargets && OpenTargetPanelLine == ETargetPanelLine::Infusion)
         {
-            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleInfusion", "{0} · infusion"), PendingActionLabel);
+            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleInfusion", "{0} · infusion"), Action);
         }
-        return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleTargets", "{0} · choose a target"), PendingActionLabel);
+        return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleTargets", "{0} · choose a target"), Action);
     }
     if (CurrentDepth != ECombatMenuDepth::Submenu)
     {
@@ -2237,12 +2240,63 @@ void UCombatCommandMenuSubsystem::AppendInfusionControls(TArray<FPieMenuButtonDa
     {
         FPieMenuButtonData Infusion;
         Infusion.ButtonID = TEXT("TargetPanelInfusion");
-        Infusion.DisplayName = OpenTargetPanelLine == ETargetPanelLine::Infusion ? LOCTEXT("PanelClose", "Close")
-                               : CanChooseInfusionElement()                     ? LOCTEXT("PanelInfusion", "Infusion")
-                                                                                : LOCTEXT("PanelInfusionLevel", "Infusion level");
+        Infusion.DisplayName = OpenTargetPanelLine == ETargetPanelLine::Infusion
+                                   ? LOCTEXT("PanelClose", "Close")
+                                   : MakeInfusionButtonName(GetCurrentInfusionSourceName(), CanChooseInfusionElement()); // B-599: "Fire infusion"
         Infusion.Category = EPieMenuCategory::TargetPanelInfusion;
         Buttons.Add(Infusion);
     }
+}
+
+FText UCombatCommandMenuSubsystem::MakeInfusedActionName(const FText &Action, const FText &Source)
+{
+    return Source.IsEmpty() ? Action : FText::Format(LOCTEXT("InfusedActionName", "{0} ({1})"), Action, Source);
+}
+
+FText UCombatCommandMenuSubsystem::MakeInfusionButtonName(const FText &Source, bool bChooseElement)
+{
+    if (Source.IsEmpty())
+    {
+        return bChooseElement ? LOCTEXT("PanelInfusion", "Infusion") : LOCTEXT("PanelInfusionLevel", "Infusion level");
+    }
+    return bChooseElement ? FText::Format(LOCTEXT("PanelSourceInfusion", "{0} infusion"), Source)
+                          : FText::Format(LOCTEXT("PanelSourceInfusionLevel", "{0} infusion level"), Source);
+}
+
+FText UCombatCommandMenuSubsystem::GetInfusionSourceName(int32 SourceIndex) const
+{
+    const UInfusionVFXComponent *VFX = GetInfusionVFXComponent();
+    if (!VFX || !VFX->GetCachedSources().IsValidIndex(SourceIndex))
+    {
+        return FText::GetEmpty();
+    }
+    if (VFX->IsSourceIce(SourceIndex))
+    {
+        return WoRGameNames::GetIceName(); // B-593: a Water source's Ice entry
+    }
+    const EInfusionSourceOption Source = VFX->GetCachedSources()[SourceIndex];
+    if (Source == EInfusionSourceOption::None)
+    {
+        return LOCTEXT("PanelSourceNone", "None");
+    }
+    if (Source == EInfusionSourceOption::Raw)
+    {
+        return LOCTEXT("PanelSourceRaw", "Raw");
+    }
+    const UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
+    return Exec ? WoRGameNames::GetElementName(Exec->GetElementForSourceOption(CurrentActor.Get(), Source))
+                : FText::FromString(InfusionSourceOptionHelpers::GetDisplayName(Source));
+}
+
+FText UCombatCommandMenuSubsystem::GetCurrentInfusionSourceName() const
+{
+    const UInfusionVFXComponent *VFX = GetInfusionVFXComponent();
+    const int32 Index = VFX ? VFX->GetCurrentSourceIndex() : INDEX_NONE;
+    if (!VFX || !VFX->GetCachedSources().IsValidIndex(Index) || VFX->GetCachedSources()[Index] == EInfusionSourceOption::None)
+    {
+        return FText::GetEmpty();
+    }
+    return GetInfusionSourceName(Index);
 }
 
 bool UCombatCommandMenuSubsystem::CanInfusePendingAction() const
@@ -2310,34 +2364,17 @@ FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
         const auto LevelName = [](int32 Level) { return Level >= 0 && Level < static_cast<int32>(UE_ARRAY_COUNT(LevelNames)) ? LevelNames[Level] : FText::AsNumber(Level); };
         const bool bElement = CanChooseInfusionElement();
         const TArray<EInfusionSourceOption> &Sources = VFX->GetCachedSources();
-        const UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
-        const auto SourceName = [this, Exec, VFX, &Sources](int32 Index)
+        // B-599: no infusion, no line (it was "No infusion"); the title names an infused action's element.
+        // B-613: a kept infusion turned off for this action (not enough EP) says so.
+        if (PendingInfusionLevel <= 0 && bStickyInfusionDropped)
         {
-            const EInfusionSourceOption Source = Sources[Index];
-            if (VFX->IsSourceIce(Index))
-            {
-                return WoRGameNames::GetIceName(); // B-593: a Water source's Ice entry
-            }
-            if (Source == EInfusionSourceOption::None)
-            {
-                return LOCTEXT("PanelSourceNone", "None");
-            }
-            if (Source == EInfusionSourceOption::Raw)
-            {
-                return LOCTEXT("PanelSourceRaw", "Raw");
-            }
-            return Exec ? WoRGameNames::GetElementName(Exec->GetElementForSourceOption(CurrentActor.Get(), Source))
-                        : FText::FromString(InfusionSourceOptionHelpers::GetDisplayName(Source));
-        };
-        if (PendingInfusionLevel <= 0)
-        {
-            Parts.Add(bStickyInfusionDropped ? LOCTEXT("PanelInfusionDropped", "Infusion off: not enough EP") : LOCTEXT("PanelNoInfusion", "No infusion"));
+            Parts.Add(LOCTEXT("PanelInfusionDropped", "Infusion off: not enough EP"));
         }
-        else
+        else if (PendingInfusionLevel > 0)
         {
             if (bElement && Sources.IsValidIndex(VFX->GetCurrentSourceIndex()))
             {
-                Parts.Add(SourceName(VFX->GetCurrentSourceIndex()));
+                Parts.Add(GetInfusionSourceName(VFX->GetCurrentSourceIndex()));
             }
             Parts.Add(FText::Format(LOCTEXT("PanelLevel", "Lv {0}"), LevelName(PendingInfusionLevel)));
         }
@@ -2345,7 +2382,7 @@ FTargetPanelView UCombatCommandMenuSubsystem::GetTargetPanel() const
         {
             for (int32 Index = 0; bElement && Index < Sources.Num(); ++Index)
             {
-                View.Elements.Add(SourceName(Index));
+                View.Elements.Add(GetInfusionSourceName(Index));
             }
             View.ActiveElement = bElement ? VFX->GetCurrentSourceIndex() : INDEX_NONE;
             for (int32 Level = 0; Level <= InfusionConstants::MAX_INFUSION_LEVEL; ++Level)

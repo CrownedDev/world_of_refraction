@@ -19,6 +19,7 @@
 #include "Trial/TrialData.h"
 #include "UI/Trial/GateScreenModel.h"
 #include "UI/Trial/GateScreenWidget.h"
+#include "UI/Menus/LoadoutV2ScreenWidget.h"
 
 namespace
 {
@@ -182,6 +183,32 @@ void FGateScreenSpec::Define()
 
 		Screen->MoveGate(1);
 		TestTrue(TEXT("RB wraps to the first gate, its first trial picked"), Screen->GetGate() == GateA && Screen->GetChosenTrial() == 0);
+	});
+
+	It("B-615 (D-221): the Loadout opened from the gate says a trial starts on the class kit, under any step's own message", [this]()
+	{
+		const FText Note = WoRGateScreen::GetLoadoutKitNote();
+		TestTrue(TEXT("it names the class kit"), Note.ToString().Contains(TEXT("class kit")));
+		TestTrue(TEXT("and that changes stay home"), Note.ToString().Contains(TEXT("won't come with you")));
+		TestTrue(TEXT("shown while no step has a message"), ULoadoutV2ScreenWidget::PickMessageLine(FText::GetEmpty(), Note).EqualTo(Note));
+		const FText Refusal = FText::FromString(TEXT("Take what's in this socket off first."));
+		TestTrue(TEXT("a step's own message comes first"), ULoadoutV2ScreenWidget::PickMessageLine(Refusal, Note).EqualTo(Refusal));
+		TestTrue(TEXT("no note, no message: nothing"), ULoadoutV2ScreenWidget::PickMessageLine(FText::GetEmpty(), FText::GetEmpty()).IsEmpty());
+	});
+
+	It("B-615: the kit note goes when the screen closes, so a reused Loadout opened from the game menu has none", [this]()
+	{
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(TestWorld->GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen))
+		{
+			return;
+		}
+		Screen->ActivateWidget();
+		Screen->SetStandingNote(WoRGateScreen::GetLoadoutKitNote());
+		TestFalse(TEXT("the gate's note is kept"), Screen->GetStandingNote().IsEmpty());
+		Screen->PressBack();
+		Screen->ActivateWidget();
+		TestTrue(TEXT("opened again: no note"), Screen->GetStandingNote().IsEmpty());
 	});
 }
 
