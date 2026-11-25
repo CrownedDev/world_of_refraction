@@ -224,7 +224,7 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Key(LOCTEXT("KeySwitchWeapon", "Switch weapon"), LOCTEXT("KeySwitchWeaponKB", "6"), LOCTEXT("KeySwitchWeaponPad", "D-pad left")));
 	Rows.Add(Key(LOCTEXT("KeyChangeRing", "Switch adapter"), LOCTEXT("KeyChangeRingKB", "7"), LOCTEXT("KeyChangeRingPad", "D-pad right")));
 	Rows.Add(Key(LOCTEXT("KeyDefend", "Defend"), LOCTEXT("KeyDefendKB", "R"), LOCTEXT("KeyDefendPad", "RB"))); // B-627
-	Rows.Add(Key(LOCTEXT("KeyEndTurn", "End turn"), LOCTEXT("KeyEndTurnKB", "G"), LOCTEXT("KeyEndTurnPad", "View")));
+	Rows.Add(Key(LOCTEXT("KeyEndTurn", "End turn"), LOCTEXT("KeyEndTurnKB", "G"), LOCTEXT("KeyEndTurnPad", "D-pad left")));
 	Rows.Add(Key(LOCTEXT("KeyInfusionSource", "Infusion source"), LOCTEXT("KeyInfusionSourceKB", "R"), LOCTEXT("KeyInfusionSourcePad", "LB")));
 	Rows.Add(Key(LOCTEXT("KeyInfusionLevel", "Infusion level"), LOCTEXT("KeyInfusionLevelKB", "T"), LOCTEXT("KeyInfusionLevelPad", "RB")));
 	Rows.Add(Key(LOCTEXT("KeyIntel", "Intel (tap: party, enemies, close; hold: close)"), LOCTEXT("KeyIntelKB", "V"), LOCTEXT("KeyIntelPad", "R3")));
