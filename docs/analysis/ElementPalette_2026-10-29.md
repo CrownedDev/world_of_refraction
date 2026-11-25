@@ -63,6 +63,8 @@ purple), minimising shortfalls below ΔE 25 across all four conditions, with L* 
 numbers read on dark stone (`UI_DeckbuilderReuse.md` §1). Light/Physical and Ice/Physical were weighted low: they are
 whites by ruling and the glyph (3b) carries them. Result, hand-rounded:
 
+> **Superseded in part by B-636 (Q-636, 2026-11-25):** Crown's hues are set in stone (yellow Earth, orange Lightning, jade Wind). Earth is now `#FFCC00` and Lightning `#D0782E` (the two swapped), Wind `#00A86B`; the rest of this table stands. The colour-blind check still passes.
+
 | Element | sRGB | `FLinearColor` | L* | Identity note |
 | --- | --- | --- | --- | --- |
 | Fire | `#B02A18` | (0.434, 0.023, 0.009) | 40 | deep red; the *darkest* warm colour |

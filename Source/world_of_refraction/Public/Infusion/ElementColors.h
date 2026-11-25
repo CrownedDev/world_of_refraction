@@ -14,9 +14,10 @@ namespace ElementColors
 {
     // Element colors (linear; sRGB hex in the comment)
     inline const FLinearColor Fire = FLinearColor(0.434f, 0.023f, 0.009f);      // #B02A18 deep red, the darkest warm colour
-    inline const FLinearColor Lightning = FLinearColor(1.0f, 0.604f, 0.0f);    // #FFCC00 amber-yellow, the lightest warm colour
-    inline const FLinearColor Earth = FLinearColor(0.631f, 0.188f, 0.027f);     // #D0782E ochre
-    inline const FLinearColor Wind = FLinearColor(0.027f, 0.423f, 0.287f);      // #2EAE92 teal-green
+    // B-636 (Crown, set in stone, DriveFacts.md section 2): red Fire, blue Water, yellow Earth, green Wind, orange Lightning.
+    inline const FLinearColor Lightning = FLinearColor(0.631f, 0.188f, 0.027f); // #D0782E orange
+    inline const FLinearColor Earth = FLinearColor(1.0f, 0.604f, 0.0f);         // #FFCC00 yellow, the lightest warm colour
+    inline const FLinearColor Wind = FLinearColor(0.0f, 0.392f, 0.147f);        // #00A86B jade green (Crown)
     inline const FLinearColor Water = FLinearColor(0.023f, 0.188f, 0.745f);     // #2A78E0 mid blue
     inline const FLinearColor Ice = FLinearColor(0.552f, 0.880f, 1.0f);         // #C4F1FF pale cyan-white (Water's sub-element)
     inline const FLinearColor Reality = FLinearColor(0.102f, 0.027f, 0.658f);   // #5A2ED4 indigo, dark (D-024)
