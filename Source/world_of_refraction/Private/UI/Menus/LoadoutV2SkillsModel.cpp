@@ -116,6 +116,15 @@ FLoadoutV2SkillsPage WoRLoadoutV2Skills::Build(const FLoadoutSkillsPage &Source,
 	return Page;
 }
 
+int32 WoRLoadoutV2Skills::FindEntryFor(const FLoadoutV2SkillsPage &Page, int32 WeaponEntry)
+{
+	if (WeaponEntry == INDEX_NONE)
+	{
+		return INDEX_NONE; // Innate spells stands for no Weapons entry
+	}
+	return Page.Entries.IndexOfByPredicate([WeaponEntry](const FLoadoutV2SkillEntry &Entry) { return Entry.WeaponEntry == WeaponEntry; });
+}
+
 TArray<FLoadoutV2SkillRowRef> WoRLoadoutV2Skills::GetRows(const FLoadoutV2SkillsPage &Page, int32 Entry)
 {
 	TArray<FLoadoutV2SkillRowRef> Rows;

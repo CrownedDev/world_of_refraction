@@ -75,6 +75,12 @@ void FLoadoutV2SkillsSpec::Define()
 		TestEqual(TEXT("the blade's rows"), WoRLoadoutV2Skills::GetRows(Page, 0).Num(), V2_SKILLS_WEAPON_ROWS);
 		TestEqual(TEXT("a school's rows"), WoRLoadoutV2Skills::GetRows(Page, 2).Num(), V2_SKILLS_SCHOOL_ROWS);
 		TestTrue(TEXT("a bad entry has none"), WoRLoadoutV2Skills::GetRows(Page, 3).IsEmpty());
+
+		// B-610: the Equipment tab's skills key finds the focused entry's slots.
+		TestEqual(TEXT("the blade's Weapons line opens the blade's slots"), WoRLoadoutV2Skills::FindEntryFor(Page, 1), 0);
+		TestEqual(TEXT("the ring's line opens the ring's slots"), WoRLoadoutV2Skills::FindEntryFor(Page, 2), 1);
+		TestEqual(TEXT("the evolution's line has none"), WoRLoadoutV2Skills::FindEntryFor(Page, 0), static_cast<int32>(INDEX_NONE));
+		TestEqual(TEXT("no line, none (not Innate spells)"), WoRLoadoutV2Skills::FindEntryFor(Page, INDEX_NONE), static_cast<int32>(INDEX_NONE));
 	});
 
 	It("says what a skill does: its name, then EP", [this]()
@@ -114,6 +120,27 @@ void FLoadoutV2SkillsSpec::Define()
 		Screen->SwitchTab(-1);
 		Screen->SwitchTab(-1);
 		TestTrue(TEXT("LB twice: back to Weapons"), Screen->GetTab() == ELoadoutV2Tab::Weapons && Screen->GetMode() == ELoadoutV2Mode::List);
+	});
+
+	It("refuses the skills key on a line with no slots and stays on Equipment (B-610, the screen, headless)", [this]()
+	{
+		FWoRTestWorld TestWorld;
+		if (!TestTrue(TEXT("world"), TestWorld.Create()))
+		{
+			return;
+		}
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(TestWorld.GetWorld(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen))
+		{
+			return;
+		}
+		Screen->ActivateWidget();
+		TestFalse(TEXT("no party, no entry: nothing to open"), Screen->JumpToEntrySkills());
+		TestTrue(TEXT("still on the Equipment list"), Screen->GetTab() == ELoadoutV2Tab::Weapons && Screen->GetMode() == ELoadoutV2Mode::List);
+		TestEqual(TEXT("no line to return to"), Screen->GetSkillsReturnLine(), static_cast<int32>(INDEX_NONE));
+		Screen->SwitchTab(1);
+		TestFalse(TEXT("not from the Skills tab (it has its own A)"), Screen->JumpToEntrySkills());
+		TestTrue(TEXT("Skills tab unchanged"), Screen->GetTab() == ELoadoutV2Tab::Skills && Screen->GetMode() == ELoadoutV2Mode::SkillEntries);
 	});
 }
 

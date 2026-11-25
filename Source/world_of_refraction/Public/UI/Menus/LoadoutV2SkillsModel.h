@@ -55,6 +55,10 @@ namespace WoRLoadoutV2Skills
 	 *  then Innate spells when the page has school tabs. */
 	WORLD_OF_REFRACTION_API FLoadoutV2SkillsPage Build(const FLoadoutSkillsPage &Source, const FLoadoutV2WeaponsPage &Weapons);
 
+	/** B-610: the Skills tab entry that stands for the Weapons tab's WeaponEntry, or INDEX_NONE (an evolution, a piece
+	 *  with no skill slots). */
+	WORLD_OF_REFRACTION_API int32 FindEntryFor(const FLoadoutV2SkillsPage &Page, int32 WeaponEntry);
+
 	/** Entry's rows, in order (a school's rows after the one before). */
 	WORLD_OF_REFRACTION_API TArray<FLoadoutV2SkillRowRef> GetRows(const FLoadoutV2SkillsPage &Page, int32 Entry);
 
