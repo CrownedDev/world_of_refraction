@@ -502,6 +502,8 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		AddToColumn(RightColumn, RightSubText, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 		RightLines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		AddToColumn(RightColumn, RightLines);
+		RightButtons = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		AddToColumn(RightColumn, RightButtons, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
 		RightNoteText = MakeText(WidgetTree, SmallFontSize, CyanColor);
 		RightNoteText->SetAutoWrapText(true);
 		AddToColumn(RightColumn, RightNoteText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
@@ -737,7 +739,8 @@ void ULoadoutV2ScreenWidget::RefreshInventorySide()
 		InvFilter = EInventoryScreenFilter::All; // the tab has no such filter (the Pouch has none)
 	}
 	bOnInvFilters = bOnInvFilters && InvFilters.Num() > 0;
-	InvPage = Members.IsValidIndex(MemberIndex) ? WoRInventoryScreen::BuildPage(GetWorld(), Members[MemberIndex].Key, InvTab, InvFilter, InvSort) : FInventoryScreenPage();
+	bGiving = false; // the tiles are read again: a Give list in progress ends
+	InvPage =Members.IsValidIndex(MemberIndex) ? WoRInventoryScreen::BuildPage(GetWorld(), Members[MemberIndex].Key, InvTab, InvFilter, InvSort) : FInventoryScreenPage();
 	InvSelected = InvPage.Tiles.Num() > 0 ? FMath::Clamp(InvSelected, 0, InvPage.Tiles.Num() - 1) : 0;
 	HoveredInvTile = INDEX_NONE; // the tiles may have changed under the mouse; its next move lights again
 }
@@ -759,9 +762,42 @@ TArray<FLoadoutV2GridTile> ULoadoutV2ScreenWidget::GetInventoryTiles() const
 	return Tiles;
 }
 
+void ULoadoutV2ScreenWidget::RefreshInventoryActions()
+{
+	InvFacts.Reset();
+	InvActions.Reset();
+	if (!IsInventoryBox() || IsAboveInventoryTiles() || !InvPage.Tiles.IsValidIndex(InvSelected) || !Members.IsValidIndex(MemberIndex))
+	{
+		bGiving = false;
+		return;
+	}
+	const FInventoryScreenTile &Tile = InvPage.Tiles[InvSelected];
+	const FName Member = Members[MemberIndex].Key;
+	InvFacts = WoRInventoryScreen::BuildFacts(GetWorld(), Member, Tile);
+	if (bGiving)
+	{
+		// Give to…: one button per other member, greyed with its reason (no room, can't take gear in a run).
+		for (const FInventoryScreenReceiver &Receiver : WoRInventoryScreen::BuildReceivers(GetWorld(), Member, Tile))
+		{
+			InvActions.Add({Receiver.Note.IsEmpty() ? Receiver.Name : FText::Format(LOCTEXT("GiveReceiver", "{0}  ·  {1}"), Receiver.Name, Receiver.Note),
+							Receiver.Refusal, Receiver.Key});
+		}
+		GiveSelected = InvActions.IsEmpty() ? 0 : FMath::Clamp(GiveSelected, 0, InvActions.Num() - 1);
+		return;
+	}
+	// Mockup inventory/v4: A Equip on…, X Give to…, then Sell, always greyed here (it is the Blacksmith's).
+	InvActions.Add({LOCTEXT("ActionEquipOn", "{Confirm}  Equip on…"),
+					Tile.IsStack() ? LOCTEXT("EquipStackRefusal", "Crystals and stones go in a socket: open the socket on the Equipment page.") : FText::GetEmpty()});
+	const TArray<FInventoryScreenVerb> Verbs = WoRInventoryScreen::BuildVerbs(GetWorld(), Member, InvTab, Tile);
+	const FInventoryScreenVerb *Give = Verbs.FindByPredicate([](const FInventoryScreenVerb &Verb) { return Verb.Verb == EInventoryVerb::Give; });
+	InvActions.Add({LOCTEXT("ActionGiveTo", "{Toggle}  Give to…"), Give ? Give->Refusal : LOCTEXT("GiveNone", "Nothing gives this yet.")});
+	InvActions.Add({LOCTEXT("ActionSell", "Sell"), LOCTEXT("SellAtBlacksmith", "Sold at the Blacksmith.")});
+}
+
 void ULoadoutV2ScreenWidget::RefreshDetails()
 {
 	Details.Reset();
+	RefreshInventoryActions(); // B-598c piece 2: the Details column's facts and buttons
 	if (IsInventoryBox())
 	{
 		// D-249: the lit or hovered inventory tile, as the inventory screen's panel words it: its name, under it its
@@ -1362,8 +1398,14 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	if (IsOnInventoryPage())
 	{
 		// B-598c: the Inventory page; Up from the top reaches the filters, then the Gear / Pouch selector.
+		if (bGiving)
+		{
+			return LOCTEXT("HintsInventoryGive", "{Arrows}  Pick        {Confirm}  Give        {Back}  Back");
+		}
 		return bOnInvKinds ? LOCTEXT("HintsInventoryKinds", "{Arrows}  Gear / Pouch        {Tabs}  Page        {SubTabs}  Character        {Second}  Sort        {Back}  Back")
-						   : LOCTEXT("HintsInventoryPage", "{Arrows}  Move        {Tabs}  Page        {SubTabs}  Character        {Second}  Sort        {Back}  Back");
+			   : IsAboveInventoryTiles()
+				   ? LOCTEXT("HintsInventoryFilters", "{Arrows}  Move        {Tabs}  Page        {SubTabs}  Character        {Second}  Sort        {Back}  Back")
+				   : LOCTEXT("HintsInventoryPage", "{Confirm}  Equip on…        {Toggle}  Give        {Tabs}  Page        {SubTabs}  Character        {Second}  Sort        {Back}  Back");
 	}
 	switch (Mode)
 	{
@@ -2107,8 +2149,8 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 void ULoadoutV2ScreenWidget::RefreshRightPanel()
 {
 	using namespace LoadoutV2ScreenStyle;
-	// B-598c piece 1: what the page is about. TODO: B-598c piece 2: the mockups' rows (Worn in, Also in, Owned,
-	// Durability, Sells for) and the action buttons; the picker's "if you equip it" changes.
+	// B-598c: what the page is about; on the Inventory page the lit piece's facts and its buttons (piece 2).
+	// TODO: B-598c: the picker's "if you equip it" changes on the loadout's pages.
 	TArray<TPair<FText, FText>> Rows;
 	FText Sub;
 	if (IsOnInventoryPage())
@@ -2116,9 +2158,13 @@ void ULoadoutV2ScreenWidget::RefreshRightPanel()
 		if (!IsAboveInventoryTiles() && InvPage.Tiles.IsValidIndex(InvSelected))
 		{
 			const FInventoryScreenTile &Tile = InvPage.Tiles[InvSelected];
-			Sub = Tile.Tier.IsEmpty() ? Tile.Name : FText::Format(LOCTEXT("RightPiece", "{0}  ·  {1}"), Tile.Name, Tile.Tier);
-			Rows.Emplace(LOCTEXT("RightKind", "Kind"), Tile.KindLine);
-			Rows.Emplace(LOCTEXT("RightWorn", "Worn"), Tile.bWorn ? LOCTEXT("RightWornYes", "Yes") : LOCTEXT("RightWornNo", "No"));
+			Sub = bGiving				? FText::Format(LOCTEXT("RightGiving", "Give the {0} to"), Tile.Name)
+				  : Tile.Tier.IsEmpty() ? Tile.Name
+										: FText::Format(LOCTEXT("RightPiece", "{0}  ·  {1}"), Tile.Name, Tile.Tier);
+			for (const FLoadoutScreenDetail &Fact : InvFacts)
+			{
+				Rows.Emplace(Fact.Label, Fact.Value);
+			}
 		}
 	}
 	else if (Members.IsValidIndex(MemberIndex))
@@ -2151,7 +2197,136 @@ void ULoadoutV2ScreenWidget::RefreshRightPanel()
 			RightValues[Index]->SetText(Rows[Index].Value);
 		}
 	}
+	// The buttons: a plate each, its key and verb; a greyed one has its reason under it. Giving, the lit receiver is lit.
+	const bool bButtons = IsOnInventoryPage();
+	while (RightButtonPlates.Num() < InvActions.Num())
+	{
+		UBorder *Plate = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Plate->SetPadding(FMargin(TabPaddingX, TabPaddingY));
+		UVerticalBox *Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		Plate->SetContent(Lines);
+		UTextBlock *Verb = MakeHintText(WidgetTree, LineFontSize, TextColor, true);
+		UTextBlock *Reason = MakeText(WidgetTree, SmallFontSize, WarnColor);
+		Reason->SetAutoWrapText(true);
+		AddToColumn(Lines, Verb);
+		AddToColumn(Lines, Reason);
+		AddToColumn(RightButtons, Plate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		RightButtonPlates.Add(Plate);
+		RightButtonTexts.Add(Verb);
+		RightButtonReasons.Add(Reason);
+	}
+	for (int32 Index = 0; Index < RightButtonPlates.Num(); ++Index)
+	{
+		const bool bShown = bButtons && InvActions.IsValidIndex(Index);
+		SetShown(RightButtonPlates[Index], bShown);
+		if (!bShown)
+		{
+			continue;
+		}
+		const FInventoryAction &Action = InvActions[Index];
+		const bool bRefused = !Action.Refusal.IsEmpty();
+		RightButtonPlates[Index]->SetBrushColor(bGiving && Index == GiveSelected ? FocusColor : PlateColor);
+		WoRKeyHints::SetHint(RightButtonTexts[Index], Action.Label);
+		RightButtonTexts[Index]->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor));
+		RightButtonReasons[Index]->SetText(Action.Refusal);
+		SetShown(RightButtonReasons[Index], bRefused);
+	}
 	SetShown(RightNoteText, false);
+}
+
+void ULoadoutV2ScreenWidget::PressEquipOn()
+{
+	if (!IsInventoryBox() || IsAboveInventoryTiles() || !InvPage.Tiles.IsValidIndex(InvSelected) || InvActions.IsEmpty())
+	{
+		return;
+	}
+	if (!InvActions[0].Refusal.IsEmpty())
+	{
+		Message = InvActions[0].Refusal;
+		RefreshView();
+		return;
+	}
+	const FInventoryScreenTile Tile = InvPage.Tiles[InvSelected];
+	ShowPage(Tile.Kind == EInventoryScreenKind::Apparel ? PAGE_COUNT - 1 : EQUIPMENT_PAGE); // apparel: the Apparel page, the last
+	PendingEquipGear = Tile.Row.GearID; // lit when a slot's grid opens (weapons and adapters; the rest has no id here)
+	Message = FText::Format(LOCTEXT("EquipOnPick", "Pick where the {0} goes: an entry, then its slot."), Tile.Name);
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Equip on: %s (%s)"), *Tile.Name.ToString(), *PendingEquipGear.ToString());
+	RefreshView();
+}
+
+void ULoadoutV2ScreenWidget::PressGive()
+{
+	if (!IsInventoryBox() || IsAboveInventoryTiles() || bGiving || !InvActions.IsValidIndex(1))
+	{
+		return;
+	}
+	if (!InvActions[1].Refusal.IsEmpty())
+	{
+		Message = InvActions[1].Refusal;
+		RefreshView();
+		return;
+	}
+	bGiving = true;
+	GiveSelected = 0;
+	Message = FText::GetEmpty();
+	RefreshView();
+}
+
+void ULoadoutV2ScreenWidget::PressInventoryButton(int32 Button)
+{
+	if (!InvActions.IsValidIndex(Button) || !InvPage.Tiles.IsValidIndex(InvSelected) || !Members.IsValidIndex(MemberIndex))
+	{
+		return;
+	}
+	if (!bGiving)
+	{
+		if (Button == 0)
+		{
+			PressEquipOn();
+		}
+		else if (Button == 1)
+		{
+			PressGive();
+		}
+		else
+		{
+			Message = InvActions[Button].Refusal; // Sell: said where it is done
+			RefreshView();
+		}
+		return;
+	}
+	const FInventoryAction Receiver = InvActions[Button];
+	if (!Receiver.Refusal.IsEmpty())
+	{
+		Message = Receiver.Refusal;
+		RefreshView();
+		return;
+	}
+	const FInventoryScreenTile Tile = InvPage.Tiles[InvSelected];
+	const FName Member = Members[MemberIndex].Key;
+	const int32 Count = WoRInventoryScreen::GetMoveCount(GetWorld(), EInventoryVerb::Give, Member, Receiver.Receiver, Tile, /*bWholeStack=*/false);
+	const FText Refusal = WoRInventoryVerbs::Run(GetWorld(), EInventoryVerb::Give, Member, Receiver.Receiver, Tile.Row, Count);
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Give %s x%d to %s: %s"), *Tile.Name.ToString(), Count, *Receiver.Receiver.ToString(),
+		   Refusal.IsEmpty() ? TEXT("given") : *Refusal.ToString());
+	bGiving = false;
+	Message = Refusal.IsEmpty() ? FText::Format(LOCTEXT("Given", "Given: the {0}."), Tile.Name) : Refusal;
+	RefreshData(); // the tile may be gone
+}
+
+int32 ULoadoutV2ScreenWidget::FindRightButtonUnder(const FVector2D &ScreenPosition) const
+{
+	if (!IsOnInventoryPage())
+	{
+		return INDEX_NONE;
+	}
+	for (int32 Index = 0; Index < FMath::Min(InvActions.Num(), RightButtonPlates.Num()); ++Index)
+	{
+		if (RightButtonPlates[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
+		{
+			return Index;
+		}
+	}
+	return INDEX_NONE;
 }
 
 // ==================== THE GRID (D-248 step 1) ====================
@@ -2549,6 +2724,7 @@ void ULoadoutV2ScreenWidget::ShowPage(int32 NewPage)
 		Tab = ELoadoutV2Tab::Weapons; // the loadout's tab under the page: none of its own (Skills would build its page)
 		Mode = ELoadoutV2Mode::List;
 		SkillsReturnLine = INDEX_NONE;
+		PendingEquipGear.Invalidate();
 		Selected = 0;
 		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] page Inventory (%s)"), *WoRInventoryScreen::GetTabName(InvTab).ToString());
 		RefreshData();
@@ -2579,6 +2755,16 @@ void ULoadoutV2ScreenWidget::MoveInventoryTile(int32 DeltaX, int32 DeltaY)
 	}
 	const int32 Columns = GetGridColumns();
 	Message = FText::GetEmpty();
+	if (bGiving)
+	{
+		// The Give list: Up / Down pick the receiver; the tiles stay.
+		if (DeltaY != 0 && !InvActions.IsEmpty())
+		{
+			GiveSelected = FMath::Clamp(GiveSelected + DeltaY, 0, InvActions.Num() - 1);
+			RefreshView();
+		}
+		return;
+	}
 	if (bOnInvKinds)
 	{
 		// On the Gear / Pouch selector: Left / Right turn it, Down goes back down (to the filters, else the tiles).
@@ -2696,7 +2882,7 @@ uint32 ULoadoutV2ScreenWidget::GetFocusKey() const
 {
 	return HashCombine(HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(InvSelected)), HashCombine(GetTypeHash(bOnLoadoutSide), GetTypeHash(bOnInvFilters))),
 					   HashCombine(HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), GetTypeHash(static_cast<uint8>(Mode))),
-								   HashCombine(GetTypeHash(bOnInvKinds), GetTypeHash(static_cast<uint8>(InvTab)))));
+								   HashCombine(HashCombine(GetTypeHash(bOnInvKinds), GetTypeHash(static_cast<uint8>(InvTab))), HashCombine(GetTypeHash(bGiving), GetTypeHash(GiveSelected)))));
 }
 
 bool ULoadoutV2ScreenWidget::IsLitRefused() const
@@ -3025,7 +3211,18 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 			return FReply::Handled();
 		}
 	}
-	if (IsInventoryGrid())
+	if (const int32 Button = FindRightButtonUnder(Position); Button != INDEX_NONE)
+	{
+		// B-598c piece 2: a Details button (Equip on…, Give to…, a receiver) does what its key does.
+		const bool bRefused = !InvActions[Button].Refusal.IsEmpty();
+		UBorder *Pressed = RightButtonPlates[Button].Get();
+		GiveSelected = bGiving ? Button : GiveSelected;
+		PressInventoryButton(Button);
+		PressItem(Pressed);
+		PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Confirm);
+		return FReply::Handled();
+	}
+	if (IsInventoryGrid() && !bGiving)
 	{
 		// The Inventory page: a Gear / Pouch word, a filter, a tile.
 		const int32 InvTabChip = WoRMenuStyle::FindChipUnder(InvTabChips, Position);
@@ -3243,6 +3440,17 @@ void ULoadoutV2ScreenWidget::PressA()
 			Message = LOCTEXT("NothingToPick", "You own nothing that goes here.");
 			RefreshView();
 		}
+		else if (PendingEquipGear.IsValid())
+		{
+			// B-598c: Equip on… from the Inventory page: that piece is lit, ready for A.
+			const int32 Pending = Items.IndexOfByPredicate([this](const FLoadoutV2WindowItem &Item)
+														   { return Item.Weapon.PersistentID == PendingEquipGear || Item.Adapter.PersistentID == PendingEquipGear; });
+			if (Pending != INDEX_NONE)
+			{
+				Selected = Pending;
+				RefreshView();
+			}
+		}
 		if (IsGridOpen())
 		{
 			LogGrid();
@@ -3402,6 +3610,12 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		CancelRename(); // B-440e
 		return true;
 	}
+	if (bGiving)
+	{
+		bGiving = false; // B-598c piece 2: out of the Give list, back to the piece's buttons
+		RefreshView();
+		return true;
+	}
 	if (!bOnLoadoutSide && IsAboveInventoryTiles())
 	{
 		bOnInvFilters = false; // D-249: off the inventory's filter row (B-598c: or its selector), back to its tiles
@@ -3527,13 +3741,21 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			}
 			else if (IsConfirmKey(Key) && InvPage.Tiles.IsValidIndex(InvSelected))
 			{
-				// TODO: B-598c piece 2: Equip on… / Give to… from the Details column.
-				Message = LOCTEXT("InventoryVerbsLater", "Equipping from here comes next. For now: the Equipment page, then pick a slot.");
-				RefreshView();
-				PressItem(GetLitItem());
-				PlayCue(EWoRMenuCue::Refused);
+				// B-598c piece 2: A is the Details column's first button (Equip on…), or gives to the lit receiver.
+				const int32 Button = bGiving ? GiveSelected : 0;
+				const bool bRefused = !InvActions.IsValidIndex(Button) || !InvActions[Button].Refusal.IsEmpty();
+				UBorder *Pressed = bGiving && RightButtonPlates.IsValidIndex(Button) ? RightButtonPlates[Button].Get() : GetLitItem();
+				PressInventoryButton(Button);
+				PressItem(Pressed);
+				PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Confirm);
 			}
-			return FReply::Handled(); // X does nothing on this side
+			else if (IsToggleKey(Key) && !bGiving && InvPage.Tiles.IsValidIndex(InvSelected))
+			{
+				const bool bRefused = !InvActions.IsValidIndex(1) || !InvActions[1].Refusal.IsEmpty();
+				PressGive(); // X, Give to…
+				PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Confirm);
+			}
+			return FReply::Handled();
 		}
 		if (Key == EKeys::V || Key == EKeys::Gamepad_LeftThumbstick || Key == EKeys::Six)
 		{
@@ -4717,6 +4939,7 @@ void ULoadoutV2ScreenWidget::ApplyWindowDraft()
 
 void ULoadoutV2ScreenWidget::CloseWindow()
 {
+	PendingEquipGear.Invalidate(); // B-598c: Equip on… is done with
 	Mode = ELoadoutV2Mode::List;
 	bEditing = false;
 	Kinds.Reset();

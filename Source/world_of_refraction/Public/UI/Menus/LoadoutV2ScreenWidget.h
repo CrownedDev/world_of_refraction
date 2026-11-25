@@ -249,6 +249,24 @@ public:
 	void MoveInventoryTab(int32 Delta);
 	/** The View button / H on the inventory's side: the next sort. */
 	void CycleInventorySort();
+	// B-598c piece 2 (mockup menus/inventory/v4): the Details column's facts and buttons for the lit tile.
+	/** A, Equip on…: to the page where the piece goes (Equipment; Apparel for apparel), with the piece lit once a
+	 *  slot's grid opens. A stack is refused (it goes in a socket, picked from the slot). */
+	void PressEquipOn();
+	/** X, Give to…: the other members as the Details column's buttons (A gives, B back); refused with the reason. */
+	void PressGive();
+	bool IsGiving() const { return bGiving; }
+	/** The lit tile's facts (WoRInventoryScreen::BuildFacts). */
+	const TArray<FLoadoutScreenDetail> &GetInventoryFacts() const { return InvFacts; }
+	/** The Details column's buttons: label (with its key), and the reason when greyed. */
+	struct FInventoryAction
+	{
+		FText Label;
+		FText Refusal;
+		/** Giving: the member it goes to. */
+		FName Receiver;
+	};
+	const TArray<FInventoryAction> &GetInventoryActions() const { return InvActions; }
 	EInventoryScreenTab GetInventoryTab() const { return InvTab; }
 	EInventoryScreenSort GetInventorySort() const { return InvSort; }
 	int32 GetInventoryTile() const { return InvSelected; }
@@ -515,6 +533,27 @@ private:
 	TArray<TObjectPtr<UTextBlock>> RightLabels;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> RightValues;
+	/** B-598c piece 2: the Details column's buttons (a plate each: its key and verb, a reason under a greyed one). */
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> RightButtons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> RightButtonPlates;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> RightButtonTexts;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> RightButtonReasons;
+	TArray<FLoadoutScreenDetail> InvFacts;
+	TArray<FInventoryAction> InvActions;
+	/** Give to…: the buttons are the receivers; GiveSelected is the lit one. */
+	bool bGiving = false;
+	int32 GiveSelected = 0;
+	/** Equip on…: the piece to light when a slot's grid opens (cleared on the Inventory page and when the window closes). */
+	FGuid PendingEquipGear;
+	/** The lit tile's facts and buttons, read fresh (RefreshDetails). */
+	void RefreshInventoryActions();
+	/** A on the lit button: Equip on…, or give to the lit receiver. */
+	void PressInventoryButton(int32 Button);
+	int32 FindRightButtonUnder(const FVector2D &ScreenPosition) const;
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> BoxPictureFrame;
 	UPROPERTY(Transient)
