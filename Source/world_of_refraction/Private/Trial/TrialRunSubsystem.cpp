@@ -158,6 +158,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     BeatenMiniBosses.Reset(); // B-187b
     EncounterRevivals.Reset();
     bHasRestStand = false; // B-187c
+    EndAbandonedPractice(); // B-611
     bHasPendingReturnStand = false;
     bRunBossBeaten = false;
     RunWipes = 0; // B-362
@@ -497,6 +498,7 @@ void UTrialRunSubsystem::EnterEncounter(UTrialData *Trial, const TArray<UCharact
     PendingDifficulty = Difficulty;
     PendingRank = Rank;
     EncounterReturnLevel = Trial->Level;
+    EndAbandonedPractice();
     // B-362c (D-160): where the party stands on the trial map now is where a wipe's Prisms drop.
     UWorld *MapWorld = GetGameInstance()->GetWorld();
     const APlayerController *Leader = MapWorld && IsActiveTrialWorld(MapWorld) ? MapWorld->GetFirstPlayerController() : nullptr;
@@ -535,7 +537,8 @@ void UTrialRunSubsystem::ExitEncounter()
     bHasPendingFightSpot = false;
     EncounterReturnLevel = nullptr;
 
-    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting encounter -> %s (deferred one tick)"), *ReturnLevel.ToString());
+    UE_LOG(LogTemp, Log, TEXT("[TrialRun] Exiting encounter -> %s (deferred one tick)%s"), *ReturnLevel.ToString(),
+           bPracticeFight ? TEXT(", a practice fight: no save") : TEXT(""));
 
     // Called from OnCombatResultReady mid-orchestrator-teardown — the OpenLevel
     // must not run inside that broadcast.
@@ -543,15 +546,93 @@ void UTrialRunSubsystem::ExitEncounter()
     if (!World)
     {
         UE_LOG(LogTemp, Error, TEXT("[TrialRun] ExitEncounter: no world to defer through — ignored."));
+        bPracticeFight = false;
         return;
     }
     World->GetTimerManager().SetTimerForNextTick(
         FTimerDelegate::CreateWeakLambda(this, [this, ReturnLevel]()
                                          {
                                              // B-090: a fight's exit is a save point (the vitals are banked by now).
-                                             GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
+                                             // B-611: a practice fight saves nothing.
+                                             if (!bPracticeFight)
+                                             {
+                                                 GetGameInstance()->GetSubsystem<USaveSubsystem>()->SaveNow(GetGameInstance()->GetWorld(), true);
+                                             }
+                                             bPracticeFight = false;
                                              TravelTo(ReturnLevel);
                                          }));
+}
+
+bool UTrialRunSubsystem::IsPracticeFight(const UObject *WorldContext)
+{
+    const UWorld *World = WorldContext ? WorldContext->GetWorld() : nullptr;
+    const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+    const UTrialRunSubsystem *Run = GI ? GI->GetSubsystem<UTrialRunSubsystem>() : nullptr;
+    return Run && Run->IsPracticeFight();
+}
+
+void UTrialRunSubsystem::EndAbandonedPractice()
+{
+    if (bPracticeFight)
+    {
+        // A practice fight left without ExitEncounter (quit to the title): its flag and the dummy's return stand end here.
+        UE_LOG(LogWoR, Log, TEXT("[TrialRun] A practice fight left without End practice: cleared"));
+        bPracticeFight = false;
+        bHasPendingReturnStand = false;
+    }
+}
+
+bool UTrialRunSubsystem::EnterPracticeEncounter()
+{
+    const UWorld *HereWorld = GetGameInstance()->GetWorld();
+    if (HereWorld && HereWorld->GetNetMode() == NM_Client)
+    {
+        // shortcut: co-op guests can't start one (the host's travel takes the party); a guest's request RPC comes later.
+        UE_LOG(LogWoR, Warning, TEXT("[TrialRun] Practice fight refused: only the host starts it"));
+        return false;
+    }
+    if (IsRunActive())
+    {
+        UE_LOG(LogWoR, Warning, TEXT("[TrialRun] Practice fight refused: a trial run is active (the dummy is a hub thing)"));
+        return false;
+    }
+    const UPartySessionSubsystem *PartySession = GetGameInstance()->GetSubsystem<UPartySessionSubsystem>();
+    const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+    const TArray<UCharacterData *> BattleParty = Party ? Party->GetLivingMemberCharacterData() : TArray<UCharacterData *>();
+    if (BattleParty.Num() == 0)
+    {
+        UE_LOG(LogWoR, Warning, TEXT("[TrialRun] Practice fight refused: no living party member"));
+        return false;
+    }
+    UCharacterData *Dummy = PracticeDummy.LoadSynchronous();
+    if (PracticeLevel.IsNull() || !Dummy)
+    {
+        UE_LOG(LogWoR, Error, TEXT("[TrialRun] Practice fight refused: PracticeLevel (%s) or PracticeDummy (%s) unset or not loaded (DefaultGame.ini)"),
+               *PracticeLevel.ToString(), *PracticeDummy.ToString());
+        return false;
+    }
+    if (UMerchantShopSubsystem *Shop = GetGameInstance()->GetSubsystem<UMerchantShopSubsystem>())
+    {
+        Shop->Close();
+    }
+
+    PendingBattleParty = TArray<TObjectPtr<UCharacterData>>(BattleParty);
+    PendingOpposingParty = {Dummy};
+    PendingDifficulty = EAIDifficulty::Easy; // the dummy never acts; its AI is never asked
+    PendingRank = EEncounterRank::Normal; // the battle menu's Flee row (End practice) needs a Normal fight (D-091)
+    EncounterReturnLevel = nullptr;       // ExitEncounter goes back to HubLevel
+    bPracticeFight = true;
+    // Back where the leader stood (AWoRGameModeBase::RestartPlayer takes it on the hub's side).
+    UWorld *HubWorld = GetGameInstance()->GetWorld();
+    const APlayerController *Leader = HubWorld ? HubWorld->GetFirstPlayerController() : nullptr;
+    if (const APawn *LeaderPawn = Leader ? Leader->GetPawn() : nullptr)
+    {
+        SetPendingReturnStand(LeaderPawn->GetActorTransform());
+    }
+    UE_LOG(LogWoR, Log, TEXT("[TrialRun] Practice fight: %d member(s) v %s -> %s"), BattleParty.Num(), *Dummy->GetName(),
+           *PracticeLevel.ToString());
+    TravelTo(PracticeLevel);
+    return true;
 }
 
 int32 UTrialRunSubsystem::GetRunEarnedLevels(FName CharacterKey, EWorldPillar Pillar) const
