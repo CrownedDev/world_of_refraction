@@ -7,6 +7,7 @@
 //   this file's montage helpers)
 //   wor.Editor.BuildQuickStrikeMontage (B-595a: the dash + the one-handed sword's slash, for Quick Strike)
 //   wor.Editor.BuildForceStrikeMontage (B-595e: a standing slash, Cast0 on the cut, for Force Strike's projectile)
+//   wor.Editor.BuildRallyMontage (B-595h: Kwang's charge, VFX0 and SFX0 as it starts, for Rally's self buff)
 //   wor.Editor.BuildOverUnderMontage (B-595b: the dash + a cut down and a cut up, Impact0 and Impact1)
 //   wor.Editor.BuildHeavyAttackMontages (B-595c: Heavy Attack's wind-up turn, and its dash + overhead lunge)
 //   wor.Editor.BuildWhirlWindMontage (B-595d: the dash + a spin ending in a slam, for WhirlWind)
@@ -64,6 +65,15 @@ namespace LightHitMontageBuilder
 	constexpr const TCHAR *FORCE_STRIKE_CLIP = TEXT("/Game/CombatMasterAnimBundle/Animations/DSAS_V1/Manny_UE5/InPlace/Attack/CommonAttack/Anim_SAS_Slash1_IP.Anim_SAS_Slash1_IP");
 	/** The flat cut: weapon_r is fastest at frame 38 of 80 (40 fps) and stops sharply by frame 41 (sample_bones.sh). */
 	constexpr float FORCE_STRIKE_RELEASE_TIME = 0.95f;
+
+	// ---- B-595h: Rally, Kwang's charge (the sword drawn up), a self damage buff ----
+	constexpr const TCHAR *RALLY_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/Rally");
+	constexpr const TCHAR *RALLY_MONTAGE = TEXT("AM_Sword_Rally");
+	/** In place, read only (vendor folder): Kwang's ultimate intro retargeted to Manny (the same rig as AN_KwangAttack_C),
+	 *  1.53 s. SoftTofu's Ability_R_Intro_Wind is this move on Kwang's own skeleton. */
+	constexpr const TCHAR *RALLY_CLIP = TEXT("/Game/Imports/Paragon/ParagonAnimations/KwangManny/Ability/Ability_R_Intro.Ability_R_Intro");
+	/** VFX0 (the charge energy at the sword) and SFX0 (the charge sound, B-618) as the draw-up starts. */
+	constexpr float RALLY_CHARGE_TIME = 0.1f;
 
 	// ---- B-595b: Over Under, the light hit's dash then a cut down and a cut up (two Impacts) ----
 	constexpr const TCHAR *OVER_UNDER_FOLDER = TEXT("/Game/Data/Skills/Weapons/Sword/OverUnder");
@@ -332,6 +342,33 @@ namespace LightHitMontageBuilder
 		TEXT("EDITOR (B-595e): build AM_Sword_ForceStrike (a standing slash, Cast0 on the cut) in ")
 			TEXT("/Game/Data/Skills/Weapons/Sword/ForceStrike. Doesn't save: save it in the editor."),
 		FConsoleCommandDelegate::CreateStatic(&BuildForceStrike));
+
+	/** B-595h: Rally's charge, the clip alone (in place, no warp, no Impact: a self buff applies when the action ends). */
+	void BuildRally()
+	{
+		UAnimSequenceBase *Charge = LoadObject<UAnimSequenceBase>(nullptr, RALLY_CLIP);
+		if (!Charge)
+		{
+			UE_LOG(LogWoR, Error, TEXT("[LightHitBuilder] missing the charge clip %s"), RALLY_CLIP);
+			return;
+		}
+		// LoadObject, not FindObject: the montage may be on disk and not in memory, and building over it would replace it.
+		if (LoadObject<UAnimMontage>(nullptr, *(FString(RALLY_FOLDER) / RALLY_MONTAGE + TEXT(".") + RALLY_MONTAGE), nullptr, LOAD_NoWarn | LOAD_Quiet))
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[LightHitBuilder] %s already exists; delete it to rebuild"), RALLY_MONTAGE);
+			return;
+		}
+		UAnimMontage *Montage = MakeMontage(RALLY_MONTAGE, {Charge}, RALLY_FOLDER);
+		AddCombatNotify(Montage, RALLY_CHARGE_TIME, ECombatNotifyFamily::VFX);
+		AddCombatNotify(Montage, RALLY_CHARGE_TIME, ECombatNotifyFamily::SFX);
+		Finish(Montage);
+	}
+
+	static FAutoConsoleCommand GBuildRallyCommand(
+		TEXT("wor.Editor.BuildRallyMontage"),
+		TEXT("EDITOR (B-595h): build AM_Sword_Rally (Kwang's charge on Manny, VFX0 and SFX0 as it starts) in ")
+			TEXT("/Game/Data/Skills/Weapons/Sword/Rally. Doesn't save: save it in the editor."),
+		FConsoleCommandDelegate::CreateStatic(&BuildRally));
 
 	/** B-595b: Over Under's approach, the light hit's dash (same warp window) then the combo's down cut and rising cut,
 	 *  Impact0 and Impact1 on their contact frames. Its return is the light hit's hop back, set on the skill. */
