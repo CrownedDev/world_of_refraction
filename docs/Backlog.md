@@ -31,6 +31,7 @@
 ---
 
 ## Phase 0 — Foundations (unlocks verified, autonomous work)
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-001 | Build + PIE `fix/combat-hang-arc-a`; merge to main | Crown | S | — | Merged; a win resets status bars; a stunned actor's turn passes (superseded by B-061: a stunned actor now acts, Attack/Defend only) | REVIEW (in dev) |
@@ -48,6 +49,7 @@
 | B-010 | Per-battle `FRandomStream` (crit, BD, AI, random targets), seeded at combat start, seed logged | CC | M | B-001 | Same seed gives the same fight in a test | REVIEW (in dev) |
 
 ## Phase 1 — Simplify & DRY (low-risk, mostly not blocked)
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-020 | Stat-modifier table: `ESubStat → {Buff, Debuff, Modify}` + `GetNetModifier(Actor, Stat)`; replace the ~20 hand-written Buff−Debuff pairs | CC | M | B-007 | `wor.CompareStats` identical before/after | REVIEW (in dev). 13 sub-stat reads use the table; pillar, pool, generic damage, spell cost and crit-chance reads aren't sub-stats and stay; the two buildup-site reads (`StatusBuildupManager.cpp:281, 408-409`) feed the buildup total or need an element, so they stay too |
@@ -162,6 +164,7 @@
 ## Phase 1b — DRY audit 2 (`analysis/DryAudit_2026-10-28.md`; Crown: DRY is a priority)
 
 Each job: one source of truth, same behaviour unless its Q says otherwise, specs pin it, old copies flagged obsolete (deleted after PIE). Order follows the audit's §B.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-241 | **A4: AI infusion level, one decision for spells and abilities** (`AIDecisionManager.cpp:2115` / `:2215`): one helper; keep the Medium+ difficulty gate for both; guard the Energy-percent divides (`:1158`, `:2141`, `:2237`) against Max EP 0 | CC | S | — | Spec: spell and ability pick the same level in the same state; Max EP 0 doesn't crash | REVIEW (in dev): `refactor/B-241-ai-infusion-level`; built and tested on the desktop 2026-11-02 (810 green incl. `WoR.AI.InfusionLevel`); review: a pool-less fighter skips the low-energy item branch (kept the old outcome) |
@@ -184,6 +187,7 @@ Each job: one source of truth, same behaviour unless its Q says otherwise, specs
 ## Phase 1c — Performance (`analysis/PerfAudit_2026-10-28.md`)
 
 Per-frame code is clean; the cost is per hit and per AI turn. Same behaviour in every job (specs pin it); confirm with the profiling job.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-258 | **P1: stop copying the loadout on every stat read**: the 22 sites that store `GetActiveLoadout()` by value take `const &` (hot: `LoadoutComponent.cpp:4129, 4247, 4355, 4442, 4524, 4602, 4622`, `CharacterDataComponent.cpp:686`); real copies stay where the loadout is changed while used (`CrystalManager.cpp:303`, `ActionExecutor.cpp:4168`) | CC | S | — | Specs green; no by-value copies left on read paths | REVIEW (in dev): `refactor/B-258-loadout-by-ref`; built and tested on the desktop 2026-11-02 (828 green); 21 of 22 read sites take the loadout by const reference; CrystalManager's before-wear copy kept as a guard; reviewer clean |
@@ -205,6 +209,7 @@ Per-frame code is clean; the cost is per hit and per AI turn. Same behaviour in 
 ## Phase 1d — Simplify elements and effects (`analysis/SimplifyAudit_2026-10-28.md`)
 
 Bugs first, then one source of truth for "an element" / "a damage type". No enum reordering or removal (append-only; saves store integers).
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-267 | **S1 (bug): cost and turn-speed modifiers follow D-054** ("on an ally a buff, on an enemy a debuff"): `ModifyEnergyCost` ("Energy Cost Up" today makes skills cheaper, `ActionExecutor.cpp:4295-4300`; `IsDebuff` lists it unconditionally, `ESkillEffectType.h:396`, so a cleanse strips an ally's cost cut) and `ModifyTurnSpeed` (D-054, never built); sign and buff/debuff from the target side; display names match | CC | S | — | Spec: a cost cut on an ally survives cleanse and makes skills cheaper; on an enemy it's a debuff | REVIEW (in dev): `fix/B-267-sign-aware-cost-speed`; built and tested on the desktop 2026-11-02 (836 green incl. `WoR.Effects.SignAwareModifiers`); changes play (D-054, Q-267): on an ally the cost / turn-speed modifiers are buffs (a cleanse no longer strips them, a dispel does); names from the shared table |
@@ -222,6 +227,7 @@ Bugs first, then one source of truth for "an element" / "a damage type". No enum
 ## Phase 1e — Rules pinned by tests (`analysis/RulesTraceability_2026-10-29.md`)
 
 Every rule in `docs/Rules/` gets a spec that asserts its number or order (not only its constant). Clusters ≤3 files.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-282 | **LastStandSpec**: ET-37, PA-23, PA-24 (50% / 30%, window 2..5) | CC | S | — | Spec asserts the numbers | REVIEW (in dev): `chore/B-282-last-stand-spec`; built and tested on the desktop 2026-11-02 (848 green incl. `WoR.Effects.LastStand`); reviewer clean |
@@ -237,6 +243,7 @@ Every rule in `docs/Rules/` gets a spec that asserts its number or order (not on
 ## Phase 1f — Balance simulator (`Design/BalanceSimulator.md`)
 
 Headless AI-vs-AI fights, seeded, checked against `analysis/BaselineNumbers.md` targets; runs on both effect paths and diffs them.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-291 | **Headless seams (also fixes montage-less content):** CVar `wor.AI.ThinkDelayScale` (`AIDecisionManager.cpp:127-140`); `ResolveImpactFrame(Index)` factored from the Impact-notify loop (`ActionExecutorMontage.cpp:350-470`) and called per expected impact in the no-animation branch behind `wor.Combat.InstantImpacts` (`ActionExecutor.cpp:4783-4790`; today damage lands undefended after the 8 s failsafe); montage-less spells dispatch `CastArray[0]` (`:5073-5091`); `OnStatusTriggered` delegate (`StatusBuildupManager.cpp:385, 654-668`); `UTurnManager::OnRoundAdded` (rounds counted from the event, D-064). First spec `WoR.Balance.Sim.OneFight` (1v1 to the end) | CC | M | — | OneFight spec green; a no-animation ability lands defended impacts | REVIEW (in dev): `feature/B-291-headless-seams`, `docs/PIE/B-291.md` (rounds from `OnRoundAdded`, D-064) |
@@ -259,6 +266,7 @@ Headless AI-vs-AI fights, seeded, checked against `analysis/BaselineNumbers.md` 
 ## Unified loadout (D-110, `analysis/UnifiedLoadout_2026-10-29.md`)
 
 New model beside the old, adapters first; each cluster ≤3 files; old getters forward until cluster 9.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-301 | **Unified loadout 1: `FGearInstance`** (D-110): one instance type for a weapon or an adapter (asset, id / tier / quality, `AttachedItem`, spells, rolls) with converters to and from `FWeaponInventoryEntry` / `FRingInventoryEntry`; spec round-trips | CC | M | B-298 | Specs green; behaviour unchanged except the D-110 rules | REVIEW (in dev): `refactor/B-301-gear-instance`, `docs/PIE/B-301.md` |
@@ -283,6 +291,7 @@ New model beside the old, adapters first; each cluster ≤3 files; old getters f
 ## Owned-items store (D-111, `analysis/InventoryArchitecture_2026-10-29.md`)
 
 After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the slot GUID as the truth; B-308 puts the kind-agnostic owned list in the pool store; run wear by GUID lands before B-304.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-310 | **Run wear keyed by item GUID** (D-111 bug): `FindAttachedItemByHolder` matches by asset (`LoadoutComponent.cpp:3508-3518`), so two identical adapters share one wear record; key carried wear by the item's `PersistentID`. Before B-304 | CC | S | — | Specs green; one instance per item | REVIEW (in dev): `fix/B-310-run-wear-by-guid`, `docs/PIE/B-310.md`; asset lookups prefer the copy in use (Q-310) |
@@ -377,6 +386,7 @@ After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the
 | B-350 | **Legacy test actors out; test hygiene** (D-140, changes D-067): delete the five `*TestActor` classes (a spec first for anything only they cover; any placed in a map or referenced by a Blueprint is listed for an editor step instead); `Scripts/ue/test.sh` prints the 10 slowest tests; the quick balance sim moves to the nightly preset only | CC | M | — | Specs green; no `*TestActor` left in Source (or listed for the editor); test.sh shows the slowest 10 | REVIEW (in dev); all five listed for the editor step |
 
 ## Phase 2 — GAS migration (see `Design/GASMigration.md`)
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-040 | GAS stage 1: native GameplayTags + enum↔tag maps + `wor.CompareTags` | CC | M | B-004 | Tag queries equal enum queries | REVIEW (in dev) |
@@ -434,6 +444,7 @@ After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the
 | B-043h | GAS stage 4 part 8: hits apply `UWoRGE_Damage`; delete the dead paths (`bIsDeferredFire` gates, `OnSpellAnimNotify`, `GetAbilityChargeCostMultiplier`) and `wor.Costs.UseGAS` — **after Crown's PIE of B-043a–g** | CC | M | B-043g (PIE passed) | No old path left (grep); suite green | TODO |
 
 ## Phase 3 — Combat & element correctness
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-060 | Item use reports real success (`ItemExecutor.cpp:169`) | CC | S | — | Failed use doesn't consume a charge | REVIEW (in dev) |
@@ -473,6 +484,7 @@ After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the
 | B-435b | **Same-element stacking for spells** (Q-435 B, Crown 2026-11-14; D-174, ED-51): a spell keeps its origin source's element; every other same-element source the character has joins the cast: `GetAllowedInfusionSourcesForSpell` / `GetSameElementInfusionSources` stop skipping spells; a Reality or Broken Darkness character may pick their own element or the spell's source element, and stacking uses the picked one; each source pays its own cost through B-435's paths (`CalculateActionEnergyCost`: a stacked Innate / Evolution adds its spell EP even when the origin is a free adapter or weapon-crystal spell; `ApplyCommitCosts` / `ApplySourceCommitCost` per source, L2 HP summed); buildup through `InfusionConstants::SameElementBuildupMultiplier`; AI lethal check and `GetSameElementSourceCount` cover spells | CC | M | B-435 | Spec (extend `WoR.Infusion.SameElementStack`): a ring Fire spell with Fire innate pays innate EP and gets x1.25 buildup; a different-element innate doesn't join; a Broken Darkness / Reality character stacks on whichever element they pick; L2 HP summed per HP-paying source | REVIEW (in dev, `feature/B-435b-spell-stacking`, written by the cloud, built and tested on the desktop 2026-11-14); an infused spell stacks (Q-435b by default); a BD / Reality Innate pick casts their own element; PIE `docs/PIE/B-435b.md` |
 
 ## Phase 4 — Gameplay loop
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-070 | `TrialRunSubsystem::ActiveTrial` → strong ref | CC | S | — | Works in a packaged build | REVIEW (in dev) |
@@ -490,6 +502,7 @@ After the unified loadout (B-301..B-308). Changes to that plan: B-302 treats the
 ## Phase 4b — Run, map and hub plumbing (Crown, 2026-10-26: every decided mechanic built, placeholders where content or details are missing)
 
 Built from `Design/RunStructure.md`, `Design/Enemies.md`, `Design/HubAndStory.md`. Each job ships data-driven, with a debug print and the placeholder UI rule (Backlog mode rule 4). Values not ruled are named constants `// TODO: tune`. **Lore text is placeholder only** ("TODO: Crown writes"); never write story or dialogue. Run state lives on `UTrialRunSubsystem` (run lifetime, not per-fight); fight state follows D-064.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-183 | **Gate choice** (RunStructure §3): `UTrialData` gets a list of variations (name, description, boss `UCharacterData`) and the door asks for variation + difficulty (placeholder C++ panel at `ATrialDoor`); `UTrialRunSubsystem` holds the run's choice; difficulty scales enemy strength and payout through one named multiplier per level (`// TODO: tune`). `wor.Trial.Print` shows the choice | CC | M | — | Pick a variation and difficulty at the door in PIE; the print shows both; the payout multiplier test passes | REVIEW (in dev) |
@@ -541,6 +554,7 @@ Built from `Design/RunStructure.md`, `Design/Enemies.md`, `Design/HubAndStory.md
 ## Co-op (D-103: starts now; order from `Design/CoopStateOwnership.md`)
 
 Listen server (one player hosts), EOS, up to 3 players (AI only if recruited), join at rest spots, host hand-over, personal rewards. B-131 and B-132 are part of this order. **Network defaults (perf audit):** ASC replication `Minimal` on AI pawns, `Mixed` on player pawns; ~10 Hz net update + `ForceNetUpdate` after each action; push model on the new GameState / PlayerState / effect components; HP, EP, buildup to everyone, derived stats owner-only; no wholesale inventory / loadout replication; reliable server RPCs only for commands, cosmetics as unreliable multicast; dormancy on hub actors; no ReplicationGraph / Iris for ≤3 players.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-227 | **Travel without dropping clients:** `World->ServerTravel` + seamless travel for hub ↔ trial ↔ battle (replaces `OpenLevelBySoftObjectPtr` in `UTrialRunSubsystem`), an `AWoRGameState`, `CopyProperties` on the PlayerState | CC | M | — | Two-player PIE (listen server): both reach the battle and come back | REVIEW (in dev): `feature/B-227-seamless-travel`; built and tested on the desktop 2026-11-02 (806 green incl. `WoR.Coop.SeamlessTravel`); the editor step (hub Blueprint game mode: Use Seamless Travel + `AWoRGameState`) is B-240 (CC+UE); two-player PIE after that (Q-227) |
@@ -583,6 +597,7 @@ Listen server (one player hosts), EOS, up to 3 players (AI only if recruited), j
 ## Audit fixes (Crown, 2026-11-13)
 
 Paths under `Source/world_of_refraction/`; line numbers from `origin/dev` 49038f977. Order as listed (must first).
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-425 | **(Must) A co-op guest's saved wallet is wiped.** On a guest, `AWoRPlayerState::BeginPlay`'s `ApplyWalletTo` calls the currency Add, which is refused without authority, so the saved balances never reach the host; then `EndPlay`'s `BankWallet` saves the host's mirror into the guest's save. Files: `Private/Player/WoRPlayerState.cpp:104-111, 157-163`; `Private/Save/SaveSubsystem.cpp:796-813, 1192-1210`; `Private/Currency/CurrencyComponent.cpp:76-81`. **Fix:** the guest sends its banked balances to the host once on join (a Server RPC; the server applies them with `ApplyWallet`); a non-authority PlayerState never banks at EndPlay. **Note:** the headless specs always have authority, so test it in co-op PIE | CC | M | — | A guest's wallet survives join, play and leave in 2-player PIE (host and guest balances right after rejoin); specs green | REVIEW (in dev): `fix/B-425-guest-wallet`; the guest reports its save once on join (`ServerReportWallet`), a guest never banks (EndPlay, `CaptureInto`). Follow-up: a guest's co-op earnings and spending are not written back to its own save |
@@ -597,6 +612,7 @@ Paths under `Source/world_of_refraction/`; line numbers from `origin/dev` 49038f
 | B-434 | **(Nice) `FCoopCheckpointAssembler::Add` never checks `ChunkCount` against `WoRCheckpoint::MAX_CHUNKS`.** File: `Private/Save/CoopCheckpoint.cpp:118-133`. **Fix:** refuse counts over it | CC | S | — | Spec: an over-limit chunk count is refused | REVIEW (in dev): `fix/B-434-checkpoint-chunk-limit`; spec in CoopCheckpointSpec; built and tested 2026-11-14 |
 
 ## Phase 5 — Gear
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-080 | Skill damage type per D-007: Physical by default, the infusion source's element when infused; fix infused abilities using innate instead of the source (`ActionExecutor.cpp:1450`) | CC | M | D-007, D-037, B-216 | Tests: Generic + fire crystal deals Fire; uninfused deals Physical | REVIEW (in dev): an infused ability deals its selected source's element (`PreviewActionDamage` via `GetElementForSourceOption`; Q-080: every source, Raw none); uninfused stays None + physical type ("Physical") until the D-037 damage type (B-145); buildup uses the same element; spec `WoR.Combat.InfusedAbilityElement`; PIE `docs/PIE/B-080.md` |
@@ -613,6 +629,7 @@ Paths under `Source/world_of_refraction/`; line numbers from `origin/dev` 49038f
 | B-085 | Loadouts reference owned gear by `PersistentID` (no copies) | CC | L | B-090 | Wear/dismantle stay in sync | REVIEW (in dev): owned gear is the truth, loadouts sync (Q-085) |
 
 ## Phase 6 — Persistence
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-090 | Save/persistence keystone: `USaveGame`, stable IDs, two-phase load; character state survives hub ↔ trial ↔ battle **B-047 adds:** build on `ULocalPlayerSaveGame` (version stamp + `HandlePostLoad` upgrade switch); async save at fight/trial exit; asset refs saved as `FPrimaryAssetId`; first step registers the primary asset types and fixes the `Map` scan path in `DefaultGame.ini`; `wor.PrintSave` debug command. **Decided:** explicit save structs, not `SaveGame` tags (D-059); until the first public build, saves below the minimum version are wiped with a warning (D-060). | CC | L | B-041, D-060 | Quit and reload keeps inventory, currency, party, HP | REVIEW (in dev): party, banked wallet and pool saved; gear stays authored until B-085/B-091/B-124; run HP with B-208 (Q-090) |
@@ -625,6 +642,7 @@ Paths under `Source/world_of_refraction/`; line numbers from `origin/dev` 49038f
 ## UI rebuild — CommonUI, mockups first (D-024)
 
 Runs alongside the phases above. **Per screen group:** mockup (CC, no editor needed) → Crown approves → build on CommonUI (CC+UE) → Crown PIE → retire the old widgets. The old UI keeps working until its replacement passes PIE. Gameplay logic stays in C++ (`refactor/bp-logic-to-cpp`, B-002/B-003); the new widgets sit on those C++ bases.
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-100 | Mockup tool per D-025: plain + annotated 1280×720 drafts drawn from the deckbuilder kit (`UI_DeckbuilderReuse.md` §5), versioned `vN/` | CC | S | D-025 | One test draft renders | REVIEW (in dev) |
@@ -854,6 +872,7 @@ Runs alongside the phases above. **Per screen group:** mockup (CC, no editor nee
 Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109 is approved.
 
 ## Best-practice follow-ups (B-047, `docs/analysis/BestPractice_2026-10.md`)
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-118 | Drop the hard-coded test-asset fallbacks in the orchestrator's debug commands: the four `LoadObject` calls in `CombatOrchestrator.cpp:1970,2053,2391,2569` (one points at a file not in git) become a logged error. Flag first, remove after PIE | CC | S | — | No `/Game/` string paths outside test actors; a debug command with no skill set logs an error instead of loading a test asset | REVIEW (in dev): error logged; the four paths stay behind `wor.Debug.AllowTestAssetFallback` (off) until PIE, then remove them. Paths outside the orchestrator are B-205 |
@@ -890,6 +909,7 @@ Later groups follow `UI_ScreenInventory.md` order; CC adds their rows when B-109
 | B-146 | **Stat maths done the standard way (review, then plan):** Crown (2026-10-26): most systems work but are bespoke and could be done better. Map every stat-maths system to its GAS-standard shape in one plan, `docs/analysis/StatMathsRedesign.md`: stat composition (`StatComposition.md`), scaling (requirement gap, tier gap, tier power, `Mechanics/Scaling/`), status buildup, crit, defense, infusion cost, Broken Darkness strain/overload; and Ignore Defense as an amount per skill (D-086). Standard shape: attributes on AttributeSets (B-041), every bonus or penalty a **modifier** (GameplayEffect), action-time maths in **one or two Execution Calculations** (Lyra's damage pattern), constants in data tables. Per system: today / standard / what changes / risk. Same numbers before/after (`wor.CompareStats`, specs). Fold the result into B-041–B-043; resistance is B-145 | CC | M | B-044 | Plan doc; B-041–B-043 updated; no code until Crown approves | REVIEW (in dev): `docs/analysis/StatMathsRedesign.md`; Q-146/b/c approved by default; new B-218 (tuning data), B-219 (one damage core), B-217 (quirks); B-162 unblocked; B-042 builds the GEs, MMCs and executions on them, B-043 the cost GEs (no B-041 change: its attributes already cover the stats) |
 
 ## Hands-off plan (D-251, `Conventions/HandsOffPlan.md`): work these first
+
 | ID | Job | Who | Size | Needs | Done when | Status |
 |---|---|---|---|---|---|---|
 | B-576 | **The agent measures smoothness (D-251, Crown 2026-11-22; targets in `Conventions/HandsOffPlan.md`).** `PlaySequence` also reports frame times (average, worst, how many over 16.7 and 50 ms, and when), without its own screenshots counting as stutters; the time from an input to the first changed picture; a way to take the same numbers outside the editor for checkpoint 6. Use the engine's profilers where they serve | CC | S | B-575 | A scripted menu run and a fight return those numbers; a forced 100 ms stall is reported | TODO |

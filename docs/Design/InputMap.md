@@ -4,6 +4,7 @@
 Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Planned` = decided, not built; `Proposed` = standard-practice default, Crown may change.
 
 ## Exploration (hub and trial map)
+
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
 | Move | WASD | Left stick | — | Built. D-255 (B-583): ignored from contact with an enemy team until the fight starts; given back if it doesn't |
@@ -22,6 +23,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Journal (memories, lore) | J | D-pad Up | `IA_Field_Journal` | Proposed |
 
 ## Combat
+
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
 | Defend (main menu only) | G; click its hint | RB (R1) (was Y) | `IA_Combat_MenuDefend` | Built (B-093; moved by B-436g, D-258c). RB is also the infusion level: two actions on one button, and only one can act, as Defend works on the main menu and the level in a target picker |
@@ -57,6 +59,7 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 ## Menus (CommonUI screens)
 
 Fixed keys read by the screen itself while it's open (game input is off then), so they need no input action or mapping context yet. `UIScreens.md` proposes the shared set (tabs, sub-tabs, screen actions) for the screens to come; each gets its row here when it's built.
+
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
 | Open the game menu | Esc | Menu (Options) | `IA_ToggleMenu` | Built (B-439): `AWoRHubController::OpenGameMenu`, hub and trial map (not in a battle). Console: `wor.UI.Pause`. In the editor Esc ends PIE, so use the gamepad or the console |
@@ -138,6 +141,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 ## Screens and how they are reached (B-536)
 
 Every player screen as of 2026-11-16. "Console only" means a player could not reach it by playing. **Mouse** (D-233, every screen takes the mouse as well as keys and a pad): what it does today. "Hover + click" = moving lights a row and a click picks it (the confirm key's path); "wheel" = a list in a scroll box scrolls under the cursor (Slate does it); a key-driven list with no scroll box does not take the wheel.
+
 | Screen | Reached by | Console | Mouse |
 |---|---|---|---|
 | Title | The menu level (B-537); Quit to title | `wor.UI.Title` | **Yes** (B-538, B-546): hover + click on the slots, buttons and Yes / No; right-click a slot to delete; no list to wheel |
@@ -167,6 +171,7 @@ Still console only, on purpose (each has a replacement the player reaches): the 
 ## Mapping contexts (B-129)
 
 Higher priority wins a key two contexts both map. The numbers live in `WoRInputPriority` (`Public/Player/InputPriorities.h`); no literal priority is left in C++.
+
 | Context | Added by | Priority | State |
 |---|---|---|---|
 | Exploration (hub and trial map) | `AExplorationPlayerController` (`ExplorationMappingContext`; a BP may override `ExplorationMappingPriority`) | `EXPLORATION` = 0 | Built (B-129: named) |
@@ -183,6 +188,7 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 - Keyboard double-tap and gamepad double-click windows: one named constant (`// TODO: tune`).
 
 ## Changelog
+
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-27 | Created: built keys, Crown's double-click L3, standard-practice proposals | docs/input-map |

@@ -13,6 +13,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 ## Pending
 **The sweep:** [`Sweep.md`](Sweep.md) lists every retire-after-PIE delete as one checklist (deletes batched into one sweep per milestone, D-124) and the running list of every job waiting on Crown's PIE; nothing is DONE without it (D-128).
+
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [Weapon glow + trail](WeaponGlowTrail.md) | `feature/weapon-glow-trail` | An attack's infusion glow rides the weapon's own mesh and follows swaps; Slash / Thrust / Smash weapon trails (empty slots, editor steps listed), window or Impact fallback, element tint; `wor.Debug.WeaponTrail` | Pending |

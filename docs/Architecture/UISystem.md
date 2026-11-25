@@ -503,6 +503,7 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
   inferred from header comments and may be incomplete.
 
 ## Changelog
+
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
