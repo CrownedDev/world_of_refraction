@@ -23,6 +23,17 @@ namespace
 	constexpr float STYLE_TEST_HALF_HEIGHT = 90.0f;
 	constexpr float STYLE_TEST_MEDIUM_MIN_SHARE = 0.3f;
 	constexpr float STYLE_TEST_MEDIUM_MAX_SHARE = 0.6f;
+	// B-600i: Melee Rush's close three-quarter on the target: a bigger share, 30 to 60 degrees off the fighters' line.
+	constexpr float STYLE_TEST_CLOSE_MIN_SHARE = 0.4f;
+	constexpr float STYLE_TEST_CLOSE_MAX_SHARE = 0.75f;
+	constexpr float STYLE_TEST_THREE_QUARTER_MIN_DEGREES = 30.0f;
+	constexpr float STYLE_TEST_THREE_QUARTER_MAX_DEGREES = 60.0f;
+	// B-600i: Area Sweep and Support's wide sit low to mid height (cm above the caster), under the old 450.
+	constexpr float STYLE_TEST_MID_HEIGHT = 300.0f;
+	// B-600i: the allies for Support, the enemy line ahead of them.
+	const FVector STYLE_TEST_ALLY(0.0f, -300.0f, 0.0f);
+	const FVector STYLE_TEST_SECOND_ALLY(0.0f, 300.0f, 0.0f);
+	const FVector STYLE_TEST_ENEMY_CENTRE(1000.0f, 0.0f, 0.0f);
 	// B-600h (B-595c QA): Heavy Attack, a ritual that dashes about 7 m on its fire turn.
 	const TCHAR *const STYLE_TEST_HEAVY_ATTACK = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_HeavyStrike.DA_Sword_Abilities_HeavyStrike");
 	const FVector STYLE_TEST_DASH_TARGET(850.0f, 0.0f, 0.0f);
@@ -45,6 +56,18 @@ namespace
 	}
 
 	bool IsStill(const FCameraShot &Shot) { return Shot.Start.Equals(Shot.End); }
+
+	/** B-600h/i: where a fighter at Target sits in Shot's end view, and how much of the frame's height it fills. */
+	bool FrameTarget(const FCameraShot &Shot, const FVector &Target, FVector2D &OutCentre, float &OutShare)
+	{
+		const FVector Up = FVector::UpVector * STYLE_TEST_HALF_HEIGHT;
+		FVector2D Head, Feet;
+		const bool bProjected = CameraFraming::ProjectToScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Target, OutCentre) &&
+								CameraFraming::ProjectToScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Target + Up, Head) &&
+								CameraFraming::ProjectToScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Target - Up, Feet);
+		OutShare = static_cast<float>(Head.Y - Feet.Y) * 0.5f;
+		return bProjected;
+	}
 
 	float Travel(const FCameraShot &Shot) { return static_cast<float>(FVector::Dist(Shot.Start.GetLocation(), Shot.End.GetLocation())); }
 }
@@ -83,18 +106,73 @@ void FSkillCameraStyleSpec::Define()
 		}
 	});
 
-	It("Melee Rush: rushes in, no Cast shot, cuts to a held side two-shot on the hit", [this, Tuning]()
+	It("Melee Rush: rushes in, no Cast shot, cuts to a held close three-quarter on the target on the hit (B-600i, E33)", [this, Tuning]()
 	{
 		const FCameraShotContext Context = StyleTestContext();
 		TestTrue(TEXT("precondition: camera movement on (the rush is allowed)"), Context.bAllowRush);
 		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::WindUp, Context, Tuning);
 		TestTrue(TEXT("a rush (motion blur), one way in"), WindUp.IsSet() && WindUp->MotionBlur > 0.0f && Travel(*WindUp) > 0.0f);
 		TestFalse(TEXT("no Cast pull-back"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Cast, Context, Tuning).IsSet());
-		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Impact, Context, Tuning);
+		FCameraShotContext Arrived = Context; // the hit lands at the strike spot
+		Arrived.Caster = STYLE_TEST_STRIKE_SPOT;
+		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Impact, Arrived, Tuning);
 		TestTrue(TEXT("the hit cuts and holds"), Hit.IsSet() && Hit->bCut && IsStill(*Hit));
-		TestTrue(TEXT("both fighters in the two-shot"), Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster) &&
-															CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
-		TestTrue(TEXT("its punch passes (FOV back to the default)"), Hit.IsSet() && FMath::IsNearlyEqual(Hit->FieldOfView, FCombatCameraRules::DefaultFieldOfView));
+		if (!Hit.IsSet())
+		{
+			return;
+		}
+		FVector2D Centre;
+		float Share = 0.0f;
+		const bool bFramed = FrameTarget(*Hit, STYLE_TEST_TARGET, Centre, Share);
+		const FString Where = FString::Printf(TEXT("target %s, %.2f of the frame"), *CameraFraming::GetThirdsCell(Centre), Share);
+		TestTrue(FString::Printf(TEXT("the target in the middle band (%s)"), *Where),
+				 bFramed && FMath::Abs(Centre.X) <= CameraFraming::THIRD_LINE && FMath::Abs(Centre.Y) <= CameraFraming::THIRD_LINE);
+		TestTrue(FString::Printf(TEXT("close: %.2f to %.2f of the frame (%s)"), STYLE_TEST_CLOSE_MIN_SHARE, STYLE_TEST_CLOSE_MAX_SHARE, *Where),
+				 bFramed && Share >= STYLE_TEST_CLOSE_MIN_SHARE && Share <= STYLE_TEST_CLOSE_MAX_SHARE);
+		const FVector Off = (Hit->End.GetLocation() - STYLE_TEST_TARGET).GetSafeNormal2D();
+		const float Degrees = FMath::RadiansToDegrees(FMath::Acos(FVector::DotProduct(Off, (STYLE_TEST_STRIKE_SPOT - STYLE_TEST_TARGET).GetSafeNormal2D())));
+		TestTrue(FString::Printf(TEXT("three-quarter: %.0f degrees off the fighters' line, on the attacker's side"), Degrees),
+				 Degrees >= STYLE_TEST_THREE_QUARTER_MIN_DEGREES && Degrees <= STYLE_TEST_THREE_QUARTER_MAX_DEGREES);
+		TestTrue(TEXT("the attacker still in frame"), CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_STRIKE_SPOT));
+		TestTrue(TEXT("its punch passes (FOV back to the default)"), Hit->FovPunch > 0.0f && FMath::IsNearlyEqual(Hit->FieldOfView, FCombatCameraRules::DefaultFieldOfView));
+	});
+
+	It("B-600i Melee Rush combo: each later hit re-cuts to the next of three angles; hits on one frame cut once", [this, Tuning]()
+	{
+		FCameraShotContext Arrived = StyleTestContext();
+		Arrived.Caster = STYLE_TEST_STRIKE_SPOT;
+		TArray<FTransform> Views;
+		for (int32 Hit = 0; Hit < FCombatCameraRules::ComboRecutAngles; ++Hit)
+		{
+			const FCameraShot Shot = FCombatCameraRules::ComputeComboHitShot(Arrived, Tuning, Hit);
+			Views.Add(Shot.End);
+			const FString Name = FString::Printf(TEXT("hit %d"), Hit + 1);
+			TestTrue(Name + TEXT(": a cut that holds, its punch passing"), Shot.bCut && IsStill(Shot) && Shot.FovPunch > 0.0f);
+			TestTrue(Name + TEXT(": the target in frame"), CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
+			TestTrue(FString::Printf(TEXT("%s: the attacker at least %.0f cm from the lens"), *Name, STYLE_TEST_MIN_LENS_DISTANCE),
+					 FVector::Dist(Shot.End.GetLocation(), STYLE_TEST_STRIKE_SPOT) >= STYLE_TEST_MIN_LENS_DISTANCE);
+		}
+		TestTrue(TEXT("three different angles"), Views.Num() == 3 && !Views[0].Equals(Views[1]) && !Views[1].Equals(Views[2]) && !Views[0].Equals(Views[2]));
+		const FVector Line = (STYLE_TEST_TARGET - STYLE_TEST_STRIKE_SPOT).GetSafeNormal2D();
+		const FVector Across = FVector::CrossProduct(FVector::UpVector, Line);
+		TestTrue(TEXT("the second from the other side"),
+				 FVector::DotProduct(Views[0].GetLocation() - STYLE_TEST_TARGET, Across) * FVector::DotProduct(Views[1].GetLocation() - STYLE_TEST_TARGET, Across) < 0.0f);
+		TestTrue(TEXT("hit 1 is the Melee Rush hit shot"),
+				 Views[0].Equals(FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::MeleeRush, ECameraShotMoment::Impact, Arrived, Tuning)->End));
+		TestTrue(TEXT("the fourth hit comes round to the first angle"),
+				 FCombatCameraRules::ComputeComboHitShot(Arrived, Tuning, FCombatCameraRules::ComboRecutAngles).End.Equals(Views[0]));
+
+		TestTrue(TEXT("on by default (E33: almost every hit)"), Tuning.bRecutEachHit);
+		TestTrue(TEXT("Melee Rush, a later frame: re-cuts"), FCombatCameraRules::RecutsOnLaterHit(ESkillCameraStyle::MeleeRush, Tuning, false));
+		TestFalse(TEXT("the same frame (several targets at once): no"), FCombatCameraRules::RecutsOnLaterHit(ESkillCameraStyle::MeleeRush, Tuning, true));
+		FSkillCameraTuning Off = Tuning;
+		Off.bRecutEachHit = false;
+		TestFalse(TEXT("switched off: no"), FCombatCameraRules::RecutsOnLaterHit(ESkillCameraStyle::MeleeRush, Off, false));
+		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::RangedRelease, ESkillCameraStyle::HeavyWindUp, ESkillCameraStyle::AreaSweep,
+											  ESkillCameraStyle::Cinematic, ESkillCameraStyle::Support})
+		{
+			TestFalse(FString::Printf(TEXT("%s: never"), *UEnum::GetValueAsString(Style)), FCombatCameraRules::RecutsOnLaterHit(Style, Tuning, false));
+		}
 	});
 
 	It("B-600c Melee Rush: the rush stays behind the attacker; the dash's end cuts to the side view, the attacker clear of the lens", [this, Tuning]()
@@ -459,6 +537,62 @@ void FSkillCameraStyleSpec::Define()
 		TestEqual(TEXT("so its fire turn plays as Melee Rush"), FCombatCameraRules::GetStyleForDash(Skill->CameraStyle, Burst.bHasWindow), ESkillCameraStyle::MeleeRush);
 	});
 
+	It("B-600i Ranged Release, hold over the shoulder: no release cut, the hit punches in the shoulder shot; off by default", [this, Tuning]()
+	{
+		TestFalse(TEXT("off by default: the release two-shot as before"), Tuning.bHoldShoulderThroughHit);
+		FSkillCameraTuning Hold = Tuning;
+		Hold.bHoldShoulderThroughHit = true;
+		const FCameraShotContext Context = StyleTestContext();
+		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::RangedRelease, ECameraShotMoment::WindUp, Context, Hold);
+		TestFalse(TEXT("no release shot: the shoulder shot holds as the projectile flies away"),
+				  FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::RangedRelease, ECameraShotMoment::Cast, Context, Hold).IsSet());
+		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::RangedRelease, ECameraShotMoment::Impact, Context, Hold);
+		TestTrue(TEXT("the hit: the shoulder shot's own view, no cut, a punch and a shake"),
+				 WindUp.IsSet() && Hit.IsSet() && Hit->End.Equals(WindUp->End) && IsStill(*Hit) && !Hit->bCut && Hit->FovPunch > 0.0f && Hit->ShakeScale > 0.0f);
+		TestTrue(TEXT("the target in frame from behind the thrower"),
+				 Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET) &&
+					 FVector::DotProduct(Hit->End.GetLocation() - Context.Caster, (STYLE_TEST_TARGET - Context.Caster).GetSafeNormal2D()) < 0.0f);
+	});
+
+	It("B-600i Support: a front shot of the caster at home, then a wide of the allies with no enemy in frame", [this, Tuning]()
+	{
+		FCameraShotContext Context;
+		Context.Targets = {STYLE_TEST_ALLY, STYLE_TEST_SECOND_ALLY};
+		Context.EnemyCentre = STYLE_TEST_ENEMY_CENTRE;
+		const TOptional<FCameraShot> Front = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::Support, ECameraShotMoment::WindUp, Context, Tuning);
+		if (!TestTrue(TEXT("a front shot"), Front.IsSet()))
+		{
+			return;
+		}
+		const FVector TowardEnemies = (STYLE_TEST_ENEMY_CENTRE - Context.Caster).GetSafeNormal2D();
+		TestTrue(TEXT("a cut, then a slight one-way orbit over SupportCasterSeconds"),
+				 Front->bCut && Travel(*Front) > 0.0f && FMath::IsNearlyEqual(Front->BlendSeconds, FCombatCameraRules::SupportCasterSeconds));
+		TestTrue(TEXT("in front of the caster (toward the enemies), looking back at it"),
+				 FVector::DotProduct(Front->End.GetLocation() - Context.Caster, TowardEnemies) > 0.0f &&
+					 CameraFraming::IsOnScreen(Front->End, Front->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster));
+		TestFalse(TEXT("no enemy in the front shot"), CameraFraming::IsOnScreen(Front->End, Front->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_ENEMY_CENTRE));
+		for (const ECameraShotMoment Moment : {ECameraShotMoment::Cast, ECameraShotMoment::Impact, ECameraShotMoment::Spread})
+		{
+			TestFalse(TEXT("no other style shot: the front shot holds"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::Support, Moment, Context, Tuning).IsSet());
+		}
+
+		const FCameraShot Wide = FCombatCameraRules::ComputeSupportPartyShot(Context, Tuning);
+		TestTrue(TEXT("the allies' wide: a cut that holds, no punch"), Wide.bCut && IsStill(Wide) && FMath::IsNearlyZero(Wide.FovPunch) && FMath::IsNearlyZero(Wide.ShakeScale));
+		for (const FVector &Member : {Context.Caster, STYLE_TEST_ALLY, STYLE_TEST_SECOND_ALLY})
+		{
+			TestTrue(TEXT("every ally and the caster in frame"), CameraFraming::IsOnScreen(Wide.End, Wide.FieldOfView, CameraFraming::DEFAULT_ASPECT, Member));
+		}
+		TestFalse(TEXT("no enemy in frame"), CameraFraming::IsOnScreen(Wide.End, Wide.FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_ENEMY_CENTRE));
+		TestTrue(TEXT("low to mid height"), Wide.End.GetLocation().Z - Context.Caster.Z < STYLE_TEST_MID_HEIGHT);
+
+		FCameraShotContext Close = Context;
+		Close.EnemyCentre = FVector(STYLE_TEST_ENEMY_CENTRE.X * 0.5f, 0.0f, 0.0f); // the enemies right in front
+		const FCameraShot CloseWide = FCombatCameraRules::ComputeSupportPartyShot(Close, Tuning);
+		TestFalse(TEXT("enemies close by: still none in frame (never past them)"),
+				  CameraFraming::IsOnScreen(CloseWide.End, CloseWide.FieldOfView, CameraFraming::DEFAULT_ASPECT, Close.EnemyCentre.GetValue()));
+		TestTrue(TEXT("Support plays its shots, not a sequence"), !FCombatCameraRules::PlaysStandardShots(ESkillCameraStyle::Support));
+	});
+
 	It("Area Sweep: one wide still shot of the attacker and every target, held through the hit", [this, Tuning]()
 	{
 		FCameraShotContext Context = StyleTestContext();
@@ -472,6 +606,13 @@ void FSkillCameraStyleSpec::Define()
 			{
 				TestTrue(TEXT("every target in frame"), CameraFraming::IsOnScreen(WindUp->End, WindUp->FieldOfView, CameraFraming::DEFAULT_ASPECT, Target));
 			}
+			// B-600i (E33 area spells): low to mid height, behind and beside the attacker, the attacker near-left.
+			FVector2D Attacker;
+			TestTrue(TEXT("low to mid height"), WindUp->End.GetLocation().Z - Context.Caster.Z < STYLE_TEST_MID_HEIGHT);
+			TestTrue(TEXT("behind the attacker"),
+					 FVector::DotProduct(WindUp->End.GetLocation() - Context.Caster, (STYLE_TEST_TARGET - Context.Caster).GetSafeNormal2D()) < 0.0f);
+			TestTrue(TEXT("the attacker on the left"),
+					 CameraFraming::ProjectToScreen(WindUp->End, WindUp->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster, Attacker) && Attacker.X < 0.0f);
 		}
 		for (const ECameraShotMoment Moment : {ECameraShotMoment::Cast, ECameraShotMoment::Impact, ECameraShotMoment::Spread})
 		{
