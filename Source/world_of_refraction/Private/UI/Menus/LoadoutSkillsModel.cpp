@@ -196,7 +196,7 @@ FLoadoutSkillsPage WoRLoadoutSkills::BuildSkillsPage(UWorld *World, const FLoado
 
 TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(const FLoadoutSkillsPage &Page, int32 TabIndex, const FLoadoutScreenRow &Row,
 																 const TArray<UAbilityData *> &LearnedAbilities, const TArray<USpellData *> &LearnedSpells,
-																 const TArray<UAbilityData *> &BuiltIns)
+																 const TArray<UAbilityData *> &BuiltIns, bool bAllLearned)
 {
 	using namespace LoadoutSkillsBuild;
 	TArray<FLoadoutScreenChoice> Choices;
@@ -217,19 +217,24 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(const FLoadoutS
 			}
 		}
 	}
+	TSet<const USkillDataBase *> Offered;
 	const auto Offer = [&](USkillDataBase *Skill)
 	{
-		if (!Skill || InList.Contains(Skill))
+		if (!Skill || Offered.Contains(Skill))
 		{
 			return;
 		}
-		// D-224 (§5.2): a piece offers only the skills whose gear it meets.
-		if (Tab.List != ELoadoutSkillList::Innate && !SkillRequirementRules::IsMet(Skill, Tab.Host))
+		// D-224 (§5.2): a piece offers only the skills whose gear it meets. B-629: All learned shows the rest too, each
+		// refused with its reason (the ones in the list already ticked).
+		const bool bSlotted = InList.Contains(Skill);
+		const bool bFits = Tab.List == ELoadoutSkillList::Innate || SkillRequirementRules::IsMet(Skill, Tab.Host);
+		if ((bSlotted || !bFits) && !bAllLearned)
 		{
 			return;
 		}
-		InList.Add(Skill);
+		Offered.Add(Skill);
 		FLoadoutScreenChoice &Choice = Choices.AddDefaulted_GetRef();
+		Choice.bSlotted = bSlotted;
 		if (Tab.List == ELoadoutSkillList::Innate)
 		{
 			const int32 Points = InnateCost(CastChecked<USpellData>(Skill), Page.Discount);
@@ -239,11 +244,22 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(const FLoadoutS
 			{
 				Choice.Refusal = FText::Format(LOCTEXT("OverPoints", "Over the points: {0} of {1}."), Choice.NewSpent, Page.MaxPoints);
 			}
-			return;
 		}
-		// A pick unless it is the built-in this very slot holds.
-		const bool bBuiltInHere = BuiltIns.IsValidIndex(Row.SkillSlot) && BuiltIns[Row.SkillSlot] == Skill;
-		Choice.Row = MakeSkillRow(Skill, Row.SkillSlot, !bBuiltInHere, INDEX_NONE, 0);
+		else
+		{
+			// A pick unless it is the built-in this very slot holds.
+			const bool bBuiltInHere = BuiltIns.IsValidIndex(Row.SkillSlot) && BuiltIns[Row.SkillSlot] == Skill;
+			Choice.Row = MakeSkillRow(Skill, Row.SkillSlot, !bBuiltInHere, INDEX_NONE, 0);
+		}
+		if (bSlotted)
+		{
+			Choice.Refusal = LOCTEXT("SlottedAlready", "In this list already.");
+		}
+		else if (!bFits)
+		{
+			const FText Need = SkillRequirementRules::GetNeedText(Skill);
+			Choice.Refusal = Need.IsEmpty() ? LOCTEXT("GearDoesNotFit", "This piece doesn't meet what it needs.") : Need;
+		}
 	};
 	if (Tab.List == ELoadoutSkillList::WeaponSkills)
 	{
@@ -268,7 +284,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(const FLoadoutS
 }
 
 TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutSkillsPage &Page, int32 Tab,
-																 const FLoadoutScreenRow &Row)
+																 const FLoadoutScreenRow &Row, bool bAllLearned)
 {
 	UInventoryComponent *Inventory = nullptr;
 	if (!WoRLoadoutScreen::FindMemberLoadout(World, Member, Inventory) || !Page.Tabs.IsValidIndex(Tab))
@@ -286,7 +302,7 @@ TArray<FLoadoutScreenChoice> WoRLoadoutSkills::BuildSkillChoices(UWorld *World, 
 		Spells.Add(Instance.Spell);
 	}
 	// B-518 (D-224): only the known skills are offered; gear has no built-ins.
-	return BuildSkillChoices(Page, Tab, Row, Abilities, Spells, TArray<UAbilityData *>());
+	return BuildSkillChoices(Page, Tab, Row, Abilities, Spells, TArray<UAbilityData *>(), bAllLearned);
 }
 
 bool WoRLoadoutSkills::PutSkill(FCombatLoadout &Loadout, ECharacterClass Class, const FLoadoutSkillTab &Tab, const FLoadoutScreenRow &Row,

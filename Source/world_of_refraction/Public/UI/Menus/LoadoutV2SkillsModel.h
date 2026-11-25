@@ -70,5 +70,10 @@ namespace WoRLoadoutV2Skills
 	 *  form). Empty without a skill. */
 	WORLD_OF_REFRACTION_API TArray<FLoadoutV2DetailLine> BuildSkillDetails(const USkillDataBase *Skill, bool bSimple, const FText &KindLine = FText::GetEmpty());
 
+	/** B-629 (mockup menus/skills/v1): the Details column's facts for Entry: its slots, used, free; Innate spells adds
+	 *  its points. Empty for a bad entry.
+	 *  TODO: B-629: the mockup's "Takes" (the skill kinds that fit) and "Infusion from" (the crystal and its element). */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenDetail> BuildEntryFacts(const FLoadoutV2SkillsPage &Page, int32 Entry);
+
 	WORLD_OF_REFRACTION_API FString GetSkillsString(const FLoadoutV2SkillsPage &Page);
 }

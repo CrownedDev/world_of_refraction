@@ -82,9 +82,8 @@ enum class ELoadoutV2Mode : uint8
 	WindowItems,
 	/** "Attach ... to ...? Uses 2 cells": A Attach, B Not now. */
 	WindowAsk,
-	/** B-476d, the Skills tab: its entries (the tab's top level). */
-	SkillEntries,
-	/** The focused entry's skill slots. */
+	/** B-476d, the Skills tab. B-629 (mockup menus/skills/v1): its top level, the lit entry's skill slots under the
+	 *  ‹ entry › selector (B-476d's list of entries is gone). */
 	SkillRows,
 	/** The picker for a slot. */
 	SkillPicker
@@ -192,7 +191,15 @@ public:
 	/** B-440f, LB / RB: the next tab (Delta > 0) or the one before, from a tab's top level only. B-476d: Weapons |
 	 *  Skills | Apparel in a ring. */
 	void SwitchTab(int32 Delta = 1);
-	bool IsOnSkillsTab() const { return Mode == ELoadoutV2Mode::SkillEntries || Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker; }
+	bool IsOnSkillsTab() const { return Mode == ELoadoutV2Mode::SkillRows || Mode == ELoadoutV2Mode::SkillPicker; }
+	/** B-629, Left / Right on the Skills tab's slots (and a click on its selector): the next entry (Delta > 0) or the one
+	 *  before, in a ring; its first slot lit. */
+	void TurnSkillEntry(int32 Delta);
+	int32 GetSkillEntry() const { return SkillEntry; }
+	/** B-629, Left / Right in the skill picker (and a click on its selector): Fits this slot, or All learned (the ones
+	 *  that can't go here too, greyed with the reason). The picker opens on Fits this slot. */
+	void SetSkillsAllLearned(bool bAll);
+	bool IsSkillsAllLearned() const { return bSkillsAllLearned; }
 	const FLoadoutV2SkillsPage &GetSkillsPage() const { return SkillsPage; }
 	const TArray<FLoadoutV2SkillRowRef> &GetSkillRows() const { return SkillRows; }
 	const TArray<FLoadoutScreenChoice> &GetSkillChoices() const { return SkillChoices; }
@@ -517,7 +524,7 @@ private:
 
 	// D-249 piece 1: the inventory's side.
 	/** The loadout is at a tab's top level (its entries, the Skills tab's entries): the only place the keys may leave it. */
-	bool IsLoadoutAtTopLevel() const { return Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries; }
+	bool IsLoadoutAtTopLevel() const { return Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillRows; }
 	/** The grid shows the inventory's tab. B-598c: on the Inventory page only (the loadout's pages show their list, or a
 	 *  slot's choices while one is being filled). */
 	bool IsInventoryGrid() const { return !bLoadoutOpen; }
@@ -674,8 +681,25 @@ private:
 	/** Debug: the Skills tab as shown (WoRLoadoutV2Skills::GetSkillsString), logged when the tab opens. */
 	void LogSkillsTab() const;
 	FLoadoutV2SkillsPage SkillsPage;
-	/** The entry whose slots are open (SkillRows, SkillPicker). */
+	/** The entry whose slots are shown (SkillRows, SkillPicker). */
 	int32 SkillEntry = 0;
+	// B-629: the ‹ entry › selector over the slots (one word: the lit entry; the title says which of how many).
+	WoRMenuStyle::FChipRow SkillEntryChips;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> SkillEntryPlate;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> SkillEntryUnderlines;
+	// B-629: the picker's ‹ Fits this slot  All learned › selector.
+	bool bSkillsAllLearned = false;
+	WoRMenuStyle::FChipRow SkillFitsChips;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> SkillFitsPlate;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> SkillFitsUnderlines;
+	/** The Details column's buttons on the Skills tab's slots: Change this slot, Take it out, Short / full. */
+	TArray<FInventoryAction> SkillButtons;
+	/** The buttons the Details column shows now (the Inventory page's, or the Skills tab's). */
+	const TArray<FInventoryAction> &GetRightActions() const;
 	/** B-610: set while slots opened from the Equipment tab are open (JumpToEntrySkills). */
 	int32 SkillsReturnLine = INDEX_NONE;
 	TArray<FLoadoutV2SkillRowRef> SkillRows;

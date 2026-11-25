@@ -64,14 +64,17 @@ namespace WoRLoadoutSkills
 
 	/** What can go in Row's slot of Page.Tabs[Tab]: the learned spells of the school (innate), the learned abilities and
 	 *  the weapon's built-ins (a weapon), the learned spells (an adapter); none already in the list. Each line's skill is
-	 *  its Row.Skill; an innate line over the points stays, refused, with the points after it in NewSpent. */
+	 *  its Row.Skill; an innate line over the points stays, refused, with the points after it in NewSpent.
+	 *  B-629, bAllLearned (the picker's "All learned"): the ones in the list already (bSlotted) and the ones whose gear
+	 *  the piece doesn't meet are listed too, refused with the reason. */
 	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenChoice> BuildSkillChoices(const FLoadoutSkillsPage &Page, int32 Tab, const FLoadoutScreenRow &Row,
 																		   const TArray<UAbilityData *> &LearnedAbilities,
-																		   const TArray<USpellData *> &LearnedSpells, const TArray<UAbilityData *> &BuiltIns);
+																		   const TArray<USpellData *> &LearnedSpells, const TArray<UAbilityData *> &BuiltIns,
+																		   bool bAllLearned = false);
 
 	/** The member's choices, from what it has learned. */
 	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenChoice> BuildSkillChoices(UWorld *World, const FLoadoutScreenMember &Member, const FLoadoutSkillsPage &Page,
-																		   int32 Tab, const FLoadoutScreenRow &Row);
+																		   int32 Tab, const FLoadoutScreenRow &Row, bool bAllLearned = false);
 
 	/** Puts Skill in Row's slot of Loadout, or with no Skill takes it off (an innate spell comes out; a pick gives back
 	 *  what it replaced). A piece's slot is edited through the slots (WoRLoadoutScreen::EditRowGear, B-309d2b). False,

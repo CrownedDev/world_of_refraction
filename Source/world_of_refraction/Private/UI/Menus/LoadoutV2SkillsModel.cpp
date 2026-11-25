@@ -186,6 +186,24 @@ TArray<FLoadoutV2DetailLine> WoRLoadoutV2Skills::BuildSkillDetails(const USkillD
 	return Lines;
 }
 
+TArray<FLoadoutScreenDetail> WoRLoadoutV2Skills::BuildEntryFacts(const FLoadoutV2SkillsPage &Page, int32 Entry)
+{
+	TArray<FLoadoutScreenDetail> Facts;
+	if (!Page.Entries.IsValidIndex(Entry))
+	{
+		return Facts;
+	}
+	const FLoadoutV2SkillEntry &Shown = Page.Entries[Entry];
+	Facts.Add({LOCTEXT("FactSlots", "Slots"), FText::AsNumber(Shown.Total)});
+	Facts.Add({LOCTEXT("FactUsed", "Used"), FText::AsNumber(Shown.Filled)});
+	Facts.Add({LOCTEXT("FactFree", "Free"), FText::AsNumber(Shown.Total - Shown.Filled)});
+	if (Shown.bInnate)
+	{
+		Facts.Add({LOCTEXT("FactPoints", "Points"), FText::Format(LOCTEXT("FactPointsValue", "{0} / {1}"), Page.Source.Points, Page.Source.MaxPoints)});
+	}
+	return Facts;
+}
+
 FString WoRLoadoutV2Skills::GetSkillsString(const FLoadoutV2SkillsPage &Page)
 {
 	TArray<FString> Lines;

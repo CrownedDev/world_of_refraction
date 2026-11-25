@@ -81,6 +81,18 @@ void FLoadoutV2SkillsSpec::Define()
 		TestEqual(TEXT("the ring's line opens the ring's slots"), WoRLoadoutV2Skills::FindEntryFor(Page, 2), 1);
 		TestEqual(TEXT("the evolution's line has none"), WoRLoadoutV2Skills::FindEntryFor(Page, 0), static_cast<int32>(INDEX_NONE));
 		TestEqual(TEXT("no line, none (not Innate spells)"), WoRLoadoutV2Skills::FindEntryFor(Page, INDEX_NONE), static_cast<int32>(INDEX_NONE));
+
+		// B-629: the Details column's facts for an entry; Innate spells adds its points.
+		const TArray<FLoadoutScreenDetail> Blade = WoRLoadoutV2Skills::BuildEntryFacts(Page, 0);
+		if (TestEqual(TEXT("slots, used, free"), Blade.Num(), 3))
+		{
+			TestEqual(TEXT("slots"), Blade[0].Value.ToString(), FText::AsNumber(V2_SKILLS_WEAPON_ROWS).ToString());
+			TestEqual(TEXT("used"), Blade[1].Value.ToString(), FText::AsNumber(V2_SKILLS_WEAPON_FILLED).ToString());
+			TestEqual(TEXT("free"), Blade[2].Value.ToString(), FText::AsNumber(V2_SKILLS_WEAPON_ROWS - V2_SKILLS_WEAPON_FILLED).ToString());
+		}
+		const TArray<FLoadoutScreenDetail> Innate = WoRLoadoutV2Skills::BuildEntryFacts(Page, 2);
+		TestTrue(TEXT("Innate spells: its points last"), Innate.Num() == 4 && Innate[3].Value.ToString().Contains(TEXT("18 / 24")));
+		TestTrue(TEXT("a bad entry: none"), WoRLoadoutV2Skills::BuildEntryFacts(Page, 3).IsEmpty());
 	});
 
 	It("says what a skill does: its name, then EP", [this]()
@@ -115,7 +127,9 @@ void FLoadoutV2SkillsSpec::Define()
 		Screen->ToggleLoadout(); // B-598c: from the Inventory page to Equipment
 		TestFalse(TEXT("on Weapons"), Screen->IsOnSkillsTab());
 		Screen->SwitchTab(1);
-		TestTrue(TEXT("RB: Skills"), Screen->GetTab() == ELoadoutV2Tab::Skills && Screen->GetMode() == ELoadoutV2Mode::SkillEntries);
+		TestTrue(TEXT("RB: Skills, on its slots (B-629)"), Screen->GetTab() == ELoadoutV2Tab::Skills && Screen->GetMode() == ELoadoutV2Mode::SkillRows);
+		Screen->TurnSkillEntry(1);
+		TestTrue(TEXT("no entries: nothing to turn"), Screen->GetSkillEntry() == 0 && Screen->GetMode() == ELoadoutV2Mode::SkillRows);
 		Screen->SwitchTab(1);
 		TestTrue(TEXT("RB: Apparel"), Screen->GetTab() == ELoadoutV2Tab::Apparel && Screen->GetMode() == ELoadoutV2Mode::List);
 		Screen->SwitchTab(-1);
@@ -142,7 +156,7 @@ void FLoadoutV2SkillsSpec::Define()
 		TestEqual(TEXT("no line to return to"), Screen->GetSkillsReturnLine(), static_cast<int32>(INDEX_NONE));
 		Screen->SwitchTab(1);
 		TestFalse(TEXT("not from the Skills tab (it has its own A)"), Screen->JumpToEntrySkills());
-		TestTrue(TEXT("Skills tab unchanged"), Screen->GetTab() == ELoadoutV2Tab::Skills && Screen->GetMode() == ELoadoutV2Mode::SkillEntries);
+		TestTrue(TEXT("Skills tab unchanged"), Screen->GetTab() == ELoadoutV2Tab::Skills && Screen->GetMode() == ELoadoutV2Mode::SkillRows);
 	});
 }
 

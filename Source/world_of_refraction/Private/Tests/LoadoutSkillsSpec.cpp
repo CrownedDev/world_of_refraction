@@ -105,6 +105,14 @@ void FLoadoutSkillsSpec::Define()
 		TestEqual(TEXT("the points after"), Choices[0].NewSpent, After);
 		TestTrue(TEXT("allowed while it fits"), Choices[0].Refusal.IsEmpty() == (After <= Page.MaxPoints));
 
+		// B-629: All learned adds the one in the list already, ticked and refused.
+		const TArray<FLoadoutScreenChoice> All = WoRLoadoutSkills::BuildSkillChoices(Page, 0, Empty, {}, {Bolt, Nova, Ward}, {}, /*bAllLearned=*/true);
+		if (TestEqual(TEXT("all learned: Bolt and Nova (Ward is still another school)"), All.Num(), 2))
+		{
+			TestTrue(TEXT("Bolt ticked, refused"), All[0].Row.Skill == Bolt && All[0].bSlotted && !All[0].Refusal.IsEmpty());
+			TestTrue(TEXT("Nova as before"), All[1].Row.Skill == Nova && !All[1].bSlotted);
+		}
+
 		Page.MaxPoints = Page.Points + 1; // nearly full
 		Choices = WoRLoadoutSkills::BuildSkillChoices(Page, 0, Empty, {}, {Nova}, {});
 		TestFalse(TEXT("over the points: refused, and still listed"), Choices.Num() == 1 && Choices[0].Refusal.IsEmpty());
@@ -144,6 +152,17 @@ void FLoadoutSkillsSpec::Define()
 
 		const TArray<FLoadoutScreenChoice> Choices = WoRLoadoutSkills::BuildSkillChoices(Page, 0, Tab.Rows[0], {Cleave}, {}, {});
 		TestTrue(TEXT("offers only the learned one"), Choices.Num() == 1 && Choices[0].Row.Skill == Cleave);
+
+		// B-629: All learned lists an axe skill too, locked with what it needs; Fits this slot leaves it out.
+		UAbilityData *Chop = Ability();
+		Chop->RequiredWeaponType = EWeaponType::Axe;
+		TestEqual(TEXT("fits: the axe skill left out"), WoRLoadoutSkills::BuildSkillChoices(Page, 0, Tab.Rows[0], {Cleave, Chop}, {}, {}).Num(), 1);
+		const TArray<FLoadoutScreenChoice> All = WoRLoadoutSkills::BuildSkillChoices(Page, 0, Tab.Rows[0], {Cleave, Chop}, {}, {}, /*bAllLearned=*/true);
+		if (TestEqual(TEXT("all learned: both"), All.Num(), 2))
+		{
+			TestTrue(TEXT("the sword skill free"), All[0].Row.Skill == Cleave && All[0].Refusal.IsEmpty() && !All[0].bSlotted);
+			TestTrue(TEXT("the axe skill locked, with the reason"), All[1].Row.Skill == Chop && !All[1].Refusal.IsEmpty() && !All[1].bSlotted);
+		}
 
 		FText Refusal;
 		TestFalse(TEXT("X on an empty slot: nothing to take off"), WoRLoadoutSkills::PutSkill(Loadout, ECharacterClass::Generic, Tab, Tab.Rows[0], nullptr, Refusal));

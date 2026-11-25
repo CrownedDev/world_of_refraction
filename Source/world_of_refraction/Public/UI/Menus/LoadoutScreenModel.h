@@ -142,6 +142,8 @@ struct FLoadoutScreenChoice
 	int32 NewSpent = 0;
 	/** Why it can't go in; empty when it can. The line stays in the picker. */
 	FText Refusal;
+	/** B-629, a skill line: in the list already (the picker's tick). */
+	bool bSlotted = false;
 };
 
 struct FLoadoutScreenPage
