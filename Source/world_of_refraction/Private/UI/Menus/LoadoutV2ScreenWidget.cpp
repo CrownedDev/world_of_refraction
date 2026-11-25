@@ -74,7 +74,8 @@ namespace LoadoutV2ScreenStyle
 	constexpr float CardGap = 6.0f;
 	constexpr float CardFrameWidth = 2.0f;
 	// D-249: the inventory's tabs, in the row's order (the inventory screen's own Loadout tab is not one of them).
-	const EInventoryScreenTab InventoryTabOrder[] = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch, EInventoryScreenTab::Chest};
+	// B-575c (D-250): no Chest tab.
+	const EInventoryScreenTab InventoryTabOrder[] = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch};
 	constexpr int32 INVENTORY_TAB_COUNT = UE_ARRAY_COUNT(InventoryTabOrder);
 	constexpr float TileMarkInset = 6.0f;
 	constexpr float TileTickSize = 24.0f;
@@ -308,7 +309,7 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 											   LOCTEXT("KeySubTabNext", "{SubTabNext}"), MemberChips))
 			->SetHorizontalAlignment(HAlign_Left);
 		// D-249 (mockups menus/inventory/v3): one tab line: the loadout's tabs first, shown only while the loadout is in,
-		// then the inventory's (Gear, Pouch, Chest), always there. LB / RB turn the tabs of the side the keys are on.
+		// then the inventory's (Gear, Pouch; no Chest, B-575c), always there. LB / RB turn the tabs of the side the keys are on.
 		UHorizontalBox *TabLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		LoadoutTabsPanel = MakeChipRowPanel(WidgetTree, LoadoutV2Chip_Count, LOCTEXT("KeyTabPrev", "{TabPrev}"), LOCTEXT("KeyTabNext", "{TabNext}"), TabChips);
 		AddToRow(TabLine, LoadoutTabsPanel, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
