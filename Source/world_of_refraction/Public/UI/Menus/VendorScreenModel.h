@@ -24,6 +24,7 @@
 
 class AActor;
 class UMerchantData;
+class USkillDataBase;
 
 enum class EVendorScreenTab : uint8
 {
@@ -34,7 +35,9 @@ enum class EVendorScreenTab : uint8
 	Repair,
 	Curses,
 	Merge,
-	Upgrade
+	Upgrade,
+	/** B-616c: the Combat Master's Upgrade, the member's learned skills (named "Upgrade" too). */
+	SkillUpgrade
 };
 
 /** B-616: one "what changes" line of Details: "Tier  C → A", better or worse. */
@@ -100,6 +103,8 @@ struct FVendorScreenRow
 	/** B-616 Upgrade: Row.GearID's piece at Row.Tier, raised to UpgradeTo, and what that changes (Details). */
 	EItemTier UpgradeTo = EItemTier::F_Tier;
 	TArray<FVendorScreenChange> Changes;
+	/** B-616c Skill upgrade: the learned skill (Row.Tier its tier now, UpgradeTo the next). */
+	TWeakObjectPtr<const USkillDataBase> Skill;
 };
 
 struct FVendorScreenPage
@@ -215,6 +220,11 @@ namespace WoRVendorScreen
 
 	/** An upgrade's next (Delta 1) or previous target, between the tier above From and S, wrapping; S stays S. */
 	WORLD_OF_REFRACTION_API EItemTier StepUpgradeTarget(EItemTier From, EItemTier Current, int32 Delta);
+
+	/** B-616c (Q-616c, mockup hub/vendors/v2/4): the Combat Master's Upgrade tab. A tile per spell and ability Member has
+	 *  learned (the pool's store), each aiming one tier up: its Dormant Essence (+ ½ Elemental for a spell with an
+	 *  element) and what changes; a skill at S or a wallet short of the cost greyed with the reason. */
+	WORLD_OF_REFRACTION_API FVendorScreenPage BuildSkillUpgradePage(UWorld *World, FName Member);
 
 	/** Repair, Curses, Merge, Upgrade: the question the first A asks ("Repair Garnet for 40 Gold?"). */
 	WORLD_OF_REFRACTION_API FText GetConfirmText(EVendorScreenTab Tab, const FVendorScreenRow &Row);

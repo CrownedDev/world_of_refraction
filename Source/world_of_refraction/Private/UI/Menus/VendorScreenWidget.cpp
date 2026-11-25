@@ -590,6 +590,9 @@ void UVendorScreenWidget::RefreshData()
 	case EVendorScreenTab::Upgrade:
 		Hints = LOCTEXT("HintsUpgrade", "{SubTabs}  Character        {Tabs}  Service        {Second}  Tier        {Confirm}  Upgrade        {Back}  Leave");
 		break;
+	case EVendorScreenTab::SkillUpgrade:
+		Hints = LOCTEXT("HintsSkillUpgrade", "{SubTabs}  Character        {Tabs}  Service        {Confirm}  Upgrade        {Back}  Leave"); // B-616c
+		break;
 	default:
 		Hints = FText::FormatNamed(LOCTEXT("Hints", "{SubTabs}  Character        {Tabs}  Service        {Confirm}  {Verb}        {Toggle}  Whole stack        {Back}  Leave"), TEXT("Verb"),
 							  WoRVendorScreen::GetTabName(GetTab()));

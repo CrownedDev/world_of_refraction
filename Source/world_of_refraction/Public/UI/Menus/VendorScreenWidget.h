@@ -193,18 +193,18 @@ private:
 	void RefreshCart();
 	bool IsBuy() const { return GetTab() == EVendorScreenTab::Buy; }
 	bool IsItemSlots() const { return GetTab() == EVendorScreenTab::ItemSlots; }
-	/** Repair, Curses, Merge (B-456d) and Upgrade (B-616): the WoRVendorScreen::RunService tabs. */
+	/** Repair, Curses, Merge (B-456d), Upgrade (B-616) and the skills' Upgrade (B-616c): the WoRVendorScreen::RunService tabs. */
 	bool IsSpiritualistService() const
 	{
 		return GetTab() == EVendorScreenTab::Repair || GetTab() == EVendorScreenTab::Curses || GetTab() == EVendorScreenTab::Merge ||
-			   GetTab() == EVendorScreenTab::Upgrade;
+			   GetTab() == EVendorScreenTab::Upgrade || GetTab() == EVendorScreenTab::SkillUpgrade;
 	}
 	/** Sell, Dismantle, Merge and Upgrade act on one character's things; Buy says who it is for in the panel, Item slots
 	 *  and Repair in their rows, and curses are the player's. */
 	bool HasMemberTabs() const
 	{
 		return GetTab() == EVendorScreenTab::Sell || GetTab() == EVendorScreenTab::Dismantle || GetTab() == EVendorScreenTab::Merge ||
-			   GetTab() == EVendorScreenTab::Upgrade;
+			   GetTab() == EVendorScreenTab::Upgrade || GetTab() == EVendorScreenTab::SkillUpgrade;
 	}
 	/** Repair: X asks to repair everything, the second X (or A) does it. */
 	void DoRepairAll();

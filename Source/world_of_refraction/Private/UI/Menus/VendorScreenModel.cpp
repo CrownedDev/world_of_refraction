@@ -267,6 +267,8 @@ TArray<EVendorScreenTab> WoRVendorScreen::GetTabs(EMerchantType Vendor)
 	case EMerchantType::Spiritualist:
 		return {EVendorScreenTab::Buy,	  EVendorScreenTab::Sell,	   EVendorScreenTab::Repair,
 				EVendorScreenTab::Curses, EVendorScreenTab::Dismantle, EVendorScreenTab::Merge};
+	case EMerchantType::CombatMaster:
+		return {EVendorScreenTab::Buy, EVendorScreenTab::SkillUpgrade}; // B-616c (mockup hub/vendors/v2/4)
 	default:
 		return {EVendorScreenTab::Buy}; // UIScreens #15: the shop is every vendor's; D-193 names the three with services
 	}
@@ -291,6 +293,7 @@ FText WoRVendorScreen::GetTabName(EVendorScreenTab Tab)
 	case EVendorScreenTab::Merge:
 		return LOCTEXT("TabMerge", "Merge");
 	case EVendorScreenTab::Upgrade:
+	case EVendorScreenTab::SkillUpgrade:
 		return LOCTEXT("TabUpgrade", "Upgrade");
 	}
 	return FText::GetEmpty();
@@ -321,6 +324,8 @@ FText WoRVendorScreen::GetVendorLine(EMerchantType Vendor)
 		return LOCTEXT("LineJeweler", "adapters, item slots");
 	case EMerchantType::Spiritualist:
 		return LOCTEXT("LineSpiritualist", "evolutions, crystals, repairs");
+	case EMerchantType::CombatMaster:
+		return LOCTEXT("LineCombatMaster", "skills, skill upgrades"); // B-616c
 	default:
 		return FText::GetEmpty();
 	}
@@ -353,6 +358,10 @@ FVendorScreenPage WoRVendorScreen::BuildPage(UWorld *World, EMerchantType Vendor
 	if (Tab == EVendorScreenTab::Upgrade)
 	{
 		return BuildUpgradePage(World, Member, {});
+	}
+	if (Tab == EVendorScreenTab::SkillUpgrade)
+	{
+		return BuildSkillUpgradePage(World, Member);
 	}
 	if (!GetService(Tab, Service))
 	{
@@ -846,6 +855,130 @@ FVendorScreenPage WoRVendorScreen::BuildUpgradePage(UWorld *World, FName Member,
 	return Page;
 }
 
+namespace VendorScreenSkillUpgrade
+{
+	/** The skill's tile picture is the piece it needs (a weapon type, an adapter, an evolution's element), as the
+	 *  loadout's skill picker (B-629b); its name where there is none. */
+	FWoRIcon MakeSkillIcon(const USkillDataBase &Skill, const FText &Name)
+	{
+		FWoRIcon Icon;
+		Icon.Name = Name;
+		const FSkillGearRequirement Need = Skill.GetGearRequirement();
+		Icon.Element = Need.Element;
+		if (Need.Kind == ESkillGearKind::Weapon && Need.bNeedsWeaponType)
+		{
+			Icon.Kind = EWoRIconKind::WeaponType;
+			Icon.WeaponType = Need.WeaponType;
+		}
+		else if (Need.Kind == ESkillGearKind::Adapter)
+		{
+			Icon.Kind = EWoRIconKind::Adapter;
+		}
+		else if (Need.Kind == ESkillGearKind::Evolution && Need.Element != ESpellElement::None)
+		{
+			Icon.Kind = EWoRIconKind::Element;
+		}
+		return Icon;
+	}
+
+	/** One tier up from From: its Dormant Essence and, for a spell with an element, the ½ Elemental (as
+	 *  UEconomyService::LevelUpPoolSkill pays). */
+	void GetCost(const USkillDataBase &Skill, EItemTier From, int32 &OutEssence, int32 &OutElemental)
+	{
+		const USpellData *Spell = Cast<USpellData>(&Skill);
+		OutEssence = EconomyYield::GetTierUpCostForTier(From);
+		OutElemental = Spell && EconomyYield::SpellHasElement(Spell->Element) ? EconomyYield::GetElementalCoCost(OutEssence) : 0;
+	}
+
+	/** Skill essence is kept as Dormant Essence (B-550, D-235). */
+	FText AffordRefusal(const UCurrencyComponent *Wallet, int32 Essence, int32 Elemental)
+	{
+		if (!Wallet || !Wallet->CanAfford(ECurrencyType::GearEssence, Essence))
+		{
+			return FText::Format(LOCTEXT("UpgradeShort", "Not enough {0}."), WoRGameNames::GetCurrencyName(ECurrencyType::GearEssence));
+		}
+		if (Elemental > 0 && !Wallet->CanAfford(ECurrencyType::ElementalEssence, Elemental))
+		{
+			return FText::Format(LOCTEXT("UpgradeShort", "Not enough {0}."), WoRGameNames::GetCurrencyName(ECurrencyType::ElementalEssence));
+		}
+		return FText::GetEmpty();
+	}
+}
+
+FVendorScreenPage WoRVendorScreen::BuildSkillUpgradePage(UWorld *World, FName Member)
+{
+	using namespace VendorScreenSkillUpgrade;
+
+	FVendorScreenPage Page;
+	UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
+	const UPoolSubsystem *Pool = GameInstance ? GameInstance->GetSubsystem<UPoolSubsystem>() : nullptr;
+	const FPoolSkills *Skills = Pool ? Pool->FindSkills(Member) : nullptr;
+	const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+	const UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Inventory ? Inventory->GetOwner() : nullptr);
+	TArray<TPair<const USkillDataBase *, EItemTier>> Learned;
+	if (Skills)
+	{
+		for (const FSpellInstance &Entry : Skills->Spells)
+		{
+			if (Entry.Spell)
+			{
+				Learned.Emplace(Entry.Spell, Entry.Tier);
+			}
+		}
+		for (const FAbilityInstance &Entry : Skills->Abilities)
+		{
+			if (Entry.Ability)
+			{
+				Learned.Emplace(Entry.Ability, Entry.Tier);
+			}
+		}
+	}
+	for (const TPair<const USkillDataBase *, EItemTier> &Each : Learned)
+	{
+		const USkillDataBase &Skill = *Each.Key;
+		const USpellData *Spell = Cast<USpellData>(&Skill);
+		FVendorScreenRow &Line = Page.Rows.AddDefaulted_GetRef();
+		Line.Skill = &Skill;
+		Line.Row.Tier = Each.Value;
+		Line.UpgradeTo = StepUpgradeTarget(Line.Row.Tier, Line.Row.Tier, 0); // one tier up; S stays S
+		// TODO: skill names are FString assets; FText with B-127 (D-061).
+		Line.Name = FText::FromString(Skill.Name);
+		Line.Element = Spell ? Spell->Element : ESpellElement::None;
+		Line.KindLine = Spell ? VendorScreenBuild::KindWithElement(LOCTEXT("KindSpell", "Spell"), Line.Element) : LOCTEXT("KindAbility", "Ability");
+		Line.Note = FText::FromString(Skill.Description);
+		Line.Icon = MakeSkillIcon(Skill, Line.Name);
+		Line.bTierBadge = true;
+		Line.TierValue = Line.Row.Tier;
+		if (Line.Row.Tier == EItemTier::S_Tier)
+		{
+			Line.Tier = WoRGameNames::GetTierLetter(EItemTier::S_Tier);
+			Line.Refusal = LOCTEXT("UpgradeAtS", "Already at S, the highest tier.");
+			continue;
+		}
+		int32 Essence = 0;
+		int32 Elemental = 0;
+		GetCost(Skill, Line.Row.Tier, Essence, Elemental);
+		const FText EssencePay = VendorScreenUpgrade::EssenceText(Essence);
+		Line.Tier = FText::Format(LOCTEXT("TierJump", "{0} → {1}"), WoRGameNames::GetTierLetter(Line.Row.Tier), WoRGameNames::GetTierLetter(Line.UpgradeTo));
+		Line.Pay = Elemental > 0 ? FText::Format(LOCTEXT("SkillPayElemental", "{0} + {1} {2}"), EssencePay, FText::AsNumber(Elemental),
+												 WoRGameNames::GetCurrencyName(ECurrencyType::ElementalEssence))
+								 : EssencePay;
+		Line.Refusal = AffordRefusal(Wallet, Essence, Elemental);
+		Line.Changes.Add({LOCTEXT("ChangeTier", "Tier"), WoRGameNames::GetTierLetter(Line.Row.Tier), WoRGameNames::GetTierLetter(Line.UpgradeTo)});
+		if (Line.Refusal.IsEmpty())
+		{
+			const int32 Have = Wallet->GetBalance(ECurrencyType::GearEssence);
+			Line.Changes.Add({WoRGameNames::GetCurrencyName(ECurrencyType::GearEssence), FText::AsNumber(Have), FText::AsNumber(Have - Essence), false});
+		}
+	}
+	if (Page.Rows.IsEmpty())
+	{
+		Page.EmptyNote = LOCTEXT("EmptySkillUpgrade", "No learned skills of theirs to upgrade.");
+	}
+	Page.Rule = LOCTEXT("RuleSkillUpgrade", "Each confirm raises the skill one tier, wherever it is slotted.");
+	return Page;
+}
+
 FText WoRVendorScreen::GetConfirmText(EVendorScreenTab Tab, const FVendorScreenRow &Row)
 {
 	switch (Tab)
@@ -857,6 +990,7 @@ FText WoRVendorScreen::GetConfirmText(EVendorScreenTab Tab, const FVendorScreenR
 	case EVendorScreenTab::Merge:
 		return FText::Format(LOCTEXT("ConfirmMerge", "Merge into {0} ({1}) for {2}?"), Row.Name, Row.Tier, Row.Pay);
 	case EVendorScreenTab::Upgrade:
+	case EVendorScreenTab::SkillUpgrade:
 		return FText::Format(LOCTEXT("ConfirmUpgrade", "Upgrade {0} from {1} to {2} for {3}?"), Row.Name, WoRGameNames::GetTierLetter(Row.Row.Tier),
 							 WoRGameNames::GetTierLetter(Row.UpgradeTo), Row.Pay);
 	default:
@@ -930,6 +1064,14 @@ FText WoRVendorScreen::RunService(UWorld *World, AActor *Payer, FName Member, EV
 		}
 		return Tier == From ? Failed : FText::Format(LOCTEXT("UpgradeStopped", "Raised to {0}; it couldn't go further."), WoRGameNames::GetTierLetter(Tier));
 	}
+	if (Tab == EVendorScreenTab::SkillUpgrade)
+	{
+		// B-616c: one tier, in the pool's store (the page is rebuilt from it, so a stale row can't raise twice).
+		UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+		UEconomyService *Economy = VendorScreenBuild::EconomyOf(World);
+		return Economy && Row.Skill.IsValid() && Economy->LevelUpPoolSkill(Inventory ? Inventory->GetOwner() : nullptr, Member, Row.Skill.Get()) ? FText::GetEmpty()
+																																			 : Failed;
+	}
 	return Failed;
 }
 
@@ -944,6 +1086,7 @@ FText WoRVendorScreen::GetDoneText(EVendorScreenTab Tab, const FVendorScreenRow 
 	case EVendorScreenTab::Merge:
 		return FText::Format(LOCTEXT("DoneMerge", "Made {0} ({1})."), Row.Name, Row.Tier);
 	case EVendorScreenTab::Upgrade:
+	case EVendorScreenTab::SkillUpgrade:
 		return FText::Format(LOCTEXT("DoneUpgrade", "{0} is now {1}."), Row.Name, WoRGameNames::GetTierLetter(Row.UpgradeTo));
 	default:
 		return FText::GetEmpty();
@@ -1105,7 +1248,8 @@ TArray<FPauseMenuChip> WoRVendorScreen::BuildChips(const UWorld *World)
 
 bool WoRVendorScreen::HasTileGrid(EVendorScreenTab Tab)
 {
-	return Tab == EVendorScreenTab::Buy || Tab == EVendorScreenTab::Sell || Tab == EVendorScreenTab::Dismantle || Tab == EVendorScreenTab::Upgrade;
+	return Tab == EVendorScreenTab::Buy || Tab == EVendorScreenTab::Sell || Tab == EVendorScreenTab::Dismantle || Tab == EVendorScreenTab::Upgrade ||
+		   Tab == EVendorScreenTab::SkillUpgrade;
 }
 
 TArray<FVendorGridFilter> WoRVendorScreen::GetGridFilters(const TArray<FVendorScreenRow> &Rows)
@@ -1165,12 +1309,14 @@ FWoRIcon WoRVendorScreen::GetFilterIcon(const FVendorGridFilter &Filter)
 
 FText WoRVendorScreen::GetGridTitle(EVendorScreenTab Tab)
 {
-	return Tab == EVendorScreenTab::Buy ? LOCTEXT("GridTitleStock", "Stock") : LOCTEXT("GridTitleGear", "Your gear");
+	return Tab == EVendorScreenTab::Buy			  ? LOCTEXT("GridTitleStock", "Stock")
+		   : Tab == EVendorScreenTab::SkillUpgrade ? LOCTEXT("GridTitleSkills", "Learned skills")
+												   : LOCTEXT("GridTitleGear", "Your gear");
 }
 
 FText WoRVendorScreen::GetGridCount(EMerchantType Vendor, EVendorScreenTab Tab, int32 Count)
 {
-	const bool bSkills = Tab == EVendorScreenTab::Buy && (Vendor == EMerchantType::CombatMaster || Vendor == EMerchantType::SpellShop);
+	const bool bSkills = Tab == EVendorScreenTab::SkillUpgrade || (Tab == EVendorScreenTab::Buy && (Vendor == EMerchantType::CombatMaster || Vendor == EMerchantType::SpellShop));
 	return bSkills ? FText::Format(LOCTEXT("GridCountSkills", "{0} {0}|plural(one=skill,other=skills)"), Count)
 				   : FText::Format(LOCTEXT("GridCountPieces", "{0} {0}|plural(one=piece,other=pieces)"), Count);
 }
