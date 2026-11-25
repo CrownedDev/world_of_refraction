@@ -1,13 +1,12 @@
 // CharacterSheetWidget.h
-// B-442 (D-181, UIScreens #5, mockup screen_mockups/menus/character/): the character sheet. A CommonUI screen
-// on the root layout's menu layer, opened from the game menu's Character page (Back returns there) or
-// wor.UI.Sheet.
-//
-// The character tabs on top (LT / RT), then three panels: who they are (HP and EP in their bars, Max Actions,
-// curses), the pillars with their sub-stats, and resistance by damage type as a bar from the middle (right and
-// green: resists; left and rose: weak). Read only. What it shows comes from WoRCharacterSheet
-// (CharacterSheetModel.h), which the specs read.
-// Not built yet: "where it comes from" on R3 (the stat's layers) and Y to the loadout.
+// B-442 (D-181, UIScreens #5): the character sheet. A CommonUI screen on the root layout's menu layer, opened from
+// the game menu's Character page or wor.UI.Sheet (Back returns to what opened it).
+// B-635 (mockup menus/profile/v1, Q-635): restyled as the Profile, in the three columns of the loadout screen (v5), and
+// opened from the Party screen (A on a seat). The member tabs on top (LT / RT). Left: who they are (HP, EP, Max
+// Actions) and the groups Mind, Body, Spirit, Resistances, Curses. Middle: the lit group's entries, each with a bar.
+// Right: Details, what the lit entry does and where its value comes from, with the total.
+// Up / Down move in the lit column; A goes from a group to its entries, B back to the groups, then out; Y opens the
+// loadout on this member. Read only. What it shows comes from WoRCharacterSheet (CharacterSheetModel.h).
 
 #pragma once
 
@@ -18,7 +17,9 @@
 
 class APlayerController;
 class UBorder;
+class UImage;
 class UProgressBar;
+class UScrollBox;
 class UTextBlock;
 class UVerticalBox;
 class UWidget;
@@ -31,62 +32,102 @@ class WORLD_OF_REFRACTION_API UCharacterSheetWidget : public UWoRActivatableWidg
 public:
 	UCharacterSheetWidget(const FObjectInitializer &ObjectInitializer);
 
-	/** Pushes the screen onto PC's root layout (over the game menu, when that is what opened it). */
-	static UCharacterSheetWidget *Open(APlayerController *PC);
+	/** Pushes the screen onto PC's root layout (over what opened it), on the sheet's member InMemberIndex. */
+	static UCharacterSheetWidget *Open(APlayerController *PC, int32 InMemberIndex = 0);
 
+	// What the keys and the mouse do (the specs call these too).
 	/** The next / previous character; wraps. */
 	void MoveMember(int32 Delta);
-	void PressBack() { HandleBackAction(); }
+	/** Up / Down in the lit column (the groups, or the lit group's entries); wraps. */
+	void MoveInColumn(int32 Delta);
+	void SelectGroup(int32 Group);
+	void SelectEntry(int32 Entry);
+	/** A: from a group to its entries. */
+	void PressSelect();
+	/** B: from the entries back to the groups, else out of the screen. */
+	void PressBack();
+	/** Y: the loadout screen on this member, over this one. */
+	void PressOpenLoadout();
 
 	int32 GetMemberIndex() const { return MemberIndex; }
 	const FCharacterSheetPage &GetPage() const { return Page; }
+	const TArray<FCharacterSheetGroup> &GetGroups() const { return Groups; }
+	int32 GetGroupIndex() const { return GroupIndex; }
+	int32 GetEntryIndex() const { return EntryIndex; }
+	bool IsOnEntries() const { return bOnEntries; }
+	/** The entry Details shows; null when the lit group has none. */
+	const FCharacterSheetStat *GetLitEntry() const;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	virtual void NativeOnActivated() override;
+	virtual bool NativeOnHandleBackAction() override;
 	virtual UWidget *NativeGetDesiredFocusTarget() const override;
 	virtual FReply NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent) override;
 	virtual FReply NativeOnMouseButtonDown(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
-	/** B-553 (D-233): the member tab under a moving mouse lights (hover colour); the click still picks it. */
+	/** B-553 (D-233): the tab or plate under a moving mouse lights (hover colour); the click still picks it. */
 	virtual FReply NativeOnMouseMove(const FGeometry &InGeometry, const FPointerEvent &InMouseEvent) override;
 	virtual void NativeOnMouseLeave(const FPointerEvent &InMouseEvent) override;
 
 private:
-	/** A pillar's widgets: its level pips and its sub-stat lines, built once and refilled. */
-	struct FPillarWidgets
+	/** A group's row on the left. */
+	struct FGroupWidgets
 	{
+		TWeakObjectPtr<UBorder> Frame;
 		TWeakObjectPtr<UTextBlock> Name;
-		TArray<TWeakObjectPtr<UBorder>> Pips;
-		TWeakObjectPtr<UTextBlock> Level;
-		TArray<TWeakObjectPtr<UWidget>> StatLines;
-		TArray<TWeakObjectPtr<UTextBlock>> StatLabels;
-		TArray<TWeakObjectPtr<UTextBlock>> StatValues;
+		TWeakObjectPtr<UTextBlock> Blurb;
+		TWeakObjectPtr<UTextBlock> Count;
 	};
 
-	/** One resistance line: a bar that fills left from the middle (weak) and one that fills right (resists). */
-	struct FResistanceWidgets
+	/** An entry's plate in the middle: its name and value, then its bar or (a curse) its text. */
+	struct FEntryWidgets
 	{
-		TWeakObjectPtr<UWidget> Root;
+		TWeakObjectPtr<UBorder> Frame;
 		TWeakObjectPtr<UTextBlock> Label;
-		TWeakObjectPtr<UProgressBar> WeakBar;
-		TWeakObjectPtr<UProgressBar> ResistBar;
+		TWeakObjectPtr<UTextBlock> Value;
+		TWeakObjectPtr<UProgressBar> Bar;
+		TWeakObjectPtr<UTextBlock> Text;
+	};
+
+	/** One "Where it comes from" line. */
+	struct FSourceWidgets
+	{
+		TWeakObjectPtr<UWidget> Row;
+		TWeakObjectPtr<UTextBlock> Label;
 		TWeakObjectPtr<UTextBlock> Value;
 	};
 
+	/** What the mouse is over. */
+	enum class EHoverKind : uint8
+	{
+		None,
+		Tab,
+		Group,
+		Entry
+	};
+
 	void BuildTree();
-	UWidget *BuildIdentityPanel();
-	UWidget *BuildPillarsPanel();
-	UWidget *BuildResistancePanel();
+	UWidget *BuildLeft();
+	UWidget *BuildMiddle();
+	UWidget *BuildRight();
+	/** The page and its groups, read fresh from the model. */
 	void Refresh();
-	int32 FindMemberTabUnder(const FPointerEvent &MouseEvent) const;
-	/** Colours the member tabs (current, hovered, plain) without rebuilding the page. */
+	/** The lit group, its entries and Details (no model read). */
+	void RefreshSelection();
+	void RefreshDetails();
 	void PaintMemberTabs();
-	void SetHoveredTab(int32 Tab);
-	int32 HoveredTab = INDEX_NONE;
+	void SetHover(EHoverKind Kind, int32 Index);
+	int32 FindUnder(const FPointerEvent &MouseEvent, EHoverKind Kind) const;
 
 	TArray<FPauseMenuMember> Members;
 	FCharacterSheetPage Page;
+	TArray<FCharacterSheetGroup> Groups;
 	int32 MemberIndex = 0;
+	int32 GroupIndex = 0;
+	int32 EntryIndex = 0;
+	bool bOnEntries = false;
+	EHoverKind HoverKind = EHoverKind::None;
+	int32 HoverIndex = INDEX_NONE;
 
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> MemberTabs;
@@ -94,6 +135,8 @@ private:
 	TArray<TObjectPtr<UTextBlock>> MemberTabLabels;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> RefusalText;
+	UPROPERTY(Transient)
+	TObjectPtr<UImage> ElementBadge;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> NameText;
 	UPROPERTY(Transient)
@@ -107,22 +150,29 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> EPValue;
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UBorder>> ActionPips;
+	TObjectPtr<UTextBlock> ActionsValue;
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> MaxActionsValue;
+	TObjectPtr<UTextBlock> GroupTitle;
 	UPROPERTY(Transient)
-	TObjectPtr<UProgressBar> ActionPointBar;
+	TObjectPtr<UTextBlock> GroupCount;
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> ActionPointValue;
+	TObjectPtr<UTextBlock> GroupSubtitle;
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> ActionRegainValue;
+	TObjectPtr<UTextBlock> NoEntriesText;
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UTextBlock>> CurseTitles;
+	TObjectPtr<UScrollBox> EntryScroll;
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UTextBlock>> CurseDescriptions;
+	TObjectPtr<UTextBlock> DetailName;
 	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> CurseNote;
+	TObjectPtr<UTextBlock> DetailDescription;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> SourcesBlock;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TotalValue;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> HintsText;
 
-	TArray<FPillarWidgets> PillarWidgets;
-	TArray<FResistanceWidgets> ResistanceWidgets;
+	TArray<FGroupWidgets> GroupWidgets;
+	TArray<FEntryWidgets> EntryWidgets;
+	TArray<FSourceWidgets> SourceWidgets;
 };

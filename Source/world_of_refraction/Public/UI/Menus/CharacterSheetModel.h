@@ -15,13 +15,29 @@
 
 class AActor;
 class UCharacterDataComponent;
+struct FPartyMember;
 class UWorld;
+
+/** B-635: one line of "Where it comes from": "Body 7" / "x1.25", "Gear" / "+5%". */
+struct FCharacterSheetSource
+{
+	FText Label;
+	FText Value;
+};
 
 /** One sub-stat line: "Spell Damage" / "x1.48". */
 struct FCharacterSheetStat
 {
 	FText Label;
 	FText Value;
+	/** B-635: how full its bar is, 0..1 of the stat's ceiling. */
+	float Fill = 0.0f;
+	/** B-635: what the stat does, for the Profile's Details. */
+	FText Description;
+	/** B-635: its layers (the pillar's part, gear, stone, buffs, a cap); Value is their total. */
+	TArray<FCharacterSheetSource> Sources;
+	/** B-635: a resistance line below zero (a weakness). */
+	bool bWeak = false;
 };
 
 struct FCharacterSheetPillar
@@ -30,6 +46,9 @@ struct FCharacterSheetPillar
 	int32 Level = 0;
 	int32 MaxLevel = 0;
 	TArray<FCharacterSheetStat> Stats;
+	/** B-635: the Profile's group row ("Defence, speed, raw damage") and the middle heading's line. */
+	FText Blurb;
+	FText Subtitle;
 };
 
 /** One resistance line: a damage type and how much less (or, below zero, more) of it the character takes. */
@@ -68,12 +87,28 @@ struct FCharacterSheetPage
 	FText Refusal;
 };
 
+/** B-635: one of the Profile's groups (Mind, Body, Spirit, Resistances, Curses): its row on the left, its entries in the middle. */
+struct FCharacterSheetGroup
+{
+	FText Name;
+	/** The row's number: a pillar's level, the curses held; empty for Resistances and for no curses. */
+	FText Count;
+	FText Blurb;
+	FText Subtitle;
+	/** A pillar's sub-stats, the resistance lines, or the curses (a curse has no Value: its text is its Description). */
+	TArray<FCharacterSheetStat> Entries;
+};
+
 namespace WoRCharacterSheet
 {
 	/** The resistance lines: All, Physical, Spell, then one per element a hit can carry. */
 	inline constexpr int32 SCOPE_LINE_COUNT = 3;
 	inline constexpr int32 ELEMENT_LINE_COUNT = 9;
 	inline constexpr int32 RESISTANCE_LINE_COUNT = SCOPE_LINE_COUNT + ELEMENT_LINE_COUNT;
+	/** B-635: Mind, Body, Spirit, Resistances, Curses. */
+	inline constexpr int32 GROUP_COUNT = 5;
+	/** B-635: the most entries a group lists (the resistance lines; the Profile builds this many plates). */
+	inline constexpr int32 MAX_GROUP_ENTRIES = RESISTANCE_LINE_COUNT;
 
 	/** A multiplier the fight uses: "x1.48". */
 	WORLD_OF_REFRACTION_API FText FormatMultiplier(float Multiplier);
@@ -89,6 +124,15 @@ namespace WoRCharacterSheet
 
 	/** The sheet of the local party's member at MemberIndex. */
 	WORLD_OF_REFRACTION_API FCharacterSheetPage BuildPage(UWorld *World, int32 MemberIndex);
+
+	/** The party member the sheet's MemberIndex shows (members with no character data are skipped); null if none. */
+	WORLD_OF_REFRACTION_API const FPartyMember *FindPartyMember(UWorld *World, int32 MemberIndex);
+
+	/** B-635: the Profile's groups of a page; none when the page has a refusal. */
+	WORLD_OF_REFRACTION_API TArray<FCharacterSheetGroup> BuildGroups(const FCharacterSheetPage &Page);
+
+	/** B-635: the sheet's MemberIndex of the party's PartySlot (the Party screen's seat); INDEX_NONE if it has no sheet. */
+	WORLD_OF_REFRACTION_API int32 FindMemberIndex(UWorld *World, int32 PartySlot);
 
 	WORLD_OF_REFRACTION_API FString GetCharacterSheetString(UWorld *World);
 }
