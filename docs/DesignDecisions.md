@@ -1342,6 +1342,12 @@ The queue of questions only Crown can answer.
 **Known limits:** an enemy's return home does not cut to the wide; the wide comes at the next turn start. No motion blur on the sweep. The menu opens when the game asks for the action, as before, not timed to the end of the sweep. A boss's push-in framing is not checked yet (PIE). The per-skill attack shots are unchanged (a separate job after the second E33 study).
 **Reference:** Expedition 33 (`docs/analysis/TurnBasedCameraComparison.md` section 6 (on `claude/docs-camera-video-study-a23bbe`, 065f41016)): the cut to the low wide about 1 s after the hit, the fast sweep into the next hero's view, the slow push-in before an enemy's turn; widely praised for its readable, cinematic turns.
 
+### Q-599 — Which infusion the Act panel heading names
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-599, Crown: drop No infusion when the action is raw; put the element in the title when infused) · **Blocks:** nothing
+**Question:** Crown's "raw" could mean no infusion or the Raw source. Which sources does the heading name, and what does the infusion key read?
+**Answer (default, built):** "raw" is read as **no infusion** (level 0, or the None source): no second line, a bare heading. Any other picked source at a level is named, the Raw source too ("Attack (Raw) · choose a target"), and a fixed-element spell names its element once a level is set. The infusion key names the chosen source even at level 0 ("Fire infusion"), so you see what the key will infuse; with None it reads "Infusion".
+**Reference:** Expedition 33 and Persona 5 show only the modifiers that apply on the action line, never a "none" line; Final Fantasy XVI's and Octopath Traveler's boost readouts name the element on the command itself.
+
 ### Q-609 — The gear upgrade screen: who, where and how much per press
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-609) · **Blocks:** nothing
 **Question:** Levelling a weapon or adapter (`UEconomyService::LevelUpWeapon` / `LevelUpRing`) has no screen. Which vendor offers it, where, and does one press raise one tier or pick a target tier?
