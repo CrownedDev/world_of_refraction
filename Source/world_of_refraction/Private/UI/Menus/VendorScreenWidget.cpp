@@ -22,9 +22,14 @@
 
 namespace VendorScreenStyle
 {
-	// This screen's own layout (screen_mockups/hub/vendors, 1280x720, at 1080p); the shared look is WoRMenuStyle.
+	// This screen's own layout (B-616: screen_mockups/hub/vendors/v2, the v5 three columns, at 1080p); the shared look is
+	// WoRMenuStyle.
 	using namespace WoRMenuStyle;
-	constexpr float ListWidth = 1068.0f;
+	constexpr float LeftWidth = 600.0f;
+	constexpr float MiddleWidth = 618.0f;
+	constexpr float RightWidth = 504.0f;
+	constexpr float PanelGap = 27.0f;
+	constexpr float PanelPadding = 24.0f;
 	// B-608: compact rows (name, tag, tier, count and price on one line); buttons keep the roomier padding.
 	constexpr float RowPaddingX = 15.0f;
 	constexpr float RowPaddingY = 7.0f;
@@ -39,13 +44,9 @@ namespace VendorScreenStyle
 	constexpr float CartListMaxHeight = 190.0f; // TODO: tune in PIE (about six lines at 1080p)
 	constexpr float TierBadgeSize = 28.0f;
 	constexpr float CountWidth = 75.0f;
-	constexpr float PayWidth = 300.0f;
-	// 20 marks must fit the row's words column (the list less the tier, count and pay columns: about 580).
-	constexpr float PipSize = 20.0f;
-	constexpr float PipGap = 7.0f;
-	constexpr float PanelGap = 45.0f;
-	constexpr float PanelWidth = 664.0f;
-	constexpr float PanelPadding = 30.0f;
+	// 20 marks must fit the row's words column (the left column less the icon, tier, count and "+": about 320).
+	constexpr float PipSize = 12.0f;
+	constexpr float PipGap = 4.0f;
 	/** The Spiritualist has the most services (D-193). */
 	constexpr int32 MaxServiceTabs = 6;
 	/** Between two money chips on the top line. */
@@ -158,22 +159,20 @@ void UVendorScreenWidget::BuildTree()
 	RowScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 	RowScroll->SetScrollBarVisibility(ESlateVisibility::Visible); // B-608: a long list shows its bar
 	AddToColumn(ListColumn, RowScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	AddToRow(Body, MakeSized(WidgetTree, ListWidth, 0.0f, ListColumn), FMargin(0.0f), VAlign_Fill);
+	AddToRow(Body, MakeSized(WidgetTree, LeftWidth, 0.0f, ListColumn), FMargin(0.0f), VAlign_Fill);
 
-	UBorder *Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Panel->SetBrushColor(PanelColor);
-	Panel->SetPadding(FMargin(PanelPadding));
-	UVerticalBox *PanelColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Panel->SetContent(PanelColumn);
+	// B-616 middle: the focused thing, what it is and does, and the tab's rule.
+	UBorder *Middle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Middle->SetBrushColor(PanelColor);
+	Middle->SetPadding(FMargin(PanelPadding));
+	UVerticalBox *MiddleColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Middle->SetContent(MiddleColumn);
 	DetailTitle = MakeWrappedText(WidgetTree, NameFontSize, TextColor, true);
-	AddToColumn(PanelColumn, DetailTitle, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
-	PayLabel = MakeText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(PanelColumn, PayLabel);
-	DetailPay = MakeWrappedText(WidgetTree, RowFontSize, TextColor, true);
-	AddToColumn(PanelColumn, DetailPay, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
-	// Buy: what the thing is, and who it is bought for.
+	AddToColumn(MiddleColumn, DetailTitle, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	DetailKind = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
+	AddToColumn(MiddleColumn, DetailKind, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	DetailLines = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(PanelColumn, DetailLines, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	AddToColumn(MiddleColumn, DetailLines, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	// B-487: the thing's effect sentence beside its effect icon.
 	DetailEffectIcon = MakeIcon(WidgetTree, TierBadgeSize);
 	DetailEffectText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
@@ -181,8 +180,27 @@ void UVendorScreenWidget::BuildTree()
 	AddToRow(EffectRow, DetailEffectIcon, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Top);
 	AddToRow(EffectRow, DetailEffectText, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	DetailEffectRow = EffectRow;
-	AddToColumn(PanelColumn, EffectRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	AddToColumn(MiddleColumn, EffectRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	SetShown(DetailEffectRow, false);
+	RuleText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
+	AddToColumn(MiddleColumn, RuleText);
+	AddToRow(Body, MakeSized(WidgetTree, MiddleWidth, 0.0f, Middle), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
+
+	// B-616 right, "Details": what the press costs or gives and what changes, the question, then (Buy) the cart.
+	UBorder *Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Panel->SetBrushColor(PanelColor);
+	Panel->SetPadding(FMargin(PanelPadding));
+	UVerticalBox *PanelColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Panel->SetContent(PanelColumn);
+	UTextBlock *DetailsHeading = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	DetailsHeading->SetText(LOCTEXT("DetailsHeading", "Details"));
+	AddToColumn(PanelColumn, DetailsHeading, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	PayLabel = MakeText(WidgetTree, LineFontSize, DimColor);
+	AddToColumn(PanelColumn, PayLabel);
+	DetailPay = MakeWrappedText(WidgetTree, RowFontSize, TextColor, true);
+	AddToColumn(PanelColumn, DetailPay, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	DetailChanges = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+	AddToColumn(PanelColumn, DetailChanges, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	BuyForButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	BuyForButton->SetBrushColor(PlateColor);
 	BuyForButton->SetPadding(FMargin(RowPadding));
@@ -196,11 +214,9 @@ void UVendorScreenWidget::BuildTree()
 	AddToColumn(PanelColumn, ConfirmHint, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	WholeStackText = MakeHintText(WidgetTree, LineFontSize, CyanColor);
 	AddToColumn(PanelColumn, WholeStackText, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
-	RuleText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(PanelColumn, RuleText);
 	StatusText = MakeWrappedText(WidgetTree, LineFontSize, GoodColor);
-	AddToColumn(PanelColumn, StatusText, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
-	DetailPanel = MakeSized(WidgetTree, PanelWidth, 0.0f, Panel);
+	AddToColumn(PanelColumn, StatusText);
+	DetailPanel = MakeSized(WidgetTree, RightWidth, 0.0f, Panel);
 
 	// Buy: the cart, under the details.
 	UBorder *CartFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
@@ -229,7 +245,7 @@ void UVendorScreenWidget::BuildTree()
 	WoRKeyHints::SetHint(PurchaseText, LOCTEXT("Purchase", "{Toggle}  Buy"));
 	PurchaseButton->SetContent(PurchaseText);
 	AddToColumn(CartColumn, PurchaseButton);
-	CartPanel = MakeSized(WidgetTree, PanelWidth, 0.0f, CartFrame);
+	CartPanel = MakeSized(WidgetTree, RightWidth, 0.0f, CartFrame);
 
 	// B-608: the side fills the body's height and no more: the details scroll in what the cart leaves, so nothing runs
 	// over the hint bar.
@@ -284,10 +300,8 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 	AddToRow(TierCell, Tier);
 	AddToRow(Line, MakeSized(WidgetTree, TierWidth, 0.0f, TierCell), FMargin(0.0f), VAlign_Center);
 	UTextBlock *Count = MakeText(WidgetTree, LineFontSize, CyanColor, true);
-	AddToRow(Line, MakeSized(WidgetTree, CountWidth, 0.0f, Count), FMargin(0.0f), VAlign_Center);
-	UTextBlock *Pay = MakeText(WidgetTree, RowFontSize, TextColor, true);
-	Pay->SetJustification(ETextJustify::Right);
-	AddToRow(Line, MakeSized(WidgetTree, PayWidth, 0.0f, Pay), FMargin(0.0f, 0.0f, RowPaddingX, 0.0f), VAlign_Center);
+	// B-616: no price column; the price is in Details (mockup v2).
+	AddToRow(Line, MakeSized(WidgetTree, CountWidth, 0.0f, Count), FMargin(0.0f, 0.0f, RowPaddingX, 0.0f), VAlign_Center);
 	UBorder *AddButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	AddButton->SetBrushColor(PlateColor);
 	AddButton->SetHorizontalAlignment(HAlign_Center);
@@ -306,7 +320,6 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 	Widgets.Sub = Sub;
 	Widgets.Tier = Tier;
 	Widgets.Count = Count;
-	Widgets.Pay = Pay;
 	Widgets.Icon = Icon;
 	Widgets.TierBadge = TierBadge;
 	Widgets.AddButton = AddButton;
@@ -338,6 +351,7 @@ void UVendorScreenWidget::ResetState()
 	bConfirmingAll = false;
 	bWholeStack = false; // the stack holds a pooled screen: nothing carries over from the last open
 	MergeTargets.Reset();
+	UpgradeTargets.Reset();
 	Cart.Reset();
 	Status = FText::GetEmpty();
 	RefreshData();
@@ -396,6 +410,9 @@ void UVendorScreenWidget::RefreshData()
 		break;
 	case EVendorScreenTab::Merge:
 		Page = WoRVendorScreen::BuildMergePage(World, MemberKey(), MergeTargets);
+		break;
+	case EVendorScreenTab::Upgrade:
+		Page = WoRVendorScreen::BuildUpgradePage(World, MemberKey(), UpgradeTargets);
 		break;
 	default:
 		Page = WoRVendorScreen::BuildPage(World, Vendor, GetTab(), MemberKey());
@@ -462,6 +479,9 @@ void UVendorScreenWidget::RefreshData()
 	case EVendorScreenTab::Merge:
 		Hints = LOCTEXT("HintsMerge", "{SubTabs}  Character        {Tabs}  Service        Left / Right  Tier        {Confirm}  Merge        {Back}  Leave");
 		break;
+	case EVendorScreenTab::Upgrade:
+		Hints = LOCTEXT("HintsUpgrade", "{SubTabs}  Character        {Tabs}  Service        Left / Right  Tier        {Confirm}  Upgrade        {Back}  Leave");
+		break;
 	default:
 		Hints = FText::FormatNamed(LOCTEXT("Hints", "{SubTabs}  Character        {Tabs}  Service        {Confirm}  {Verb}        {Toggle}  Whole stack        {Back}  Leave"), TEXT("Verb"),
 							  WoRVendorScreen::GetTabName(GetTab()));
@@ -479,7 +499,7 @@ void UVendorScreenWidget::RefreshData()
 		const bool bShown = Page.Rows.IsValidIndex(Index);
 		SetShown(Widgets.Frame.Get(), bShown);
 		if (!bShown || !Widgets.ElementMark.IsValid() || !Widgets.Name.IsValid() || !Widgets.Sub.IsValid() || !Widgets.PipRow.IsValid() ||
-			!Widgets.Tier.IsValid() || !Widgets.Count.IsValid() || !Widgets.Pay.IsValid())
+			!Widgets.Tier.IsValid() || !Widgets.Count.IsValid())
 		{
 			continue;
 		}
@@ -508,8 +528,6 @@ void UVendorScreenWidget::RefreshData()
 							   : Row.Row.Count > (bBuy ? 0 : 1) && !bMerge ? FText::Format(LOCTEXT("StackCount", "x{0}"), FText::AsNumber(Row.Row.Count))
 																		   : FText::GetEmpty());
 		Widgets.Count->SetColorAndOpacity(FSlateColor(Row.bStateIsBad ? WarnColor : CyanColor));
-		Widgets.Pay->SetText(bRefused && HasMemberTabs() ? FText::GetEmpty() : Row.PayMoney.IsEmpty() ? Row.Pay : FText::Format(LOCTEXT("PayAndMore", "{0} +"), Row.PayMoney));
-		Widgets.Pay->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor));
 		// B-608: the "+" only on Buy; a refused line keeps its place (the columns stay lined up) but shows none, and
 		// a Hidden one takes no click.
 		if (UBorder *AddButton = Widgets.AddButton.Get())
@@ -578,11 +596,10 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	UTexture2D *EffectIcon = (bBuy || bSlots || bSpirit) && Focused && !Row.Note.IsEmpty() ? WoRIcons::Find(Row.EffectIcon) : nullptr;
 	if ((bBuy || bSlots || bSpirit) && Focused)
 	{
-		if ((bBuy || bSpirit) && !Row.Refusal.IsEmpty())
+		if ((bBuy || bSpirit) && !Row.Refusal.IsEmpty() && !Row.Pay.IsEmpty())
 		{
 			Lines.Add(Row.Pay); // the reason took the price's place
 		}
-		Lines.Add(Row.KindLine);
 		for (const FLoadoutScreenDetail &Detail : Row.Details)
 		{
 			Lines.Add(Detail.Label.IsEmpty() ? Detail.Value : FText::Format(LOCTEXT("DetailLine", "{0}:  {1}"), Detail.Label, Detail.Value));
@@ -594,6 +611,16 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	}
 	DetailLines->SetText(FText::Join(FText::FromString(TEXT("\n")), Lines));
 	SetShown(DetailLines, !Lines.IsEmpty());
+	DetailKind->SetText(Focused ? Row.KindLine : FText::GetEmpty());
+	SetShown(DetailKind, Focused && !Row.KindLine.IsEmpty());
+	// B-616: what the press changes, "Tier:  C → A".
+	TArray<FText> Changes;
+	for (const FVendorScreenChange &Change : Row.Changes)
+	{
+		Changes.Add(FText::Format(LOCTEXT("ChangeLine", "{0}:  {1}  →  {2}"), Change.Label, Change.Old, Change.New));
+	}
+	DetailChanges->SetText(FText::Join(FText::FromString(TEXT("\n")), Changes));
+	SetShown(DetailChanges, Focused && !Changes.IsEmpty());
 	SetIcon(DetailEffectIcon, EffectIcon);
 	DetailEffectText->SetText(EffectIcon ? Row.Note : FText::GetEmpty());
 	SetShown(DetailEffectRow, EffectIcon != nullptr);
@@ -754,6 +781,7 @@ void UVendorScreenWidget::MoveMember(int32 Delta)
 	bConfirming = false;
 	bConfirmingAll = false;
 	MergeTargets.Reset(); // another member's crystals: each kind starts again at the highest it can make
+	UpgradeTargets.Reset();
 	Status = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();
@@ -881,6 +909,20 @@ void UVendorScreenWidget::MoveMergeTarget(int32 Delta)
 	RefreshSelection(/*bScrollIntoView=*/false);
 }
 
+void UVendorScreenWidget::MoveUpgradeTarget(int32 Delta)
+{
+	const FVendorScreenRow *Focused = FocusedRow();
+	if (GetTab() != EVendorScreenTab::Upgrade || !Focused)
+	{
+		return;
+	}
+	UpgradeTargets.Add(Focused->Row.GearID, WoRVendorScreen::StepUpgradeTarget(Focused->Row.Tier, Focused->UpgradeTo, Delta));
+	bConfirming = false; // the question was about the other tier: ask again
+	Status = FText::GetEmpty();
+	RefreshData();
+	RefreshSelection(/*bScrollIntoView=*/false);
+}
+
 void UVendorScreenWidget::ToggleWholeStack()
 {
 	EVendorService Service;
@@ -912,6 +954,11 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 	if (GetTab() == EVendorScreenTab::Merge && (IsLeftKey(Key) || IsRightKey(Key)))
 	{
 		MoveMergeTarget(IsRightKey(Key) ? 1 : -1); // the tier to make
+		return FReply::Handled();
+	}
+	if (GetTab() == EVendorScreenTab::Upgrade && (IsLeftKey(Key) || IsRightKey(Key)))
+	{
+		MoveUpgradeTarget(IsRightKey(Key) ? 1 : -1); // B-616: the tier to raise it to
 		return FReply::Handled();
 	}
 	if (InKeyEvent.IsRepeat())
