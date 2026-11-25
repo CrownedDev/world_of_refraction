@@ -1342,6 +1342,12 @@ The queue of questions only Crown can answer.
 **Known limits:** an enemy's return home does not cut to the wide; the wide comes at the next turn start. No motion blur on the sweep. The menu opens when the game asks for the action, as before, not timed to the end of the sweep. A boss's push-in framing is not checked yet (PIE). The per-skill attack shots are unchanged (a separate job after the second E33 study).
 **Reference:** Expedition 33 (`docs/analysis/TurnBasedCameraComparison.md` section 6 (on `claude/docs-camera-video-study-a23bbe`, 065f41016)): the cut to the low wide about 1 s after the hit, the fast sweep into the next hero's view, the slow push-in before an enemy's turn; widely praised for its readable, cinematic turns.
 
+### Q-609 — The gear upgrade screen: who, where and how much per press
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-609) · **Blocks:** nothing
+**Question:** Levelling a weapon or adapter (`UEconomyService::LevelUpWeapon` / `LevelUpRing`) has no screen. Which vendor offers it, where, and does one press raise one tier or pick a target tier?
+**Answer (default):** (1) **The Blacksmith upgrades both weapons and adapters**, on an Upgrade tab of the shared vendor screen (D-193); the Stone Smith already merged into it (D-173), so the gear services sit in one place. (2) **Hub and run alike** (D-047: every service works at home and in a run): in a trial the Anvil rest point opens it (ER-09c4). (3) **One tier per confirm**, showing the current and next tier and the cost; the first press asks, the second buys (D-016). (4) Downgrading (Face C respec, `DowngradeWeapon`) stays off this tab for now; a later job if wanted.
+**Reference:** Dark Souls 3 (Andre the blacksmith reinforces every weapon and shield, one level per confirm, with the cost and the next level's numbers shown before you confirm) and Elden Ring (the same at the hub smith, Hewg); both are widely read as clear. Expedition 33 upgrades weapons at camp (the Curator), one level per press, so upgrading works away from the hub as D-047 wants.
+
 ### Q-600h — Heavy Wind-Up: a blow that dashes in, and the hit of one that stays home
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-600h, from the B-595c QA) · **Blocks:** nothing
 **Question:** Heavy Attack dashes about 7 m on its fire turn, and the camera stayed behind its start, so the hit was tiny. How should a Heavy Wind-Up skill be filmed when it dashes, and when it stays home?
