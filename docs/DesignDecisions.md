@@ -1299,6 +1299,8 @@ The queue of questions only Crown can answer.
 - The move: a dash in, a full spin with the sword out, ending in a slam; the hit lands on the slam (Impact0).
 - **Price:** priced by its tier in the Combat Master, like the other sword skills.
 **Reference:** Final Fantasy's Cyclone/Whirlwind-type skills and Octopath Traveler's all-enemy attacks hit everyone for less than a single-target skill at a higher cost; Persona 5 frames all-enemy physicals from a wide, high camera.
+**Changed (Crown, 2026-11-25): WhirlWind hits one enemy.** Same dash, spin and slam; **Melee Rush** camera (the rush, the cut to the side two-shot as the dash ends, the hit punches there), not Area Sweep. Hitting every enemy moves to the coming B-595f Fan Slash and B-595g Slash Volley.
+- **Numbers (reference-backed default, Crown may change): 60 damage, 20 EP, buildup 5.** 35 for 25 EP on one enemy would be worse than Quick Strike (35 / 10). 60 / 20 sits between Over Under (50 / 15) and Heavy Attack (80 / 25, a turn of wind-up): the spin's flourish costs more than a plain cut, and Heavy Attack keeps the biggest hit for its warning turn. Expedition 33 and Persona 5 scale single-target physicals by cost the same way, with the strongest hit the slowest.
 
 ### Q-595e — Force Strike's numbers (the ranged air slash)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-595e) · **Blocks:** nothing
@@ -1373,7 +1375,7 @@ The queue of questions only Crown can answer.
 - **Melee Rush** (Quick Strike): the rush timed to the dash, a cut to the side two-shot on the hit, held; no Cast pull-back. **B-600c (QA):** the rush now holds behind the attacker's start and the cut to the side two-shot comes as the dash ends (before the swing), so the attacker never runs through the lens; the hit punches in that shot.
 - **Ranged Release** (Force Strike): a cut to a low over-the-right-shoulder shot about 250 cm back that holds (creeps at most 30 cm), FOV 90; at the release a cut to the side two-shot, dead still, so the projectile crosses the screen; on the hit FOV 90 to 85 to 90 in 0.1 s and a small shake in the same shot.
 - **Heavy Wind-Up** (Heavy Attack): a slow one-way push during the charge, a cut to a low hero angle at the hit (the side two-shot at shin height, looking up), held.
-- **Area Sweep** (WhirlWind): one wide, higher shot holding the attacker and every target, still.
+- **Area Sweep** (WhirlWind until 2026-11-25; next the all-enemy B-595f Fan Slash): one wide, higher shot holding the attacker and every target, still.
 - **Cinematic:** the skill's CameraSequence (signature moves); Standard's shots when it has none.
 Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wind-Up or Area Sweep plays that style even if it also has a CameraSequence (the style wins); Standard and Cinematic still play a sequence when there is one. The rule under all of them: never change a shot's size along one axis, change size only with a cut to a new angle, each shot moves one way or holds, big effects get a still camera, one blend back to the turn view.
 **Not built:** the hit's ~40 ms freeze (there is no hit-stop in the game yet; its own job if wanted). The hold after the hit and the blend back are the existing return to the turn view.
