@@ -1103,6 +1103,78 @@ TArray<FPauseMenuChip> WoRVendorScreen::BuildChips(const UWorld *World)
 	return Chips;
 }
 
+bool WoRVendorScreen::HasTileGrid(EVendorScreenTab Tab)
+{
+	return Tab == EVendorScreenTab::Buy || Tab == EVendorScreenTab::Sell || Tab == EVendorScreenTab::Dismantle || Tab == EVendorScreenTab::Upgrade;
+}
+
+TArray<FVendorGridFilter> WoRVendorScreen::GetGridFilters(const TArray<FVendorScreenRow> &Rows)
+{
+	TArray<FVendorGridFilter> Kinds;
+	for (const FVendorScreenRow &Row : Rows)
+	{
+		if (Row.Icon.Kind == EWoRIconKind::None)
+		{
+			continue;
+		}
+		FVendorGridFilter Kind;
+		Kind.Kind = Row.Icon.Kind;
+		Kind.WeaponType = Row.Icon.WeaponType;
+		Kinds.AddUnique(Kind);
+	}
+	Kinds.Sort([](const FVendorGridFilter &A, const FVendorGridFilter &B)
+			   { return A.Kind != B.Kind ? static_cast<uint8>(A.Kind) < static_cast<uint8>(B.Kind) : static_cast<uint8>(A.WeaponType) < static_cast<uint8>(B.WeaponType); });
+	Kinds.Insert(FVendorGridFilter(), 0); // All
+	return Kinds;
+}
+
+bool WoRVendorScreen::PassesFilter(const FVendorScreenRow &Row, const FVendorGridFilter &Filter)
+{
+	return Filter.IsAll() || (Row.Icon.Kind == Filter.Kind && (Filter.Kind != EWoRIconKind::WeaponType || Row.Icon.WeaponType == Filter.WeaponType));
+}
+
+FWoRIcon WoRVendorScreen::GetFilterIcon(const FVendorGridFilter &Filter)
+{
+	FWoRIcon Icon;
+	Icon.Kind = Filter.Kind;
+	Icon.WeaponType = Filter.WeaponType;
+	switch (Filter.Kind)
+	{
+	case EWoRIconKind::None:
+		Icon.Name = LOCTEXT("FilterAll", "All");
+		break;
+	case EWoRIconKind::WeaponType:
+		Icon.Name = WoRGameNames::GetWeaponTypeName(Filter.WeaponType);
+		break;
+	case EWoRIconKind::Adapter:
+		Icon.Name = LOCTEXT("FilterAdapter", "Adapter");
+		break;
+	case EWoRIconKind::Stone:
+		Icon.Name = LOCTEXT("FilterStone", "Stone");
+		break;
+	case EWoRIconKind::Element:
+	case EWoRIconKind::LooseGem:
+		Icon.Name = LOCTEXT("FilterGem", "Gem");
+		break;
+	default:
+		Icon.Name = LOCTEXT("FilterOther", "Other");
+		break;
+	}
+	return Icon;
+}
+
+FText WoRVendorScreen::GetGridTitle(EVendorScreenTab Tab)
+{
+	return Tab == EVendorScreenTab::Buy ? LOCTEXT("GridTitleStock", "Stock") : LOCTEXT("GridTitleGear", "Your gear");
+}
+
+FText WoRVendorScreen::GetGridCount(EMerchantType Vendor, EVendorScreenTab Tab, int32 Count)
+{
+	const bool bSkills = Tab == EVendorScreenTab::Buy && (Vendor == EMerchantType::CombatMaster || Vendor == EMerchantType::SpellShop);
+	return bSkills ? FText::Format(LOCTEXT("GridCountSkills", "{0} {0}|plural(one=skill,other=skills)"), Count)
+				   : FText::Format(LOCTEXT("GridCountPieces", "{0} {0}|plural(one=piece,other=pieces)"), Count);
+}
+
 FString WoRVendorScreen::GetVendorScreenString(UWorld *World, EMerchantType Vendor, AActor *Payer)
 {
 	const UMerchantData *Merchant = FindMerchant(World, Vendor);

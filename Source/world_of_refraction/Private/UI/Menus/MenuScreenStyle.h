@@ -283,6 +283,37 @@ namespace WoRMenuStyle
 		return Stack;
 	}
 
+	// ==================== TILE MARKS (B-616b; the loadout grid's own copies predate these) ====================
+
+	constexpr float TileCornerSize = 24.0f;
+	constexpr float TileLockBodyWidth = 16.0f;
+	constexpr float TileLockBodyHeight = 11.0f;
+	constexpr float TileLockShackleWidth = 8.0f;
+	constexpr float TileLockShackleHeight = 6.0f;
+
+	/** A tile's corner mark: a small violet square (the mockups' "in the cart"). */
+	inline UWidget *MakeTileCorner(UWidgetTree *Tree)
+	{
+		UBorder *Corner = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Corner->SetBrushColor(FocusColor);
+		return MakeSized(Tree, TileCornerSize, TileCornerSize, Corner);
+	}
+
+	/** A tile's lock (it can't be taken; why is in the details): a narrow block, the shackle, on a wider one. */
+	inline UWidget *MakeTileLock(UWidgetTree *Tree)
+	{
+		UVerticalBox *Lock = Tree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+		const auto AddBlock = [Tree, Lock](float Width, float Height)
+		{
+			UBorder *Block = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+			Block->SetBrushColor(DimColor);
+			AddToColumn(Lock, MakeSized(Tree, Width, Height, Block))->SetHorizontalAlignment(HAlign_Center);
+		};
+		AddBlock(TileLockShackleWidth, TileLockShackleHeight);
+		AddBlock(TileLockBodyWidth, TileLockBodyHeight);
+		return Lock;
+	}
+
 	// ==================== CHIP ROW (B-482; FChipRow / FChipState: UI/Menus/MenuChipRow.h) ====================
 
 	/** Builds a row of Count chips between PrevKeyPattern and NextKeyPattern (key-hint patterns: "{TabPrev}"). */
