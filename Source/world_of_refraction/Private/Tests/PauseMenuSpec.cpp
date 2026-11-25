@@ -1,6 +1,7 @@
 // PauseMenuSpec.cpp
-// B-439 (D-181, D-176): the game menu's model. Its nine pages in order, which ones open, the header in the hub
-// and in a run, and Quit in a run: the run's end pays nothing. The screen itself is the PIE sheet (docs/PIE/B-439.md).
+// B-439 (D-181, D-176), B-632 (mockup menus/pause/v2): the game menu's model. Its seven pages in order, which ones
+// open, the header in the hub and in a run, This run's counts and time, and Quit in a run: the run's end pays nothing.
+// The screen itself is the PIE sheet (docs/PIE/B-632.md).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -21,8 +22,19 @@
 namespace
 {
 	constexpr int32 PAUSE_TEST_SEED = 23;
-	constexpr int32 PAUSE_TEST_PAGE_COUNT = 9; // B-536: Forms
 	constexpr int32 PAUSE_TEST_CHIP_COUNT = 5; // B-543: the place's money, Diamond and the essences (B-550: Dormant, Elemental, Stat)
+	/** B-632 (mockup menus/pause/v2): the pages, in order; no Character or Body row. */
+	const EPauseMenuPage PAUSE_TEST_ORDER[] = {EPauseMenuPage::Resume, EPauseMenuPage::Loadout, EPauseMenuPage::Inventory, EPauseMenuPage::Party,
+											   EPauseMenuPage::Journal, EPauseMenuPage::Settings, EPauseMenuPage::Quit};
+	constexpr int32 PAUSE_TEST_ITEMS_SAVED = 4;
+	constexpr double PAUSE_TEST_SECONDS_SAVED = 125.0;
+	constexpr double PAUSE_TEST_MINUTES_ONLY = 1122.0; // 18:42
+	constexpr double PAUSE_TEST_PAST_AN_HOUR = 3909.0; // 1:05:09
+
+	int32 PauseTestIndexOf(const TArray<FPauseMenuPage> &Pages, EPauseMenuPage Page)
+	{
+		return Pages.IndexOfByPredicate([Page](const FPauseMenuPage &Row) { return Row.Page == Page; });
+	}
 }
 
 BEGIN_DEFINE_SPEC(FPauseMenuSpec, "WoR.UI.PauseMenu", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -60,38 +72,43 @@ void FPauseMenuSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("lists the nine pages in order (the mockup's, plus Forms), Resume first and Quit last", [this]()
+	It("lists the seven pages in order (B-632, mockup v2), Resume first and Quit last, each with its short line", [this]()
 	{
 		const TArray<FPauseMenuPage> Pages = WoRPauseMenu::BuildPages(false, true);
-		if (!TestEqual(TEXT("nine pages"), Pages.Num(), PAUSE_TEST_PAGE_COUNT))
+		if (!TestEqual(TEXT("seven pages"), Pages.Num(), static_cast<int32>(UE_ARRAY_COUNT(PAUSE_TEST_ORDER))))
 		{
 			return;
 		}
 		for (int32 Index = 0; Index < Pages.Num(); ++Index)
 		{
-			TestEqual(TEXT("in enum order"), static_cast<int32>(Pages[Index].Page), Index);
+			TestTrue(TEXT("in the mockup's order"), Pages[Index].Page == PAUSE_TEST_ORDER[Index]);
 			TestFalse(TEXT("named"), Pages[Index].Label.IsEmpty());
+			TestFalse(TEXT("a short line under the name"), Pages[Index].SubLine.IsEmpty());
 			TestFalse(TEXT("previewed"), Pages[Index].Preview.IsEmpty());
+			TestTrue(TEXT("opens"), Pages[Index].CanOpen());
 		}
-		TestTrue(TEXT("Resume opens"), Pages[static_cast<int32>(EPauseMenuPage::Resume)].CanOpen());
+		TestEqual(TEXT("no Character row"), PauseTestIndexOf(Pages, EPauseMenuPage::Character), INDEX_NONE);
+		TestEqual(TEXT("no Body row"), PauseTestIndexOf(Pages, EPauseMenuPage::Forms), INDEX_NONE);
+		TestEqual(TEXT("the loadout page reads Equipment"), Pages[PauseTestIndexOf(Pages, EPauseMenuPage::Loadout)].Label.ToString(), FString(TEXT("Equipment")));
 		const FText Tracked = FText::FromString(TEXT("A quest: its step"));
+		const TArray<FPauseMenuPage> Tracking = WoRPauseMenu::BuildPages(false, true, Tracked);
 		TestEqual(TEXT("B-463b: the Journal row previews the tracked quest"),
-				  WoRPauseMenu::BuildPages(false, true, Tracked)[static_cast<int32>(EPauseMenuPage::Journal)].Preview.ToString(),
-				  FString(TEXT("Tracking: A quest: its step")));
-		TestTrue(TEXT("Inventory opens (its placeholder)"), Pages[static_cast<int32>(EPauseMenuPage::Inventory)].CanOpen());
-		TestTrue(TEXT("Quit opens"), Pages[static_cast<int32>(EPauseMenuPage::Quit)].CanOpen());
-		TestTrue(TEXT("Loadout opens (B-440a)"), Pages[static_cast<int32>(EPauseMenuPage::Loadout)].CanOpen());
-		TestTrue(TEXT("Character opens (B-442)"), Pages[static_cast<int32>(EPauseMenuPage::Character)].CanOpen());
-		TestTrue(TEXT("Settings opens (B-452)"), Pages[static_cast<int32>(EPauseMenuPage::Settings)].CanOpen());
-		TestTrue(TEXT("Forms opens (B-536)"), Pages[static_cast<int32>(EPauseMenuPage::Forms)].CanOpen());
+				  Tracking[PauseTestIndexOf(Tracking, EPauseMenuPage::Journal)].Preview.ToString(), FString(TEXT("Tracking: A quest: its step")));
+		const TArray<FPauseMenuPage> InRun = WoRPauseMenu::BuildPages(true, true);
+		TestEqual(TEXT("in a run, Quit reads Leave trial"), InRun.Last().Label.ToString(), FString(TEXT("Leave trial")));
+		TestFalse(TEXT("outside one it doesn't"), Pages.Last().Label.EqualTo(InRun.Last().Label));
 	});
 
 	It("refuses Quit to a guest in a run, and only then", [this]()
 	{
-		const int32 Quit = static_cast<int32>(EPauseMenuPage::Quit);
-		TestFalse(TEXT("guest in a run"), WoRPauseMenu::BuildPages(true, false)[Quit].CanOpen());
-		TestTrue(TEXT("host in a run"), WoRPauseMenu::BuildPages(true, true)[Quit].CanOpen());
-		TestTrue(TEXT("guest in the hub"), WoRPauseMenu::BuildPages(false, false)[Quit].CanOpen());
+		const auto QuitOpens = [](bool bInRun, bool bCanEndRun)
+		{
+			const TArray<FPauseMenuPage> Pages = WoRPauseMenu::BuildPages(bInRun, bCanEndRun);
+			return Pages[PauseTestIndexOf(Pages, EPauseMenuPage::Quit)].CanOpen();
+		};
+		TestFalse(TEXT("guest in a run"), QuitOpens(true, false));
+		TestTrue(TEXT("host in a run"), QuitOpens(true, true));
+		TestTrue(TEXT("guest in the hub"), QuitOpens(false, false));
 	});
 
 	It("warns that quitting a run loses everything (D-176)", [this]()
@@ -99,7 +116,46 @@ void FPauseMenuSpec::Define()
 		const FText InRun = WoRPauseMenu::GetQuitWarning(true);
 		TestFalse(TEXT("a warning in a run"), InRun.IsEmpty());
 		TestFalse(TEXT("not the hub's line"), InRun.EqualTo(WoRPauseMenu::GetQuitWarning(false)));
-		TestTrue(TEXT("Quit's preview is the warning"), WoRPauseMenu::BuildPages(true, true)[static_cast<int32>(EPauseMenuPage::Quit)].Preview.EqualTo(InRun));
+		const TArray<FPauseMenuPage> Pages = WoRPauseMenu::BuildPages(true, true);
+		TestTrue(TEXT("Quit's preview is the warning"), Pages[PauseTestIndexOf(Pages, EPauseMenuPage::Quit)].Preview.EqualTo(InRun));
+	});
+
+	It("sums up the run: fights won, items found and its time, kept by a save (B-632)", [this]()
+	{
+		if (!TestNotNull(TEXT("run"), Run))
+		{
+			return;
+		}
+		Run->RecordItemFound();
+		const FPauseMenuRunSummary Hub = WoRPauseMenu::BuildRunSummary(TestWorld->GetWorld());
+		TestFalse(TEXT("hub: not in a run"), Hub.bInRun);
+		TestEqual(TEXT("hub: its name"), Hub.Place.ToString(), FString(TEXT("The Hub")));
+		TestEqual(TEXT("an item outside a run isn't counted"), Run->GetRunItemsFound(), 0);
+
+		StartRun();
+		Run->MarkEncounterBeaten(TEXT("FightOne"), EEncounterRank::Normal);
+		Run->RecordItemFound();
+		Run->RecordItemFound();
+		const FPauseMenuRunSummary InRun = WoRPauseMenu::BuildRunSummary(TestWorld->GetWorld());
+		TestTrue(TEXT("run: in a run"), InRun.bInRun);
+		TestFalse(TEXT("run: the trial's name, not the hub's"), InRun.Place.EqualTo(Hub.Place));
+		TestEqual(TEXT("run: one fight won"), InRun.FightsWon, 1);
+		TestEqual(TEXT("run: two items found"), InRun.ItemsFound, 2);
+		TestTrue(TEXT("run: its clock runs"), InRun.Seconds >= 0.0);
+
+		Run->RestoreRunStats(PAUSE_TEST_ITEMS_SAVED, PAUSE_TEST_SECONDS_SAVED); // as USaveSubsystem::RestoreRun
+		TestEqual(TEXT("a save's items come back"), Run->GetRunItemsFound(), PAUSE_TEST_ITEMS_SAVED);
+		TestTrue(TEXT("its time runs on from the saved time"), Run->GetRunSeconds() >= PAUSE_TEST_SECONDS_SAVED);
+		StartRun();
+		TestEqual(TEXT("a new run starts at none"), Run->GetRunItemsFound(), 0);
+		TestTrue(TEXT("and its clock at zero"), Run->GetRunSeconds() < PAUSE_TEST_SECONDS_SAVED);
+	});
+
+	It("writes the run's time as the clock reads it (B-632)", [this]()
+	{
+		TestEqual(TEXT("nothing yet"), WoRPauseMenu::FormatRunTime(0.0).ToString(), FString(TEXT("0:00")));
+		TestEqual(TEXT("minutes and seconds"), WoRPauseMenu::FormatRunTime(PAUSE_TEST_MINUTES_ONLY).ToString(), FString(TEXT("18:42")));
+		TestEqual(TEXT("past an hour"), WoRPauseMenu::FormatRunTime(PAUSE_TEST_PAST_AN_HOUR).ToString(), FString(TEXT("1:05:09")));
 	});
 
 	It("keeps Spirit and Body off the party list and on the Character sheet (D-254)", [this]()
@@ -186,27 +242,26 @@ void FPauseMenuSpec::Define()
 			{
 				return;
 			}
-			TestEqual(TEXT("starts on Resume"), Menu->GetSelectedIndex(), static_cast<int32>(EPauseMenuPage::Resume));
+			TestEqual(TEXT("starts on Resume"), Menu->GetSelectedIndex(), PauseTestIndexOf(Menu->GetPages(), EPauseMenuPage::Resume));
 			Menu->MoveSelection(-1);
-			TestEqual(TEXT("up from the top: Quit"), Menu->GetSelectedIndex(), static_cast<int32>(EPauseMenuPage::Quit));
+			TestEqual(TEXT("up from the top: Quit"), Menu->GetSelectedIndex(), PauseTestIndexOf(Menu->GetPages(), EPauseMenuPage::Quit));
 			Menu->MoveSelection(1);
-			TestEqual(TEXT("down from the bottom: Resume"), Menu->GetSelectedIndex(), static_cast<int32>(EPauseMenuPage::Resume));
+			TestEqual(TEXT("down from the bottom: Resume"), Menu->GetSelectedIndex(), PauseTestIndexOf(Menu->GetPages(), EPauseMenuPage::Resume));
 			Menu->PressSelected();
 			TestFalse(TEXT("Resume closes the menu"), Menu->IsActivated());
 		});
 
-		It("hides the page descriptions until Help, and Help toggles them (B-543)", [this]()
+		It("notes the lit page, always, and shows the hub with no run rows (B-632: no Help toggle)", [this]()
 		{
 			UPauseMenuWidget *Menu = OpenMenu();
 			if (!Menu)
 			{
 				return;
 			}
-			TestFalse(TEXT("off at first"), Menu->IsHelpShown());
-			Menu->ToggleHelp();
-			TestTrue(TEXT("Help shows them"), Menu->IsHelpShown());
-			Menu->ToggleHelp();
-			TestFalse(TEXT("Help again hides them"), Menu->IsHelpShown());
+			TestFalse(TEXT("in the hub: no This run"), Menu->GetRunSummary().bInRun);
+			Menu->SelectIndex(PauseTestIndexOf(Menu->GetPages(), EPauseMenuPage::Loadout));
+			TestEqual(TEXT("the note's heading is the page"), Menu->GetNoteHeading().ToString(), FString(TEXT("Equipment")));
+			TestFalse(TEXT("and it says what the page is"), Menu->GetNoteText().IsEmpty());
 		});
 
 		It("asks before quitting, holds only from the second press, and stops when let go (D-176)", [this]()
@@ -216,7 +271,7 @@ void FPauseMenuSpec::Define()
 			{
 				return;
 			}
-			Menu->SelectIndex(static_cast<int32>(EPauseMenuPage::Quit));
+			Menu->SelectIndex(PauseTestIndexOf(Menu->GetPages(), EPauseMenuPage::Quit));
 			Menu->PressSelected();
 			TestTrue(TEXT("first press: the question"), Menu->IsConfirmingQuit());
 			TestFalse(TEXT("no hold yet"), Menu->IsHoldingQuit());
@@ -235,7 +290,7 @@ void FPauseMenuSpec::Define()
 			{
 				return;
 			}
-			Menu->SelectIndex(static_cast<int32>(EPauseMenuPage::Quit));
+			Menu->SelectIndex(PauseTestIndexOf(Menu->GetPages(), EPauseMenuPage::Quit));
 			Menu->PressSelected();
 			Menu->PressBack();
 			TestFalse(TEXT("Back leaves the question"), Menu->IsConfirmingQuit());
@@ -251,7 +306,7 @@ void FPauseMenuSpec::Define()
 			{
 				return;
 			}
-			Menu->SelectIndex(static_cast<int32>(EPauseMenuPage::Quit));
+			Menu->SelectIndex(PauseTestIndexOf(Menu->GetPages(), EPauseMenuPage::Quit));
 			Menu->PressSelected();
 			Menu->MoveSelection(-1);
 			TestFalse(TEXT("moved away: no question"), Menu->IsConfirmingQuit());

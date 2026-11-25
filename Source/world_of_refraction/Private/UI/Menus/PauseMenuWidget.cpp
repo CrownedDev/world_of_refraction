@@ -33,6 +33,7 @@
 #include "UI/Hub/FormsScreenWidget.h"
 #include "UI/Party/PartyControlWidget.h"
 #include "UI/Party/PartyScreenWidget.h"
+#include "UI/WoRIconTable.h"
 #include "UI/WoRRootLayout.h"
 #include "WoRLog.h"
 
@@ -40,33 +41,29 @@
 
 namespace PauseMenuStyle
 {
-	// This screen's own layout (screen_mockups/menus/pause, 1280x720, at 1080p); the shared look is WoRMenuStyle.
+	// This screen's own layout (B-632: screen_mockups/menus/pause/v2, 1280x720, at 1080p); the shared look is WoRMenuStyle.
 	using namespace WoRMenuStyle;
-	constexpr float PageWidth = 423.0f;
-	constexpr float RowHeight = 72.0f;
-	constexpr float RowGap = 12.0f;
-	constexpr float RowTextInset = 24.0f;
-	constexpr float ColumnGap = 102.0f;
 	constexpr float HeaderGap = 48.0f;
-	constexpr float CardWidth = 780.0f;
-	constexpr float CardPadding = 24.0f;
-	constexpr float CardGap = 21.0f;
-	constexpr float BarWidth = 330.0f;
-	constexpr float BarHeight = BarWithValueHeight;
+	constexpr float PagesWidth = 602.0f;
+	constexpr float ColumnGap = 27.0f;
+	constexpr float ColumnPadding = 24.0f;
+	constexpr float RowHeight = 78.0f;
+	constexpr float RowGap = 10.0f;
+	/** Leave trial sits apart from the pages above it. */
+	constexpr float QuitRowGap = 28.0f;
+	constexpr float RowTextInset = 24.0f;
+	constexpr float StatLabelWidth = 270.0f;
+	constexpr float StatGap = 9.0f;
+	constexpr float DividerHeight = 2.0f;
+	constexpr float BadgeSize = 33.0f;
+	constexpr float MemberNameWidth = 132.0f;
+	constexpr float MemberClassWidth = 210.0f;
+	constexpr float PillarLabelWidth = 84.0f;
+	constexpr float PillarWidth = 165.0f;
 	constexpr float HoldBarHeight = 15.0f;
-	constexpr float BarLabelWidth = 51.0f;
-	constexpr float PillarLabelWidth = 105.0f;
-	constexpr float PanelGap = 60.0f;
-	constexpr float PanelWidth = 408.0f;
-	constexpr float PanelPadding = 27.0f;
-	constexpr float PanelInnerWidth = PanelWidth - PanelPadding - PanelPadding;
-	constexpr float NoteGap = 27.0f;
-	constexpr float ChipGap = 36.0f;
-	constexpr float ChipTopInset = 15.0f;
+	constexpr float HoldBarWidth = 408.0f;
 
-	constexpr float LowHPFraction = 0.3f;
 	constexpr float HoldTickSeconds = 0.03f;
-	constexpr int32 MaxChips = 7; // B-543: six balances, and a run's wipes left
 }
 
 UPauseMenuWidget::UPauseMenuWidget(const FObjectInitializer &ObjectInitializer) : Super(ObjectInitializer)
@@ -119,142 +116,169 @@ void UPauseMenuWidget::BuildTree()
 	UVerticalBox *Main = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	Screen->SetContent(Main);
 
-	// Top line: the place on the left, every balance on the right (B-543).
-	UHorizontalBox *Header = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToColumn(Main, Header);
-	UVerticalBox *Place = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	// Top: "Paused" and the place under it (B-632: no balances).
 	TitleText = MakeText(WidgetTree, TitleFontSize, TextColor, true);
+	TitleText->SetText(LOCTEXT("Paused", "Paused"));
 	SubtitleText = MakeText(WidgetTree, SubtitleFontSize, DimColor);
-	AddToColumn(Place, TitleText);
-	AddToColumn(Place, SubtitleText);
-	AddToRow(Header, Place, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	for (int32 Index = 0; Index < MaxChips; ++Index)
-	{
-		ChipValues.Add(MakeText(WidgetTree, SubtitleFontSize, TextColor, true));
-		ChipLabels.Add(MakeText(WidgetTree, SmallFontSize, DimColor));
-		AddToRow(Header, ChipValues.Last(), FMargin(0.0f, ChipTopInset, WordGap, 0.0f), VAlign_Top);
-		AddToRow(Header, ChipLabels.Last(), FMargin(0.0f, ChipTopInset, ChipGap, 0.0f), VAlign_Top);
-	}
+	AddToColumn(Main, TitleText);
+	AddToColumn(Main, SubtitleText);
 
-	// Pages, party, side panel.
+	// The two columns: the pages, and the run with the lit page's note.
 	UHorizontalBox *Body = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	AddToColumn(Main, Body, FMargin(0.0f, HeaderGap, 0.0f, 0.0f))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToColumn(Main, Body, FMargin(0.0f, HeaderGap, 0.0f, SectionGap))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToRow(Body, MakeSized(WidgetTree, PagesWidth, 0.0f, BuildPagesColumn()), FMargin(0.0f), VAlign_Fill);
+	AddToRow(Body, BuildRunColumn(), FMargin(ColumnGap, 0.0f, 0.0f, 0.0f), VAlign_Fill)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
-	UVerticalBox *PagesBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	const int32 PageCount = WoRPauseMenu::BuildPages(false, true, FText::GetEmpty(), false, /*bCanJoin=*/true, false).Num(); // the most rows
-	for (int32 Index = 0; Index < PageCount; ++Index)
+	// Bottom right: the hints.
+	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Open        {Back}  Resume"));
+	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
+}
+
+UWidget *UPauseMenuWidget::BuildPagesColumn()
+{
+	using namespace PauseMenuStyle;
+
+	UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Frame->SetBrushColor(PanelColor);
+	Frame->SetPadding(FMargin(ColumnPadding));
+	UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Frame->SetContent(Column);
+	UTextBlock *Heading = MakeText(WidgetTree, LineFontSize, TextColor, true);
+	Heading->SetText(LOCTEXT("MenuHeading", "Menu"));
+	AddToColumn(Column, Heading, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+
+	const TArray<FPauseMenuPage> MostRows = WoRPauseMenu::BuildPages(false, true, FText::GetEmpty(), false, /*bCanJoin=*/true, false);
+	for (int32 Index = 0; Index < MostRows.Num(); ++Index)
 	{
 		UBorder *Row = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Row->SetBrushColor(PlateColor);
 		Row->SetPadding(FMargin(RowTextInset, 0.0f));
 		Row->SetVerticalAlignment(VAlign_Center);
 		Row->SetHorizontalAlignment(HAlign_Left);
+		UVerticalBox *Lines = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 		UTextBlock *Label = MakeText(WidgetTree, RowFontSize, TextColor, true);
-		Row->SetContent(Label);
+		UTextBlock *SubLine = MakeText(WidgetTree, SmallFontSize, DimColor);
+		AddToColumn(Lines, Label);
+		AddToColumn(Lines, SubLine);
+		Row->SetContent(Lines);
 		PageRows.Add(Row);
 		PageLabels.Add(Label);
-		AddToColumn(PagesBox, MakeSized(WidgetTree, PageWidth, RowHeight, Row), FMargin(0.0f, 0.0f, 0.0f, RowGap));
+		PageSubLines.Add(SubLine);
+		// The last row (Leave trial / Quit) stands apart.
+		const bool bQuitRow = MostRows[Index].Page == EPauseMenuPage::Quit;
+		AddToColumn(Column, MakeSized(WidgetTree, PagesWidth - ColumnPadding - ColumnPadding, RowHeight, Row),
+					FMargin(0.0f, bQuitRow ? QuitRowGap - RowGap : 0.0f, 0.0f, RowGap));
 	}
-	AddToRow(Body, PagesBox, FMargin(0.0f), VAlign_Top);
+	return Frame;
+}
 
-	UVerticalBox *PartyBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+UWidget *UPauseMenuWidget::BuildRunColumn()
+{
+	using namespace PauseMenuStyle;
+
+	UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	Frame->SetBrushColor(PanelColor);
+	Frame->SetPadding(FMargin(ColumnPadding));
+	UVerticalBox *Column = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Frame->SetContent(Column);
+	const auto AddDivider = [this](UVerticalBox *Into)
+	{
+		UBorder *Line = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Line->SetBrushColor(PlateColor);
+		USizeBox *Box = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		Box->SetHeightOverride(DividerHeight);
+		Box->AddChild(Line);
+		AddToColumn(Into, Box, FMargin(0.0f, SectionGap));
+	};
+
+	// This run: in a run only.
+	UVerticalBox *Run = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	RunBlock = Run;
+	UTextBlock *RunHeading = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	RunHeading->SetText(LOCTEXT("ThisRun", "This run"));
+	RunPlace = MakeText(WidgetTree, SmallFontSize, DimColor);
+	AddToColumn(Run, RunHeading);
+	AddToColumn(Run, RunPlace, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	const auto AddStat = [this, Run](const FText &Label, const FLinearColor &ValueColor) -> UTextBlock *
+	{
+		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UTextBlock *LabelText = MakeText(WidgetTree, LineFontSize, DimColor);
+		LabelText->SetText(Label);
+		UTextBlock *Value = MakeText(WidgetTree, LineFontSize, ValueColor, true);
+		AddToRow(Row, MakeSized(WidgetTree, StatLabelWidth, 0.0f, LabelText));
+		AddToRow(Row, Value);
+		AddToColumn(Run, Row, FMargin(0.0f, 0.0f, 0.0f, StatGap));
+		return Value;
+	};
+	FightsWonValue = AddStat(LOCTEXT("FightsWon", "Fights won"), TextColor);
+	RunGoldValue = AddStat(LOCTEXT("RunGold", "Run gold"), WarnColor);
+	ItemsFoundValue = AddStat(LOCTEXT("ItemsFound", "Items found"), TextColor);
+	TimeValue = AddStat(LOCTEXT("Time", "Time"), TextColor);
+	AddDivider(Run);
+	AddToColumn(Column, Run);
+
+	// Each member's Mind, Body and Spirit now.
+	UTextBlock *PillarsHeading = MakeText(WidgetTree, LineFontSize, TextColor, true);
+	PillarsHeading->SetText(LOCTEXT("PillarsHeading", "Mind  ·  Body  ·  Spirit"));
+	AddToColumn(Column, PillarsHeading, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	UVerticalBox *Members = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	for (int32 Index = 0; Index < PartyConstants::MAX_PARTY_MEMBERS; ++Index)
 	{
-		MemberCards.Add(BuildMemberCard(PartyBox));
+		MemberRows.Add(BuildMemberRow(Members));
 	}
-	AddToRow(Body, MakeSized(WidgetTree, CardWidth, 0.0f, PartyBox), FMargin(ColumnGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
+	AddToColumn(Column, Members);
+	AddDivider(Column);
 
-	Panel = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Panel->SetBrushColor(PanelColor);
-	Panel->SetPadding(FMargin(PanelPadding));
-	UVerticalBox *PanelBox = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	Panel->SetContent(PanelBox);
-	PanelHeading = MakeText(WidgetTree, RowFontSize, TextColor, true);
-	PanelBody = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
+	// The lit page's note, why it can't open, or the quit question.
+	PanelHeading = MakeText(WidgetTree, LineFontSize, TextColor, true);
+	PanelBody = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
 	PanelRefusal = MakeWrappedText(WidgetTree, LineFontSize, WarnColor);
 	HoldHint = MakeHintText(WidgetTree, LineFontSize, WarnColor, true);
 	HoldHint->SetAutoWrapText(true);
 	// The hold / press hint is set in RefreshSelection (B-453c: it follows the setting).
 	HoldBar = MakeBar(WidgetTree, WarnColor);
-	ExtractNote = MakeWrappedText(WidgetTree, SmallFontSize, OffColor);
-	ExtractNote->SetText(WoRPauseMenu::GetExtractNote());
-	AddToColumn(PanelBox, PanelHeading);
-	AddToColumn(PanelBox, PanelBody, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-	AddToColumn(PanelBox, PanelRefusal, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-	AddToColumn(PanelBox, HoldHint, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
-	AddToColumn(PanelBox, MakeSized(WidgetTree, PanelInnerWidth, HoldBarHeight, HoldBar), FMargin(0.0f, LineGap, 0.0f, 0.0f));
-	AddToColumn(PanelBox, ExtractNote, FMargin(0.0f, NoteGap, 0.0f, 0.0f));
-	AddToRow(Body, MakeSized(WidgetTree, PanelWidth, 0.0f, Panel), FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
-
-	// Bottom right: the hints.
-	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Select        {Help}  Help        {Back}  Back"));
-	AddToColumn(Main, Hints)->SetHorizontalAlignment(HAlign_Right);
+	AddToColumn(Column, PanelHeading);
+	AddToColumn(Column, PanelBody, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	AddToColumn(Column, PanelRefusal, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	AddToColumn(Column, HoldHint, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
+	AddToColumn(Column, MakeSized(WidgetTree, HoldBarWidth, HoldBarHeight, HoldBar), FMargin(0.0f, LineGap, 0.0f, 0.0f))
+		->SetHorizontalAlignment(HAlign_Left);
+	return Frame;
 }
 
-UPauseMenuWidget::FMemberCard UPauseMenuWidget::BuildMemberCard(UVerticalBox *Into)
+UPauseMenuWidget::FMemberRow UPauseMenuWidget::BuildMemberRow(UVerticalBox *Into)
 {
 	using namespace PauseMenuStyle;
 
-	FMemberCard Card;
-	UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Frame->SetBrushColor(PanelColor);
-	Frame->SetPadding(FMargin(CardPadding));
-	UHorizontalBox *Columns = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	Frame->SetContent(Columns);
-
-	// Left: who they are, HP and EP.
-	UVerticalBox *Who = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	UHorizontalBox *NameRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	UTextBlock *Name = MakeText(WidgetTree, NameFontSize, TextColor, true);
-	UTextBlock *Tier = MakeText(WidgetTree, LineFontSize, DimColor, true);
-	AddToRow(NameRow, Name);
-	AddToRow(NameRow, Tier, FMargin(SectionGap, 0.0f, 0.0f, 0.0f));
-	UTextBlock *ClassLine = MakeText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(Who, NameRow);
-	AddToColumn(Who, ClassLine);
-	const auto AddVital = [this, Who](const FText &Label, const FLinearColor &Color, TWeakObjectPtr<UProgressBar> &OutBar, TWeakObjectPtr<UTextBlock> &OutValue)
+	FMemberRow Member;
+	UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	UImage *Badge = MakeIcon(WidgetTree, BadgeSize);
+	UTextBlock *Name = MakeText(WidgetTree, LineFontSize, TextColor, true);
+	UTextBlock *ClassName = MakeText(WidgetTree, SmallFontSize, DimColor);
+	AddToRow(Row, MakeSized(WidgetTree, BadgeSize, BadgeSize, Badge), FMargin(0.0f, 0.0f, LineGap, 0.0f));
+	AddToRow(Row, MakeSized(WidgetTree, MemberNameWidth, 0.0f, Name));
+	AddToRow(Row, MakeSized(WidgetTree, MemberClassWidth, 0.0f, ClassName));
+	const auto AddPillar = [this, Row](const FText &Label) -> UTextBlock *
 	{
-		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-		UTextBlock *LabelText = MakeText(WidgetTree, SmallFontSize, DimColor, true);
-		LabelText->SetText(Label);
-		UProgressBar *Bar = nullptr;
-		UTextBlock *Value = nullptr;
-		UWidget *BarWithValue = MakeBarWithValue(WidgetTree, Color, Bar, Value);
-		AddToRow(Row, MakeSized(WidgetTree, BarLabelWidth, 0.0f, LabelText));
-		AddToRow(Row, MakeSized(WidgetTree, BarWidth, BarHeight, BarWithValue));
-		AddToColumn(Who, Row, FMargin(0.0f, LineGap, 0.0f, 0.0f));
-		OutBar = Bar;
-		OutValue = Value;
-	};
-	AddVital(LOCTEXT("HP", "HP"), HPColor, Card.HPBar, Card.HPValue);
-	AddVital(LOCTEXT("EP", "EP"), EPColor, Card.EPBar, Card.EPValue);
-	AddToRow(Columns, Who, FMargin(0.0f), VAlign_Top)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-
-	// Right: the three pillars.
-	UVerticalBox *Pillars = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	const auto AddPillar = [this, Pillars](const FText &Label, TWeakObjectPtr<UTextBlock> &OutValue)
-	{
-		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UHorizontalBox *Pillar = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UTextBlock *LabelText = MakeText(WidgetTree, SmallFontSize, DimColor);
 		LabelText->SetText(Label);
 		UTextBlock *Value = MakeText(WidgetTree, LineFontSize, TextColor, true);
-		AddToRow(Row, MakeSized(WidgetTree, PillarLabelWidth, 0.0f, LabelText));
-		AddToRow(Row, Value);
-		AddToColumn(Pillars, Row, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
-		OutValue = Value;
+		AddToRow(Pillar, MakeSized(WidgetTree, PillarLabelWidth, 0.0f, LabelText));
+		AddToRow(Pillar, Value);
+		AddToRow(Row, MakeSized(WidgetTree, PillarWidth, 0.0f, Pillar));
+		return Value;
 	};
-	AddPillar(LOCTEXT("Mind", "Mind"), Card.Mind);
-	AddPillar(LOCTEXT("Body", "Body"), Card.Body);
-	AddPillar(LOCTEXT("Spirit", "Spirit"), Card.Spirit);
-	AddToRow(Columns, Pillars, FMargin(0.0f), VAlign_Top);
-
-	AddToColumn(Into, Frame, FMargin(0.0f, 0.0f, 0.0f, CardGap));
-	Card.Root = Frame;
-	Card.Name = Name;
-	Card.Tier = Tier;
-	Card.ClassLine = ClassLine;
-	return Card;
+	Member.Mind = AddPillar(LOCTEXT("Mind", "Mind"));
+	Member.Body = AddPillar(LOCTEXT("Body", "Body"));
+	Member.Spirit = AddPillar(LOCTEXT("Spirit", "Spirit"));
+	AddToColumn(Into, Row, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	Member.Root = Row;
+	Member.Badge = Badge;
+	Member.Name = Name;
+	Member.ClassName = ClassName;
+	return Member;
 }
 
 void UPauseMenuWidget::NativeOnActivated()
@@ -295,29 +319,17 @@ bool UPauseMenuWidget::NativeOnHandleBackAction()
 void UPauseMenuWidget::RefreshData()
 {
 	const UWorld *World = GetWorld();
-	const FPauseMenuHeader Header = WoRPauseMenu::BuildHeader(World);
-	bInRun = Header.bInRun;
+	Summary = WoRPauseMenu::BuildRunSummary(World);
+	bInRun = Summary.bInRun;
 	const bool bGuest = World && World->GetNetMode() == NM_Client;
 	const AWoRPlayerState *Player = GetOwningPlayer() ? GetOwningPlayer()->GetPlayerState<AWoRPlayerState>() : nullptr;
 	Pages = WoRPauseMenu::BuildPages(bInRun, !bGuest, WoRPauseMenu::GetTrackedLine(World),
 									   WoRFrontEnd::HasFrontEnd(World ? World->GetGameInstance() : nullptr), bGuest, Player && Player->HasAnyClaim());
+	UE_LOG(LogWoRUI, Verbose, TEXT("%s"), *WoRPauseMenu::GetPauseMenuString(World));
 
-	if (TitleText && SubtitleText)
+	if (SubtitleText)
 	{
-		TitleText->SetText(Header.Title);
-		SubtitleText->SetText(Header.Subtitle);
-		SubtitleText->SetVisibility(Header.Subtitle.IsEmpty() ? ESlateVisibility::Collapsed : ESlateVisibility::HitTestInvisible);
-	}
-	for (int32 Index = 0; Index < ChipValues.Num(); ++Index)
-	{
-		const bool bShown = Header.Chips.IsValidIndex(Index);
-		PauseMenuStyle::SetShown(ChipValues[Index], bShown);
-		PauseMenuStyle::SetShown(ChipLabels[Index], bShown);
-		if (bShown)
-		{
-			ChipValues[Index]->SetText(Header.Chips[Index].Value);
-			ChipLabels[Index]->SetText(Header.Chips[Index].Label);
-		}
+		SubtitleText->SetText(Summary.Place);
 	}
 	for (int32 Index = 0; Index < PageLabels.Num(); ++Index)
 	{
@@ -325,36 +337,48 @@ void UPauseMenuWidget::RefreshData()
 		if (Pages.IsValidIndex(Index))
 		{
 			PageLabels[Index]->SetText(Pages[Index].Label);
+			PageSubLines[Index]->SetText(Pages[Index].SubLine);
 		}
 	}
-	PauseMenuStyle::SetShown(ExtractNote, bInRun && bShowHelp);
+
+	PauseMenuStyle::SetShown(RunBlock, bInRun);
+	if (RunPlace)
+	{
+		RunPlace->SetText(Summary.Place);
+		FightsWonValue->SetText(FText::AsNumber(Summary.FightsWon));
+		RunGoldValue->SetText(FText::AsNumber(Summary.RunGold));
+		ItemsFoundValue->SetText(FText::AsNumber(Summary.ItemsFound));
+		TimeValue->SetText(WoRPauseMenu::FormatRunTime(Summary.Seconds));
+	}
 
 	const TArray<FPauseMenuMember> Members = WoRPauseMenu::BuildParty(World);
-	for (int32 Index = 0; Index < MemberCards.Num(); ++Index)
+	for (int32 Index = 0; Index < MemberRows.Num(); ++Index)
 	{
-		const FMemberCard &Card = MemberCards[Index];
+		const FMemberRow &Row = MemberRows[Index];
 		const bool bShown = Members.IsValidIndex(Index);
-		PauseMenuStyle::SetShown(Card.Root.Get(), bShown);
-		if (!bShown || !Card.Name.IsValid() || !Card.HPBar.IsValid() || !Card.EPBar.IsValid())
+		PauseMenuStyle::SetShown(Row.Root.Get(), bShown);
+		if (!bShown || !Row.Name.IsValid() || !Row.Mind.IsValid())
 		{
 			continue;
 		}
 		const FPauseMenuMember &Member = Members[Index];
-		const float HPFraction = Member.MaxHP > 0 ? static_cast<float>(Member.HP) / Member.MaxHP : 0.0f;
-		const FText ValueFormat = LOCTEXT("VitalValue", "{0}/{1}");
-		Card.Name->SetText(Member.Name);
-		// The tier beside the name, "Garrick (C)", as on the battle HUD's cards.
-		Card.Tier->SetText(Member.Tier.IsEmpty() ? FText::GetEmpty() : FText::Format(LOCTEXT("TierBesideName", "({0})"), Member.Tier));
-		Card.ClassLine->SetText(Member.ClassLine);
-		Card.HPBar->SetPercent(HPFraction);
-		Card.HPBar->SetFillColorAndOpacity(HPFraction < PauseMenuStyle::LowHPFraction ? PauseMenuStyle::LowHPBarColor : PauseMenuStyle::HPColor);
-		Card.HPValue->SetText(FText::Format(ValueFormat, FText::AsNumber(Member.HP), FText::AsNumber(Member.MaxHP)));
-		Card.EPBar->SetPercent(Member.MaxEP > 0 ? static_cast<float>(Member.EP) / Member.MaxEP : 0.0f);
-		Card.EPValue->SetText(FText::Format(ValueFormat, FText::AsNumber(Member.EP), FText::AsNumber(Member.MaxEP)));
-		Card.Mind->SetText(FText::AsNumber(Member.Mind));
-		Card.Body->SetText(FText::AsNumber(Member.Body));
-		Card.Spirit->SetText(FText::AsNumber(Member.Spirit));
+		PauseMenuStyle::SetIcon(Row.Badge.Get(), WoRIcons::Find(Member.ElementIcon), /*bKeepSpace=*/true);
+		Row.Name->SetText(Member.Name);
+		Row.ClassName->SetText(Member.ClassName);
+		Row.Mind->SetText(FText::AsNumber(Member.Mind));
+		Row.Body->SetText(FText::AsNumber(Member.Body));
+		Row.Spirit->SetText(FText::AsNumber(Member.Spirit));
 	}
+}
+
+FText UPauseMenuWidget::GetNoteHeading() const
+{
+	return Pages.IsValidIndex(SelectedIndex) ? Pages[SelectedIndex].Label : FText::GetEmpty();
+}
+
+FText UPauseMenuWidget::GetNoteText() const
+{
+	return Pages.IsValidIndex(SelectedIndex) ? Pages[SelectedIndex].Preview : FText::GetEmpty();
 }
 
 void UPauseMenuWidget::RefreshSelection()
@@ -362,21 +386,23 @@ void UPauseMenuWidget::RefreshSelection()
 	for (int32 Index = 0; Index < PageRows.Num() && Index < Pages.Num(); ++Index)
 	{
 		PageRows[Index]->SetBrushColor(Index == SelectedIndex ? PauseMenuStyle::FocusColor : PauseMenuStyle::PlateColor);
-		PageLabels[Index]->SetColorAndOpacity(FSlateColor(Pages[Index].CanOpen() ? PauseMenuStyle::TextColor : PauseMenuStyle::OffColor));
+		// Mockup v2: Leave trial's name is amber (it ends the run); a refused page is greyed.
+		const bool bRunEnder = Pages[Index].Page == EPauseMenuPage::Quit && bInRun;
+		PageLabels[Index]->SetColorAndOpacity(FSlateColor(!Pages[Index].CanOpen() ? PauseMenuStyle::OffColor
+														  : bRunEnder			  ? PauseMenuStyle::WarnColor
+																				  : PauseMenuStyle::TextColor));
+		PageSubLines[Index]->SetColorAndOpacity(FSlateColor(Index == SelectedIndex ? PauseMenuStyle::TextColor : PauseMenuStyle::DimColor));
 	}
 	if (!Pages.IsValidIndex(SelectedIndex) || !PanelHeading)
 	{
 		return;
 	}
+	// B-632 (mockup v2): the note always shows (B-543's Help toggle is gone), with a refusal or the quit question under it.
 	const FPauseMenuPage &Page = Pages[SelectedIndex];
 	PanelHeading->SetText(Page.Label);
 	PanelBody->SetText(Page.Preview);
 	PanelRefusal->SetText(Page.Refusal);
 	PauseMenuStyle::SetShown(PanelRefusal, !Page.CanOpen());
-	// B-543: the descriptions wait for Help; a refusal or the quit question still shows the panel.
-	PauseMenuStyle::SetShown(PanelBody, bShowHelp);
-	PauseMenuStyle::SetShown(ExtractNote, bInRun && bShowHelp);
-	PauseMenuStyle::SetShown(Panel, bShowHelp || !Page.CanOpen() || bConfirmingQuit);
 	const bool bHold = IsHoldToConfirmOn(); // B-453c (D-190)
 	WoRKeyHints::SetHint(HoldHint, bHold ? LOCTEXT("HoldHint", "Hold {Confirm} to quit.")
 							: LOCTEXT("PressHint", "Press {Confirm} again to quit. {Back} goes back."));
@@ -565,24 +591,10 @@ void UPauseMenuWidget::TickQuitHold()
 	WoRPauseMenu::Quit(World, PC);
 }
 
-void UPauseMenuWidget::ToggleHelp()
-{
-	bShowHelp = !bShowHelp;
-	RefreshSelection();
-}
-
 FReply UPauseMenuWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FKeyEvent &InKeyEvent)
 {
 	using namespace PauseMenuStyle;
 	const FKey Key = InKeyEvent.GetKey();
-	if (IsHelpKey(Key))
-	{
-		if (!InKeyEvent.IsRepeat())
-		{
-			ToggleHelp();
-		}
-		return FReply::Handled();
-	}
 	if (IsUpKey(Key))
 	{
 		MoveSelection(-1);
