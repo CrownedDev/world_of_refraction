@@ -489,7 +489,15 @@ void FBattleHUDSpec::Define()
 			TestTrue(TEXT("Attack row: Attack key"), KeyCategory(Main[0]) == EPieMenuCategory::Attack);
 			TestTrue(TEXT("Skills row: Skills key"), KeyCategory(Main[1]) == EPieMenuCategory::Skills);
 			TestEqual(TEXT("greyed Items row: no key"), Main[2], INDEX_NONE);
-			TestTrue(TEXT("Defend row: Defend key"), KeyCategory(Main[3]) == EPieMenuCategory::Defend);
+			if (TestTrue(TEXT("Defend row: Defend key"), KeyCategory(Main[3]) == EPieMenuCategory::Defend))
+			{
+				TestTrue(TEXT("B-627: Defend is on R"), Keys[Main[3]].Keyboard == EKeys::R);
+			}
+			const TArray<int32> WithEndTurn = BattleHUDView::AssignMenuKeys({EPieMenuCategory::EndTurn}, {true}, /*bAtMainMenu=*/true);
+			if (TestTrue(TEXT("B-627: the End Turn hint has a key"), KeyCategory(WithEndTurn[0]) == EPieMenuCategory::EndTurn))
+			{
+				TestTrue(TEXT("B-627: G, D-pad Left on a pad"), Keys[WithEndTurn[0]].Keyboard == EKeys::G && Keys[WithEndTurn[0]].Gamepad == EKeys::Gamepad_DPad_Left);
+			}
 
 			const TArray<int32> Sub = BattleHUDView::AssignMenuKeys(Rows, {true, true, true, true, true}, /*bAtMainMenu=*/false);
 			TestEqual(TEXT("off the main menu: no Attack key"), Sub[0], INDEX_NONE);
@@ -881,6 +889,9 @@ void FBattleHUDSpec::Define()
 				TestTrue(TEXT("the weapon gem's durability"), Lines.Last().ToString().StartsWith(Expected));
 			}
 			TestTrue(TEXT("wor.UI.Print shows it"), MenuWidget->GetCommandMenuString().Contains(TEXT("WD ")));
+			const TSharedRef<SWidget> Built = MenuWidget->TakeWidget(); // builds the tabs; held, or its release tears it down
+			TestTrue(TEXT("B-627: in its own tab beside the Act tab"), MenuWidget->IsDurabilityBesideActTab());
+			TestTrue(TEXT("B-627: a long title wraps inside the frame"), MenuWidget->DoesTitleWrap());
 			MenuWidget->Teardown();
 		});
 
@@ -1013,8 +1024,8 @@ void FBattleHUDSpec::Define()
 			const int32 EndTurnRow = FindLabel(MenuWidget->GetRowLabels(), WoRGameNames::GetEndTurnVerb().ToString());
 			if (TestTrue(TEXT("an End Turn row"), EndTurnRow != INDEX_NONE))
 			{
-				TestFalse(TEXT("with no key hint: End Turn has no key yet (Crown, 2026-11-12)"),
-						  MenuWidget->GetRowLabels()[EndTurnRow].ToString().StartsWith(TEXT("[")));
+				TestTrue(TEXT("with its key hint (B-627, Crown: end turn on G)"),
+						 MenuWidget->GetRowLabels()[EndTurnRow].ToString().StartsWith(TEXT("[")));
 				MenuWidget->PressRow(EndTurnRow);
 				TestTrue(TEXT("End Turn ended Hero's turn"), Orchestrator->GetCurrentActor() == Foe);
 			}

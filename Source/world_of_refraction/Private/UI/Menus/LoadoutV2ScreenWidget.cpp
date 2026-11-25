@@ -4213,7 +4213,11 @@ void ULoadoutV2ScreenWidget::BuildItems()
 		if (Items.Num() == (bRestoreLine ? 2 : 1) && Items[0].bEquipped)
 		{
 			// Today's socket rule: a full socket is emptied first (its gem goes, CL-28b), then filled.
-			Items[0].Line = bRemoveArmed ? Items[0].Line : FText::FormatNamed(LOCTEXT("SocketFullLine", "{What} · {Confirm} Remove to put another in"), TEXT("What"), Items[0].Line);
+			// B-627: the key name filled for the device (the line isn't a hint text, so "{Confirm}" showed as typed).
+			FFormatNamedArguments What;
+			What.Add(TEXT("What"), Items[0].Line);
+			Items[0].Line = bRemoveArmed ? Items[0].Line
+										 : WoRKeyHints::Format(LOCTEXT("SocketFullLine", "{What} · {Confirm} Remove to put another in"), WoRKeyHints::IsGamepad(this), What);
 		}
 		return;
 	}

@@ -206,6 +206,10 @@ public:
 
 	/** B-391c: the durability header's lines for the acting character ("AD 3 / 5", "WD 2 / 4"); empty for none. */
 	const TArray<FText> &GetDurabilityLines() const { return DurabilityLines; }
+	/** B-627 (specs): the durability sits in its own tab, in the same row as the Act tab. */
+	bool IsDurabilityBesideActTab() const;
+	/** B-627 (specs): a long title wraps inside the frame rather than running past it. */
+	bool DoesTitleWrap() const;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
