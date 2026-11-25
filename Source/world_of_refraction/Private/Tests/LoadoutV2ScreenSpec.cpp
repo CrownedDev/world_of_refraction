@@ -95,7 +95,7 @@ void FLoadoutV2ScreenSpec::Define()
 		Screen->ClickTabChip(LoadoutV2Chip_Apparel);
 		TestTrue(TEXT("again: stays"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
 		Screen->ClickTabChip(LoadoutV2Chip_Skills);
-		TestTrue(TEXT("the Skills chip (B-476d): its entries"), Screen->GetTab() == ELoadoutV2Tab::Skills && Screen->GetMode() == ELoadoutV2Mode::SkillEntries);
+		TestTrue(TEXT("the Skills chip (B-629): its first entry's slots"), Screen->GetTab() == ELoadoutV2Tab::Skills && Screen->GetMode() == ELoadoutV2Mode::SkillRows);
 		Screen->ClickTabChip(LoadoutV2Chip_Weapons);
 		TestTrue(TEXT("the Weapons chip"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
 		Screen->ClickTabChip(LoadoutV2Chip_Cosmetics);
