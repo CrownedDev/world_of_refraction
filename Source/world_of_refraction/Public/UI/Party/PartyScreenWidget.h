@@ -77,6 +77,14 @@ private:
 		TWeakObjectPtr<UTextBlock> ClassLine;
 		TWeakObjectPtr<UTextBlock> PlayedBy;
 		TWeakObjectPtr<UTextBlock> Seat;
+		// B-628b: the cards the game menu dropped (Mind / Body / Spirit, HP and EP, the active weapon).
+		TWeakObjectPtr<UTextBlock> Pillars;
+		TWeakObjectPtr<UTextBlock> Weapon;
+		TWeakObjectPtr<UWidget> Vitals;
+		TWeakObjectPtr<class UProgressBar> HPBar;
+		TWeakObjectPtr<UTextBlock> HPValue;
+		TWeakObjectPtr<class UProgressBar> EPBar;
+		TWeakObjectPtr<UTextBlock> EPValue;
 	};
 
 	/** One loadout entry's plate in the middle column. */

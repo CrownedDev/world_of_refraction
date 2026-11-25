@@ -9,6 +9,8 @@
 #include "WoRTestWorld.h"
 #include "Character/CharacterData.h"
 #include "Character/CombatCharacter.h"
+#include "Character/EWorldPillar.h"
+#include "Trial/LevelDropPlacement.h"
 #include "Combat/Grid/CombatGridConstants.h"
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
@@ -21,6 +23,7 @@ namespace
 	constexpr int32 PARTY_SCREEN_TEST_AI_SLOT = 1;
 	constexpr int32 PARTY_SCREEN_TEST_LAST_COLUMN = CombatGridConstants::GRID_COLUMNS - 1;
 	constexpr int32 PARTY_SCREEN_TEST_SLOTS = 2;
+	constexpr int32 PARTY_SCREEN_TEST_CARRIED_HP = 5;
 
 	FPartyMember PartyScreenMember(const TCHAR *Name, bool bAISeat)
 	{
@@ -69,6 +72,34 @@ void FPartyScreenSpec::Define()
 		TestTrue(TEXT("a field skill line"), Page.Members[1].FieldSkillLine.ToString().StartsWith(TEXT("Field skill: ")));
 		TestFalse(TEXT("no session"), Page.InviteStatus.IsEmpty());
 		TestEqual(TEXT("an empty page with no party"), WoRPartyScreen::BuildPage(nullptr, false).Members.Num(), 0);
+	});
+
+	It("gives each seat its HP and EP, full with none carried, and its Mind / Body / Spirit (B-628b)", [this]()
+	{
+		if (!TestNotNull(TEXT("party session"), PartySession)) return;
+		UParty *Party = PartySession->GetLocalParty();
+		if (!TestTrue(TEXT("two members"), Party && Party->Members.Num() == PARTY_SCREEN_TEST_SLOTS)) return;
+		Party->Members[PARTY_SCREEN_TEST_AI_SLOT].CurrentHP = PARTY_SCREEN_TEST_CARRIED_HP;
+		Party->Members[PARTY_SCREEN_TEST_AI_SLOT].CurrentEP = 0;
+		const FPartyScreenPage Page = WoRPartyScreen::BuildPage(TestWorld->GetWorld());
+		if (!TestEqual(TEXT("two rows"), Page.Members.Num(), PARTY_SCREEN_TEST_SLOTS)) return;
+		const FPartyScreenMember &Leader = Page.Members[0];
+		const FPartyScreenMember &Carried = Page.Members[PARTY_SCREEN_TEST_AI_SLOT];
+		TestTrue(TEXT("the maximums can be read"), Leader.MaxHP > 0 && Leader.MaxEP > 0);
+		TestEqual(TEXT("no carried HP: full"), Leader.HP, Leader.MaxHP);
+		TestEqual(TEXT("no carried EP: full"), Leader.EP, Leader.MaxEP);
+		TestEqual(TEXT("carried HP shows as carried"), Carried.HP, PARTY_SCREEN_TEST_CARRIED_HP);
+		TestEqual(TEXT("carried EP shows as carried"), Carried.EP, 0);
+		TestEqual(TEXT("Mind is the live level"), Leader.Mind, WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Party->Members[0], EWorldPillar::Mind));
+		TestEqual(TEXT("Body is the live level"), Leader.Body, WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Party->Members[0], EWorldPillar::Body));
+		TestEqual(TEXT("Spirit is the live level"), Leader.Spirit, WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Party->Members[0], EWorldPillar::Spirit));
+		// The test world spawns no member, so there is no loadout to read: the weapon line is empty. With one, it is the first piece.
+		const FPartyScreenLoadout LeaderLoadout = WoRPartyScreen::BuildLoadout(TestWorld->GetWorld(), 0);
+		TestEqual(TEXT("the weapon is the active loadout's first piece, or nothing"), Leader.Weapon.ToString(),
+				  LeaderLoadout.Entries.IsEmpty() ? FString() : LeaderLoadout.Entries[0].Name.ToString());
+		const FPartyScreenPage NoWorld = WoRPartyScreen::BuildPage(Party, false);
+		TestTrue(TEXT("with no world: the vitals, no pillars or weapon"), NoWorld.Members[0].MaxHP == Leader.MaxHP &&
+				 NoWorld.Members[0].Mind == 0 && NoWorld.Members[0].Weapon.IsEmpty());
 	});
 
 	It("keeps the leader's seat yours and toggles another member's seat", [this]()

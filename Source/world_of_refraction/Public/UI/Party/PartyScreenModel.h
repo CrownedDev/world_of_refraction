@@ -31,6 +31,18 @@ struct FPartyScreenMember
 	FText FieldSkillLine;
 	/** "Weapon guard" / "Unarmed guard". */
 	FText GuardLine;
+	/** B-628b (the cards the Pause menu dropped, mockup menus/pause v1): HP and EP now (full with none carried, as the
+	 *  party strip) and their maximums; the bars show only when a maximum reads above 0. */
+	int32 HP = 0;
+	int32 MaxHP = 0;
+	int32 EP = 0;
+	int32 MaxEP = 0;
+	/** B-628b: the live Mind / Body / Spirit (BuildPage(World) only: they need the world). */
+	int32 Mind = 0;
+	int32 Body = 0;
+	int32 Spirit = 0;
+	/** B-628b: the active loadout's first piece ("Arming Sword", "Innate spells"); empty with no loadout here. */
+	FText Weapon;
 	bool bLeader = false;
 	bool bAISeat = false;
 	bool bFallen = false;
