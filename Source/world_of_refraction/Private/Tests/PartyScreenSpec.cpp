@@ -15,6 +15,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "UI/Menus/CharacterSheetModel.h"
 #include "UI/Menus/LoadoutV2SkillsModel.h"
 #include "UI/Party/PartyScreenModel.h"
 
@@ -168,6 +169,22 @@ void FPartyScreenSpec::Define()
 		TestEqual(TEXT("its slotted skills"), Loadout.Entries[1].SkillsLine.ToString(), FString(TEXT("Force Strike, Rally")));
 		TestEqual(TEXT("an empty entry says so"), Loadout.Entries[2].SkillsLine.ToString(), FString(TEXT("No skills slotted")));
 		TestTrue(TEXT("no member, no loadout"), WoRPartyScreen::BuildLoadout(TestWorld->GetWorld(), PartyConstants::MAX_PARTY_MEMBERS).Entries.IsEmpty());
+	});
+
+	It("B-635: maps a seat to its Profile member, skipping a member with no character data", [this]()
+	{
+		if (!TestNotNull(TEXT("party session"), PartySession)) return;
+		UWorld *World = TestWorld->GetWorld();
+		TestEqual(TEXT("the leader's seat is the first profile"), WoRCharacterSheet::FindMemberIndex(World, PartyConstants::LEADER_SLOT), 0);
+		TestEqual(TEXT("the AI seat is the second"), WoRCharacterSheet::FindMemberIndex(World, PARTY_SCREEN_TEST_AI_SLOT), 1);
+		TestEqual(TEXT("no seat, no profile"), WoRCharacterSheet::FindMemberIndex(World, PartyConstants::MAX_PARTY_MEMBERS), INDEX_NONE);
+		UParty *Party = PartySession->GetLocalParty();
+		if (!TestTrue(TEXT("two members"), Party && Party->Members.Num() == PARTY_SCREEN_TEST_SLOTS)) return;
+		Party->Members[PartyConstants::LEADER_SLOT].CharacterData = nullptr;
+		TestEqual(TEXT("a member with no data has no profile"), WoRCharacterSheet::FindMemberIndex(World, PartyConstants::LEADER_SLOT), INDEX_NONE);
+		TestEqual(TEXT("and the next seat moves up"), WoRCharacterSheet::FindMemberIndex(World, PARTY_SCREEN_TEST_AI_SLOT), 0);
+		const FPartyMember *Shown = WoRCharacterSheet::FindPartyMember(World, 0);
+		TestTrue(TEXT("the profile's first member is that seat"), Shown == &Party->Members[PARTY_SCREEN_TEST_AI_SLOT]);
 	});
 
 	It("B-628: dismisses a member but never the leader", [this]()

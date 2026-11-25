@@ -6,6 +6,9 @@
 // who plays it, "Seat N"); no Invite row (the rest spot still opens Invite). Middle: the lit member's active loadout
 // only. Right: Details, who plays it (‹ › turns it), where it starts and the 3 x 3 grid, then the buttons A Move start
 // place, Y Open loadout, X Dismiss (twice). B goes back.
+// B-635 (mockup menus/party/v3, Q-635): A (or a click on a seat) View profile opens the member's Profile
+// (UCharacterSheetWidget) over this screen; X Move start place; Y Open loadout. Dismiss stays as a fourth button, by
+// the mouse (twice); the hub's member interaction also dismisses.
 // Replaces the placeholder UPartyControlWidget (still wor.UI.PartyControl, removed after Crown's PIE pass).
 
 #pragma once
@@ -35,6 +38,7 @@ public:
 	/** B-628: the Details buttons, in their places. */
 	enum class EPartyButton : uint8
 	{
+		ViewProfile,
 		MoveStart,
 		OpenLoadout,
 		Dismiss,
@@ -46,11 +50,13 @@ public:
 	void SelectRow(int32 Index);
 	/** Left / Right: the lit member's seat (you / AI). */
 	void PressToggleSeat();
-	/** A: the lit member's next start cell. */
+	/** A, or a click on a seat: the lit member's Profile, over this screen (B-635). */
+	void PressViewProfile();
+	/** X: the lit member's next start cell. */
 	void PressMoveOnGrid();
 	/** Y: the loadout screen on the lit member. */
 	void PressOpenLoadout();
-	/** X: arms, X again dismisses the lit member. */
+	/** The Dismiss button: arms, a second press dismisses the lit member. */
 	void PressDismiss();
 	void PressButton(EPartyButton Button);
 

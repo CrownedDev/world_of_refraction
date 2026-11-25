@@ -15,7 +15,8 @@
 #include "Party/PartySessionSubsystem.h"
 #include "Player/WoRHubController.h"
 #include "Pool/PoolSubsystem.h"
-#include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/Menus/CharacterSheetModel.h"
+#include "UI/Menus/CharacterSheetWidget.h"
 #include "UI/Menus/LoadoutV2ScreenWidget.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/WoRRootLayout.h"
@@ -136,7 +137,7 @@ void UPartyScreenWidget::BuildTree()
 	BuildRight(Right);
 
 	UTextBlock *Hints = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
-	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Move start        ‹ ›  Played by        {Second}  Loadout        {Toggle}  Dismiss        {Back}  Back"));
+	WoRKeyHints::SetHint(Hints, LOCTEXT("Hints", "{Confirm}  Profile        {Toggle}  Move start        ‹ ›  Played by        {Second}  Loadout        {Back}  Back"));
 	AddToColumn(Main, Hints, FMargin(0.0f, SectionGap, 0.0f, 0.0f))->SetHorizontalAlignment(HAlign_Right);
 }
 
@@ -538,6 +539,8 @@ FText UPartyScreenWidget::GetButtonRefusal(EPartyButton Button) const
 	}
 	switch (Button)
 	{
+	case EPartyButton::ViewProfile:
+		return WoRCharacterSheet::FindMemberIndex(GetWorld(), SelectedRow) == INDEX_NONE ? LOCTEXT("NoProfileHere", "No profile here.") : FText::GetEmpty();
 	case EPartyButton::OpenLoadout:
 		return Loadout.Title.IsEmpty() ? LOCTEXT("NoLoadoutHere", "No loadout here.") : FText::GetEmpty();
 	case EPartyButton::Dismiss:
@@ -553,9 +556,10 @@ void UPartyScreenWidget::RefreshButtons()
 
 	const FText Name = Page.Members.IsValidIndex(SelectedRow) ? Page.Members[SelectedRow].Name : FText::GetEmpty();
 	const FText Labels[BUTTON_COUNT] = {
-		LOCTEXT("MoveStartButton", "{Confirm}  Move start place"),
+		LOCTEXT("ViewProfileButton", "{Confirm}  View profile"),
+		LOCTEXT("MoveStartButton", "{Toggle}  Move start place"),
 		LOCTEXT("OpenLoadoutButton", "{Second}  Open loadout"),
-		bDismissArmed ? FText::Format(LOCTEXT("DismissArmedButton", "{Toggle}  again: dismiss {0}"), Name) : LOCTEXT("DismissButton", "{Toggle}  Dismiss"),
+		bDismissArmed ? FText::Format(LOCTEXT("DismissArmedButton", "Click again: dismiss {0}"), Name) : LOCTEXT("DismissButton", "Dismiss"),
 	};
 	for (int32 Index = 0; Index < BUTTON_COUNT; ++Index)
 	{
@@ -566,7 +570,8 @@ void UPartyScreenWidget::RefreshButtons()
 		}
 		const FText Refusal = GetButtonRefusal(static_cast<EPartyButton>(Index));
 		const bool bArmed = bDismissArmed && static_cast<EPartyButton>(Index) == EPartyButton::Dismiss;
-		Widgets.Plate->SetBrushColor(bArmed ? FocusColor : PlateColor);
+		const bool bPrimary = static_cast<EPartyButton>(Index) == EPartyButton::ViewProfile; // B-635: A's button is lit, as the mockup
+		Widgets.Plate->SetBrushColor(bArmed || (bPrimary && Refusal.IsEmpty()) ? FocusColor : PlateColor);
 		WoRKeyHints::SetHint(Widgets.Verb.Get(), Labels[Index]);
 		Widgets.Verb->SetColorAndOpacity(FSlateColor(Refusal.IsEmpty() ? TextColor : OffColor));
 		Widgets.Reason->SetText(Refusal);
@@ -622,6 +627,23 @@ void UPartyScreenWidget::PressMoveOnGrid()
 	RefreshData();
 }
 
+void UPartyScreenWidget::PressViewProfile()
+{
+	DisarmDismiss();
+	const FText Refusal = GetButtonRefusal(EPartyButton::ViewProfile);
+	if (!Refusal.IsEmpty())
+	{
+		SetMessage(Refusal);
+		return;
+	}
+	// The sheet's members skip one with no data: map the seat to its sheet index.
+	const int32 Target = WoRCharacterSheet::FindMemberIndex(GetWorld(), SelectedRow);
+	const UCharacterSheetWidget *Screen = UCharacterSheetWidget::Open(GetOwningPlayer(), Target); // over this screen: Back returns here
+	UE_CLOG(!Screen, LogWoRUI, Warning, TEXT("[PartyScreen] View profile: the Profile didn't open"));
+	UE_CLOG(Screen, LogWoRUI, Log, TEXT("[PartyScreen] View profile of %s (sheet member %d, shown %d)"), *Page.Members[SelectedRow].Name.ToString(), Target,
+			Screen ? Screen->GetMemberIndex() : INDEX_NONE);
+}
+
 void UPartyScreenWidget::PressOpenLoadout()
 {
 	DisarmDismiss();
@@ -631,7 +653,6 @@ void UPartyScreenWidget::PressOpenLoadout()
 		SetMessage(Refusal);
 		return;
 	}
-	// The loadout screen's characters skip a member with no data: find this one by its key.
 	const UGameInstance *GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr;
 	const UPartySessionSubsystem *PartySession = GI ? GI->GetSubsystem<UPartySessionSubsystem>() : nullptr;
 	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
@@ -639,22 +660,8 @@ void UPartyScreenWidget::PressOpenLoadout()
 	{
 		return;
 	}
-	const FName Key = UPoolSubsystem::GetCharacterKey(Party->Members[SelectedRow]);
-	const int32 Target = Algo::IndexOfByPredicate(WoRLoadoutScreen::BuildMembers(GetWorld()), [Key](const FLoadoutScreenMember &Member) { return Member.Key == Key; });
-	ULoadoutV2ScreenWidget *Screen = ULoadoutV2ScreenWidget::OpenWithLoadout(GetOwningPlayer()); // over this screen: Back returns here
-	if (!Screen)
-	{
-		UE_LOG(LogWoRUI, Warning, TEXT("[PartyScreen] Open loadout: the loadout screen didn't open"));
-		return;
-	}
-	if (Target != INDEX_NONE && Target != Screen->GetMemberIndex())
-	{
-		Screen->MoveMember(Target - Screen->GetMemberIndex());
-	}
-	UE_CLOG(Target != Screen->GetMemberIndex(), LogWoRUI, Warning, TEXT("[PartyScreen] Open loadout: the loadout screen shows character %d, not %d"),
-			Screen->GetMemberIndex(), Target);
-	UE_LOG(LogWoRUI, Log, TEXT("[PartyScreen] Open loadout on %s (character %d, shown %d)"), *Page.Members[SelectedRow].Name.ToString(), Target,
-		   Screen->GetMemberIndex());
+	// Over this screen: Back returns here.
+	ULoadoutV2ScreenWidget::OpenWithLoadoutOn(GetOwningPlayer(), UPoolSubsystem::GetCharacterKey(Party->Members[SelectedRow]));
 }
 
 void UPartyScreenWidget::PressDismiss()
@@ -684,6 +691,9 @@ void UPartyScreenWidget::PressButton(EPartyButton Button)
 {
 	switch (Button)
 	{
+	case EPartyButton::ViewProfile:
+		PressViewProfile();
+		break;
 	case EPartyButton::MoveStart:
 		PressMoveOnGrid();
 		break;
@@ -718,7 +728,8 @@ FReply UPartyScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const FK
 			}
 			else
 			{
-				PressButton(IsConfirmKey(Key) ? EPartyButton::MoveStart : IsSecondActionKey(Key) ? EPartyButton::OpenLoadout : EPartyButton::Dismiss);
+				// B-635: Dismiss has no key (its button, by the mouse).
+				PressButton(IsConfirmKey(Key) ? EPartyButton::ViewProfile : IsSecondActionKey(Key) ? EPartyButton::OpenLoadout : EPartyButton::MoveStart);
 			}
 		}
 		return FReply::Handled();
@@ -778,7 +789,8 @@ FReply UPartyScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, 
 	const int32 Row = FindRowUnder(InMouseEvent);
 	if (Row != INDEX_NONE)
 	{
-		SelectRow(Row); // a click only lights a card: the buttons act
+		SelectRow(Row);
+		PressViewProfile(); // B-635: a click on a seat is View profile
 		return FReply::Handled();
 	}
 	const int32 Button = FindButtonUnder(InMouseEvent);
@@ -798,7 +810,7 @@ FReply UPartyScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry, 
 #if !UE_BUILD_SHIPPING
 static FAutoConsoleCommandWithWorld GPartyScreenOpenCommand(
 	TEXT("wor.UI.Party"),
-	TEXT("B-458 / B-628: open the party screen (seats, the lit member's active loadout, Details; A move start, Left / Right played by, Y loadout, X dismiss)."),
+	TEXT("B-458 / B-628 / B-635: open the party screen (seats, the lit member's active loadout, Details; A profile, X move start, Left / Right played by, Y loadout)."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		if (!UPartyScreenWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
