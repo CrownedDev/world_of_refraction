@@ -25,6 +25,7 @@ class UEvolutionInventoryComponent;
 class ULoadoutComponent;
 class USpellData;
 class UAbilityData;
+class USkillDataBase;
 class UWeaponData;
 
 /** B-456d: what a crystal merge would use, give back and cost (UEconomyService::GetMergeRefusal). */
@@ -378,6 +379,13 @@ public:
      *  twin of LevelUpSpell (asset-keyed; basic attacks aren't owned, so they reject). */
     UFUNCTION(BlueprintCallable, Category = "Economy")
     bool LevelUpAbility(AActor *Owner, const UAbilityData *Ability);
+
+    /** B-616c: tier-up one of CharacterKey's LEARNED skills (a spell or an ability) by one step, where they live: the
+     *  pool's store (UPoolSubsystem::FindSkills), so it holds wherever the skill is slotted and survives a respawn.
+     *  Owner pays, as LevelUpSpell (Dormant Essence, + ½ Elemental for a spell with an element). The store's change
+     *  reloads the spawned member's skills. False if Owner can't act, the character hasn't learned Skill, it is at S, or
+     *  the wallet is short. */
+    bool LevelUpPoolSkill(AActor *Owner, FName CharacterKey, const USkillDataBase *Skill);
 
     // ==================== DOWNGRADE (instance tier-down / respec, refund-side) ====================
 

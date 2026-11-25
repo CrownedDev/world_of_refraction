@@ -1969,6 +1969,47 @@ bool UEconomyService::LevelUpAbility(AActor *Owner, const UAbilityData *Ability)
     return TryLevelUpEntry(Currency, Instance->Tier, ECurrencyType::SkillEssence);
 }
 
+bool UEconomyService::LevelUpPoolSkill(AActor *Owner, FName CharacterKey, const USkillDataBase *Skill)
+{
+    if (!EconomyMayAct(Owner, TEXT("LevelUpPoolSkill")) || !Skill)
+    {
+        return false;
+    }
+    UGameInstance *GameInstance = Owner->GetGameInstance();
+    UPoolSubsystem *Pool = GameInstance ? GameInstance->GetSubsystem<UPoolSubsystem>() : nullptr;
+    const FPoolSkills *Stored = Pool ? Pool->FindSkills(CharacterKey) : nullptr;
+    if (!Stored)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpPoolSkill: no learned skills for %s"), *CharacterKey.ToString());
+        return false;
+    }
+    // A copy: the store changes through SetSkills, which tells the spawned member to reload.
+    FPoolSkills Skills = *Stored;
+    const USpellData *Spell = Cast<USpellData>(Skill);
+    const UAbilityData *Ability = Cast<UAbilityData>(Skill);
+    FSpellInstance *SpellEntry = Spell ? Skills.Spells.FindByPredicate([Spell](const FSpellInstance &Entry) { return Entry.Spell == Spell; }) : nullptr;
+    FAbilityInstance *AbilityEntry = Ability ? Skills.Abilities.FindByPredicate([Ability](const FAbilityInstance &Entry) { return Entry.Ability == Ability; }) : nullptr;
+    EItemTier *Tier = SpellEntry ? &SpellEntry->Tier : AbilityEntry ? &AbilityEntry->Tier : nullptr;
+    if (!Tier)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("[EconomyService] LevelUpPoolSkill: %s hasn't learned %s"), *CharacterKey.ToString(), *Skill->GetName());
+        return false;
+    }
+    if (!TryLevelUpEntry(CurrencyWallet::FindFor(Owner), *Tier, ECurrencyType::SkillEssence, Spell && EconomyYield::SpellHasElement(Spell->Element)))
+    {
+        return false;
+    }
+    const EItemTier NewTier = *Tier;
+    Pool->SetSkills(CharacterKey, Skills.Spells, Skills.Abilities);
+    // B-214b: an aura spell's new rank may unlock a field skill for the account (as LevelUpSpell).
+    if (UFieldSkillUnlockSubsystem *Unlocks = Spell ? GameInstance->GetSubsystem<UFieldSkillUnlockSubsystem>() : nullptr)
+    {
+        Unlocks->RecordSpellTier(Spell, NewTier);
+    }
+    UE_LOG(LogTemp, Log, TEXT("[EconomyService] LevelUpPoolSkill: %s's %s is now %s"), *CharacterKey.ToString(), *Skill->GetName(), *TierHelpers::GetTierName(NewTier));
+    return true;
+}
+
 bool UEconomyService::DowngradeWeapon(AActor *Owner, FGuid PersistentID)
 {
     return DowngradeOwnedGear<FWeaponInventoryEntry>(Owner, PersistentID, TEXT("DowngradeWeapon"));
