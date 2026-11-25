@@ -12,6 +12,7 @@
 #include "Skills/Definitions/ESpellElement.h"
 #include "Equipment/Rings/EAdapterForm.h"
 #include "Combat/Presentation/CastVisuals.h"
+#include "Infusion/InfusionLook.h"
 #include "ImpactVisualDefaults.generated.h"
 
 class UNiagaraSystem;
@@ -126,7 +127,28 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Glows")
 	TArray<FInfusionLevelVisual> InfusionLevelVisuals;
 
+	// ==================== INFUSION LOOKS BY SOURCE (B-626, D-277) ====================
+	// A weapon crystal's look is the weapon glow above. An adapter's is a flame on its finger, an Innate, Evolution or
+	// Raw infusion's an aura on the body (InfusionLook.h). An empty kind falls back to the glow above, where it played
+	// before. TODO: art (the editor worker).
+
+	/** The adapter (ring) flame, per element. Attached to RingFingerSockets. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Looks")
+	FInfusionLookSet RingFlameLooks;
+
+	/** The body aura (Innate, Evolution, Raw), per element. Attached to the actor, AuraOffset below it. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Looks")
+	FInfusionLookSet BodyAuraLooks;
+
+	/** The finger bones, first ring worn first (the index finger). Q-626: the right hand by default. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Infusion Looks")
+	TArray<FName> RingFingerSockets;
+
 	UImpactVisualDefaults();
+
+	/** Kind's default look: Weapon is the glow (GetInfusionGlowVFX); Ring and Aura their set's element row, else its
+	 *  default (Raw and no element: the default; Ice: Water's row). Empty when the slot has none. */
+	TSoftObjectPtr<UNiagaraSystem> GetInfusionLookVFX(EInfusionLookKind Kind, ESpellElement Element, bool bRaw = false, bool bIce = false) const;
 
 	/** The default glow slot: Raw's when bRaw, Ice's for a Water infusion when bIce (Water's while Ice's is empty),
 	 *  Physical's with no element (None or Generic), else the element's row; empty when that slot has none. */
