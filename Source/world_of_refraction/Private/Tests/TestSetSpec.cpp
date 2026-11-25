@@ -54,12 +54,20 @@ void FTestSetSpec::Define()
 		{
 			return;
 		}
-		const FEvolutionInventoryEntry Evolution(Gale);
+		// As wor.Debug.TestSet leaves them: every piece at the set's tier (S), the crystals and the stone from the list.
+		FEvolutionInventoryEntry Evolution(Gale);
+		Evolution.Tier = Set.GearTier;
 		FWeaponInventoryEntry Weapon = FWeaponInventoryEntry::CreateFromWeapon(Sword);
+		Weapon.Tier = Set.GearTier;
 		Weapon.AttachedItem = TestSetCrystal(Set.GenericWeaponCrystal);
-		const FWeaponInventoryEntry OffHand = FWeaponInventoryEntry::CreateFromWeapon(Shield);
+		Weapon.StoneSocket.Kind = EAttachedItemKind::AugmentStone;
+		Weapon.StoneSocket.Crystal = FCrystalAttachment(Set.GenericWeaponStone, 0);
+		FWeaponInventoryEntry OffHand = FWeaponInventoryEntry::CreateFromWeapon(Shield);
+		OffHand.Tier = Set.GearTier;
 		FRingInventoryEntry Adapter = FRingInventoryEntry::CreateFromRing(Ring);
+		Adapter.Tier = Set.GearTier;
 		Adapter.AttachedItem = TestSetCrystal(Set.GenericAdapterCrystal);
+		TestEqual(TEXT("the set's gear tier is S (Crown)"), Set.GearTier, EItemTier::S_Tier);
 
 		const TSet<ESpellElement> Elements = {Gale->GetAssociatedElement(), CrystalTypeHelpers::GetElement(Set.GenericWeaponCrystal.Type),
 											  CrystalTypeHelpers::GetElement(Set.GenericAdapterCrystal.Type)};
@@ -82,6 +90,8 @@ void FTestSetSpec::Define()
 		TestEqual(TEXT("... with the shield in the off hand"), Loadout.SecondaryWeapon.OffHandEntry.PersistentID, OffHand.PersistentID);
 		TestTrue(TEXT("... and its crystal"), Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.IsCrystal() &&
 												  Loadout.SecondaryWeapon.WeaponEntry.AttachedItem.Crystal.Id == Set.GenericWeaponCrystal);
+		TestTrue(TEXT("... and its stone (the budget's fifth cell)"), Loadout.SecondaryWeapon.WeaponEntry.StoneSocket.Crystal.Id == Set.GenericWeaponStone);
+		TestEqual(TEXT("... at S"), Loadout.SecondaryWeapon.WeaponEntry.Tier, EItemTier::S_Tier);
 		TestTrue(TEXT("the adapter, with its crystal, in the adapter list"),
 				 Loadout.RingLoadout.ContainsByPredicate([&Adapter, &Set](const FRingLoadoutEntry &Entry)
 														 { return Entry.RingEntry.PersistentID == Adapter.PersistentID && Entry.RingEntry.AttachedItem.IsCrystal() &&
