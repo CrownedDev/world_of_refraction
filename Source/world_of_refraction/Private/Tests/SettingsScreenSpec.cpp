@@ -393,8 +393,8 @@ void FSettingsScreenSpec::Define()
 
 	It("sizes the screen's rows to the longest page, so Gameplay's last row can be selected (B-590 QA 2)", [this]()
 	{
-		// The screen builds GetMostRows row widgets (SettingsScreenWidget::BuildTree); a fixed 7 left Gameplay's last
-		// three with none. Its scroll at 720p is PIE (docs/PIE/B-590.md check 4): a CommonUI tree can't be built here.
+		// A fixed 7 row widgets left Gameplay's last three with none; since B-631 the screen grows its rows to the page
+		// shown. Its scroll at 720p is PIE (docs/PIE/B-590.md check 4): a CommonUI tree can't be built here.
 		const int32 Most = WoRSettingsScreen::GetMostRows(TestWorld->GetWorld());
 		for (int32 PageIndex = 0; PageIndex < WoRSettingsScreen::PAGE_COUNT; ++PageIndex)
 		{
@@ -411,6 +411,125 @@ void FSettingsScreenSpec::Define()
 		const int32 Last = SETTINGS_TEST_GAMEPLAY_ROWS - 1;
 		TestEqual(TEXT("the last Gameplay row is selected"), Screen->GetSelectedRow(), Last);
 		TestTrue(TEXT("and it is Turns shown"), Screen->GetRows().IsValidIndex(Last) && Screen->GetRows()[Last].Id == ESettingId::TurnsShown);
+	});
+
+	It("lists every built setting's choices, one of them the default and the one in use its value (B-631)", [this]()
+	{
+		for (const ESettingsPage Page : {ESettingsPage::Gameplay, ESettingsPage::Accessibility})
+		{
+			for (const FSettingsRow &Row : WoRSettingsScreen::BuildRows(TestWorld->GetWorld(), Page))
+			{
+				if (!Row.CanChange())
+				{
+					TestEqual(TEXT("a row not built has no choices"), Row.Choices.Num(), 0);
+					continue;
+				}
+				TestTrue(*FString::Printf(TEXT("%s has choices"), *Row.Label.ToString()), Row.Choices.Num() >= 2);
+				TestEqual(*FString::Printf(TEXT("%s has one default"), *Row.Label.ToString()),
+						  Row.Choices.FilterByPredicate([](const FSettingsChoice &Choice) { return Choice.bDefault; }).Num(), 1);
+				if (TestTrue(*FString::Printf(TEXT("%s has one in use"), *Row.Label.ToString()), Row.Choices.IsValidIndex(Row.Current)))
+				{
+					TestEqual(TEXT("its value is the one in use"), Row.Value.ToString(), Row.Choices[Row.Current].Name.ToString());
+				}
+			}
+		}
+		const FSettingsRow EndTurn = Gameplay()[SETTINGS_TEST_END_TURN_ROW];
+		TestTrue(TEXT("an On / Off row is a switch"), EndTurn.bSwitch);
+		TestFalse(TEXT("a list of styles isn't"), Gameplay()[SETTINGS_TEST_TURN_VIEW_ROW].bSwitch);
+	});
+
+	It("puts a setting on a picked choice and back on its default (B-631)", [this]()
+	{
+		UWorld *World = TestWorld->GetWorld();
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestNotNull(TEXT("save"), Save))
+		{
+			return;
+		}
+		const FSettingsRow TurnView = Gameplay()[SETTINGS_TEST_TURN_VIEW_ROW];
+		const int32 Default = TurnView.GetDefaultChoice();
+		TestEqual(TEXT("Over the Shoulder is the default"), Default, static_cast<int32>(ETurnViewStyle::OverTheShoulder));
+		Save->SetTurnViewStyle(ETurnViewStyle::OverTheShoulder);
+		TestTrue(TEXT("picked the last style"), WoRSettingsScreen::SetSettingChoice(World, ESettingId::TurnView, static_cast<int32>(ETurnViewStyle::Tactical)));
+		TestTrue(TEXT("it is in use"), Save->GetTurnViewStyle() == ETurnViewStyle::Tactical);
+		TestEqual(TEXT("the row lights it"), Gameplay()[SETTINGS_TEST_TURN_VIEW_ROW].Current, static_cast<int32>(ETurnViewStyle::Tactical));
+		TestFalse(TEXT("picking the one in use changes nothing"), WoRSettingsScreen::SetSettingChoice(World, ESettingId::TurnView, static_cast<int32>(ETurnViewStyle::Tactical)));
+		TestTrue(TEXT("back to the default"), WoRSettingsScreen::SetSettingChoice(World, ESettingId::TurnView, Default));
+		TestTrue(TEXT("Over the Shoulder again"), Save->GetTurnViewStyle() == ETurnViewStyle::OverTheShoulder);
+
+		// A count stops at its ends, so a pick below the one in use steps down.
+		Save->SetTurnsShown(BattleHUDView::MAX_TURNS_SHOWN);
+		TestTrue(TEXT("picked the fewest turns"), WoRSettingsScreen::SetSettingChoice(World, ESettingId::TurnsShown, 0));
+		TestEqual(TEXT("1 turn"), Save->GetTurnsShown(), BattleHUDView::MIN_TURNS_SHOWN);
+		TestTrue(TEXT("back to the default"), WoRSettingsScreen::SetSettingChoice(World, ESettingId::TurnsShown, Gameplay()[SETTINGS_TEST_TURNS_SHOWN_ROW].GetDefaultChoice()));
+		TestEqual(TEXT("6 turns"), Save->GetTurnsShown(), BattleHUDView::DEFAULT_TURNS_SHOWN);
+		TestFalse(TEXT("a row not built takes no pick"), WoRSettingsScreen::SetSettingChoice(World, ESettingId::BattleControls, 0));
+	});
+
+	It("splits the Controls keys by kind, Battle first, and no key can change (B-631)", [this]()
+	{
+		const TArray<FText> Sections = WoRSettingsScreen::GetKeySections();
+		if (!TestEqual(TEXT("Battle, Field, Menus"), Sections.Num(), SETTINGS_TEST_KEY_SECTIONS))
+		{
+			return;
+		}
+		TestEqual(TEXT("Battle first"), Sections[0].ToString(), FString(TEXT("Battle")));
+		int32 Keys = 0;
+		for (int32 Section = 0; Section < Sections.Num(); ++Section)
+		{
+			const TArray<FSettingsRow> Page = WoRSettingsScreen::BuildKeyPage(Section);
+			TestTrue(TEXT("each kind has keys"), Page.Num() > 0);
+			Keys += Page.Num();
+			for (const FSettingsRow &Row : Page)
+			{
+				TestTrue(TEXT("a fixed key"), Row.Id == ESettingId::FixedKey);
+				TestFalse(TEXT("it can't change"), Row.CanChange());
+				if (TestEqual(TEXT("its key on each device"), Row.Choices.Num(), 2))
+				{
+					TestFalse(TEXT("keyboard key"), Row.Choices[0].What.IsEmpty());
+					TestFalse(TEXT("controller key"), Row.Choices[1].What.IsEmpty());
+				}
+			}
+		}
+		TestEqual(TEXT("every key is on one kind"), Keys, WoRSettingsScreen::BuildKeyRows().Num() - SETTINGS_TEST_KEY_SECTIONS);
+		TestFalse(TEXT("ChangeSetting refuses a key"), WoRSettingsScreen::ChangeSetting(TestWorld->GetWorld(), ESettingId::FixedKey, 1));
+	});
+
+	It("turns Controls' kind, and Y puts a row back on its default (the screen, headless, B-631)", [this]()
+	{
+		USettingsScreenWidget *Screen = CreateWidget<USettingsScreenWidget>(TestWorld->GetWorld(), USettingsScreenWidget::StaticClass());
+		USaveSubsystem *Save = TestWorld->GetSubsystem<USaveSubsystem>();
+		if (!TestNotNull(TEXT("screen created"), Screen) || !TestNotNull(TEXT("save"), Save))
+		{
+			return;
+		}
+		Save->SetTurnViewStyle(ETurnViewStyle::OverTheShoulder);
+		Screen->ActivateWidget();
+		Screen->MovePage(static_cast<int32>(ESettingsPage::Controls));
+		TestTrue(TEXT("on Controls"), Screen->GetPage() == ESettingsPage::Controls);
+		TestEqual(TEXT("on Battle"), Screen->GetKind(), 0);
+		TestEqual(TEXT("Battle's keys"), Screen->GetRows().Num(), WoRSettingsScreen::BuildKeyPage(0).Num());
+		Screen->MoveKind(1);
+		TestEqual(TEXT("on Field"), Screen->GetKind(), 1);
+		TestEqual(TEXT("Field's keys"), Screen->GetRows().Num(), WoRSettingsScreen::BuildKeyPage(1).Num());
+		Screen->MoveKind(-2);
+		TestEqual(TEXT("wraps to Menus"), Screen->GetKind(), SETTINGS_TEST_KEY_SECTIONS - 1);
+		Screen->ChangeSelected(1);
+		Screen->PressDefault();
+		TestFalse(TEXT("a key changes nothing"), Screen->HasUnsavedChanges());
+
+		Screen->MovePage(-static_cast<int32>(ESettingsPage::Controls));
+		Screen->MoveKind(1);
+		TestEqual(TEXT("the kind only turns on Controls"), Screen->GetKind(), SETTINGS_TEST_KEY_SECTIONS - 1);
+		Screen->SelectRow(SETTINGS_TEST_TURN_VIEW_ROW);
+		TestTrue(TEXT("the hints offer the default"), Screen->GetHints().ToString().Contains(TEXT("Default")));
+		Screen->PickChoice(static_cast<int32>(ETurnViewStyle::CentredWide));
+		TestTrue(TEXT("a pick is a change"), Screen->HasUnsavedChanges());
+		TestTrue(TEXT("Centred Wide"), Save->GetTurnViewStyle() == ETurnViewStyle::CentredWide);
+		Screen->PressDefault();
+		TestTrue(TEXT("Y: Over the Shoulder again"), Save->GetTurnViewStyle() == ETurnViewStyle::OverTheShoulder);
+		Screen->PressBack();
+		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
 	});
 }
 
