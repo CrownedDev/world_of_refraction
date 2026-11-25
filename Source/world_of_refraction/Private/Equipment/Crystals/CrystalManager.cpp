@@ -16,6 +16,7 @@
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
+#include "Trial/TrialRunSubsystem.h"
 
 void UCrystalManager::Initialize(FSubsystemCollectionBase &Collection)
 {
@@ -44,6 +45,11 @@ void UCrystalManager::NotifyCrystalBroken(AActor *Actor, UObject *Holder, const 
 int32 UCrystalManager::ComputeCastWear(const AActor *Actor, EItemTier WearTier, EItemTier ActionTier, int32 InfusionLevel,
                                       bool bIsSpell, TOptional<EItemTier> GapTier, float InfusionWearMultiplier)
 {
+    // B-611: a practice fight wears nothing (the one wear formula: crystals, primary and gear evolutions).
+    if (UTrialRunSubsystem::IsPracticeFight(Actor))
+    {
+        return 0;
+    }
     const EItemTier GapAgainst = GapTier.Get(WearTier);
     // B-242 (DRY audit A5): the one wear formula for a crystal, a primary-slot evolution and a gear evolution.
     // Substat-modified path when the caster's UCharacterData is reachable — wear tracks real power output

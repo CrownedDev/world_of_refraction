@@ -1312,6 +1312,16 @@ The queue of questions only Crown can answer.
 - **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
+### Q-611 — The training dummy's practice fight
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-611) · **Blocks:** nothing
+**Question:** what does a practice fight keep, how does it end, and what is the dummy?
+**Answer (default, built):**
+- Nobody falls: the dummy's HP and the party's refill at 0 (the hit's number still shows in full), so a backlash or HP cost can't end it either. The dummy never acts; its turn passes at once.
+- Home gear and home learned spells, as in the hub. Nothing is kept: no rewards, no crystal or evolution wear, no fight item used up, no Gold, no save, no memory unlocks, no loadout written back.
+- Leaving: the battle menu's Flee row reads **End practice** (5 / D-pad Down, no new key) and returns the party to where the leader stood by the dummy.
+- The dummy is the test trial's Generic enemy (`DA_Enemy_Generic`) on the trials' battle level (`TestLevel_Encounter`), both in `DefaultGame.ini` (`PracticeLevel`, `PracticeDummy`) until a dummy asset and arena exist.
+- Refused during a trial run (the dummy is a hub thing).
+**Reference:** FFXIV's striking dummies and Monster Hunter's training area: free practice, nothing at stake, damage numbers shown, leave any time (Crown's brief).
 ### Q-595h — Rally's numbers (the sword charge, a self damage buff)
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-595h) · **Blocks:** nothing
 **Question:** Rally is a charge with the sword that raises the user's damage (Crown: "keep it simple"). How much, for how long, and what does it cost next to the other sword skills (Quick Strike 10 EP, Force Strike 12, WhirlWind 20)?
@@ -1500,7 +1510,8 @@ Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wi
 - The Act panel shows no infusion line for it; an infusion sent with it anyway is ignored (the skill still runs).
 - Using one leaves the fighter's kept infusion (Q-613) as it was, on for the next strike.
 - **Weapon abilities only.** Spell buffs and debuffs keep their infusion as before: spells are naturally elemental.
-**Built:** B-620 (`SupportSkillRules::IsWeaponBuffOrDebuff`).
+- **Its look takes the infusion's colour (Crown, 2026-11-25: "Yes, tint only", asked whether Rally's look should take the weapon's infusion colour).** With an infusion on, a weapon buff or debuff's effects are tinted with that element, the same way an infused skill's are; it's only a look: no EP, no infusion applied, the action stays uninfused. With no infusion on, it stays clear (no tint).
+**Built:** B-620 (`SupportSkillRules::IsWeaponBuffOrDebuff`); the tint B-622 (`FActionResult::LookElement`, `EffectTint::ChooseTintElement`).
 
 ### D-274 — Every fighter starts a fight with 1 action
 **Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, play-testing action pips) · **Blocks:** B-605

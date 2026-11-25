@@ -158,6 +158,13 @@ public:
     UPROPERTY(ReplicatedUsing = OnRep_bIsAlive, BlueprintReadOnly, Category = "Combat")
     bool bIsAlive;
 
+    /** B-611 (Q-611): a practice fighter (the dummy and the party in a practice fight) never falls: at 0 HP its HP
+     *  refills to max (CheckDeath). Per-fight state on the fighter (D-064), set by the battle at spawn. */
+    bool bCannotFall = false;
+
+    /** B-611: the training dummy never acts; its turn passes at once (ACombatOrchestrator::RequestActionFromActor). */
+    bool bTrainingDummy = false;
+
     /** Per-fight (B-071): the local player drives this character through the command
      *  menu although the PlayerController doesn't possess it (a Player-controlled
      *  party member, D-004). Read through CombatControl::IsPlayerDriven, never directly. */

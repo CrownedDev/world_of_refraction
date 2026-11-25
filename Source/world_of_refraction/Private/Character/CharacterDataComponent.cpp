@@ -617,6 +617,15 @@ void UCharacterDataComponent::ServerGainBrokenDarknessEnergy(int32 Amount, int32
 
 void UCharacterDataComponent::CheckDeath()
 {
+    if (CurrentHP <= 0 && bIsAlive && bCannotFall)
+    {
+        // B-611: a practice fighter's HP refills; the hit's damage number already showed in full.
+        CurrentHP = MaxHP;
+        OnHPChanged.Broadcast(CurrentHP, MaxHP);
+        UE_LOG(LogTemp, Log, TEXT("[CharacterDataComponent] %s reached 0 HP in a practice fight: refilled to %d (B-611)"),
+               *GetNameSafe(GetOwner()), MaxHP);
+        return;
+    }
     if (CurrentHP <= 0 && bIsAlive)
     {
         // Last Stand intercept — when the actor holds a LastStand skill-effect, PRE-EMPT death:

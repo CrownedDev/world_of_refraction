@@ -79,6 +79,7 @@
 #include "GameFramework/Character.h"
 #include "Combat/CombatControl.h"
 #include "Combat/Tuning/CombatTuningData.h"
+#include "Trial/TrialRunSubsystem.h"
 
 namespace
 {
@@ -995,10 +996,14 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &InAction,
 {
 	// B-620 (D-275): a weapon buff or debuff can't be infused; any infusion it carries is dropped, not refused.
 	const FAction Action = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(InAction);
+	// B-622: its look still takes the infusion's element (tint only).
+	const ESpellElement LookElement = Action.SelectedSource != InAction.SelectedSource
+										  ? GetElementForSourceOption(Actor, InAction.SelectedSource)
+										  : ESpellElement::None;
 	if (Action.AbilityInfusionLevel != InAction.AbilityInfusionLevel || Action.SelectedSource != InAction.SelectedSource)
 	{
-		UE_LOG(LogWoR, Log, TEXT("[ActionExecutor] %s: %s is a weapon buff or debuff, its infusion is ignored (D-275)"), *GetNameSafe(Actor),
-			   *GetNameSafe(Action.SkillData));
+		UE_LOG(LogWoR, Log, TEXT("[ActionExecutor] %s: %s is a weapon buff or debuff, its infusion is ignored (D-275); its look is %s (B-622)"),
+			   *GetNameSafe(Actor), *GetNameSafe(Action.SkillData), *UEnum::GetValueAsString(LookElement));
 	}
 
 	// Lazy-bind to DefenseSystem on first use. Subsystem init order is alphabetical, so
@@ -1069,6 +1074,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &InAction,
 	Context.Executor = Actor;
 	Context.bInProgress = true;
 	Context.StartTime = FPlatformTime::Seconds();
+	Context.PartialResult.LookElement = LookElement;
 
 	// Initialize partial result
 	Context.PartialResult.Executor = Actor;
@@ -3097,8 +3103,12 @@ FActionResult UActionExecutor::ExecuteItem(
 
 	// === Consume item use from loadout ===
 	// Q-060 (B-201): a use that failed to land still spends its charge, like a missed
-	// throw; the result keeps reporting the failure (B-060).
-	if (bFromPouch)
+	// throw; the result keeps reporting the failure (B-060). B-611: a practice fight spends no item.
+	if (UTrialRunSubsystem::IsPracticeFight(User))
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[ActionExecutor] Practice fight: %s keeps its use"), *ItemIdentity::GetDisplayName(Id));
+	}
+	else if (bFromPouch)
 	{
 		Loadout->UseCarriedItem(Id);
 	}
