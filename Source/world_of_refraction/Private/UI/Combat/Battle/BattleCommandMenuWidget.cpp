@@ -395,7 +395,20 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 		Tab->SetVisibility(ESlateVisibility::HitTestInvisible);
 		TabText = MakeText(WidgetTree, TabFontSize, WoRMenuStyle::CyanColor, /*bBold=*/true);
 		Tab->SetContent(TabText);
-		WoRMenuStyle::AddToColumn(Column, Tab)->SetHorizontalAlignment(HAlign_Left);
+		// B-627 (Crown: "a seperate box next to act so it looks like a seond tab"): the durability in its own tab, same plate
+		// and height as Act's, smaller text.
+		UHorizontalBox *Tabs = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass(), TEXT("Tabs"));
+		Tabs->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		WoRMenuStyle::AddToRow(Tabs, Tab, FMargin(0.0f, 0.0f, RowGap, 0.0f))->SetVerticalAlignment(VAlign_Fill);
+		UBorder *DurabilityTab = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("DurabilityTab"));
+		DurabilityTab->SetBrush(TabBrush);
+		DurabilityTab->SetPadding(FMargin(RowPaddingX * 1.5f, RowPaddingY));
+		DurabilityTab->SetVerticalAlignment(VAlign_Center);
+		DurabilityTab->SetVisibility(ESlateVisibility::HitTestInvisible);
+		DurabilityText = MakeText(WidgetTree, SmallFontSize, DurabilityColor);
+		DurabilityTab->SetContent(DurabilityText);
+		WoRMenuStyle::AddToRow(Tabs, DurabilityTab)->SetVerticalAlignment(VAlign_Fill);
+		WoRMenuStyle::AddToColumn(Column, Tabs)->SetHorizontalAlignment(HAlign_Left);
 
 		static const FSlateRoundedBoxBrush FrameBrush(WoRMenuStyle::PanelColor, 0.0f, WoRMenuStyle::OffColor, FrameOutline);
 		UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass(), TEXT("Frame"));
@@ -409,6 +422,7 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 		// The header past the main menu ("Skills > Abilities"), a rule under it.
 		UVerticalBox *Header = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass(), TEXT("Header"));
 		TitleText = MakeText(WidgetTree, HeaderFontSize, WoRMenuStyle::DimColor, /*bBold=*/true);
+		TitleText->SetAutoWrapText(true); // B-627: a long name wraps inside the frame, never past it
 		WoRMenuStyle::AddToColumn(Header, TitleText, FMargin(RowPaddingX, RowPaddingY * 0.5f));
 		UBorder *Rule = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 		Rule->SetBrushColor(WoRMenuStyle::TrackColor);
@@ -450,10 +464,6 @@ TSharedRef<SWidget> UBattleCommandMenuWidget::RebuildWidget()
 			WoRMenuStyle::AddToColumn(Body, Chips, FMargin(ChipLineIndent, 0.0f, 0.0f, PanelLineGap));
 			ChipLines.Add(Chips);
 		}
-
-		// B-391c: the durability line (the old header), small, above the rows.
-		DurabilityText = MakeText(WidgetTree, SmallFontSize, DurabilityColor);
-		WoRMenuStyle::AddToColumn(Body, DurabilityText, FMargin(RowPaddingX, 0.0f, RowPaddingX, RowGap));
 
 		UScrollBox *Scroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass(), TEXT("Rows"));
 		Scroll->SetScrollBarVisibility(ESlateVisibility::Visible); // B-436g QA: a cut-off row must look scrollable
@@ -703,6 +713,19 @@ void UBattleCommandMenuWidget::HandleTargetHighlighted(AActor *Actor, AActor *Ta
 		}
 		PushToWidgets(); // the lit row turns violet
 	}
+}
+
+bool UBattleCommandMenuWidget::IsDurabilityBesideActTab() const
+{
+	const UWidget *ActTab = TabText ? TabText->GetParent() : nullptr;
+	const UWidget *DurabilityTab = DurabilityText ? DurabilityText->GetParent() : nullptr;
+	return ActTab && DurabilityTab && ActTab != DurabilityTab && Cast<UHorizontalBox>(ActTab->GetParent()) &&
+		   ActTab->GetParent() == DurabilityTab->GetParent();
+}
+
+bool UBattleCommandMenuWidget::DoesTitleWrap() const
+{
+	return TitleText && TitleText->GetAutoWrapText();
 }
 
 FLinearColor UBattleCommandMenuWidget::GetActTabFill() const
@@ -995,8 +1018,11 @@ void UBattleCommandMenuWidget::PushToWidgets()
 	if (DurabilityText)
 	{
 		DurabilityText->SetText(FText::Join(LOCTEXT("DurabilitySeparator", "   "), DurabilityLines));
-		DurabilityText->SetVisibility(bShowing && !DurabilityLines.IsEmpty() ? ESlateVisibility::HitTestInvisible
-																			  : ESlateVisibility::Collapsed);
+		WoRMenuStyle::SetShown(DurabilityText->GetParent(), bShowing && !DurabilityLines.IsEmpty());
+		if (UBorder *DurabilityTab = Cast<UBorder>(DurabilityText->GetParent()))
+		{
+			DurabilityTab->SetBrush(FSlateRoundedBoxBrush(SelectorFill, BattleCommandMenuBuild::CutCorner(), SelectorOutline, FrameOutline)); // Act's plate
+		}
 	}
 	const int32 Lit = GetLitRow(); // B-582c: W / S's row, else the highlighted target's
 	for (int32 Index = 0; Index < RowButtons.Num(); ++Index)

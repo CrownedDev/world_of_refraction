@@ -1002,18 +1002,19 @@ FText UCombatCommandMenuSubsystem::GetViewTitle() const
     {
         // B-592 (D-268): the panel's open line names the step (refine_v4).
         const bool bTargets = CurrentDepth == ECombatMenuDepth::TargetSelection;
-        // B-599: an infused action names its element in the title ("Force Strike (Fire) · choose a target").
+        // B-599: an infused action names its element in the title. B-627 (Crown): the step goes on its own line under the
+        // name ("Ritual Strike (Wind)", then "choose a target").
         const bool bInfused = PendingInfusionLevel > 0 && CanInfusePendingAction();
         const FText Action = MakeInfusedActionName(PendingActionLabel, bInfused ? GetCurrentInfusionSourceName() : FText::GetEmpty());
         if (bTargets && OpenTargetPanelLine == ETargetPanelLine::Weapon)
         {
-            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleWeapon", "{0} · weapon"), Action);
+            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleWeaponLines", "{0}\nweapon"), Action);
         }
         if (bTargets && OpenTargetPanelLine == ETargetPanelLine::Infusion)
         {
-            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleInfusion", "{0} · infusion"), Action);
+            return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleInfusionLines", "{0}\ninfusion"), Action);
         }
-        return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleTargets", "{0} · choose a target"), Action);
+        return FText::Format(NSLOCTEXT("CombatCommandMenu", "TitleTargetsLines", "{0}\nchoose a target"), Action);
     }
     if (CurrentDepth != ECombatMenuDepth::Submenu)
     {
