@@ -562,6 +562,7 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		{
 			Mode = ELoadoutV2Mode::SkillEntries; // the member left: no slots to change
 			Selected = 0;
+			SkillsReturnLine = INDEX_NONE; // B-610: no slots open, nothing to return from
 		}
 		bRenaming = false; // the member left: no name to keep, and the keys go back to the screen
 		WoRMenuStyle::SetShown(NameBox, false);
@@ -631,6 +632,7 @@ void ULoadoutV2ScreenWidget::RefreshSkills()
 	{
 		Mode = ELoadoutV2Mode::SkillEntries; // the entry went (gear changed elsewhere)
 		Selected = 0;
+		SkillsReturnLine = INDEX_NONE; // B-610
 		return;
 	}
 	SkillRows = WoRLoadoutV2Skills::GetRows(SkillsPage, SkillEntry);
