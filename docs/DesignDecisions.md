@@ -1376,6 +1376,11 @@ The queue of questions only Crown can answer.
 - **Left as it is:** items, a stunned fighter, and an action immune to infusion.
 - **Scope:** per fighter, for one fight (kept by the fight's command menu, cleared with the fight, as B-582's last target). Enemies are unchanged: the AI builds its own actions and never reads it. In co-op each machine's menu keeps its own players'.
 **Reference:** FFXIV's stances stay on until switched off, so a player sets them once per fight; Octopath Traveler's boost is picked per action. Crown asked for the first. The deckbuilder has no infusion carry rule.
+### Q-618 — When a skill's sounds play
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-618) · **Blocks:** nothing
+**Question:** Skills get a sound list (`SFXArray`). When does each sound play, and what about a guarded or dodged hit, a multi-hit skill and a spell that hits several targets?
+**Answer (default):** (1) Each sound is either a **Notify** sound, played by an SFX notify on the montage at that moment (a release, a swing), at the caster, a caster socket or the target, or an **Impact** sound, played at the target's hit point. (2) An Impact sound plays on **every landed hit** (Hit or Crit), a projectile's landing too, so a three-hit combo sounds three times and a spell that hits three enemies sounds once on each. (3) A **Guard, Perfect Guard or Dodge plays no skill impact sound**: the defence has its own feedback. (4) The sound plays whether or not the hit has a visual.
+**Reference:** action RPGs give every landed hit its own impact sound and let a block or dodge replace it with its own (Hades: each enemy struck gives its hit sound; Elden Ring and Sekiro: a block or deflect plays the clang instead of the flesh hit). Both are widely praised for how hits feel.
 
 ### Q-609 — The gear upgrade screen: who, where and how much per press
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-609) · **Blocks:** nothing

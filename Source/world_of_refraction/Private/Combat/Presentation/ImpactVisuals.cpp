@@ -7,6 +7,7 @@
 #include "Character/CosmeticsData.h"
 #include "Combat/Presentation/ImpactVisualDefaults.h"
 #include "Combat/Presentation/ParryVisuals.h"
+#include "Combat/Presentation/SkillSounds.h"
 #include "Combat/Defense/GuardRules.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/Character.h"
@@ -195,6 +196,11 @@ namespace ImpactVisuals
 					   *GetNameSafe(Target));
 			}
 			return;
+		}
+		// B-618: the skill's Impact sounds on a landed hit (a projectile's arrival too), with or without a visual.
+		for (const FSkillSFXEntry *Sound : SkillSounds::ChooseImpactSounds(Outcome, Skill))
+		{
+			SkillSounds::PlayAtLocation(Target, *Sound, GetSpawnLocation(Target));
 		}
 		const FImpactVisualChoice Choice = Choose(Outcome, Skill, Element, UImpactVisualDefaults::Get(), GetCosmetics(Target), bIsProjectileArrival);
 		if (CVarImpactVFXLog.GetValueOnGameThread())
