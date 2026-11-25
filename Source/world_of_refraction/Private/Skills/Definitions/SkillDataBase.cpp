@@ -357,7 +357,23 @@ void USkillDataBase::PostLoad()
     Super::PostLoad();
 
     if (bTargetAxisMigrated)
+    {
+        // B-621: while a redirect sent the saved TargetType into LegacyTargetType, a skill re-saved in the editor
+        // dropped its Self / Ally target and kept it in the legacy field only. Take it back from there (an enemy
+        // legacy value says nothing). TargetCount was saved on its own and stays.
+        const bool bLegacyFriendly = LegacyTargetType != ETargetType_Legacy::SingleEnemy &&
+                                     LegacyTargetType != ETargetType_Legacy::AllEnemies;
+        if (TargetType == ETargetType::Enemy && bLegacyFriendly)
+        {
+            TargetType = LegacyTargetType == ETargetType_Legacy::Self ? ETargetType::Self
+                         : (LegacyTargetType == ETargetType_Legacy::SingleAlly || LegacyTargetType == ETargetType_Legacy::AllAllies)
+                             ? ETargetType::Ally
+                             : ETargetType::Anyone;
+            UE_LOG(LogWoR, Warning, TEXT("%s: TargetType taken back from the legacy field (%s), re-save the asset to keep it (B-621)"),
+                   *GetPathName(), *UEnum::GetDisplayValueAsText(TargetType).ToString());
+        }
         return; // already migrated — don't corrupt re-saved assets
+    }
 
     // Migrate the legacy combined field to the two-axis model.
     // LegacyTargetType still holds the old serialized name (UE resolves by name).
