@@ -95,7 +95,7 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		FSettingsRow TurnView;
 		TurnView.Id = ESettingId::TurnView;
 		TurnView.Label = FCombatCameraRules::GetTurnViewSettingName();
-		TurnView.Value = FCombatCameraRules::GetTurnViewStyleName(Save ? Save->GetTurnViewStyle() : ETurnViewStyle::CentredWide);
+		TurnView.Value = FCombatCameraRules::GetTurnViewStyleName(Save ? Save->GetTurnViewStyle() : ETurnViewStyle::OverTheShoulder);
 		TurnView.Explanation = LOCTEXT("TurnViewExplain", "Where the camera sits on your turn in a fight: behind and above the character, over their shoulder, or from the side.");
 		Rows.Add(TurnView);
 

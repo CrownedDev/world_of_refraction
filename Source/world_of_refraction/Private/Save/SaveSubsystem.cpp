@@ -1343,13 +1343,21 @@ const FWoRSaveData &USaveSubsystem::GetData() const
 
 ETurnViewStyle USaveSubsystem::GetTurnViewStyle() const
 {
-	const uint8 Saved = SaveGame->Data.Settings.TurnViewStyle;
-	return Saved <= static_cast<uint8>(ETurnViewStyle::Tactical) ? static_cast<ETurnViewStyle>(Saved) : ETurnViewStyle::CentredWide;
+	return ReadTurnViewStyle(SaveGame->Data.Settings);
+}
+
+ETurnViewStyle USaveSubsystem::ReadTurnViewStyle(const FSavedSettings &Settings)
+{
+	const bool bKnown = Settings.TurnViewStyle <= static_cast<uint8>(ETurnViewStyle::Tactical);
+	// Only an older save's 0 is ambiguous (the old default, picked or not); any other stored style was picked on purpose.
+	const bool bOldDefault = !Settings.bTurnViewStylePicked && Settings.TurnViewStyle == static_cast<uint8>(ETurnViewStyle::CentredWide);
+	return bKnown && !bOldDefault ? static_cast<ETurnViewStyle>(Settings.TurnViewStyle) : ETurnViewStyle::OverTheShoulder;
 }
 
 void USaveSubsystem::SetTurnViewStyle(ETurnViewStyle Style)
 {
 	SaveGame->Data.Settings.TurnViewStyle = static_cast<uint8>(Style);
+	SaveGame->Data.Settings.bTurnViewStylePicked = true;
 }
 
 bool USaveSubsystem::IsEndTurnButtonHidden() const

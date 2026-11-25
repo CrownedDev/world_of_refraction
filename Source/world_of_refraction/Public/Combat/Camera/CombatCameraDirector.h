@@ -80,7 +80,7 @@ public:
 	bool IsTargetViewShowing() const { return bTargetViewShowing; }
 	/** B-400 (debug, specs): the target-view camera moves this fight (to a target, between targets and back). */
 	int32 GetTargetMoveCount() const { return TargetMoveCount; }
-	/** B-400 (wor.Camera): e.g. "target view: Goblin_2 of 3 (cut, 4 moves)" or "target view: none". */
+	/** B-400 (wor.Camera): e.g. "target view: Goblin_2 of 3 (showing, re-aim 0.15 s, 4 moves)" or "target view: none". */
 	FString GetTargetViewString() const;
 
 	/** B-587 (D-262): Intel's open tab. A character on the viewer's own turn view: a cut to its close-up
@@ -115,7 +115,7 @@ public:
 	/** Turn-view style (D-074 (2)). B-398: each fight starts from the player's saved setting (USaveSubsystem); this
 	 *  value is used only where there is no save subsystem. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Camera|Settings", meta = (ToolTip = "Set by the player's saved setting at each fight start (wor.Camera.Style); not editable here"))
-	ETurnViewStyle TurnViewStyle = ETurnViewStyle::CentredWide;
+	ETurnViewStyle TurnViewStyle = ETurnViewStyle::OverTheShoulder; // B-600g (Q-600g)
 
 	/** B-398 (wor.Camera): where the viewed character and the enemy centre land in its turn view, e.g. "layout
 	 *  OverTheShoulder: Hero_1 lower-left (-0.44, -0.61), enemy centre middle-centre (0.00, 0.00)". */
@@ -256,8 +256,8 @@ private:
 	UFUNCTION()
 	void HandleProjectileLaunched(AActor *Caster, AActor *Projectile);
 
-	/** B-600d/e: a party member's leap home ends its shots: the wide beat's view from its Home spot, as it goes
-	 *  (FollowsLeapHome, PlanLeapHome). */
+	/** B-600d/e/g: a party member's leap home ends its shots (FollowsLeapHome): a hard cut to the hand-over wide,
+	 *  framed from its Home spot (CutToWide). */
 	UFUNCTION()
 	void HandleReturnStarted(AActor *Actor, FVector Home);
 
@@ -315,8 +315,9 @@ private:
 	 *  one of them has a defense window open. Shots then play without shake or FOV punch. */
 	bool IsViewerDefending() const;
 
-	/** B-404: the turn start's camera move (FCombatCameraRules::PlanTurnChange): a wide beat, then the handover
-	 *  blend on WideBeatTimer; or the turn view at once. bBroadcast false for a preview. */
+	/** B-404, B-600g: the turn start's camera move (FCombatCameraRules::PlanTurnChange): a cut to the hand-over wide,
+	 *  held on WideBeatTimer, then the sweep into the turn view or an enemy's push-in; or the turn view at once (first
+	 *  turn, movement off). bBroadcast false for a preview and for a same-turn return (no turn started). */
 	void StartTurnChange(AActor *From, AActor *To, bool bSomeoneActed, bool bBroadcast);
 	/** B-404: the beat's end: the handover blend (unless something else took the view) and the event. */
 	void HandleWideBeatEnd();
@@ -439,6 +440,9 @@ private:
 	TWeakObjectPtr<UDefenseSystem> BoundDefense;
 	void PlayDeferredTurnStart();
 	void ClearDefendWait();
+	/** B-600f: how long the next turn's camera waits after the last action ends (FCombatCameraRules::GetActionEndHold,
+	 *  set when the action starts; used once). */
+	float PendingActionEndHold = 0.0f;
 
 	// B-404: the wide beat and the party handover of the current turn start.
 	FTimerHandle WideBeatTimer;
@@ -448,6 +452,12 @@ private:
 	bool bHandoverPending = false;
 	bool bHandoverBroadcasts = false;
 	bool bActedSinceTurnStart = false;
+	/** B-600g (§6): the world time the hand-over wide was cut to (the leap home, or a turn change); < 0 when another view
+	 *  shows. The sweep out of it waits until it has shown FCombatCameraRules::WideMinSeconds. */
+	double WideShownAt = -1.0;
+	float GetSecondsOnWide() const;
+	/** B-600g: cut to the hand-over wide (FCombatCameraRules::ComputeWideView) on Camera, framed from Frame. */
+	void CutToWide(UCombatCameraComponent *Camera, const FCombatCameraFrame &Frame);
 	int32 HandoverCount = 0;
 	// B-406: the boss cinematic now playing (per fight, on the orchestrator's component: D-064).
 	UPROPERTY(Transient)
