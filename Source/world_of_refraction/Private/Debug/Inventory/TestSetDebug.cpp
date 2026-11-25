@@ -29,12 +29,18 @@
 #include "Save/SaveSubsystem.h"
 #include "Skills/Definitions/AbilityData.h"
 #include "Skills/Definitions/SpellData.h"
+#include "UI/Menus/LoadoutScreenModel.h"
+#include "UI/Menus/LoadoutSkillsModel.h"
 #include "UI/Menus/LoadoutV2Model.h"
 #include "WoRLog.h"
 
 namespace
 {
 	constexpr float TEST_SET_SCREEN_SECONDS = 12.0f;
+	/** Crown, 2026-11-25: the set's skills are learned at F, not upgraded. */
+	constexpr EItemTier TEST_SET_SKILL_TIER = EItemTier::F_Tier;
+	/** More than every worn entry's slots together; stops the fill loop if a put ever doesn't take. */
+	constexpr int32 MAX_SKILL_SLOT_FILLS = 32;
 
 	FString CrystalName(const FCrystalId &Id)
 	{
@@ -149,13 +155,106 @@ namespace
 		return Give() ? Owned.Last().PersistentID : FGuid();
 	}
 
+	/** The set's weapons and adapters (Gear's ids) at Tier, where a level-up writes it (the owned entry, then its loadout
+	 *  copies); the set's evolutions in the member's list and the pool's. One line per piece raised. */
+	void SetSetTier(UInventoryComponent &Inventory, UEvolutionInventoryComponent &Evolutions, UPoolSubsystem &Pool, const TArray<FGuid> &Gear,
+					const TArray<FGuid> &EvolutionIDs, EItemTier Tier, TArray<FString> &Lines)
+	{
+		TArray<FString> Raised;
+		TArray<FGuid> Changed;
+		for (const FGuid &ID : Gear)
+		{
+			FWeaponInventoryEntry *Weapon = Inventory.FindOwnedWeapon(ID);
+			FRingInventoryEntry *Ring = Weapon ? nullptr : Inventory.FindOwnedRing(ID);
+			EItemTier *Owned = Weapon ? &Weapon->Tier : Ring ? &Ring->Tier : nullptr;
+			if (Owned && *Owned != Tier)
+			{
+				Raised.Add(Weapon ? Weapon->Weapon->Name : Ring->Ring->Name);
+				*Owned = Tier;
+				Changed.Add(ID);
+			}
+		}
+		// After the writes: RefreshLoadoutsFromOwned reaches the pool, whose change event can rewrite the owned arrays.
+		for (const FGuid &ID : Changed)
+		{
+			Inventory.RefreshLoadoutsFromOwned(ID);
+		}
+		for (const FGuid &ID : EvolutionIDs)
+		{
+			FEvolutionInventoryEntry *Mine = Evolutions.Entries.FindByPredicate([&ID](const FEvolutionInventoryEntry &E) { return E.InstanceID == ID; });
+			if (Mine && Mine->Tier != Tier)
+			{
+				Raised.Add(Mine->Item ? Mine->Item->ItemName : TEXT("?"));
+				Mine->Tier = Tier;
+			}
+			if (FEvolutionInventoryEntry *Stored = Pool.FindEvolutionInPool(ID))
+			{
+				Stored->Tier = Tier;
+			}
+		}
+		Lines.Add(FString::Printf(TEXT("tier %s: %s"), *UEnum::GetValueAsString(Tier), Raised.IsEmpty() ? TEXT("every piece already") : *FString::Join(Raised, TEXT(", "))));
+	}
+
+	bool FindPlayedMember(UWorld *World, const ULoadoutComponent *PawnLoadout, FLoadoutScreenMember &OutMember)
+	{
+		for (const FLoadoutScreenMember &Member : WoRLoadoutScreen::BuildMembers(World))
+		{
+			UInventoryComponent *Inventory = nullptr;
+			if (WoRLoadoutScreen::FindMemberLoadout(World, Member, Inventory) == PawnLoadout)
+			{
+				OutMember = Member;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/** Every empty skill slot of the worn entries gets the first skill its list offers, as the Skills tab would put it. */
+	FString FillSkillSlots(UWorld *World, const FLoadoutScreenMember &Member)
+	{
+		TArray<FString> Put;
+		for (int32 Fill = 0; Fill < MAX_SKILL_SLOT_FILLS; ++Fill)
+		{
+			const FLoadoutSkillsPage Page = WoRLoadoutSkills::BuildSkillsPage(World, Member);
+			bool bPut = false;
+			for (int32 Tab = 0; Tab < Page.Tabs.Num() && !bPut; ++Tab)
+			{
+				for (const FLoadoutScreenRow &Row : Page.Tabs[Tab].Rows)
+				{
+					if (Row.Kind != ELoadoutScreenRowKind::EmptySkill)
+					{
+						continue;
+					}
+					for (const FLoadoutScreenChoice &Choice : WoRLoadoutSkills::BuildSkillChoices(World, Member, Page, Tab, Row))
+					{
+						if (Choice.Refusal.IsEmpty() && Choice.Row.Skill && WoRLoadoutSkills::ApplySkill(World, Member, Page.Tabs[Tab], Row, Choice.Row.Skill).IsEmpty())
+						{
+							Put.Add(FString::Printf(TEXT("%s in %s"), *Choice.Row.Skill->Name, *Page.Tabs[Tab].Title.ToString()));
+							bPut = true;
+							break;
+						}
+					}
+					if (bPut)
+					{
+						break;
+					}
+				}
+			}
+			if (!bPut)
+			{
+				break;
+			}
+		}
+		return FString::Printf(TEXT("skill slots filled: %s"), Put.IsEmpty() ? TEXT("none (no empty slot, or nothing offered)") : *FString::Join(Put, TEXT(", ")));
+	}
+
 #if !UE_BUILD_SHIPPING
 	FAutoConsoleCommandWithWorld GTestSetCmd(
 		TEXT("wor.Debug.TestSet"),
 		TEXT("DEBUG (B-634): the played character's bag, worn gear and learned skills become the current test set "
 			 "(Config/DefaultGame.ini [/Script/world_of_refraction.WoRTestSet]); every currency 9999; saves. Replaced gear goes to "
-			 "the home chest, replaced items to storage; learned skills outside the set are overwritten (a set skill already known "
-			 "keeps its tier). The log lists what was replaced. Hub only."),
+			 "the home chest, replaced items to storage; learned skills outside the set are overwritten. Gear, crystals and stones at S, "
+			 "skills at F, Garrick's sockets and every skill slot filled. The log lists what was replaced. Hub only."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
@@ -320,7 +419,7 @@ FString WoRTestSet::Apply(UWorld *World)
 	APawn *Pawn = PC ? PC->GetPawn() : nullptr;
 	UInventoryComponent *Inventory = Pawn ? Pawn->FindComponentByClass<UInventoryComponent>() : nullptr;
 	ULoadoutComponent *Loadout = Pawn ? Pawn->FindComponentByClass<ULoadoutComponent>() : nullptr;
-	const UEvolutionInventoryComponent *Evolutions = Pawn ? Pawn->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
+	UEvolutionInventoryComponent *Evolutions = Pawn ? Pawn->FindComponentByClass<UEvolutionInventoryComponent>() : nullptr;
 	const UCharacterDataComponent *DataComponent = Pawn ? Pawn->FindComponentByClass<UCharacterDataComponent>() : nullptr;
 	UGameInstance *GameInstance = World ? World->GetGameInstance() : nullptr;
 	UPoolSubsystem *Pool = GameInstance ? GameInstance->GetSubsystem<UPoolSubsystem>() : nullptr;
@@ -391,6 +490,7 @@ FString WoRTestSet::Apply(UWorld *World)
 		Taken.Add(ID);
 	}
 	FGuid SeatID;
+	TArray<FGuid> SetEvolutionIDs;
 	for (UEvolutionItemData *Evolution : Resolve<UEvolutionItemData>(Set.Evolutions))
 	{
 		// CL-15: at most 5 owned; one already owned of this asset is used again (evolutions can't go to the chest yet).
@@ -402,7 +502,11 @@ FString WoRTestSet::Apply(UWorld *World)
 		{
 			SeatID = ID;
 		}
+		SetEvolutionIDs.Add(ID);
 	}
+	TArray<FGuid> SetGearIDs;
+	Given.GenerateValueArray(SetGearIDs);
+	SetSetTier(*Inventory, *Evolutions, *Pool, SetGearIDs, SetEvolutionIDs, Set.GearTier, Lines);
 
 	// A Generic's three sources (Crown, 2026-11-25): the evolution primary, the sword and shield with a crystal, the adapter with one.
 	bool bKitWorn = true;
@@ -427,8 +531,13 @@ FString WoRTestSet::Apply(UWorld *World)
 										   [&]() { return Inventory->AttachCrystalToWeapon(WeaponID, Set.GenericWeaponCrystal); });
 		const TCHAR *AdapterSocket = Socket(OwnedAdapter && OwnedAdapter->AttachedItem.IsEmpty(), Set.GenericAdapterCrystal,
 											[&]() { return Inventory->AttachCrystalToRing(AdapterID, Set.GenericAdapterCrystal); });
-		Lines.Add(FString::Printf(TEXT("sockets: weapon %s %s, adapter %s %s"), *CrystalName(Set.GenericWeaponCrystal), WeaponSocket,
-								  *CrystalName(Set.GenericAdapterCrystal), AdapterSocket));
+		const FWeaponInventoryEntry *Stoned = Inventory->FindOwnedWeapon(WeaponID);
+		const TCHAR *StoneSocket = Set.GenericWeaponStone.Type == ECrystalType::None
+									   ? TEXT("none in the set")
+									   : Socket(Stoned && Stoned->StoneSocket.IsEmpty(), Set.GenericWeaponStone,
+												[&]() { return Inventory->AttachCrystalToWeapon(WeaponID, Set.GenericWeaponStone); });
+		Lines.Add(FString::Printf(TEXT("sockets: weapon %s %s, stone %s %s, adapter %s %s"), *CrystalName(Set.GenericWeaponCrystal), WeaponSocket,
+								  *CrystalName(Set.GenericWeaponStone), StoneSocket, *CrystalName(Set.GenericAdapterCrystal), AdapterSocket));
 		const FWeaponInventoryEntry *Weapon = Inventory->FindOwnedWeapon(WeaponID);
 		const FWeaponInventoryEntry *OffHand = Inventory->FindOwnedWeapon(OffHandID);
 		const FRingInventoryEntry *Adapter = Inventory->FindOwnedRing(AdapterID);
@@ -484,8 +593,8 @@ FString WoRTestSet::Apply(UWorld *World)
 	}
 	Lines.Add(FString::Printf(TEXT("old gear to the home chest: %d of %d"), Chested, Old.Movable.Num()));
 
-	// The learned skills: exactly the set's (the member reloads them from the store). One already known keeps its instance
-	// (its tier); the others are overwritten, their names in "replaced skills" above.
+	// The learned skills: exactly the set's, at F (the member reloads them from the store). One already known keeps its
+	// instance (put back to F); the others are overwritten, their names in "replaced skills" above.
 	const TArray<UAbilityData *> SetAbilities = Resolve<UAbilityData>(Set.Abilities);
 	const TArray<USpellData *> SetSpells = Resolve<USpellData>(Set.Spells);
 	const FPoolSkills *Known = Pool->FindSkills(Key);
@@ -504,8 +613,26 @@ FString WoRTestSet::Apply(UWorld *World)
 	{
 		(Pool->KnowsSpell(Key, Spell) || Pool->LearnSkillCopy(Key, Spell) ? Learned : Refused).Add(Spell->Name);
 	}
-	Lines.Add(FString::Printf(TEXT("skills learned: %s%s"), Learned.IsEmpty() ? TEXT("none") : *FString::Join(Learned, TEXT(", ")),
+	if (const FPoolSkills *Now = Pool->FindSkills(Key))
+	{
+		TArray<FSpellInstance> Spells = Now->Spells;
+		TArray<FAbilityInstance> Abilities = Now->Abilities;
+		for (FSpellInstance &Spell : Spells)
+		{
+			Spell.Tier = TEST_SET_SKILL_TIER;
+		}
+		for (FAbilityInstance &Ability : Abilities)
+		{
+			Ability.Tier = TEST_SET_SKILL_TIER;
+		}
+		Pool->SetSkills(Key, Spells, Abilities);
+	}
+	Lines.Add(FString::Printf(TEXT("skills learned at %s: %s%s"), *UEnum::GetValueAsString(TEST_SET_SKILL_TIER), Learned.IsEmpty() ? TEXT("none") : *FString::Join(Learned, TEXT(", ")),
 							  Refused.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("; REFUSED: %s"), *FString::Join(Refused, TEXT(", ")))));
+
+	// Every skill slot of the worn entries filled, so each source has its skills ready in a fight.
+	FLoadoutScreenMember Member;
+	Lines.Add(FindPlayedMember(World, Loadout, Member) ? FillSkillSlots(World, Member) : TEXT("skill slots: the played character is not a party member here"));
 
 	if (UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Pawn))
 	{
@@ -534,10 +661,11 @@ FString WoRTestSet::GetTestSetString(const UWoRTestSet &Set)
 		Items.Add(FString::Printf(TEXT("%s x%d"), *CrystalName(Item.Crystal), Item.Count));
 	}
 	const TArray<FString> Missing = FindUnresolvedNames(Set);
-	return FString::Printf(TEXT("[TestSet] weapons: %s\n  adapters: %s\n  evolutions: %s\n  abilities: %s\n  spells: %s\n  items: %s\n"
-								"  Generic: %s primary; %s + %s with %s; %s with %s\n  not found: %s"),
-						   *Join(Set.Weapons), *Join(Set.Adapters), *Join(Set.Evolutions), *Join(Set.Abilities), *Join(Set.Spells),
-						   Items.IsEmpty() ? TEXT("none") : *FString::Join(Items, TEXT(", ")), *Set.GenericEvolution.ToString(), *Set.GenericWeapon.ToString(),
-						   *Set.GenericOffHand.ToString(), *CrystalName(Set.GenericWeaponCrystal), *Set.GenericAdapter.ToString(),
+	return FString::Printf(TEXT("[TestSet] gear tier %s, skills %s\n  weapons: %s\n  adapters: %s\n  evolutions: %s\n  abilities: %s\n  spells: %s\n  items: %s\n"
+								"  Generic: %s primary; %s + %s with %s and %s; %s with %s\n  not found: %s"),
+						   *UEnum::GetValueAsString(Set.GearTier), *UEnum::GetValueAsString(TEST_SET_SKILL_TIER), *Join(Set.Weapons), *Join(Set.Adapters),
+						   *Join(Set.Evolutions), *Join(Set.Abilities), *Join(Set.Spells), Items.IsEmpty() ? TEXT("none") : *FString::Join(Items, TEXT(", ")),
+						   *Set.GenericEvolution.ToString(), *Set.GenericWeapon.ToString(), *Set.GenericOffHand.ToString(), *CrystalName(Set.GenericWeaponCrystal),
+						   *CrystalName(Set.GenericWeaponStone), *Set.GenericAdapter.ToString(),
 						   *CrystalName(Set.GenericAdapterCrystal), Missing.IsEmpty() ? TEXT("none") : *FString::Join(Missing, TEXT(", ")));
 }

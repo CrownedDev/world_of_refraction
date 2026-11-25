@@ -7,7 +7,8 @@
 // - wor.Debug.TestSet (typed by Crown, never run by an agent on Crown's save) makes the played character's bag, worn gear
 //   and learned skills exactly the set, tops every currency to 9999, saves, and logs what it replaced. Gear and items
 //   stay in the pool (replaced gear to the home chest, items to storage, owned set pieces used again); learned skills
-//   outside the set are overwritten (their names logged; a set skill already known keeps its tier).
+//   outside the set are overwritten (their names logged). The set's gear is at GearTier (S), crystals and stones at the
+//   tier the list gives (S), the skills at F; Garrick's sockets and every skill slot are filled.
 // - A Generic wears three infusion sources of three elements (Crown, 2026-11-25): the evolution as its primary (Wind), the
 //   Arming Sword and Round Shield with a crystal as its second weapon (Fire), and the adapter with a crystal (Water).
 // Names are asset names, found anywhere in the asset registry, so a moved asset still resolves. wor.Debug.PrintTestSet
@@ -17,6 +18,7 @@
 
 #include "CoreMinimal.h"
 #include "Equipment/Crystals/FCrystalId.h"
+#include "Inventory/ItemTier.h"
 #include "Merchant/MerchantData.h"
 #include "UObject/Object.h"
 #include "TestSetDebug.generated.h"
@@ -70,6 +72,11 @@ public:
 	UPROPERTY(EditAnywhere, Config, Category = "Test set")
 	TArray<FWoRTestSetItem> Items;
 
+	/** The tier every weapon, adapter and evolution of the set is set to (Crown: "weapons crystals at S"). Skills stay at
+	 *  F (Crown, 2026-11-25). */
+	UPROPERTY(EditAnywhere, Config, Category = "Test set")
+	EItemTier GearTier = EItemTier::S_Tier;
+
 	// A Generic's three infusion sources, each a different element.
 	UPROPERTY(EditAnywhere, Config, Category = "Generic")
 	FName GenericEvolution;
@@ -82,6 +89,10 @@ public:
 
 	UPROPERTY(EditAnywhere, Config, Category = "Generic")
 	FCrystalId GenericWeaponCrystal;
+
+	/** The sword's stone socket (the adapter's stays empty: 2 + 2 + 1 fills the Generic's budget of 5). */
+	UPROPERTY(EditAnywhere, Config, Category = "Generic")
+	FCrystalId GenericWeaponStone;
 
 	UPROPERTY(EditAnywhere, Config, Category = "Generic")
 	FName GenericAdapter;
