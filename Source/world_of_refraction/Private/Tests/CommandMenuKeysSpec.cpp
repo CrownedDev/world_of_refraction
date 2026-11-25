@@ -1417,6 +1417,71 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("the executor drops it from the action"), Kept.SelectedSource == EInfusionSourceOption::None);
 	});
 
+	It("greys a skill the fighter can't pay the EP for, and the targets of a level it can't pay, with the reason (B-625)", [this]()
+	{
+		if (!StartTwoWeaponDuel())
+		{
+			return;
+		}
+		UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+		ULoadoutComponent *Loadout = Hero->FindComponentByClass<ULoadoutComponent>();
+		UWeaponData *Sword = Loadout ? Loadout->GetPrimaryWeapon() : nullptr;
+		const UInfusionVFXComponent *VFX = Hero->FindComponentByClass<UInfusionVFXComponent>();
+		if (!TestNotNull(TEXT("hero data"), HeroData) || !TestNotNull(TEXT("the sword in hand"), Sword) || !TestNotNull(TEXT("infusion"), VFX))
+		{
+			return;
+		}
+		HeroData->CharacterData->CharacterClass = ECharacterClass::Caster; // an Innate source to pick
+		HeroData->CharacterData->InnateElement = ESpellElement::Fire;
+		HeroData->MaxEP = MENU_KEYS_PLENTY_EP;
+		HeroData->CurrentEP = MENU_KEYS_STRIKE_EP - 1;
+		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
+		Strike->Name = TEXT("Strike");
+		Strike->BaseEnergyCost = MENU_KEYS_STRIKE_EP;
+		Sword->WeaponAttack = Strike;
+		Menu->OpenForActor(Hero);
+
+		FPieMenuButtonData Row = FPieMenuButtonData::MakeDataButton(TEXT("Ability_0"), FText::FromString(Strike->Name), EPieMenuCategory::Ability, Strike, 0);
+		Row.bEnabled = true;
+		Menu->ShowActionCost(Row);
+		TestFalse(TEXT("one EP short: greyed"), Row.bEnabled);
+		TestEqual(TEXT("with the reason"), Row.Description.ToString(), FString::Printf(TEXT("Not enough EP (%d needed)."), MENU_KEYS_STRIKE_EP));
+
+		HeroData->CurrentEP = MENU_KEYS_STRIKE_EP;
+		Row.bEnabled = true;
+		Menu->ShowActionCost(Row);
+		TestTrue(TEXT("enough EP: it can be picked"), Row.bEnabled);
+
+		FPieMenuButtonData Attack;
+		Attack.Category = EPieMenuCategory::Attack;
+		Menu->HandleSelection(Attack);
+		auto FirstTarget = [this]()
+		{
+			const TArray<FPieMenuButtonData> Rows = Menu->RebuildCurrentPicker();
+			const FPieMenuButtonData *Target = Rows.FindByPredicate([](const FPieMenuButtonData &Candidate) { return Candidate.Category == EPieMenuCategory::Target; });
+			return Target ? TOptional<FPieMenuButtonData>(*Target) : TOptional<FPieMenuButtonData>();
+		};
+		TOptional<FPieMenuButtonData> Target = FirstTarget();
+		if (!TestTrue(TEXT("a target row"), Target.IsSet())) return;
+		TestTrue(TEXT("no infusion: the target can be picked"), Target->bEnabled);
+
+		Menu->PressMenuKey(EPieMenuCategory::Items); // 3 / Y: the infusion line (B-592)
+		const int32 InnateIndex = VFX->GetCachedSources().IndexOfByKey(EInfusionSourceOption::Innate);
+		if (!TestTrue(TEXT("Innate offered"), InnateIndex != INDEX_NONE)) return;
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Element, InnateIndex);
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, MENU_KEYS_INFUSION_LEVELS - 1);
+		Target = FirstTarget();
+		if (!TestTrue(TEXT("a target row"), Target.IsSet())) return;
+		TestFalse(TEXT("a level it can't pay: the target is greyed"), Target->bEnabled);
+		TestTrue(TEXT("with the reason"), Target->Description.ToString().StartsWith(TEXT("Not enough EP (")));
+		TestFalse(TEXT("so it can't be confirmed"), Menu->ConfirmHighlightedTarget());
+		TestTrue(TEXT("the menu stays in the target step"), Menu->IsOpen());
+
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 0);
+		Target = FirstTarget();
+		TestTrue(TEXT("back to no infusion: it can be picked again"), Target.IsSet() && Target->bEnabled);
+	});
+
 	It("drops the infusion of a weapon buff's or debuff's action, not of a strike's or a spell buff's (B-620, D-275)", [this]()
 	{
 		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());

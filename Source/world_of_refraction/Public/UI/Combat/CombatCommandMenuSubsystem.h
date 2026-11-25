@@ -522,6 +522,12 @@ private:
      *  B-436g; the widget draws it) and greys it with the reason when the current actor can't pay it now or ever
      *  (ActionPipsText::GetCostRefusedReason). A button already greyed keeps its own reason. Nothing otherwise. */
     void ShowActionCost(FPieMenuButtonData &Button) const;
+    /** B-625: "Not enough EP (6 needed)." when the current actor's spendable EP is below Action's EP cost (the check
+     *  ValidateAction refuses with); empty otherwise. */
+    FText GetNotEnoughEPReason(const FAction &Action) const;
+    /** B-625: greys the target step's target buttons with GetNotEnoughEPReason when the action the confirm would
+     *  submit (its picked infusion level included) costs more EP than the actor can spend; a lower level ungreys them. */
+    void GreyTargetsShortOfEP(TArray<FPieMenuButtonData> &Buttons) const;
 
     // ==================== SUBMENU BUILDERS ====================
 
@@ -580,7 +586,7 @@ private:
     FAction BuildActionFromButton(const FPieMenuButtonData &ButtonData) const;
     /** B-622: a weapon buff or debuff's action with the fighter's sticky infusion source on it, for its look only. */
     FAction WithStickyInfusionLook(const FAction &Action) const;
-    friend class FCommandMenuKeysSpec; // B-622: checks what a submitted weapon buff carries
+    friend class FCommandMenuKeysSpec; // B-622: checks what a submitted weapon buff carries; B-625: the EP greying
     ESpellSource MapCategoryToSpellSource(EPieMenuCategory SubmenuCategory) const;
     void SubmitConfirmedAction(const FPieMenuButtonData &ButtonData);
 
