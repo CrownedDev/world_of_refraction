@@ -476,6 +476,11 @@ struct WORLD_OF_REFRACTION_API FActionExecutionContext
 	UPROPERTY(BlueprintReadOnly, Category = "Execution")
 	bool bAnimationFinished = false;
 
+	/** B-607: a Projectile cast entry went out (copies or a wave). The windows then wait for its arrivals, not the
+	 *  animation's end, so a skill's far target is hit when the shot reaches it (spells always wait). */
+	UPROPERTY(BlueprintReadOnly, Category = "Execution")
+	bool bArrivalsSent = false;
+
 	/** Is execution still in progress? */
 	UPROPERTY(BlueprintReadOnly, Category = "Execution")
 	bool bInProgress = false;

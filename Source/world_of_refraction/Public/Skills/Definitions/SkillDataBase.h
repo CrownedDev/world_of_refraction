@@ -321,6 +321,11 @@ public:
     UPROPERTY(BlueprintReadOnly, Category = "Delivery", meta = (DeprecatedProperty))
     float ProjectileSpeed = 1500.0f;
 
+    /** B-607 (D-275): how this skill's Projectile cast entries reach several targets: a copy at each (Slash Volley)
+     *  or one wave that hits each as it reaches them (Fan Slash; its entry's Trail is the wave, at its speed). */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Delivery")
+    EMultiTargetDelivery MultiTargetDelivery = EMultiTargetDelivery::OnePerTarget;
+
     /** Cast deliveries (D6). INDEX-ORDERED: a UCombatNotify (Family=Cast,
      *  Index=N) fires entry N — array position IS identity. Each entry is one
      *  self-contained delivery (fireball-then-pillar = two entries: Projectile
