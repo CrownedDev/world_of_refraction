@@ -191,7 +191,8 @@ void FVendorScreenSpec::Define()
 
 	It("gives each vendor its service tabs (D-193) and says which aren't built yet", [this]()
 	{
-		const TArray<EVendorScreenTab> Blacksmith = {EVendorScreenTab::Buy, EVendorScreenTab::Sell, EVendorScreenTab::Dismantle};
+		const TArray<EVendorScreenTab> Blacksmith = {EVendorScreenTab::Buy, EVendorScreenTab::Sell, EVendorScreenTab::Upgrade, EVendorScreenTab::Dismantle};
+		TestFalse(TEXT("B-616: Upgrade is named"), WoRVendorScreen::GetTabName(EVendorScreenTab::Upgrade).IsEmpty());
 		const TArray<EVendorScreenTab> Jeweler = {EVendorScreenTab::Buy, EVendorScreenTab::Sell, EVendorScreenTab::ItemSlots};
 		const TArray<EVendorScreenTab> Spiritualist = {EVendorScreenTab::Buy,	 EVendorScreenTab::Sell,	  EVendorScreenTab::Repair,
 													   EVendorScreenTab::Curses, EVendorScreenTab::Dismantle, EVendorScreenTab::Merge};
@@ -270,7 +271,7 @@ void FVendorScreenSpec::Define()
 		Screen->Confirm();
 		TestTrue(TEXT("asking about the dagger"), Screen->IsConfirming());
 		Screen->MoveTab(1);
-		TestTrue(TEXT("RB moves to Dismantle"), Screen->GetTab() == EVendorScreenTab::Dismantle);
+		TestTrue(TEXT("RB moves to the next service (Upgrade, B-616)"), Screen->GetTab() == EVendorScreenTab::Upgrade);
 		TestFalse(TEXT("and drops the question"), Screen->IsConfirming());
 		TestNotNull(TEXT("nothing happened to the dagger"), Pool->FindWeaponInPool(IdOf(Dagger)));
 	});
@@ -574,6 +575,54 @@ void FVendorScreenSpec::Define()
 		TestEqual(TEXT("one E made"), Pool->GetCarriedCount(Key(), MadeE), 1);
 		TestEqual(TEXT("two F used"), Pool->GetCarriedCount(Key(), VENDOR_SCREEN_GEM), VENDOR_SCREEN_MERGE_F_COUNT - 2);
 		TestEqual(TEXT("for the merge's price"), Money(), Before - EconomyYield::GetMergeCostForTier(EItemTier::E_Tier));
+	});
+
+	It("B-616 Upgrade: aims at the next tier; a jump costs every step; Left / Right picks the tier; the second A raises it; S is refused", [this]()
+	{
+		if (!Inventory) return;
+		const FGuid DaggerId = IdOf(Dagger);
+		FWeaponInventoryEntry *Owned = Inventory->FindOwnedWeapon(DaggerId);
+		if (!TestNotNull(TEXT("the dagger is owned"), Owned)) return;
+		const int32 FromValue = TierHelpers::GetTierValue(Owned->Tier);
+		if (!TestTrue(TEXT("room for a two-tier jump"), FromValue + 2 <= TierHelpers::GetTierValue(EItemTier::S_Tier))) return;
+		const EItemTier From = Owned->Tier;
+		const EItemTier Next = TierHelpers::GetTierFromValue(FromValue + 1);
+		const EItemTier Jump = TierHelpers::GetTierFromValue(FromValue + 2);
+		const int32 JumpCost = EconomyYield::GetTierUpCostForTier(From) + EconomyYield::GetTierUpCostForTier(Next);
+		TestEqual(TEXT("a jump costs every single step on the way"), WoRVendorScreen::GetUpgradeCost(From, Jump), JumpCost);
+		TestEqual(TEXT("nothing to pay going nowhere"), WoRVendorScreen::GetUpgradeCost(Jump, From), 0);
+		TestTrue(TEXT("past S the target wraps to the next tier"), WoRVendorScreen::StepUpgradeTarget(From, EItemTier::S_Tier, 1) == Next);
+		TestTrue(TEXT("a piece at S stays at S"), WoRVendorScreen::StepUpgradeTarget(EItemTier::S_Tier, EItemTier::S_Tier, 1) == EItemTier::S_Tier);
+
+		Wallet()->Spend(ECurrencyType::GearEssence, Wallet()->GetBalance(ECurrencyType::GearEssence));
+		FVendorScreenPage Page = WoRVendorScreen::BuildUpgradePage(World(), Key(), {});
+		int32 Row = FindGear(Page, DaggerId);
+		if (!TestTrue(TEXT("the dagger is a row"), Row != INDEX_NONE)) return;
+		TestTrue(TEXT("aims at the next tier"), Page.Rows[Row].UpgradeTo == Next);
+		TestFalse(TEXT("its cost is shown"), Page.Rows[Row].Pay.IsEmpty());
+		TestFalse(TEXT("an empty wallet is refused with the reason"), Page.Rows[Row].Refusal.IsEmpty());
+
+		Wallet()->Add(ECurrencyType::GearEssence, VENDOR_SCREEN_WALLET);
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Upgrade);
+		if (!TestNotNull(TEXT("screen created"), Screen) || !TestTrue(TEXT("opens on Upgrade"), Screen->GetTab() == EVendorScreenTab::Upgrade)) return;
+		Row = FindGear(Screen->GetPage(), DaggerId);
+		if (!TestTrue(TEXT("the dagger is a row on the screen"), Row != INDEX_NONE)) return;
+		Screen->SelectRow(Row);
+		Screen->MoveUpgradeTarget(1);
+		TestTrue(TEXT("Right: one tier further"), Screen->GetPage().Rows[Row].UpgradeTo == Jump);
+		TestEqual(TEXT("Details: tier, what it dismantles for, the wallet before and after"), Screen->GetPage().Rows[Row].Changes.Num(), 3);
+		const int32 Before = Wallet()->GetBalance(ECurrencyType::GearEssence);
+		Screen->Confirm();
+		TestTrue(TEXT("the first A asks"), Screen->IsConfirming());
+		TestTrue(TEXT("nothing raised yet"), Inventory->FindOwnedWeapon(DaggerId)->Tier == From);
+		Screen->Confirm();
+		TestTrue(TEXT("the second A raises it to the target"), Inventory->FindOwnedWeapon(DaggerId)->Tier == Jump);
+		TestEqual(TEXT("for every step's cost"), Wallet()->GetBalance(ECurrencyType::GearEssence), Before - JumpCost);
+
+		Inventory->FindOwnedWeapon(DaggerId)->Tier = EItemTier::S_Tier;
+		Page = WoRVendorScreen::BuildUpgradePage(World(), Key(), {});
+		Row = FindGear(Page, DaggerId);
+		TestTrue(TEXT("a piece at S is refused with the reason"), Row != INDEX_NONE && !Page.Rows[Row].Refusal.IsEmpty());
 	});
 }
 

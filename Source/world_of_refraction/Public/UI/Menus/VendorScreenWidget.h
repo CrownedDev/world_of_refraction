@@ -17,8 +17,12 @@
 // Repair lists each worn piece of the party's gear (A asks, the second A repairs it; X asks to repair everything);
 // Curses lists the player's curses (A asks, the second A clears it); Merge lists the member's crystal kinds (LT / RT),
 // Left / Right picks the tier to make, A asks, the second A merges.
+// Upgrade (B-616, mockup v2/3_upgrade.png): the member's weapons and adapters; Left / Right picks the tier to raise it
+// to, A asks, the second A raises it step by step (each step paying its own cost).
+// B-616: three columns (mockup screen_mockups/hub/vendors/v2): the rows left, the focused thing in the middle,
+// Details right (the price, what changes, the question, Buy's cart).
 // What it shows comes from WoRVendorScreen (VendorScreenModel.h), which the specs read.
-// Not built: icons; Merge's two columns (one list with the tier on Left / Right instead).
+// Not built: the left column as a tile grid (B-616b); Merge's two columns (one list with the tier on Left / Right instead).
 
 #pragma once
 
@@ -83,6 +87,8 @@ public:
 	void PressRepairAll();
 	/** Merge (B-456d): the focused crystal's tier to make, one up (Delta 1) or down, E to S, wrapping. */
 	void MoveMergeTarget(int32 Delta);
+	/** Upgrade (B-616): the focused piece's target tier, one up (Delta 1) or down, from the next tier to S, wrapping. */
+	void MoveUpgradeTarget(int32 Delta);
 	/** Cancels a pending confirm, then closes. */
 	void PressBack() { HandleBackAction(); }
 	/** B-608: a left click on row Index (bOnAddButton: on its "+"), as GetRowClick says. */
@@ -124,7 +130,6 @@ private:
 		TArray<TWeakObjectPtr<UBorder>> Pips;
 		TWeakObjectPtr<UTextBlock> Tier;
 		TWeakObjectPtr<UTextBlock> Count;
-		TWeakObjectPtr<UTextBlock> Pay;
 		/** B-487: the row's icon before its name, and its tier badge in the tier letter's place. */
 		TWeakObjectPtr<UImage> Icon;
 		TWeakObjectPtr<UImage> TierBadge;
@@ -144,16 +149,18 @@ private:
 	void RefreshCart();
 	bool IsBuy() const { return GetTab() == EVendorScreenTab::Buy; }
 	bool IsItemSlots() const { return GetTab() == EVendorScreenTab::ItemSlots; }
-	/** Repair, Curses, Merge (B-456d): the WoRVendorScreen::RunService tabs. */
+	/** Repair, Curses, Merge (B-456d) and Upgrade (B-616): the WoRVendorScreen::RunService tabs. */
 	bool IsSpiritualistService() const
 	{
-		return GetTab() == EVendorScreenTab::Repair || GetTab() == EVendorScreenTab::Curses || GetTab() == EVendorScreenTab::Merge;
+		return GetTab() == EVendorScreenTab::Repair || GetTab() == EVendorScreenTab::Curses || GetTab() == EVendorScreenTab::Merge ||
+			   GetTab() == EVendorScreenTab::Upgrade;
 	}
-	/** Sell, Dismantle and Merge act on one character's things; Buy says who it is for in the panel, Item slots and
-	 *  Repair in their rows, and curses are the player's. */
+	/** Sell, Dismantle, Merge and Upgrade act on one character's things; Buy says who it is for in the panel, Item slots
+	 *  and Repair in their rows, and curses are the player's. */
 	bool HasMemberTabs() const
 	{
-		return GetTab() == EVendorScreenTab::Sell || GetTab() == EVendorScreenTab::Dismantle || GetTab() == EVendorScreenTab::Merge;
+		return GetTab() == EVendorScreenTab::Sell || GetTab() == EVendorScreenTab::Dismantle || GetTab() == EVendorScreenTab::Merge ||
+			   GetTab() == EVendorScreenTab::Upgrade;
 	}
 	/** Repair: X asks to repair everything, the second X (or A) does it. */
 	void DoRepairAll();
@@ -174,6 +181,8 @@ private:
 	bool bWholeStack = false;
 	/** Merge: the tier picked for each crystal kind (a kind not in it aims at the highest it can make). */
 	TMap<ECrystalType, EItemTier> MergeTargets;
+	/** Upgrade: the tier picked for each piece (a piece not in it aims at its next tier). */
+	TMap<FGuid, EItemTier> UpgradeTargets;
 	FText Status;
 	bool bStatusIsRefusal = false;
 	/** Buy: whose stock (held, so the stock lines the page and the cart point at stay loaded), whose wallet, and
@@ -216,6 +225,11 @@ private:
 	TObjectPtr<UTextBlock> DetailPay;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailLines;
+	/** B-616: the middle's kind line, and Details' "what changes" lines. */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> DetailKind;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> DetailChanges;
 	// B-487: the thing's effect sentence beside its effect icon (shown when the icon table has that icon).
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> DetailEffectRow;

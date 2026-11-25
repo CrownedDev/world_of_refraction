@@ -2,7 +2,7 @@
 // B-456a (D-193, D-181, UIScreens #15 to #18, mockups screen_mockups/hub/vendors/): what the vendor screen shows,
 // with no widget in it, so the specs read it headless. UVendorScreenWidget draws it.
 //
-// One shop screen, each vendor's services as tabs (D-193): Blacksmith: Buy, Sell, Dismantle; Jeweler: Buy, Sell,
+// One shop screen, each vendor's services as tabs (D-193): Blacksmith: Buy, Sell, Upgrade (B-616), Dismantle; Jeweler: Buy, Sell,
 // Item slots; Spiritualist: Buy, Sell, Repair, Curses, Dismantle, Merge. Every other vendor: Buy (UIScreens #15, "every
 // vendor"). Built so far: Sell and Dismantle, whose rules and moves are WoRVendorServices' (Shop/VendorServices.h), and
 // Buy (B-456b): the vendor's stock, a cart with who each line is for, bought through UEconomyService::PurchaseFor;
@@ -33,7 +33,17 @@ enum class EVendorScreenTab : uint8
 	ItemSlots,
 	Repair,
 	Curses,
-	Merge
+	Merge,
+	Upgrade
+};
+
+/** B-616: one "what changes" line of Details: "Tier  C → A", better or worse. */
+struct FVendorScreenChange
+{
+	FText Label;
+	FText Old;
+	FText New;
+	bool bBetter = true;
 };
 
 /** One line of a tab: what the service acts on (Row; on Buy, Stock) and how it reads. */
@@ -74,6 +84,9 @@ struct FVendorScreenRow
 	FText State;
 	bool bStateIsBad = false;
 	FName CurseId;
+	/** B-616 Upgrade: Row.GearID's piece at Row.Tier, raised to UpgradeTo, and what that changes (Details). */
+	EItemTier UpgradeTo = EItemTier::F_Tier;
+	TArray<FVendorScreenChange> Changes;
 };
 
 struct FVendorScreenPage
@@ -179,11 +192,22 @@ namespace WoRVendorScreen
 	/** A merge's next (Delta 1) or previous target tier, E to S, wrapping. */
 	WORLD_OF_REFRACTION_API EItemTier StepMergeTarget(EItemTier Current, int32 Delta);
 
-	/** Repair, Curses, Merge: the question the first A asks ("Repair Garnet for 40 Gold?"). */
+	/** B-616 (Q-609, Q-616): the Blacksmith's Upgrade tab. A row per weapon and adapter Member holds, aiming at Targets'
+	 *  tier for it (else the next tier): the jump's Dormant Essence and what changes; a piece at S or a wallet short of
+	 *  the cost greyed with the reason. Member's own wallet pays (Dormant Essence is per character). */
+	WORLD_OF_REFRACTION_API FVendorScreenPage BuildUpgradePage(UWorld *World, FName Member, const TMap<FGuid, EItemTier> &Targets);
+
+	/** Dormant Essence to raise a piece From → To: every single step's cost on the way (0 when To isn't above From). */
+	WORLD_OF_REFRACTION_API int32 GetUpgradeCost(EItemTier From, EItemTier To);
+
+	/** An upgrade's next (Delta 1) or previous target, between the tier above From and S, wrapping; S stays S. */
+	WORLD_OF_REFRACTION_API EItemTier StepUpgradeTarget(EItemTier From, EItemTier Current, int32 Delta);
+
+	/** Repair, Curses, Merge, Upgrade: the question the first A asks ("Repair Garnet for 40 Gold?"). */
 	WORLD_OF_REFRACTION_API FText GetConfirmText(EVendorScreenTab Tab, const FVendorScreenRow &Row);
 
-	/** Repair, Curses, Merge: does the row's service, Payer paying (Merge: Member's own crystals and wallet). Empty on
-	 *  success; else the reason. */
+	/** Repair, Curses, Merge, Upgrade: does the row's service, Payer paying (Merge, Upgrade: Member's own things and
+	 *  wallet; Upgrade raises one tier at a time up to the target). Empty on success; else the reason. */
 	WORLD_OF_REFRACTION_API FText RunService(UWorld *World, AActor *Payer, FName Member, EVendorScreenTab Tab, const FVendorScreenRow &Row);
 
 	/** Repair, Curses, Merge: what is said once it is done ("Garnet is repaired."). */
