@@ -5,6 +5,8 @@
 #include "Components/Border.h"
 #include "Components/ScrollBox.h"
 #include "Components/ScrollBoxSlot.h"
+#include "Components/UniformGridPanel.h"
+#include "Components/UniformGridSlot.h"
 #include "Engine/World.h"
 #include "GameFramework/Pawn.h"
 #include "HAL/IConsoleManager.h"
@@ -12,6 +14,7 @@
 #include "Inventory/InventoryConstants.h"
 #include "Party/Party.h"
 #include "Player/WoRHubController.h"
+#include "UI/Menus/LoadoutV2GridModel.h"
 #include "UI/Menus/MenuScreenStyle.h"
 #include "UI/WoRIconTable.h"
 #include "UI/WoRRootLayout.h"
@@ -51,6 +54,15 @@ namespace VendorScreenStyle
 	constexpr int32 MaxServiceTabs = 6;
 	/** Between two money chips on the top line. */
 	const TCHAR *const ChipGap = TEXT("        ");
+	// B-616b: the v2 tile grid, in the loadout grid's look.
+	constexpr int32 GridColumns = WoRLoadoutV2Grid::COLUMNS;
+	constexpr float TileSize = 93.0f;
+	constexpr float TilePadding = 4.0f;
+	constexpr float TileIconSize = 60.0f;
+	constexpr float TileMarkInset = 6.0f;
+	constexpr float FilterIconSize = 36.0f;
+	constexpr float FilterPadding = 9.0f;
+	constexpr float LockedTileOpacity = 0.35f;
 
 	FLinearColor MarkColor(ESpellElement Element)
 	{
@@ -153,13 +165,50 @@ void UVendorScreenWidget::BuildTree()
 	UHorizontalBox *Body = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToColumn(Main, Body, FMargin(0.0f, SectionGap, 0.0f, SectionGap))->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 
-	UVerticalBox *ListColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	// The note above, then the rows; B-616b: on a grid tab the tile panel in the rows' place (the hidden one takes no room).
+	UVerticalBox *Left = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	EmptyText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
-	AddToColumn(ListColumn, EmptyText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	AddToColumn(Left, EmptyText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 	RowScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 	RowScroll->SetScrollBarVisibility(ESlateVisibility::Visible); // B-608: a long list shows its bar
-	AddToColumn(ListColumn, RowScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
-	AddToRow(Body, MakeSized(WidgetTree, LeftWidth, 0.0f, ListColumn), FMargin(0.0f), VAlign_Fill);
+	AddToColumn(Left, RowScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+
+	// B-616b: the tile panel: "Stock" and its count, the filters, the tiles, the legend.
+	UBorder *GridFrame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	GridFrame->SetBrushColor(PanelColor);
+	GridFrame->SetPadding(FMargin(PanelPadding));
+	UVerticalBox *GridColumn = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	GridFrame->SetContent(GridColumn);
+	UHorizontalBox *GridHeader = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	GridTitleText = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	GridCountText = MakeText(WidgetTree, LineFontSize, DimColor);
+	AddToRow(GridHeader, GridTitleText, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToRow(GridHeader, GridCountText, FMargin(0.0f), VAlign_Center);
+	AddToColumn(GridColumn, GridHeader, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	FilterRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	AddToColumn(GridColumn, FilterRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	GridScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+	GridScroll->SetScrollBarVisibility(ESlateVisibility::Visible);
+	GridPanel = WidgetTree->ConstructWidget<UUniformGridPanel>(UUniformGridPanel::StaticClass());
+	GridPanel->SetSlotPadding(FMargin(TilePadding));
+	GridScroll->AddChild(GridPanel);
+	AddToColumn(GridColumn, GridScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	UHorizontalBox *Legend = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	UHorizontalBox *CartKey = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+	UTextBlock *CartKeyText = MakeText(WidgetTree, SmallFontSize, DimColor);
+	CartKeyText->SetText(LOCTEXT("LegendCart", "in the cart"));
+	AddToRow(CartKey, MakeTileCorner(WidgetTree), FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
+	AddToRow(CartKey, CartKeyText, FMargin(0.0f, 0.0f, SectionGap, 0.0f), VAlign_Center);
+	AddToRow(Legend, CartKey);
+	LegendCart = CartKey;
+	UTextBlock *LockKeyText = MakeText(WidgetTree, SmallFontSize, DimColor);
+	LockKeyText->SetText(LOCTEXT("LegendLock", "locked: why is in the details"));
+	AddToRow(Legend, MakeTileLock(WidgetTree), FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
+	AddToRow(Legend, LockKeyText, FMargin(0.0f), VAlign_Center);
+	AddToColumn(GridColumn, Legend, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
+	GridColumnWidget = GridFrame;
+	AddToColumn(Left, GridFrame)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToRow(Body, MakeSized(WidgetTree, LeftWidth, 0.0f, Left), FMargin(0.0f), VAlign_Fill);
 
 	// B-616 middle: the focused thing, what it is and does, and the tab's rule.
 	UBorder *Middle = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
@@ -326,6 +375,52 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 	return Widgets;
 }
 
+UVendorScreenWidget::FTileWidgets UVendorScreenWidget::BuildTile(int32 Index)
+{
+	using namespace VendorScreenStyle;
+
+	FTileWidgets Widgets;
+	UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	UOverlay *Layers = WidgetTree->ConstructWidget<UOverlay>(UOverlay::StaticClass());
+	Frame->SetContent(MakeSized(WidgetTree, TileSize, TileSize, Layers));
+	const auto AddLayer = [Layers](UWidget *Layer, EHorizontalAlignment HAlign, EVerticalAlignment VAlign, float Inset)
+	{
+		UOverlaySlot *LayerSlot = Layers->AddChildToOverlay(Layer);
+		LayerSlot->SetHorizontalAlignment(HAlign);
+		LayerSlot->SetVerticalAlignment(VAlign);
+		LayerSlot->SetPadding(FMargin(Inset));
+	};
+	UImage *Icon = MakeIcon(WidgetTree, TileIconSize);
+	UImage *Centre = nullptr;
+	AddLayer(MakeIconStack(WidgetTree, Icon, TileIconSize, Centre), HAlign_Center, VAlign_Center, 0.0f);
+	UTextBlock *Word = MakeText(WidgetTree, SmallFontSize, DimColor);
+	Word->SetAutoWrapText(true); // a thing with no picture shows its name, which may be two words
+	Word->SetJustification(ETextJustify::Center);
+	AddLayer(Word, HAlign_Center, VAlign_Center, TileMarkInset);
+	UImage *TierBadge = MakeIcon(WidgetTree, TierBadgeSize);
+	AddLayer(TierBadge, HAlign_Left, VAlign_Bottom, TileMarkInset);
+	UTextBlock *TierText = MakeText(WidgetTree, SmallFontSize, DimColor, true);
+	AddLayer(TierText, HAlign_Left, VAlign_Bottom, TileMarkInset);
+	UTextBlock *Count = MakeText(WidgetTree, SmallFontSize, TextColor, true);
+	AddLayer(Count, HAlign_Right, VAlign_Bottom, TileMarkInset);
+	UWidget *InCart = MakeTileCorner(WidgetTree);
+	AddLayer(InCart, HAlign_Right, VAlign_Top, 0.0f);
+	UWidget *Lock = MakeTileLock(WidgetTree); // a refused line never sits in the cart: the corner is free
+	AddLayer(Lock, HAlign_Right, VAlign_Top, TileMarkInset);
+	GridPanel->AddChildToUniformGrid(Frame, Index / GridColumns, Index % GridColumns);
+
+	Widgets.Frame = Frame;
+	Widgets.Icon = Icon;
+	Widgets.IconCentre = Centre;
+	Widgets.Word = Word;
+	Widgets.TierBadge = TierBadge;
+	Widgets.TierText = TierText;
+	Widgets.Count = Count;
+	Widgets.InCart = InCart;
+	Widgets.Lock = Lock;
+	return Widgets;
+}
+
 void UVendorScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
@@ -353,6 +448,8 @@ void UVendorScreenWidget::ResetState()
 	MergeTargets.Reset();
 	UpgradeTargets.Reset();
 	Cart.Reset();
+	Filters.Reset();
+	bOnFilters = false;
 	Status = FText::GetEmpty();
 	RefreshData();
 	RefreshSelection();
@@ -360,6 +457,11 @@ void UVendorScreenWidget::ResetState()
 
 bool UVendorScreenWidget::NativeOnHandleBackAction()
 {
+	if (IsOnFilters() && !bConfirming && !bConfirmingAll)
+	{
+		MoveInGrid(0, 1); // B-616b: Back on the filters goes down to the tiles, not out of the shop
+		return true;
+	}
 	if (!bConfirming && !bConfirmingAll)
 	{
 		return Super::NativeOnHandleBackAction();
@@ -419,6 +521,12 @@ void UVendorScreenWidget::RefreshData()
 		break;
 	}
 	SelectedRow = Page.Rows.Num() > 0 ? FMath::Clamp(SelectedRow, 0, Page.Rows.Num() - 1) : 0;
+	// B-616b: the filters are this page's kinds; the picked one stays while its kind is still here, else All.
+	const FVendorGridFilter Picked = Filters.IsValidIndex(FilterIndex) ? Filters[FilterIndex] : FVendorGridFilter();
+	Filters = IsTileGrid() ? WoRVendorScreen::GetGridFilters(Page.Rows) : TArray<FVendorGridFilter>();
+	FilterIndex = FMath::Max(0, Filters.IndexOfByKey(Picked));
+	bOnFilters = bOnFilters && Filters.Num() > 1;
+	UpdateShownRows();
 
 	if (!TitleText || !RowScroll)
 	{
@@ -465,7 +573,7 @@ void UVendorScreenWidget::RefreshData()
 	switch (GetTab())
 	{
 	case EVendorScreenTab::Buy:
-		Hints = LOCTEXT("HintsBuy", "{Tabs}  Service        {Confirm} / Right  Add        Left  Remove        {Second}  For        {Toggle}  Buy        {Back}  Leave");
+		Hints = LOCTEXT("HintsBuy", "{Arrows}  Move        {Confirm}  Add        {Second}  Take one back        {SubTabs}  For        {Toggle}  Buy        {Tabs}  Service        {Back}  Leave");
 		break;
 	case EVendorScreenTab::ItemSlots:
 		Hints = LOCTEXT("HintsItemSlots", "{Tabs}  Service        {Confirm}  Buy        {Back}  Leave");
@@ -480,14 +588,21 @@ void UVendorScreenWidget::RefreshData()
 		Hints = LOCTEXT("HintsMerge", "{SubTabs}  Character        {Tabs}  Service        Left / Right  Tier        {Confirm}  Merge        {Back}  Leave");
 		break;
 	case EVendorScreenTab::Upgrade:
-		Hints = LOCTEXT("HintsUpgrade", "{SubTabs}  Character        {Tabs}  Service        Left / Right  Tier        {Confirm}  Upgrade        {Back}  Leave");
+		Hints = LOCTEXT("HintsUpgrade", "{SubTabs}  Character        {Tabs}  Service        {Second}  Tier        {Confirm}  Upgrade        {Back}  Leave");
 		break;
 	default:
 		Hints = FText::FormatNamed(LOCTEXT("Hints", "{SubTabs}  Character        {Tabs}  Service        {Confirm}  {Verb}        {Toggle}  Whole stack        {Back}  Leave"), TEXT("Verb"),
 							  WoRVendorScreen::GetTabName(GetTab()));
 		break;
 	}
+	if (IsOnFilters())
+	{
+		Hints = LOCTEXT("HintsFilters", "{Arrows}  Filter        {Confirm}  To the tiles        {Back}  Back"); // B-616b
+	}
 	WoRKeyHints::SetHint(HintsText, Hints);
+	SetShown(RowScroll, !IsTileGrid());
+	SetShown(GridColumnWidget, IsTileGrid());
+	RefreshGrid();
 
 	while (RowWidgets.Num() < Page.Rows.Num())
 	{
@@ -537,6 +652,178 @@ void UVendorScreenWidget::RefreshData()
 	}
 }
 
+void UVendorScreenWidget::UpdateShownRows()
+{
+	ShownRows.Reset();
+	const FVendorGridFilter Filter = Filters.IsValidIndex(FilterIndex) ? Filters[FilterIndex] : FVendorGridFilter();
+	for (int32 Index = 0; Index < Page.Rows.Num(); ++Index)
+	{
+		if (WoRVendorScreen::PassesFilter(Page.Rows[Index], Filter))
+		{
+			ShownRows.Add(Index);
+		}
+	}
+	if (!ShownRows.IsEmpty() && !ShownRows.Contains(SelectedRow))
+	{
+		SelectedRow = ShownRows[0];
+	}
+}
+
+void UVendorScreenWidget::RefreshGrid()
+{
+	using namespace VendorScreenStyle;
+
+	if (!GridPanel || !IsTileGrid())
+	{
+		return; // headless, or the rows' tab
+	}
+	const bool bBuy = IsBuy();
+	GridTitleText->SetText(WoRVendorScreen::GetGridTitle(GetTab()));
+	GridCountText->SetText(WoRVendorScreen::GetGridCount(Vendor, GetTab(), ShownRows.Num()));
+
+	// The filters, made as they are first needed: All, then each kind on the page (a picture where the icon table has one).
+	SetShown(FilterRow, Filters.Num() > 1);
+	while (FilterTabs.Num() < Filters.Num())
+	{
+		UBorder *Tab = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Tab->SetPadding(FMargin(FilterPadding));
+		UHorizontalBox *Content = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		Tab->SetContent(Content);
+		UImage *Icon = MakeIcon(WidgetTree, FilterIconSize);
+		UTextBlock *Label = MakeText(WidgetTree, SmallFontSize, TextColor, true);
+		AddToRow(Content, Icon, FMargin(0.0f), VAlign_Center);
+		AddToRow(Content, Label, FMargin(0.0f), VAlign_Center);
+		AddToRow(FilterRow, Tab, FMargin(0.0f, 0.0f, TabGap, 0.0f));
+		FilterTabs.Add(Tab);
+		FilterIcons.Add(Icon);
+		FilterLabels.Add(Label);
+	}
+	for (int32 Index = 0; Index < FilterTabs.Num(); ++Index)
+	{
+		const bool bShown = Filters.IsValidIndex(Index);
+		SetShown(FilterTabs[Index], bShown);
+		if (!bShown)
+		{
+			continue;
+		}
+		FilterTabs[Index]->SetBrushColor(Index == FilterIndex ? FocusColor : PlateColor);
+		const FWoRIcon Icon = WoRVendorScreen::GetFilterIcon(Filters[Index]);
+		const bool bPicture = SetIcon(FilterIcons[Index], WoRIcons::Find(Icon));
+		FilterLabels[Index]->SetText(Icon.Name);
+		SetShown(FilterLabels[Index], !bPicture);
+	}
+
+	// The tiles, made as they are first needed and refilled after.
+	while (TileWidgets.Num() < ShownRows.Num())
+	{
+		TileWidgets.Add(BuildTile(TileWidgets.Num()));
+	}
+	for (int32 Index = 0; Index < TileWidgets.Num(); ++Index)
+	{
+		const FTileWidgets &Tile = TileWidgets[Index];
+		const bool bShown = ShownRows.IsValidIndex(Index);
+		SetShown(Tile.Frame.Get(), bShown);
+		if (!bShown || !Tile.Icon.IsValid() || !Tile.Word.IsValid() || !Tile.TierText.IsValid() || !Tile.Count.IsValid())
+		{
+			continue;
+		}
+		const FVendorScreenRow &Row = Page.Rows[ShownRows[Index]];
+		const bool bRefused = !Row.Refusal.IsEmpty();
+		const bool bPicture = SetIcon(Tile.Icon.Get(), WoRIcons::Find(Row.Icon));
+		SetIcon(Tile.IconCentre.Get(), bPicture ? WoRIcons::FindCentre(Row.Icon) : nullptr);
+		Tile.Icon->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, bRefused ? LockedTileOpacity : 1.0f));
+		Tile.Word->SetText(Row.Name);
+		Tile.Word->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : DimColor));
+		SetShown(Tile.Word.Get(), !bPicture);
+		// The tier as its badge where the row has one, else in letters (Upgrade: "F → E").
+		const bool bBadge = SetIcon(Tile.TierBadge.Get(), Row.bTierBadge ? WoRIcons::GetTierBadge(Row.TierValue) : nullptr);
+		Tile.TierText->SetText(Row.Tier);
+		SetShown(Tile.TierText.Get(), !bBadge && !Row.Tier.IsEmpty());
+		// Buy: how many the cart holds (the violet corner); elsewhere the stack's size.
+		Tile.Count->SetText(FText::Format(LOCTEXT("TileCount", "x{0}"), FText::AsNumber(Row.Row.Count)));
+		SetShown(Tile.Count.Get(), Row.Row.Count > 1);
+		SetShown(Tile.InCart.Get(), bBuy && Row.Row.Count > 0);
+		SetShown(Tile.Lock.Get(), bRefused);
+	}
+	SetShown(LegendCart, bBuy);
+}
+
+int32 UVendorScreenWidget::FindTileUnder(const FPointerEvent &MouseEvent) const
+{
+	const int32 Tile = WoRMenuStyle::FindScrolledRowUnder(GridScroll, FMath::Min(TileWidgets.Num(), ShownRows.Num()),
+														  [this](int32 Index) -> const UWidget * { return TileWidgets[Index].Frame.Get(); },
+														  MouseEvent.GetScreenSpacePosition());
+	return Tile == INDEX_NONE ? INDEX_NONE : ShownRows[Tile];
+}
+
+void UVendorScreenWidget::MoveInGrid(int32 DeltaX, int32 DeltaY)
+{
+	using VendorScreenStyle::GridColumns;
+	if (!IsTileGrid())
+	{
+		MoveRow(DeltaY); // a list: Up / Down only
+		return;
+	}
+	if (bOnFilters)
+	{
+		if (DeltaX != 0)
+		{
+			PickFilter(((FilterIndex + DeltaX) % Filters.Num() + Filters.Num()) % Filters.Num());
+		}
+		else if (DeltaY > 0)
+		{
+			bOnFilters = false; // back down to the tiles
+			RefreshData();
+			RefreshSelection();
+		}
+		return;
+	}
+	const int32 At = ShownRows.IndexOfByKey(SelectedRow);
+	if (DeltaY < 0 && At != INDEX_NONE && At < GridColumns && Filters.Num() > 1)
+	{
+		bOnFilters = true; // Up off the top row
+		bConfirming = false;
+		RefreshData();
+		RefreshSelection();
+		return;
+	}
+	const int32 To = WoRLoadoutV2Grid::Move(At, ShownRows.Num(), GridColumns, DeltaX, DeltaY);
+	if (ShownRows.IsValidIndex(To))
+	{
+		SelectRow(ShownRows[To]);
+	}
+}
+
+void UVendorScreenWidget::PickFilter(int32 Index)
+{
+	if (!Filters.IsValidIndex(Index))
+	{
+		return;
+	}
+	FilterIndex = Index;
+	bConfirming = false;
+	Status = FText::GetEmpty();
+	UpdateShownRows();
+	if (!ShownRows.IsEmpty())
+	{
+		SelectedRow = ShownRows[0];
+	}
+	RefreshData();
+	RefreshSelection();
+}
+
+void UVendorScreenWidget::PressSecond()
+{
+	if (IsBuy())
+	{
+		RemoveFocusedFromCart();
+	}
+	else if (GetTab() == EVendorScreenTab::Upgrade)
+	{
+		MoveUpgradeTarget(1);
+	}
+}
+
 void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 {
 	using namespace VendorScreenStyle;
@@ -551,6 +838,15 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 		if (UBorder *Frame = RowWidgets[Index].Frame.Get())
 		{
 			Frame->SetBrushColor(Focused && Index == SelectedRow ? FocusColor : PlateColor);
+		}
+	}
+	// B-616b: on the filters no tile is lit (the keys are up there).
+	for (int32 Index = 0; Index < TileWidgets.Num(); ++Index)
+	{
+		if (UBorder *Frame = TileWidgets[Index].Frame.Get())
+		{
+			const bool bLit = Focused && !IsOnFilters() && ShownRows.IsValidIndex(Index) && ShownRows[Index] == SelectedRow;
+			Frame->SetBrushColor(bLit ? FocusColor : PlateColor);
 		}
 	}
 	if (!DetailTitle)
@@ -628,7 +924,7 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	SetShown(BuyForButton, bBuyFor);
 	if (bBuyFor)
 	{
-		WoRKeyHints::SetHint(BuyForText, FText::FormatNamed(LOCTEXT("BuyingFor", "{Second}  For:  {Who}"), TEXT("Who"), Members[MemberIndex].Name));
+		WoRKeyHints::SetHint(BuyForText, FText::FormatNamed(LOCTEXT("BuyingFor", "{SubTabs}  For:  {Who}"), TEXT("Who"), Members[MemberIndex].Name));
 	}
 
 	EVendorService Service = EVendorService::Sell;
@@ -661,7 +957,15 @@ void UVendorScreenWidget::RefreshSelection(bool bScrollIntoView)
 	StatusText->SetColorAndOpacity(FSlateColor(bStatusIsRefusal ? WarnColor : GoodColor));
 	SetShown(StatusText, !Status.IsEmpty());
 
-	if (bScrollIntoView && RowScroll && RowWidgets.IsValidIndex(SelectedRow))
+	if (bScrollIntoView && IsTileGrid())
+	{
+		const int32 Tile = ShownRows.IndexOfByKey(SelectedRow);
+		if (UWidget *TileFrame = GridScroll && TileWidgets.IsValidIndex(Tile) ? TileWidgets[Tile].Frame.Get() : nullptr)
+		{
+			GridScroll->ScrollWidgetIntoView(TileFrame, /*AnimateScroll=*/false);
+		}
+	}
+	else if (bScrollIntoView && RowScroll && RowWidgets.IsValidIndex(SelectedRow))
 	{
 		if (UWidget *RowFrame = RowWidgets[SelectedRow].Frame.Get())
 		{
@@ -745,7 +1049,7 @@ void UVendorScreenWidget::MoveRow(int32 Delta)
 
 void UVendorScreenWidget::SelectRow(int32 Index, bool bScrollIntoView)
 {
-	if (Page.Rows.IsValidIndex(Index) && Index != SelectedRow)
+	if (ShownRows.Contains(Index) && Index != SelectedRow) // B-616b: a row its filter hides can't be lit
 	{
 		SelectedRow = Index;
 		bConfirming = false;
@@ -763,6 +1067,8 @@ void UVendorScreenWidget::MoveTab(int32 Delta)
 	}
 	TabIndex = ((TabIndex + Delta) % Tabs.Num() + Tabs.Num()) % Tabs.Num();
 	SelectedRow = 0;
+	Filters.Reset(); // another page: its own kinds, from All
+	bOnFilters = false;
 	bConfirming = false;
 	bConfirmingAll = false;
 	Status = FText::GetEmpty();
@@ -939,26 +1245,22 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 {
 	using namespace WoRMenuStyle;
 	const FKey Key = InKeyEvent.GetKey();
-	if (IsUpKey(Key) || IsDownKey(Key))
+	// B-616b (Q-616b): on a tile grid all four arrows move (Buy's add / take back went to A and Y / R, Upgrade's tier to
+	// Y / R); a list keeps Up / Down.
+	if (IsUpKey(Key) || IsDownKey(Key) || (IsTileGrid() && (IsLeftKey(Key) || IsRightKey(Key))))
 	{
-		MoveRow(IsDownKey(Key) ? 1 : -1);
+		MoveInGrid(IsLeftKey(Key) ? -1 : IsRightKey(Key) ? 1 : 0, IsDownKey(Key) ? 1 : IsUpKey(Key) ? -1 : 0);
 		return FReply::Handled();
 	}
 	const bool bBuy = IsBuy();
-	if (bBuy && (IsLeftKey(Key) || IsRightKey(Key)))
-	{
-		// Buy: Right adds one more of the focused line (as A), Left takes one back; held, they repeat.
-		IsRightKey(Key) ? AddFocusedToCart() : RemoveFocusedFromCart();
-		return FReply::Handled();
-	}
 	if (GetTab() == EVendorScreenTab::Merge && (IsLeftKey(Key) || IsRightKey(Key)))
 	{
 		MoveMergeTarget(IsRightKey(Key) ? 1 : -1); // the tier to make
 		return FReply::Handled();
 	}
-	if (GetTab() == EVendorScreenTab::Upgrade && (IsLeftKey(Key) || IsRightKey(Key)))
+	if (IsSecondActionKey(Key))
 	{
-		MoveUpgradeTarget(IsRightKey(Key) ? 1 : -1); // B-616: the tier to raise it to
+		PressSecond(); // Buy: take one back; Upgrade: the tier. Held, it repeats.
 		return FReply::Handled();
 	}
 	if (InKeyEvent.IsRepeat())
@@ -967,7 +1269,14 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 	}
 	if (IsConfirmKey(Key))
 	{
-		Confirm();
+		if (IsOnFilters())
+		{
+			MoveInGrid(0, 1); // down to the tiles
+		}
+		else
+		{
+			Confirm();
+		}
 		return FReply::Handled();
 	}
 	if (IsToggleKey(Key))
@@ -984,11 +1293,6 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 		{
 			ToggleWholeStack();
 		}
-		return FReply::Handled();
-	}
-	if (bBuy && IsSecondActionKey(Key))
-	{
-		MoveMember(1); // "Buying for"
 		return FReply::Handled();
 	}
 	if (IsTabPrevKey(Key) || IsTabNextKey(Key))
@@ -1012,6 +1316,10 @@ FReply UVendorScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, const F
 
 int32 UVendorScreenWidget::FindRowUnder(const FPointerEvent &MouseEvent) const
 {
+	if (IsTileGrid())
+	{
+		return FindTileUnder(MouseEvent); // B-616b: the hidden rows keep their last places
+	}
 	// B-602: the rows' places as scrolled now (a click after a wheel scroll picked the row that had been there).
 	return WoRMenuStyle::FindScrolledRowUnder(RowScroll, FMath::Min(RowWidgets.Num(), Page.Rows.Num()),
 											  [this](int32 Index) -> const UWidget * { return RowWidgets[Index].Frame.Get(); },
@@ -1079,7 +1387,28 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 			return FReply::Handled();
 		}
 	}
+	// B-616b: a filter tab picks its filter.
+	for (int32 Index = 0; IsTileGrid() && Filters.Num() > 1 && Index < FilterTabs.Num() && Index < Filters.Num(); ++Index)
+	{
+		if (FilterTabs[Index] && FilterTabs[Index]->GetCachedGeometry().IsUnderLocation(Position))
+		{
+			bOnFilters = false;
+			PickFilter(Index);
+			return FReply::Handled();
+		}
+	}
 	const int32 OverRow = FindRowUnder(InMouseEvent);
+	if (OverRow != INDEX_NONE && IsTileGrid())
+	{
+		if (bOnFilters)
+		{
+			bOnFilters = false; // the click takes the keys back to the tiles
+			RefreshData();
+			RefreshSelection(/*bScrollIntoView=*/false);
+		}
+		ClickRow(OverRow, bBuy && OverRow == SelectedRow); // the lit tile is A (Buy: adds one)
+		return FReply::Handled();
+	}
 	if (OverRow != INDEX_NONE)
 	{
 		const UBorder *AddButton = RowWidgets[OverRow].AddButton.Get();
