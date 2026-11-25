@@ -265,6 +265,10 @@ public:
 	void PressEquipOn();
 	/** X, Give to…: the other members as the Details column's buttons (A gives, B back); refused with the reason. */
 	void PressGive();
+	/** B-598c piece 4 (D-250): the Inventory page's Pouch, where A picks the lit stack as a fight item or unpicks it. */
+	bool IsOnPouch() const { return !bLoadoutOpen && InvTab == EInventoryScreenTab::Pouch; }
+	/** A on the Pouch: picks or unpicks the lit stack (WoRInventoryScreen::ToggleFightPick); refused with the reason. */
+	void PressFightPick();
 	bool IsGiving() const { return bGiving; }
 	/** The lit tile's facts (WoRInventoryScreen::BuildFacts). */
 	const TArray<FLoadoutScreenDetail> &GetInventoryFacts() const { return InvFacts; }
@@ -867,6 +871,9 @@ private:
 	TArray<TObjectPtr<UWidget>> GridTileTicks;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UWidget>> GridTileLocks;
+	/** B-598c piece 4: each tile's F badge (a picked fight item). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> GridTileFights;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> GridTileCounts;
 };

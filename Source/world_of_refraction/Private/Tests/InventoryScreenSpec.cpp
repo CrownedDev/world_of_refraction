@@ -420,8 +420,8 @@ void FInventoryScreenSpec::Define()
 		TestEqual(TEXT("its count"), Pouch.Tiles[0].Row.Count, SCREEN_GEM_COUNT);
 		TestEqual(TEXT("the slots it starts with"), Pouch.Slots, InventoryConstants::ITEM_SLOTS_START);
 		TestEqual(TEXT("the rest are the Jeweler's"), Pouch.LockedSlots, InventoryConstants::ITEM_SLOTS_MAX - InventoryConstants::ITEM_SLOTS_START);
-		TestEqual(TEXT("the heading counts the fight items picked of the slots (D-250)"), Pouch.Heading.ToString(),
-				  FString::Printf(TEXT("Pouch  1/%d fight items"), InventoryConstants::ITEM_SLOTS_START));
+		TestEqual(TEXT("the heading counts the fight items picked of the slots (D-250; B-598c piece 4's wording)"), Pouch.Heading.ToString(),
+				  FString::Printf(TEXT("Fight items 1 / %d"), InventoryConstants::ITEM_SLOTS_START));
 		TestTrue(TEXT("the picked stack's card says it is a fight item"),
 				 Pouch.Tiles[0].Details.ContainsByPredicate([](const FLoadoutScreenDetail &Detail) { return Detail.Label.ToString() == TEXT("Fight item"); }));
 		const FName Giver = KeyOf(SCREEN_MEMBER);
@@ -434,6 +434,44 @@ void FInventoryScreenSpec::Define()
 		Pool->CarryOrStore(Receiver, SCREEN_GEM, InventoryConstants::ITEM_STACK_MAX - 1);
 		TestEqual(TEXT("the whole stack is given"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Give, Giver, Receiver, Pouch.Tiles[0], /*bWholeStack=*/true),
 				  SCREEN_GEM_COUNT);
+	});
+
+	It("B-598c piece 4: on the Pouch, A picks a stack as a fight item and unpicks it; its F badge, the counter and the facts follow", [this]()
+	{
+		if (!IsReady()) return;
+		const FName Member = KeyOf(SCREEN_MEMBER);
+		Pool->CarryOrStore(Member, SCREEN_GEM, SCREEN_GEM_COUNT);
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen)) return;
+		Screen->ActivateWidget();
+		Screen->MoveInventoryTile(0, -1);
+		Screen->MoveInventoryTile(0, -1);
+		Screen->MoveInventoryTile(1, 0); // the selector: Pouch
+		Screen->MoveInventoryTile(0, 1);
+		if (!TestTrue(TEXT("on the Pouch's tiles"), Screen->IsOnPouch() && !Screen->IsOnInventoryKinds() && Screen->GetInventorySide().Tiles.Num() == 1)) return;
+		const auto FactOf = [Screen](const TCHAR *Label) -> FString
+		{
+			const FLoadoutScreenDetail *Fact = Screen->GetInventoryFacts().FindByPredicate([Label](const FLoadoutScreenDetail &Each) { return Each.Label.ToString() == Label; });
+			return Fact ? Fact->Value.ToString() : FString();
+		};
+		const bool bStartsPicked = Pool->IsFightItem(Member, SCREEN_GEM); // a new carried stack is picked while a slot is free
+		TestEqual(TEXT("the tile's F badge is the pick"), Screen->GetInventorySide().Tiles[0].bFightItem, bStartsPicked);
+		TestEqual(TEXT("Slots: used of the pouch's"), FactOf(TEXT("Slots")),
+				  FString::Printf(TEXT("%d of %d used"), Pool->GetUsedItemSlots(Member), Pool->GetItemSlotCount(Member)));
+		Screen->PressFightPick(); // A on the Pouch's tiles
+		TestNotEqual(TEXT("A turns the pick"), Pool->IsFightItem(Member, SCREEN_GEM), bStartsPicked);
+		Screen->PressFightPick();
+		TestEqual(TEXT("A again turns it back"), Pool->IsFightItem(Member, SCREEN_GEM), bStartsPicked);
+		if (!bStartsPicked)
+		{
+			Screen->PressFightPick();
+		}
+		TestTrue(TEXT("picked: the F badge, Picked (1 of 1), brings its stack"), Screen->GetInventorySide().Tiles[0].bFightItem && FactOf(TEXT("Fight item")) == TEXT("Picked (1 of 1)") &&
+																					 FactOf(TEXT("Brings into a fight")) == FString::FromInt(FMath::Min(SCREEN_GEM_COUNT, InventoryConstants::ITEM_STACK_MAX)));
+		TestEqual(TEXT("the counter over the grid"), Screen->GetInventorySide().Heading.ToString(), FString::Printf(TEXT("Fight items 1 / %d"), Pool->GetItemSlotCount(Member)));
+		Screen->PressFightPick();
+		TestTrue(TEXT("unpicked: left in the bag, no badge"), !Pool->IsFightItem(Member, SCREEN_GEM) && Pool->GetCarriedCount(Member, SCREEN_GEM) == SCREEN_GEM_COUNT &&
+															   !Screen->GetInventorySide().Tiles[0].bFightItem && FactOf(TEXT("Fight item")) == TEXT("Not picked"));
 	});
 
 	It("never greys Take for room: a pouch with every slot picked still takes the stack (D-250)", [this]()

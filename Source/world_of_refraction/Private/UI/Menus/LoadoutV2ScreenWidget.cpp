@@ -119,6 +119,19 @@ namespace LoadoutV2ScreenStyle
 		return MakeSized(Tree, TileTickSize, TileTickSize, Corner);
 	}
 
+	/** B-598c piece 4 (mockup inventory/v4): the F badge on a stack picked as a fight item. */
+	UWidget *MakeFightBadge(UWidgetTree *Tree)
+	{
+		UBorder *Badge = Tree->ConstructWidget<UBorder>(UBorder::StaticClass());
+		Badge->SetBrushColor(CyanColor);
+		Badge->SetHorizontalAlignment(HAlign_Center);
+		Badge->SetVerticalAlignment(VAlign_Center);
+		UTextBlock *Mark = MakeText(Tree, SmallFontSize, ScreenColor, true);
+		Mark->SetText(NSLOCTEXT("WoRLoadoutV2Screen", "FightBadge", "F"));
+		Badge->SetContent(Mark);
+		return MakeSized(Tree, TileTickSize, TileTickSize, Badge);
+	}
+
 	/** The lock: a narrow block (the shackle) on a wider one (the body). */
 	UWidget *MakeLock(UWidgetTree *Tree)
 	{
@@ -763,6 +776,7 @@ TArray<FLoadoutV2GridTile> ULoadoutV2ScreenWidget::GetInventoryTiles() const
 		}
 		Tile.Count = Each.IsStack() ? FMath::Max(Each.Row.Count, 1) : 1;
 		Tile.bWorn = Each.bWorn;
+		Tile.bFightItem = Each.bFightItem;
 	}
 	return Tiles;
 }
@@ -790,9 +804,18 @@ void ULoadoutV2ScreenWidget::RefreshInventoryActions()
 		GiveSelected = InvActions.IsEmpty() ? 0 : FMath::Clamp(GiveSelected, 0, InvActions.Num() - 1);
 		return;
 	}
-	// Mockup inventory/v4: A Equip on…, X Give to…, then Sell, always greyed here (it is the Blacksmith's).
-	InvActions.Add({LOCTEXT("ActionEquipOn", "{Confirm}  Equip on…"),
-					Tile.IsStack() ? LOCTEXT("EquipStackRefusal", "Crystals and stones go in a socket: open the socket on the Equipment page.") : FText::GetEmpty()});
+	// Mockup inventory/v4: A Equip on… (piece 4: on the Pouch, Pick / Unpick as a fight item), X Give to…, then Sell,
+	// always greyed here (it is the Blacksmith's).
+	if (IsOnPouch())
+	{
+		InvActions.Add({Tile.bFightItem ? LOCTEXT("ActionUnpick", "{Confirm}  Unpick (leave in the bag)") : LOCTEXT("ActionPick", "{Confirm}  Pick as a fight item"),
+						WoRInventoryScreen::GetFightPickRefusal(GetWorld(), Member, Tile)});
+	}
+	else
+	{
+		InvActions.Add({LOCTEXT("ActionEquipOn", "{Confirm}  Equip on…"),
+						Tile.IsStack() ? LOCTEXT("EquipStackRefusal", "Crystals and stones go in a socket: open the socket on the Equipment page.") : FText::GetEmpty()});
+	}
 	const TArray<FInventoryScreenVerb> Verbs = WoRInventoryScreen::BuildVerbs(GetWorld(), Member, InvTab, Tile);
 	const FInventoryScreenVerb *Give = Verbs.FindByPredicate([](const FInventoryScreenVerb &Verb) { return Verb.Verb == EInventoryVerb::Give; });
 	InvActions.Add({LOCTEXT("ActionGiveTo", "{Toggle}  Give to…"), Give ? Give->Refusal : LOCTEXT("GiveNone", "Nothing gives this yet.")});
@@ -1410,6 +1433,7 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		return bOnInvKinds ? LOCTEXT("HintsInventoryKinds", "{Arrows}  Gear / Pouch        {Tabs}  Page        {SubTabs}  Character        {Second}  Sort        {Back}  Back")
 			   : IsAboveInventoryTiles()
 				   ? LOCTEXT("HintsInventoryFilters", "{Arrows}  Move        {Tabs}  Page        {SubTabs}  Character        {Second}  Sort        {Back}  Back")
+			   : IsOnPouch() ? LOCTEXT("HintsInventoryPouch", "{Confirm}  Pick / unpick        {Toggle}  Give        {Tabs}  Page        {SubTabs}  Character        {Second}  Sort        {Back}  Back")
 				   : LOCTEXT("HintsInventoryPage", "{Confirm}  Equip on…        {Toggle}  Give        {Tabs}  Page        {SubTabs}  Character        {Second}  Sort        {Back}  Back");
 	}
 	switch (Mode)
@@ -2277,6 +2301,26 @@ void ULoadoutV2ScreenWidget::PressEquipOn()
 	RefreshView();
 }
 
+void ULoadoutV2ScreenWidget::PressFightPick()
+{
+	if (!IsOnPouch() || IsAboveInventoryTiles() || bGiving || !InvPage.Tiles.IsValidIndex(InvSelected) || InvActions.IsEmpty() || !Members.IsValidIndex(MemberIndex))
+	{
+		return;
+	}
+	if (!InvActions[0].Refusal.IsEmpty())
+	{
+		Message = InvActions[0].Refusal;
+		RefreshView();
+		return;
+	}
+	const FInventoryScreenTile Tile = InvPage.Tiles[InvSelected];
+	if (WoRInventoryScreen::ToggleFightPick(GetWorld(), Members[MemberIndex].Key, Tile))
+	{
+		Message = FText::Format(Tile.bFightItem ? LOCTEXT("Unpicked", "Left in the bag: the {0}.") : LOCTEXT("Picked", "Picked for a fight: the {0}."), Tile.Name);
+	}
+	RefreshData(); // the tile's F badge, the counter, the facts
+}
+
 void ULoadoutV2ScreenWidget::PressGive()
 {
 	if (!IsInventoryBox() || IsAboveInventoryTiles() || bGiving || !InvActions.IsValidIndex(1))
@@ -2305,7 +2349,7 @@ void ULoadoutV2ScreenWidget::PressInventoryButton(int32 Button)
 	{
 		if (Button == 0)
 		{
-			PressEquipOn();
+			IsOnPouch() ? PressFightPick() : PressEquipOn();
 		}
 		else if (Button == 1)
 		{
@@ -2806,6 +2850,8 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		AddLayer(Word, HAlign_Center, VAlign_Center, 0.0f);
 		AddLayer(Tick, HAlign_Left, VAlign_Top, 0.0f);
 		AddLayer(Lock, HAlign_Right, VAlign_Top, TileMarkInset);
+		UWidget *Fight = MakeFightBadge(WidgetTree);
+		AddLayer(Fight, HAlign_Right, VAlign_Top, 0.0f); // a picked stack is never locked: the lock's corner
 		AddLayer(CountText, HAlign_Right, VAlign_Bottom, TileMarkInset);
 		GridTilePanel->AddChildToUniformGrid(Tile, Index / Columns, Index % Columns);
 		GridTiles.Add(Tile);
@@ -2813,6 +2859,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		GridTileWords.Add(Word);
 		GridTileTicks.Add(Tick);
 		GridTileLocks.Add(Lock);
+		GridTileFights.Add(Fight);
 		GridTileCounts.Add(CountText);
 	}
 	for (int32 Index = 0; Index < GridTiles.Num(); ++Index)
@@ -2832,6 +2879,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		SetShown(GridTileWords[Index], !bPicture);
 		SetShown(GridTileTicks[Index], Tile.bWorn);
 		SetShown(GridTileLocks[Index], Tile.bLocked);
+		SetShown(GridTileFights[Index], Tile.bFightItem);
 		GridTileCounts[Index]->SetText(FText::Format(LOCTEXT("GridTileCount", "x{0}"), FText::AsNumber(Tile.Count)));
 		SetShown(GridTileCounts[Index], Tile.Count > 1);
 	}
