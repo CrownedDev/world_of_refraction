@@ -713,7 +713,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-608](B-608.md) | `fix/B-608-vendor-cart-rows` (built 2026-11-25) | Vendor screen: the cart scrolls (Total and Buy stay in view), one-line rows with a +, a click only selects | Pending |
 | [B-615](B-615.md) | `fix/B-615-gate-loadout-kit-note` (built 2026-11-25) | Gate: its Loadout says a trial starts on your class kit; the Caster kit row steps | Pending |
 | [B-613](B-613.md) | `feature/B-613-sticky-infusion` (built 2026-11-25) | Infusion stays on for your next actions in a fight, until you turn it off | Pending |
-| [B-620](B-620.md) | `feature/B-620-weapon-buffs-no-infusion` (built 2026-11-25, on B-613) | A weapon buff offers no infusion, and using one keeps the infusion on | Pending |
+| [B-620](B-620.md) | `feature/B-620-weapon-buffs-no-infusion` (built 2026-11-25, on B-613) | A weapon buff or debuff offers no infusion, and using one keeps the infusion on; spells unchanged | Pending |
 | [B-602](B-602.md) | `fix/B-602-scroll-click-picks-stale-row` (built 2026-11-24) | A click after a wheel scroll picks the row now under the mouse (vendor, and every scrolling menu list) | Pending |
 | [B-609a](B-609a.md) | `feature/B-609a-set-gear-tier` (built 2026-11-25) | Debug: `wor.Debug.SetGearTier <name-part> <tier>` sets owned weapons and adapters to a tier, free, and saves | Pending |
 | [B-598b](B-598b.md) | `fix/B-598b-battle-hud-no-hover` (built 2026-11-24, on B-598) | No battle HUD tooltips (Q-598b): a greyed command's reason shows in the Act panel's second line when picked | Pending |
