@@ -6,6 +6,7 @@
 #include "Currency/CurrencyComponent.h"
 #include "Currency/CurrencyWallet.h"
 #include "Currency/EconomyService.h"
+#include "Currency/EconomyYield.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -260,7 +261,7 @@ TArray<EVendorScreenTab> WoRVendorScreen::GetTabs(EMerchantType Vendor)
 	switch (Vendor)
 	{
 	case EMerchantType::Blacksmith:
-		return {EVendorScreenTab::Buy, EVendorScreenTab::Sell, EVendorScreenTab::Dismantle};
+		return {EVendorScreenTab::Buy, EVendorScreenTab::Sell, EVendorScreenTab::Upgrade, EVendorScreenTab::Dismantle}; // B-616 (Q-609)
 	case EMerchantType::Jeweler:
 		return {EVendorScreenTab::Buy, EVendorScreenTab::Sell, EVendorScreenTab::ItemSlots};
 	case EMerchantType::Spiritualist:
@@ -289,6 +290,8 @@ FText WoRVendorScreen::GetTabName(EVendorScreenTab Tab)
 		return LOCTEXT("TabCurses", "Curses");
 	case EVendorScreenTab::Merge:
 		return LOCTEXT("TabMerge", "Merge");
+	case EVendorScreenTab::Upgrade:
+		return LOCTEXT("TabUpgrade", "Upgrade");
 	}
 	return FText::GetEmpty();
 }
@@ -346,6 +349,10 @@ FVendorScreenPage WoRVendorScreen::BuildPage(UWorld *World, EMerchantType Vendor
 	if (Tab == EVendorScreenTab::Merge)
 	{
 		return BuildMergePage(World, Member, {});
+	}
+	if (Tab == EVendorScreenTab::Upgrade)
+	{
+		return BuildUpgradePage(World, Member, {});
 	}
 	if (!GetService(Tab, Service))
 	{
@@ -734,6 +741,111 @@ FVendorScreenPage WoRVendorScreen::BuildMergePage(UWorld *World, FName Member, c
 	return Page;
 }
 
+namespace VendorScreenUpgrade
+{
+	/** The piece's own tier, where the truth lives (the member's owned entry); F when they hold no such piece. */
+	EItemTier OwnedTier(const UInventoryComponent *Inventory, const FGuid &GearID, bool &bOutIsAdapter)
+	{
+		const FWeaponInventoryEntry *Weapon = Inventory ? Inventory->FindOwnedWeapon(GearID) : nullptr;
+		const FRingInventoryEntry *Adapter = Inventory && !Weapon ? Inventory->FindOwnedRing(GearID) : nullptr;
+		bOutIsAdapter = Adapter != nullptr;
+		return Weapon ? Weapon->Tier : Adapter ? Adapter->Tier : EItemTier::F_Tier;
+	}
+
+	/** Dormant Essence alone, as the level-up checks it (GetAffordRefusal would also want money, which gear doesn't cost). */
+	FText AffordRefusal(const UCurrencyComponent *Wallet, EItemTier From, EItemTier To)
+	{
+		return Wallet && Wallet->CanAfford(ECurrencyType::GearEssence, WoRVendorScreen::GetUpgradeCost(From, To))
+				   ? FText::GetEmpty()
+				   : FText::Format(LOCTEXT("UpgradeShort", "Not enough {0}."), WoRGameNames::GetCurrencyName(ECurrencyType::GearEssence));
+	}
+
+	FText EssenceText(int32 Amount)
+	{
+		return FText::Format(LOCTEXT("Amount", "{0} {1}"), FText::AsNumber(Amount), WoRGameNames::GetCurrencyName(ECurrencyType::GearEssence));
+	}
+}
+
+int32 WoRVendorScreen::GetUpgradeCost(EItemTier From, EItemTier To)
+{
+	int32 Cost = 0;
+	for (int32 Tier = TierHelpers::GetTierValue(From); Tier < TierHelpers::GetTierValue(To); ++Tier)
+	{
+		Cost += EconomyYield::GetTierUpCostForTier(TierHelpers::GetTierFromValue(Tier));
+	}
+	return Cost;
+}
+
+EItemTier WoRVendorScreen::StepUpgradeTarget(EItemTier From, EItemTier Current, int32 Delta)
+{
+	const int32 First = TierHelpers::GetTierValue(From) + 1;
+	const int32 Last = TierHelpers::GetTierValue(EItemTier::S_Tier);
+	if (First > Last)
+	{
+		return EItemTier::S_Tier;
+	}
+	const int32 Count = Last - First + 1;
+	const int32 Index = FMath::Clamp(TierHelpers::GetTierValue(Current), First, Last) - First;
+	return TierHelpers::GetTierFromValue(First + ((Index + Delta) % Count + Count) % Count);
+}
+
+FVendorScreenPage WoRVendorScreen::BuildUpgradePage(UWorld *World, FName Member, const TMap<FGuid, EItemTier> &Targets)
+{
+	using namespace VendorScreenUpgrade;
+
+	FVendorScreenPage Page;
+	const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+	AActor *Owner = Inventory ? Inventory->GetOwner() : nullptr;
+	const UCurrencyComponent *Wallet = CurrencyWallet::FindFor(Owner);
+	const TArray<FInventoryScreenTile> Tiles = WoRInventoryScreen::BuildPage(World, Member, EInventoryScreenTab::Gear).Tiles;
+	// The Blacksmith's Dismantle rows are the member's own gear and pouch stacks; the gear is what upgrades.
+	for (const WoRVendorServices::FVendorRow &Row : WoRVendorServices::GatherRows(World, EMerchantType::Blacksmith, EVendorService::Dismantle, Member))
+	{
+		if (!Row.IsGear())
+		{
+			continue;
+		}
+		FVendorScreenRow &Line = Page.Rows.AddDefaulted_GetRef();
+		bool bAdapter = false;
+		Line.Row = Row;
+		Line.Row.Tier = OwnedTier(Inventory, Row.GearID, bAdapter);
+		const EItemTier *Chosen = Targets.Find(Row.GearID);
+		Line.UpgradeTo = StepUpgradeTarget(Line.Row.Tier, Chosen ? *Chosen : Line.Row.Tier, 0);
+		Line.Name = Row.Label;
+		if (const FInventoryScreenTile *Tile = VendorScreenBuild::FindTile(Tiles, Row))
+		{
+			Line.Name = Tile->Name;
+			Line.KindLine = Tile->KindLine;
+			Line.Element = Tile->Element;
+			VendorScreenBuild::CopyIcons(*Tile, Line);
+		}
+		if (Line.Row.Tier == EItemTier::S_Tier)
+		{
+			Line.Tier = WoRGameNames::GetTierLetter(EItemTier::S_Tier);
+			Line.Refusal = LOCTEXT("UpgradeAtS", "Already at S, the highest tier.");
+			continue;
+		}
+		Line.Tier = FText::Format(LOCTEXT("TierJump", "{0} → {1}"), WoRGameNames::GetTierLetter(Line.Row.Tier), WoRGameNames::GetTierLetter(Line.UpgradeTo));
+		Line.Pay = EssenceText(GetUpgradeCost(Line.Row.Tier, Line.UpgradeTo));
+		Line.Refusal = AffordRefusal(Wallet, Line.Row.Tier, Line.UpgradeTo);
+		Line.Changes.Add({LOCTEXT("ChangeTier", "Tier"), WoRGameNames::GetTierLetter(Line.Row.Tier), WoRGameNames::GetTierLetter(Line.UpgradeTo)});
+		Line.Changes.Add({LOCTEXT("ChangeDismantle", "Dismantles for"), EssenceText(EconomyYield::GetLevelingEssenceYieldForTier(Line.Row.Tier)),
+						  EssenceText(EconomyYield::GetLevelingEssenceYieldForTier(Line.UpgradeTo))});
+		if (Line.Refusal.IsEmpty())
+		{
+			const int32 Have = Wallet ? Wallet->GetBalance(ECurrencyType::GearEssence) : 0;
+			Line.Changes.Add({WoRGameNames::GetCurrencyName(ECurrencyType::GearEssence), FText::AsNumber(Have),
+							  FText::AsNumber(Have - GetUpgradeCost(Line.Row.Tier, Line.UpgradeTo)), false});
+		}
+	}
+	if (Page.Rows.IsEmpty())
+	{
+		Page.EmptyNote = LOCTEXT("EmptyUpgrade", "No weapons or adapters of theirs to upgrade.");
+	}
+	Page.Rule = LOCTEXT("RuleUpgrade", "Each tier costs Dormant Essence; a jump costs every step on the way. Upgraded gear dismantles for more.");
+	return Page;
+}
+
 FText WoRVendorScreen::GetConfirmText(EVendorScreenTab Tab, const FVendorScreenRow &Row)
 {
 	switch (Tab)
@@ -744,6 +856,9 @@ FText WoRVendorScreen::GetConfirmText(EVendorScreenTab Tab, const FVendorScreenR
 		return FText::Format(LOCTEXT("ConfirmCurse", "Clear {0} for {1}? It may come back."), Row.Name, Row.Pay);
 	case EVendorScreenTab::Merge:
 		return FText::Format(LOCTEXT("ConfirmMerge", "Merge into {0} ({1}) for {2}?"), Row.Name, Row.Tier, Row.Pay);
+	case EVendorScreenTab::Upgrade:
+		return FText::Format(LOCTEXT("ConfirmUpgrade", "Upgrade {0} from {1} to {2} for {3}?"), Row.Name, WoRGameNames::GetTierLetter(Row.Row.Tier),
+							 WoRGameNames::GetTierLetter(Row.UpgradeTo), Row.Pay);
 	default:
 		return FText::GetEmpty();
 	}
@@ -786,6 +901,31 @@ FText WoRVendorScreen::RunService(UWorld *World, AActor *Payer, FName Member, EV
 		}
 		return Economy && Economy->MergeCrystals(Owner, Row.Row.Item.Type, Row.Row.Item.Tier) ? FText::GetEmpty() : Failed;
 	}
+	if (Tab == EVendorScreenTab::Upgrade)
+	{
+		// Q-616: a jump is the single steps in a row (LevelUpWeapon / LevelUpRing), each paying its own cost.
+		UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+		AActor *Owner = Inventory ? Inventory->GetOwner() : nullptr;
+		UEconomyService *Economy = VendorScreenBuild::EconomyOf(World);
+		bool bAdapter = false;
+		const EItemTier From = VendorScreenUpgrade::OwnedTier(Inventory, Row.Row.GearID, bAdapter);
+		const FText Refusal = VendorScreenUpgrade::AffordRefusal(CurrencyWallet::FindFor(Owner), From, Row.UpgradeTo);
+		if (!Refusal.IsEmpty())
+		{
+			return Refusal;
+		}
+		EItemTier Tier = From;
+		while (Economy && TierHelpers::GetTierValue(Tier) < TierHelpers::GetTierValue(Row.UpgradeTo) &&
+			   (bAdapter ? Economy->LevelUpRing(Owner, Row.Row.GearID) : Economy->LevelUpWeapon(Owner, Row.Row.GearID)))
+		{
+			Tier = VendorScreenUpgrade::OwnedTier(Inventory, Row.Row.GearID, bAdapter);
+		}
+		if (Tier == Row.UpgradeTo)
+		{
+			return FText::GetEmpty();
+		}
+		return Tier == From ? Failed : FText::Format(LOCTEXT("UpgradeStopped", "Raised to {0}; it couldn't go further."), WoRGameNames::GetTierLetter(Tier));
+	}
 	return Failed;
 }
 
@@ -799,6 +939,8 @@ FText WoRVendorScreen::GetDoneText(EVendorScreenTab Tab, const FVendorScreenRow 
 		return FText::Format(LOCTEXT("DoneCurse", "{0} is cleared. It may come back."), Row.Name);
 	case EVendorScreenTab::Merge:
 		return FText::Format(LOCTEXT("DoneMerge", "Made {0} ({1})."), Row.Name, Row.Tier);
+	case EVendorScreenTab::Upgrade:
+		return FText::Format(LOCTEXT("DoneUpgrade", "{0} is now {1}."), Row.Name, WoRGameNames::GetTierLetter(Row.UpgradeTo));
 	default:
 		return FText::GetEmpty();
 	}
