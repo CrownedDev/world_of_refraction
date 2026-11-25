@@ -261,7 +261,8 @@ public:
     /** DEPRECATED — legacy combined target type. Migrated to TargetType + TargetCount
      *  in PostLoad. Do not use directly. Named LegacyTargetType (not TargetType_DEPRECATED)
      *  so UHT does not strip the suffix and collide its FName with the live TargetType
-     *  field. Legacy serialized data routes here via PropertyRedirects in DefaultEngine.ini. */
+     *  field. B-621 retired the PropertyRedirects that routed legacy data here (every asset is migrated, and the
+     *  redirect also caught the live TargetType); PostLoad takes a Self / Ally target back from it. */
     UPROPERTY()
     ETargetType_Legacy LegacyTargetType = ETargetType_Legacy::SingleEnemy;
 

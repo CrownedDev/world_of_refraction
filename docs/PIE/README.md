@@ -711,6 +711,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-612](B-612.md) | `fix/B-612-augment-crystal-attach` (built 2026-11-25) | Loadout: a socket opens a grid of its own choices and A puts the crystal in; SetGearTier finds the Arming Sword (type word, drifted copies) | Pending |
 | [B-610](B-610.md) | `feature/B-610-equipment-skills-jump` (built 2026-11-25) | Loadout: K / R3 on a weapon or adapter opens its skill slots; Back returns to the same Equipment line | Pending |
 | [B-608](B-608.md) | `fix/B-608-vendor-cart-rows` (built 2026-11-25) | Vendor screen: the cart scrolls (Total and Buy stay in view), one-line rows with a +, a click only selects | Pending |
+| [B-621](B-621.md) | `fix/B-621-self-buff-targettype` (built 2026-11-25) | A self or ally buff lands no hit (no DEFEND prompt, no damage) and a single-ally buff goes to the picked ally; Self / Ally survive a reload (redirect retired) | Pending |
 | [B-615](B-615.md) | `fix/B-615-gate-loadout-kit-note` (built 2026-11-25) | Gate: its Loadout says a trial starts on your class kit; the Caster kit row steps | Pending |
 | [B-613](B-613.md) | `feature/B-613-sticky-infusion` (built 2026-11-25) | Infusion stays on for your next actions in a fight, until you turn it off | Pending |
 | [B-602](B-602.md) | `fix/B-602-scroll-click-picks-stale-row` (built 2026-11-24) | A click after a wheel scroll picks the row now under the mouse (vendor, and every scrolling menu list) | Pending |

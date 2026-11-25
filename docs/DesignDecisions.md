@@ -1312,6 +1312,12 @@ The queue of questions only Crown can answer.
 - **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
+### Q-621 — A buff on yourself or an ally lands no hit, and a single-ally buff goes to the ally you picked
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-621, Crown: a self buff opened a DEFEND prompt and hit its user for 34) · **Blocks:** nothing
+**Question:** (1) What does a no-damage skill aimed at yourself or an ally do at its "hit"? (2) Where does a single-ally buff land? It always went to the caster (a TODO in the code).
+**Answer (default, built):** (1) Nothing: an ability or spell with no damage and a Self or Ally target opens no defend window, deals no damage, plays no hit reaction and lands no fallback impact; its effects apply to its targets. A damaging skill, or a no-damage one aimed at an enemy (a debuff swing), still lands its hit. (2) On the ally the player picked; on the caster only when the action's target is not on the caster's side.
+**Reference:** in Expedition 33 and Final Fantasy X a buff or heal on a party member has no parry or dodge prompt and lands on the member chosen; a defend prompt is only for an enemy's attack.
+
 ### Q-603 — The test trial's enemy mirrors the party's Generic
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-603, Crown: mirror our Generic's pillars and stat spread) · **Blocks:** nothing
 **Question:** the test enemy (`DA_Enemy_Generic`) already had the same sub-stats as the Generic assets (Mind 1 / Body 7 / Spirit 1), but a new game's Generic plays at the class table's levels (Mind 0 / Body 0 / Spirit 0, `DA_Loadout_ClassDefaults`) with an F sword, while the enemy wore a D sword. Mirror only the pillars, or the sword tier too?
