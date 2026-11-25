@@ -683,7 +683,8 @@ void UCombatCommandMenuSubsystem::ApplyStickyInfusion(UInfusionVFXComponent &VFX
     const UCharacterDataComponent *CDC = CurrentActor->FindComponentByClass<UCharacterDataComponent>();
     FPieMenuButtonData Pending;
     Pending.Category = EPieMenuCategory::Target;
-    if (Exec && CDC && Exec->PreviewActionCost(CurrentActor.Get(), BuildActionFromButton(Pending)).EP > CDC->CurrentEP)
+    // B-625: the spendable EP (a Silenced seal off), as the target step's greying and ValidateAction read it.
+    if (Exec && CDC && Exec->PreviewActionCost(CurrentActor.Get(), BuildActionFromButton(Pending)).EP > Exec->GetSpendableEP(CurrentActor.Get()))
     {
         SetPendingInfusionLevel(0);
         bStickyInfusionDropped = true; // still on for the next action
@@ -1188,9 +1189,18 @@ void UCombatCommandMenuSubsystem::ShowActionCost(FPieMenuButtonData &Button) con
         return;
     }
     // The cost of the action this button submits (FAction::GetActionCost, B-170c), so the pips and the pay agree.
-    const int32 Cost = BuildActionFromButton(Button).GetActionCost();
+    FAction Plain = BuildActionFromButton(Button);
+    const int32 Cost = Plain.GetActionCost();
     Button.ActionCost = Cost;
-    const FText Reason = ActionPipsText::GetCostRefusedReason(Cost, CDC->CurrentActions, CDC->GetMaxActions());
+    FText Reason = ActionPipsText::GetCostRefusedReason(Cost, CDC->CurrentActions, CDC->GetMaxActions());
+    if (Reason.IsEmpty())
+    {
+        // B-625: its EP with no infusion (the target step greys a level that can't be paid, GreyTargetsShortOfEP).
+        Plain.SelectedSource = EInfusionSourceOption::None;
+        Plain.SpellInfusionLevel = Plain.AbilityInfusionLevel = 0;
+        Plain.bIceInfusion = false;
+        Reason = GetNotEnoughEPReason(Plain);
+    }
     if (Reason.IsEmpty() || !Button.bEnabled)
     {
         return;
@@ -1199,6 +1209,42 @@ void UCombatCommandMenuSubsystem::ShowActionCost(FPieMenuButtonData &Button) con
     Button.Description = Greyed.Description;
     Button.ButtonTint = Greyed.ButtonTint;
     Button.bEnabled = false;
+}
+
+FText UCombatCommandMenuSubsystem::GetNotEnoughEPReason(const FAction &Action) const
+{
+    UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
+    if (!Exec || !CurrentActor.IsValid())
+    {
+        return FText::GetEmpty();
+    }
+    const int32 EP = Exec->PreviewActionCost(CurrentActor.Get(), Action).EP;
+    if (EP <= Exec->GetSpendableEP(CurrentActor.Get()))
+    {
+        return FText::GetEmpty();
+    }
+    return FText::Format(NSLOCTEXT("CombatCommandMenu", "NotEnoughEP", "Not enough EP ({0} needed)."), FText::AsNumber(EP));
+}
+
+void UCombatCommandMenuSubsystem::GreyTargetsShortOfEP(TArray<FPieMenuButtonData> &Buttons) const
+{
+    FPieMenuButtonData Pending;
+    Pending.Category = EPieMenuCategory::Target; // the action the confirm would submit, its infusion level included
+    const FText Reason = GetNotEnoughEPReason(BuildActionFromButton(Pending));
+    if (Reason.IsEmpty())
+    {
+        return;
+    }
+    for (FPieMenuButtonData &Button : Buttons)
+    {
+        if (Button.Category == EPieMenuCategory::Target && Button.bEnabled)
+        {
+            const FPieMenuButtonData Greyed = FPieMenuButtonData::MakeDisabledButton(Button.ButtonID, Button.DisplayName, Reason);
+            Button.Description = Greyed.Description;
+            Button.ButtonTint = Greyed.ButtonTint;
+            Button.bEnabled = false;
+        }
+    }
 }
 
 FPieMenuButtonData UCombatCommandMenuSubsystem::CreateFleeButton() const
@@ -2081,6 +2127,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildTargetButtons(
         }
         Buttons.Add(MakeTargetButton(Target, Tint));
     }
+    GreyTargetsShortOfEP(Buttons); // B-625
 
     AppendInfusionControls(Buttons); // B-254: one copy for single and group targets
 
@@ -2142,6 +2189,7 @@ TArray<FPieMenuButtonData> UCombatCommandMenuSubsystem::BuildGroupTargetButtons(
         break;
     }
     Buttons.Add(ConfirmBtn);
+    GreyTargetsShortOfEP(Buttons); // B-625
 
     AppendInfusionControls(Buttons);
 
