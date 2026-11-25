@@ -24,6 +24,9 @@ struct FLoadoutV2GridTile
 	bool bLocked = false;
 	/** B-598c piece 4 (D-250): a Pouch stack picked as a fight item: the F badge. */
 	bool bFightItem = false;
+	/** B-629b (mockup menus/skills/v1 2): a skill's tier badge in the bottom-left corner. */
+	bool bHasTier = false;
+	EItemTier Tier = EItemTier::F_Tier;
 };
 
 namespace WoRLoadoutV2Grid

@@ -331,6 +331,14 @@ public:
 	/** Why Kind can't be turned to here (the entry kind's refusal; a socket: nothing of it fits); empty when it can. */
 	FText GetGridKindRefusal(ELoadoutV2PieceKind Kind) const;
 	bool IsOnGridKinds() const { return bOnGridKinds && IsGridOpen(); }
+	// B-629b (mockup menus/skills/v1 2): the skill picker's choices are the same grid's tiles (the skill's piece type,
+	// its tier, the tick when slotted, the lock when it can't go here); the tabs filter by the weapon type a skill needs.
+	// Up from the top row reaches the ‹ Fits this slot  All learned › selector (Left / Right turn it, Down or A back).
+	bool IsSkillGrid() const { return Mode == ELoadoutV2Mode::SkillPicker; }
+	/** A grid whose tiles are the lit line (Selected): a slot's or the skill picker's; not the inventory's. */
+	bool IsPickGrid() const { return IsGridOpen() || IsSkillGrid(); }
+	int32 GetPickTileCount() const { return IsSkillGrid() ? SkillChoices.Num() : Items.Num(); }
+	bool IsOnSkillFits() const { return bOnGridKinds && IsSkillGrid(); }
 	/** Left / Right on the selector: the next kind that can be turned to, in a ring (the others are skipped). */
 	void TurnGridKind(int32 Delta);
 	/** A click on a word of the selector (an index of GetGridKinds()); a refused one says why. */
@@ -638,6 +646,8 @@ private:
 	int32 FindGridTabUnder(const FVector2D &ScreenPosition) const;
 	/** Debug: the grid as shown (WoRLoadoutV2Grid::GetGridString), logged when it opens or its filter changes. */
 	void LogGrid() const;
+	/** B-629b: the skill picker's filter tabs from its choices, and the choices cut to the lit tab's weapon type. */
+	void FilterSkillGrid();
 	TArray<EWeaponType> GridTypes;
 	bool bGridFiltered = false;
 	EWeaponType GridFilter = EWeaponType::Sword;
@@ -909,4 +919,12 @@ private:
 	TArray<TObjectPtr<UWidget>> GridTileFights;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> GridTileCounts;
+	/** B-629b: each tile's tier badge (a skill's; a piece's tier stays in its text, D-248). */
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> GridTileTiers;
+	/** The legend's words: a slot's "worn", the skill picker's "slotted already". */
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GridLegendWorn;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GridLegendLock;
 };
