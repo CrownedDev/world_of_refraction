@@ -3,6 +3,7 @@
 #include "UI/Party/PartyScreenModel.h"
 
 #include "Character/CharacterData.h"
+#include "Character/EWorldPillar.h"
 #include "Combat/Grid/CombatGridConstants.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
@@ -13,6 +14,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
+#include "Trial/LevelDropPlacement.h"
 #include "UI/Menus/LoadoutScreenModel.h"
 #include "UI/Menus/LoadoutV2GridModel.h"
 #include "UI/Menus/LoadoutV2SkillsModel.h"
@@ -94,6 +96,14 @@ FPartyScreenPage WoRPartyScreen::BuildPage(const UParty *Party, bool bHosting)
 		Row.StartLine = FText::Format(LOCTEXT("Starts", "Starts: {0}"), Row.StartValue);
 		Row.FieldSkillLine = FText::Format(LOCTEXT("FieldSkill", "Field skill: {0}"), WoRGameNames::GetFieldMovementName(Member.FieldSkill.Type));
 		Row.GuardLine = Member.GuardStyle == EGuardStyle::Unarmed ? LOCTEXT("UnarmedGuard", "Unarmed guard") : LOCTEXT("WeaponGuard", "Weapon guard");
+		// B-628b: as the party strip and the game menu, a member with no carried vitals (the hub) reads full.
+		if (Member.CharacterData)
+		{
+			Row.MaxHP = Member.CharacterData->CalculateMaxHealth();
+			Row.MaxEP = Member.CharacterData->CalculateMaxEnergy();
+			Row.HP = Member.CurrentHP == PartyConstants::NO_CARRIED_VITALS ? Row.MaxHP : Member.CurrentHP;
+			Row.EP = Member.CurrentEP == PartyConstants::NO_CARRIED_VITALS ? Row.MaxEP : Member.CurrentEP;
+		}
 	}
 	return Page;
 }
@@ -103,7 +113,20 @@ FPartyScreenPage WoRPartyScreen::BuildPage(UWorld *World)
 	const UPartySessionSubsystem *PartySession = PartySessionOf(World);
 	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
 	const UWoRSessionSubsystem *Session = GI ? GI->GetSubsystem<UWoRSessionSubsystem>() : nullptr;
-	return BuildPage(PartySession ? PartySession->GetLocalParty() : nullptr, Session && Session->IsHosting());
+	const UParty *Party = PartySession ? PartySession->GetLocalParty() : nullptr;
+	FPartyScreenPage Page = BuildPage(Party, Session && Session->IsHosting());
+	// B-628b: what needs the world: the live pillar levels and the active loadout's piece (a row per party member).
+	for (int32 SlotIndex = 0; Party && SlotIndex < Page.Members.Num() && SlotIndex < Party->Members.Num(); ++SlotIndex)
+	{
+		FPartyScreenMember &Row = Page.Members[SlotIndex];
+		const FPartyMember &Member = Party->Members[SlotIndex];
+		Row.Mind = WoRLevelDrops::GetLiveLevel(World, Member, EWorldPillar::Mind);
+		Row.Body = WoRLevelDrops::GetLiveLevel(World, Member, EWorldPillar::Body);
+		Row.Spirit = WoRLevelDrops::GetLiveLevel(World, Member, EWorldPillar::Spirit);
+		const FPartyScreenLoadout Loadout = BuildLoadout(World, SlotIndex);
+		Row.Weapon = Loadout.Entries.IsEmpty() ? FText::GetEmpty() : Loadout.Entries[0].Name;
+	}
+	return Page;
 }
 
 void WoRPartyScreen::GetNextCell(bool bHasCell, ECombatRow Row, int32 Column, ECombatRow &OutRow, int32 &OutColumn)
@@ -232,6 +255,8 @@ FString WoRPartyScreen::GetPartyScreenString(UWorld *World)
 							   *Member.ClassName.ToString(), *Member.PlayedBy.ToString(), *Member.StartLine.ToString(),
 							   Member.bHasCell ? *FString::Printf(TEXT(" cell %d"), Member.Column) : TEXT(""),
 							   *Member.FieldSkillLine.ToString(), *Member.GuardLine.ToString(), Member.bFallen ? TEXT(" (fallen)") : TEXT(""));
+		Out += FString::Printf(TEXT("\n      HP %d/%d, EP %d/%d, Mind %d Body %d Spirit %d, weapon %s"), Member.HP, Member.MaxHP, Member.EP,
+							   Member.MaxEP, Member.Mind, Member.Body, Member.Spirit, *Member.Weapon.ToString()); // B-628b
 		const FPartyScreenLoadout Loadout = BuildLoadout(World, Index);
 		Out += FString::Printf(TEXT("\n      loadout: %s"), Loadout.Title.IsEmpty() ? TEXT("<none>") : *Loadout.Title.ToString());
 		for (const FPartyScreenLoadoutEntry &Entry : Loadout.Entries)
