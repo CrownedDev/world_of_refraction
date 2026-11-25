@@ -24,6 +24,7 @@
 #include "Party/Party.h"
 #include "Party/PartySessionSubsystem.h"
 #include "Pool/PoolSubsystem.h"
+#include "Skills/Definitions/AbilityData.h"
 #include "UI/Menus/InventoryScreenModel.h"
 #include "UI/Menus/InventoryScreenWidget.h"
 #include "UI/Menus/LoadoutV2GridModel.h"
@@ -690,6 +691,56 @@ void FInventoryScreenSpec::Define()
 		WoRIcons::SetActiveForTests(NewObject<UWoRIconTable>(GetTransientPackage()));
 		TestNull(TEXT("with no icon set the tile keeps its letter"), WoRIcons::Find(Tile.Icon));
 		WoRIcons::SetActiveForTests(nullptr);
+	});
+
+	It("B-629b: the skill picker's choices are tiles: the needed weapon's picture, the tier, the lock; Up reaches Fits / all, the tabs filter by weapon type", [this]()
+	{
+		if (!IsReady()) return;
+		UAbilityData *Cleave = NewObject<UAbilityData>(GetTransientPackage());
+		Cleave->Name = TEXT("Cleave");
+		Cleave->RequiredWeaponType = EWeaponType::Sword;
+		Cleave->Tier = EItemTier::E_Tier;
+		UAbilityData *Chop = NewObject<UAbilityData>(GetTransientPackage());
+		Chop->Name = TEXT("Chop");
+		Chop->RequiredWeaponType = EWeaponType::Axe;
+		Chop->Tier = EItemTier::S_Tier;
+		Inventories[SCREEN_MEMBER]->Abilities.LearnAbility(Cleave);
+		Inventories[SCREEN_MEMBER]->Abilities.LearnAbility(Chop);
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen)) return;
+		Screen->ActivateWidget();
+		Screen->ToggleLoadout();
+		Screen->SwitchTab(1); // Skills, on the sword's slots
+		Screen->PressA();	  // its first slot's picker
+		if (!TestTrue(TEXT("the picker is a grid"), Screen->IsSkillGrid() && Screen->IsPickGrid() && !Screen->IsGridOpen())) return;
+		TArray<FLoadoutV2GridTile> Tiles = Screen->GetGridTiles();
+		if (!TestEqual(TEXT("Fits this slot: the sword skill only"), Tiles.Num(), 1)) return;
+		TestTrue(TEXT("its tile: the sword's picture, its tier, free"), Tiles[0].Icon.Kind == EWoRIconKind::WeaponType && Tiles[0].Icon.WeaponType == EWeaponType::Sword &&
+																		  Tiles[0].bHasTier && Tiles[0].Tier == EItemTier::E_Tier && !Tiles[0].bLocked && !Tiles[0].bWorn);
+		TestFalse(TEXT("on the tiles"), Screen->IsOnSkillFits());
+
+		Screen->MoveInDirection(0, -1);
+		TestTrue(TEXT("Up off the top row: the Fits / all selector"), Screen->IsOnSkillFits());
+		Screen->MoveInDirection(1, 0);
+		TestTrue(TEXT("Right: All learned, the keys stay on the selector"), Screen->IsSkillsAllLearned() && Screen->IsOnSkillFits());
+		Tiles = Screen->GetGridTiles();
+		if (!TestEqual(TEXT("both skills"), Tiles.Num(), 2)) return;
+		const int32 ChopTile = Tiles[0].Icon.WeaponType == EWeaponType::Axe ? 0 : 1;
+		TestTrue(TEXT("the axe skill locked, with its tier"), Tiles[ChopTile].bLocked && Tiles[ChopTile].Tier == EItemTier::S_Tier);
+		TestTrue(TEXT("the tabs: a sword and an axe"), Screen->GetGridTypes().Contains(EWeaponType::Sword) && Screen->GetGridTypes().Contains(EWeaponType::Axe));
+		Screen->MoveInDirection(0, 1);
+		TestFalse(TEXT("Down: back to the tiles"), Screen->IsOnSkillFits());
+		const int32 Before = Screen->GetSelected();
+		Screen->MoveInGrid(1, 0);
+		TestEqual(TEXT("Right moves one tile"), Screen->GetSelected(), Before + 1);
+
+		Screen->ClickGridTab(Screen->GetGridTypes().IndexOfByKey(EWeaponType::Axe) + 1);
+		Tiles = Screen->GetGridTiles();
+		TestTrue(TEXT("the axe tab: the axe skill alone, from the first tile"), Tiles.Num() == 1 && Tiles[0].Icon.WeaponType == EWeaponType::Axe && Screen->GetSelected() == 0);
+		Screen->CycleGridFilter(1);
+		TestEqual(TEXT("RB on past the last tab: All again"), Screen->GetGridTiles().Num(), 2);
+		Screen->PressBack();
+		TestTrue(TEXT("Back: the slots, no grid"), Screen->GetMode() == ELoadoutV2Mode::SkillRows && !Screen->IsPickGrid());
 	});
 }
 
