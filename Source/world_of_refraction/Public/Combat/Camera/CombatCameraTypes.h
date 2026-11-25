@@ -125,18 +125,24 @@ enum class ESkillCameraStyle : uint8
 {
 	/** Today's attack camera: wind-up, Cast, Impact / Spread. */
 	Standard UMETA(DisplayName = "Standard"),
-	/** A melee rush timed to the dash, a cut to the side two-shot on the hit, held. No Cast shot. */
+	/** A melee rush behind the attacker, a cut to a close three-quarter on the target as the dash ends, held; the hit
+	 *  punches there. With bRecutEachHit, each later hit re-cuts to the next of ComboRecutAngles (B-600i, E33). No Cast. */
 	MeleeRush UMETA(DisplayName = "Melee Rush"),
 	/** A cut to a low over-the-shoulder shot that holds; at the release a cut to a still side two-shot the projectile
-	 *  crosses; on the hit a quick FOV punch and a small shake, same shot. */
+	 *  crosses; on the hit a quick FOV punch and a small shake, same shot. With bHoldShoulderThroughHit, no release
+	 *  cut: the hit is seen from the shoulder shot (B-600i, E33). */
 	RangedRelease UMETA(DisplayName = "Ranged Release"),
 	/** A slow one-way push during the charge; a cut to a medium shot of the target at the hit, held (B-600h, E33). A
 	 *  blow that dashes in plays as Melee Rush (GetStyleForDash). */
 	HeavyWindUp UMETA(DisplayName = "Heavy Wind-Up"),
-	/** A wide, higher still shot of the attacker and every target, held throughout. */
+	/** A wide still shot, low to mid height, behind and beside the attacker (near-left), every target in frame, held
+	 *  throughout (B-600i, E33). */
 	AreaSweep UMETA(DisplayName = "Area Sweep"),
 	/** The skill's CameraSequence (a signature move); Standard's shots when it has none. */
-	Cinematic UMETA(DisplayName = "Cinematic")
+	Cinematic UMETA(DisplayName = "Cinematic"),
+	/** B-600i (E33 buffs and heals): a front shot of the caster at home, a slight orbit; with an ally besides the
+	 *  caster among the targets, a cut to a wide of the allies after SupportCasterSeconds. Never frames an enemy. */
+	Support UMETA(DisplayName = "Support")
 };
 
 /** B-371 (Q-371): per-skill tuning of the code-built shots, without Sequencer. A skill with its own CameraSequence
@@ -168,6 +174,15 @@ struct WORLD_OF_REFRACTION_API FSkillCameraTuning
 	 *  threat announced) instead of the over-the-shoulder push-in. No effect on a party member's skill. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
 	bool bNamedAttack = false;
+
+	/** B-600i (Q-600i; E33 combos cut to a new angle on almost every hit): Melee Rush re-cuts on each later hit. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
+	bool bRecutEachHit = true;
+
+	/** B-600i (Q-600i; E33 thrown and bolt skills): Ranged Release stays over the thrower's shoulder through the hit,
+	 *  with no cut at the release. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Camera")
+	bool bHoldShoulderThroughHit = false;
 };
 
 /** B-371: what a code-built shot needs to know about the action. */
@@ -182,6 +197,8 @@ struct WORLD_OF_REFRACTION_API FCameraShotContext
 	bool bCritical = false;
 	/** B-403 (study R5, R15): a melee wind-up may rush in. Off while camera movement is off: the slow push instead. */
 	bool bAllowRush = true;
+	/** B-600i: the other side's centre, for a shot that must face away from the targets (Support); unset: none known. */
+	TOptional<FVector> EnemyCentre;
 };
 
 /** B-371: one code-built shot: the camera moves from Start to End over BlendSeconds (a push-in when they differ). */
@@ -424,11 +441,27 @@ struct WORLD_OF_REFRACTION_API FCombatCameraRules
 	static float GetPunchedFieldOfView(const FCameraShot &Shot, float Elapsed);
 
 	/** B-600c: the shot cut to when the attacker's dash ends, before the swing (Context.Caster at the striking spot).
-	 *  Melee Rush: the side two-shot, still, no punch (the hit punches in it). B-604 (Q-604): an enemy's melee rush too
-	 *  (its style is Standard, Q-600): a rush camera timed to its dash met it at the lens. Unset for every other style and
-	 *  for a party member's Standard skill (it keeps its timed rush). */
+	 *  Melee Rush: the first hit's view (B-600i: the close three-quarter on the target), still, no punch (the hit
+	 *  punches in it). B-604 (Q-604): an enemy's melee rush too (its style is Standard, Q-600), on the side two-shot: a
+	 *  rush camera timed to its dash met it at the lens. Unset for every other style and for a party member's Standard
+	 *  skill (it keeps its timed rush). */
 	static TOptional<FCameraShot> ComputeArrivalShot(ESkillCameraStyle Style, bool bCasterIsEnemy, const FCameraShotContext &Context,
 													 const FSkillCameraTuning &Tuning);
+
+	/** B-600i (Q-600i, E33 section 7): Melee Rush's shot for its HitIndex-th hit (0 = the first), cut to and held, its
+	 *  punch passing. It cycles ComboRecutAngles: the close three-quarter on the target from the tuned side, the same
+	 *  from the other side, then the side two-shot. */
+	static FCameraShot ComputeComboHitShot(const FCameraShotContext &Context, const FSkillCameraTuning &Tuning, int32 HitIndex);
+	static constexpr int32 ComboRecutAngles = 3;
+	/** B-600i: a later hit of the playing pattern re-cuts (ComputeComboHitShot): Melee Rush with bRecutEachHit, and
+	 *  not on the frame of the last hit shown (several targets hit at once cut once). */
+	static bool RecutsOnLaterHit(ESkillCameraStyle Style, const FSkillCameraTuning &Tuning, bool bSameFrameAsLastHit);
+
+	/** B-600i (Q-600i, E33 party buffs): Support's wide of the allies (Context.Targets and the caster), from the
+	 *  enemies' side looking back, never past the enemies, so none is in frame. A cut, held, no punch. */
+	static FCameraShot ComputeSupportPartyShot(const FCameraShotContext &Context, const FSkillCameraTuning &Tuning);
+	/** B-600i (E33: 1 to 2 s): how long Support's front shot of the caster plays before the cut to the allies. */
+	static constexpr float SupportCasterSeconds = 1.5f;
 
 	/** B-600d (Q-600d): the skill's attacker starts its leap home. A party member's shots end there and, B-600g, the
 	 *  camera cuts to the hand-over wide, never holding on the target alone. An enemy's shots hold on the party member
