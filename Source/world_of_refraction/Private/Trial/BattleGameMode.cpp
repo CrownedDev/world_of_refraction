@@ -868,6 +868,7 @@ void ABattleGameMode::GrantFightDrops(UTrialRunSubsystem &TrialRun)
         if (bGiven)
         {
             DroppedLines.Add(WoRTrialPoolLook::GetDroppedLine(TrialDrops::MakeView(Drop)));
+            TrialRun.RecordItemFound(); // B-632: the Pause menu's Items found
             NoteDroppedDuplicate(TrialRun, *CharComp, Inventory, Drop);
         }
         else if (Inventory)

@@ -1731,6 +1731,8 @@ FSavedRun USaveSubsystem::CaptureRun(const UTrialRunSubsystem &TrialRun, int32 R
 	Saved.Difficulty = static_cast<uint8>(TrialRun.GetTrialDifficulty());
 	Saved.BeatenEncounters = TrialRun.GetBeatenEncounters().Array();
 	Saved.FoundFeatures = TrialRun.GetFoundFeatures();
+	Saved.ItemsFound = TrialRun.GetRunItemsFound(); // B-632
+	Saved.RunSeconds = TrialRun.GetRunSeconds();
 	for (const UMemoryData *Memory : TrialRun.GetRunMemories())
 	{
 		Saved.RunMemories.Add(FSavedAssetRef::Make(Memory));
@@ -1830,6 +1832,7 @@ bool USaveSubsystem::RestoreRun(const FSavedRun &Saved, UTrialRunSubsystem &Tria
 	TrialRun.RestoreRun(Trial, Saved.RunSeed, Saved.VariationIndex, Difficulty, Saved.BeatenEncounters,
 						Saved.FoundFeatures, Memories);
 	TrialRun.RestoreRunLosses(Saved.Wipes, Saved.MainBossLosses, Saved.LastRestSpot); // B-362
+	TrialRun.RestoreRunStats(Saved.ItemsFound, Saved.RunSeconds); // B-632: after RestoreRun cleared them
 	TrialRun.RestoreDrop(Saved.DroppedPrisms, Saved.bDropHasSpot, Saved.DropSpot); // B-362b, B-362c: with its spot
 	FRunPayout Tally; // B-073: the run's reward tally, still to be paid at its end
 	Tally.HubGold = Saved.TallyHubGold;

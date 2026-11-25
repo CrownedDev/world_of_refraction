@@ -411,6 +411,14 @@ struct WORLD_OF_REFRACTION_API FSavedRun
 	UPROPERTY()
 	int32 RunGold = 0;
 
+	/** B-632: the Pause menu's Items found and run time. An older save has no such fields and reads 0, a fresh count:
+	 *  no save version bump (as B-170e). */
+	UPROPERTY()
+	int32 ItemsFound = 0;
+
+	UPROPERTY()
+	double RunSeconds = 0.0;
+
 	/** B-362 (D-155, save v18): the run's party wipes and losses to the main boss, and the last rest spot used. */
 	UPROPERTY()
 	int32 Wipes = 0;
