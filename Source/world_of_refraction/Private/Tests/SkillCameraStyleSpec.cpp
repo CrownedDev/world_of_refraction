@@ -18,13 +18,24 @@ namespace
 	const FVector STYLE_TEST_SECOND_TARGET(800.0f, 400.0f, 0.0f);
 	constexpr float STYLE_TEST_MAX_CREEP = 30.0f;
 	constexpr float STYLE_TEST_PUNCH_RANGE = 1.0f;
-	constexpr float STYLE_TEST_LOW_CAMERA_HEIGHT = 100.0f; // a hero angle sits below the fighters' chests
+	constexpr float STYLE_TEST_LOW_CAMERA_HEIGHT = 100.0f; // a low camera sits below the fighters' heads
+	// B-600h: a medium shot of the target (a fighter 2 x 90 cm tall) fills about a third to a half of the frame.
+	constexpr float STYLE_TEST_HALF_HEIGHT = 90.0f;
+	constexpr float STYLE_TEST_MEDIUM_MIN_SHARE = 0.3f;
+	constexpr float STYLE_TEST_MEDIUM_MAX_SHARE = 0.6f;
+	// B-600h (B-595c QA): Heavy Attack, a ritual that dashes about 7 m on its fire turn.
+	const TCHAR *const STYLE_TEST_HEAVY_ATTACK = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_HeavyStrike.DA_Sword_Abilities_HeavyStrike");
+	const FVector STYLE_TEST_DASH_TARGET(850.0f, 0.0f, 0.0f);
 	const FVector STYLE_TEST_STRIKE_SPOT(650.0f, 0.0f, 0.0f);	   // B-600c: where a melee dash ends, in reach of the target
 	constexpr float STYLE_TEST_MIN_LENS_DISTANCE = 250.0f;		   // B-600c: the attacker never fills the lens
 	// B-604b: the test trial enemy's real skills (BP_Enemy_Generic in the B-604 check).
 	const TCHAR *const STYLE_TEST_WRATH_CUT = TEXT("/Game/Data/Pool/Generic/Weapons/Sword/Slash/Abilities/DA_Sword_Ability_WrathCut.DA_Sword_Ability_WrathCut");
 	const TCHAR *const STYLE_TEST_LUNGE = TEXT("/Game/Data/Skills/Weapons/Sword/Abilities/DA_Sword_Abilities_Lunge.DA_Sword_Abilities_Lunge");
 	constexpr float STYLE_TEST_TURN_BEFORE_HIT = 0.25f; // B-604b check: the next turn started up to 0.25 s before the hit
+	// B-604d: the defend camera stands this far off the fighters' line at least; a fighter's height and its weapon's reach (cm).
+	constexpr float STYLE_TEST_SIDE_ON_DEGREES = 45.0f;
+	constexpr float STYLE_TEST_BODY_HEIGHT = 180.0f;
+	constexpr float STYLE_TEST_WEAPON_REACH = 120.0f;
 
 	FCameraShotContext StyleTestContext()
 	{
@@ -175,11 +186,12 @@ void FSkillCameraStyleSpec::Define()
 				 FMath::IsNearlyZero(FCombatCameraRules::GetDefendTurnWait(false, false, 0.0f).Get(-1.0f)));
 	});
 
-	It("B-604b: the enemy's real Wrath Cut and Lunge play the defend camera: behind the defender, the enemy in front, clear of the lens", [this]()
+	It("B-604d (Q-604d): the enemy's real Wrath Cut and Lunge play the defend camera side-on: both whole bodies and the weapon in view, clear of the lens", [this]()
 	{
 		// The enemy at its start (StyleTestContext's caster), the one party member it attacks at STYLE_TEST_TARGET.
 		const FVector Enemy = StyleTestContext().Caster;
 		const FVector Defender = STYLE_TEST_TARGET;
+		const FVector Axis = (Enemy - Defender).GetSafeNormal2D();
 		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_LUNGE})
 		{
 			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
@@ -187,33 +199,66 @@ void FSkillCameraStyleSpec::Define()
 			{
 				continue;
 			}
-			// StartShotPattern's path for an enemy caster with one party target.
+			// StartShotPattern's path for an enemy caster with party targets only.
 			const ECameraShotMoment Opening = FCombatCameraRules::OpeningMomentFor(Skill->CameraTuning, /*bCasterIsEnemy=*/true);
 			TestTrue(FString::Printf(TEXT("%s: the enemy's attack plays the defend camera"), *Skill->Name),
-					 FCombatCameraRules::UsesDefendCamera(/*bCasterIsEnemy=*/true, Opening, /*bOnePartyTarget=*/true));
+					 FCombatCameraRules::UsesDefendCamera(/*bCasterIsEnemy=*/true, Opening, /*bOnlyPartyTargets=*/true));
 
-			const FCameraShot Shot = FCombatCameraRules::ComputeDefendShot(Defender, Enemy);
+			const FCameraShot Shot = FCombatCameraRules::ComputeDefendShot({Defender}, Enemy);
 			const FVector Lens = Shot.End.GetLocation();
 			const FVector Strike = ApproachWarp::GetStrikePosition(Enemy, Defender, Skill->ExecutionRange); // where a dash would end
 			const FString Name = Skill->Name;
 			TestTrue(Name + TEXT(": a cut that holds (through the hit), no rush blur"), Shot.bCut && IsStill(Shot) && FMath::IsNearlyZero(Shot.MotionBlur));
-			TestTrue(Name + TEXT(": behind the defender: the defender stands between the lens and the enemy"),
-					 FVector::DotProduct(Defender - Lens, (Enemy - Lens).GetSafeNormal2D()) > 0.0f &&
-						 FVector::Dist2D(Lens, Defender) < FVector::Dist2D(Lens, Strike));
+			const FVector FromMiddle = (Lens - (Defender + Strike) * 0.5f).GetSafeNormal2D();
+			TestTrue(FString::Printf(TEXT("%s: side-on, not behind either fighter (at least %.0f degrees off their line)"), *Name, STYLE_TEST_SIDE_ON_DEGREES),
+					 FMath::Abs(FVector::DotProduct(FromMiddle, Axis)) < FMath::Cos(FMath::DegreesToRadians(STYLE_TEST_SIDE_ON_DEGREES)));
 			TestTrue(FString::Printf(TEXT("%s: low (below %.0f cm over the defender)"), *Name, STYLE_TEST_LOW_CAMERA_HEIGHT), Lens.Z < Defender.Z + STYLE_TEST_LOW_CAMERA_HEIGHT);
 			for (const FVector &EnemyAt : {Enemy, Strike})
 			{
+				const FVector Weapon = EnemyAt - Axis * STYLE_TEST_WEAPON_REACH + FVector::UpVector * STYLE_TEST_BODY_HEIGHT * 0.5f; // swung at the defender
 				TestTrue(FString::Printf(TEXT("%s: the enemy at %s at least %.0f cm from the lens"), *Name, *EnemyAt.ToCompactString(), STYLE_TEST_MIN_LENS_DISTANCE),
 						 FVector::Dist(Lens, EnemyAt) >= STYLE_TEST_MIN_LENS_DISTANCE);
-				TestTrue(FString::Printf(TEXT("%s: the enemy at %s and the defender both in frame"), *Name, *EnemyAt.ToCompactString()),
-						 CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, EnemyAt) &&
-							 CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Defender));
+				bool bWhole = CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Weapon);
+				for (const FVector &Feet : {EnemyAt, Defender})
+				{
+					bWhole &= CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet) &&
+							  CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet + FVector::UpVector * STYLE_TEST_BODY_HEIGHT);
+				}
+				TestTrue(FString::Printf(TEXT("%s: the enemy at %s, its weapon and the defender all whole in frame"), *Name, *EnemyAt.ToCompactString()), bWhole);
 			}
 		}
 		TestFalse(TEXT("a party member's attack keeps the attack camera (its style)"),
 				  FCombatCameraRules::UsesDefendCamera(false, ECameraShotMoment::WindUp, true));
 		TestFalse(TEXT("an enemy's named attack keeps its front shot (B-406)"), FCombatCameraRules::UsesDefendCamera(true, ECameraShotMoment::NamedAttack, true));
-		TestFalse(TEXT("an enemy at several targets, or at its own side: today's shots"), FCombatCameraRules::UsesDefendCamera(true, ECameraShotMoment::WindUp, false));
+		TestFalse(TEXT("an enemy at its own side: today's shots"), FCombatCameraRules::UsesDefendCamera(true, ECameraShotMoment::WindUp, false));
+	});
+
+	It("B-604d (Q-604d): an enemy's hit on the whole party goes wide: every party member and the enemy whole in frame", [this]()
+	{
+		const FVector Enemy = StyleTestContext().Caster;
+		const TArray<FVector> Party = {STYLE_TEST_TARGET, STYLE_TEST_SECOND_TARGET, STYLE_TEST_TARGET - (STYLE_TEST_SECOND_TARGET - STYLE_TEST_TARGET)};
+		const FCameraShot Wide = FCombatCameraRules::ComputeDefendShot(Party, Enemy);
+		const FCameraShot Two = FCombatCameraRules::ComputeDefendShot({Party[0]}, Enemy);
+		TestTrue(TEXT("a cut that holds"), Wide.bCut && IsStill(Wide));
+		TestTrue(TEXT("the Defence hand-off's own wide view (one framing for the whole attack)"),
+				 Wide.End.Equals(FCombatCameraRules::ComputeDefenceView(Party, Enemy)));
+		bool bWhole = true;
+		TArray<FVector> Fighters = Party;
+		Fighters.Add(Enemy);
+		for (const FVector &Feet : Fighters)
+		{
+			bWhole &= CameraFraming::IsOnScreen(Wide.End, Wide.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet) &&
+					  CameraFraming::IsOnScreen(Wide.End, Wide.FieldOfView, CameraFraming::DEFAULT_ASPECT, Feet + FVector::UpVector * STYLE_TEST_BODY_HEIGHT);
+		}
+		TestTrue(TEXT("every party member and the enemy whole in frame"), bWhole);
+		FVector WideCentre = FVector::ZeroVector;
+		for (const FVector &Fighter : Fighters)
+		{
+			WideCentre += Fighter / Fighters.Num();
+		}
+		const FVector TwoCentre = (Party[0] + Enemy) * 0.5f;
+		TestTrue(TEXT("further back from its fighters than the one-defender two-shot from its two"),
+				 FVector::Dist2D(Wide.End.GetLocation(), WideCentre) > FVector::Dist2D(Two.End.GetLocation(), TwoCentre));
 	});
 
 	It("B-600d: a party member's leap home leaves its shot; an enemy's keeps its shot", [this]()
@@ -239,9 +284,9 @@ void FSkillCameraStyleSpec::Define()
 		{
 			const FString Name = UEnum::GetValueAsString(Style);
 			const FTurnChangePlan Leap = FCombatCameraRules::PlanLeapHome(Style, HomeFrame);
-			const FTurnChangePlan Beat = FCombatCameraRules::PlanTurnChange(true, false, ECombatCameraMode::Turn, Style, HomeFrame);
-			TestTrue(Name + TEXT(": the next beat's own view and blend"),
-					 Leap.WideView.Equals(Beat.WideView) && FMath::IsNearlyEqual(Leap.BeatBlendSeconds, Beat.BeatBlendSeconds) && Leap.BeatBlendSeconds > 0.0f);
+			const FTurnChangePlan Beat = FCombatCameraRules::PlanTurnChange(true, ECombatCameraMode::Turn, Style, HomeFrame);
+			TestTrue(Name + TEXT(": the next beat's own view, a hard cut (B-600g, E33)"),
+					 Leap.WideView.Equals(Beat.WideView) && FMath::IsNearlyZero(Leap.BeatBlendSeconds) && FMath::IsNearlyZero(Beat.BeatBlendSeconds));
 			const FTransform &View = Leap.WideView;
 			TestTrue(Name + TEXT(": the lens behind the home spot (the leap comes toward it but never past it)"),
 					 FVector::DotProduct(Home - View.GetLocation(), HomeFrame.TowardEnemies) > STYLE_TEST_MIN_LENS_DISTANCE);
@@ -258,6 +303,68 @@ void FSkillCameraStyleSpec::Define()
 					 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET) &&
 						 CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Ally));
 		}
+	});
+
+	It("B-600f (Q-600f): the leap home is followed into the attacker's own turn view at home: low behind it, the whole leap in frame", [this]()
+	{
+		const FVector Home = FVector::ZeroVector; // StyleTestContext's caster
+		FCombatCameraFrame HomeFrame;
+		HomeFrame.Focus = Home;
+		HomeFrame.TowardEnemies = (STYLE_TEST_TARGET - Home).GetSafeNormal2D();
+		HomeFrame.EnemyCentre = STYLE_TEST_TARGET;
+		HomeFrame.ArenaCentre = (Home + STYLE_TEST_TARGET) * 0.5f;
+		for (const ETurnViewStyle Style : {ETurnViewStyle::CentredWide, ETurnViewStyle::OverTheShoulder, ETurnViewStyle::Tactical})
+		{
+			const FString Name = UEnum::GetValueAsString(Style);
+			const FTransform View = FCombatCameraRules::ComputeTurnView(Style, HomeFrame); // what the director follows into
+			const float Behind = FVector::DotProduct(Home - View.GetLocation(), HomeFrame.TowardEnemies);
+			if (Style == ETurnViewStyle::Tactical)
+			{
+				TestTrue(Name + TEXT(": side-on (the leap crosses the frame, never toward the lens)"),
+						 FMath::Abs(Behind) < FVector::Dist2D(Home, View.GetLocation()) * 0.5f);
+			}
+			else
+			{
+				TestTrue(Name + TEXT(": the lens behind the home spot (the leap comes toward it but stops short)"), Behind > 0.0f);
+			}
+			bool bLeapInFrame = true;
+			constexpr float LEAP_SAMPLE_STEP = 0.25f; // strike spot, three points on the way, home
+			for (float Alpha = 0.0f; Alpha <= 1.0f; Alpha += LEAP_SAMPLE_STEP)
+			{
+				const FVector Leaping = FMath::Lerp(STYLE_TEST_STRIKE_SPOT, Home, Alpha);
+				bLeapInFrame &= CameraFraming::IsOnScreen(View, FCombatCameraRules::DefaultFieldOfView, CameraFraming::DEFAULT_ASPECT, Leaping) &&
+								FVector::Dist(View.GetLocation(), Leaping) >= STYLE_TEST_MIN_LENS_DISTANCE;
+			}
+			TestTrue(Name + TEXT(": the attacker in frame from the strike spot to home, never at the lens"), bLeapInFrame);
+		}
+	});
+
+	It("B-600f: the follow lasts the real return leg (its length at its rate); a fallback with no montage", [this]()
+	{
+		for (const TCHAR *Path : {STYLE_TEST_WRATH_CUT, STYLE_TEST_LUNGE, STYLE_TEST_HEAVY_ATTACK})
+		{
+			const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, Path);
+			const UAnimMontage *Montage = Skill ? (Skill->ReturnMontage ? Skill->ReturnMontage : Skill->SkillMontage) : nullptr;
+			if (!TestNotNull(FString::Printf(TEXT("%s has a montage"), Path), Montage))
+			{
+				continue;
+			}
+			const float Length = Montage->GetPlayLength();
+			TestTrue(FString::Printf(TEXT("%s: its length at rate 1"), Path),
+					 Length > 0.0f && FMath::IsNearlyEqual(FCombatCameraRules::GetFollowHomeSeconds(Montage, 1.0f), Length));
+			TestTrue(FString::Printf(TEXT("%s: half at rate 2"), Path), FMath::IsNearlyEqual(FCombatCameraRules::GetFollowHomeSeconds(Montage, 2.0f), Length * 0.5f));
+		}
+		TestEqual(TEXT("no return montage playing: the fallback"), FCombatCameraRules::GetFollowHomeSeconds(nullptr, 1.0f),
+				  FCombatCameraRules::FollowHomeFallbackSeconds);
+	});
+
+	It("B-600f: the next fighter's view waits ActionEndHoldSeconds after a party member's skill with shots, else not at all", [this]()
+	{
+		TestTrue(TEXT("a party member's skill with shots: the hold"),
+				 FCombatCameraRules::GetActionEndHold(/*bPartyCaster=*/true, /*bPlayedShots=*/true) == FCombatCameraRules::ActionEndHoldSeconds &&
+					 FCombatCameraRules::ActionEndHoldSeconds > 0.0f);
+		TestEqual(TEXT("an enemy's skill: the defend camera's own wait (B-604c), not this"), FCombatCameraRules::GetActionEndHold(false, true), 0.0f);
+		TestEqual(TEXT("no shots (an item, End Turn, cinematics or movement off): none"), FCombatCameraRules::GetActionEndHold(true, false), 0.0f);
 	});
 
 	It("Ranged Release: a held shoulder shot, a cut to a still two-shot at the release, a punch in place on the hit", [this, Tuning]()
@@ -287,7 +394,7 @@ void FSkillCameraStyleSpec::Define()
 		}
 	});
 
-	It("Heavy Wind-Up: a slow one-way push, no Cast shot, a cut to a held low hero angle on the hit", [this, Tuning]()
+	It("Heavy Wind-Up: a slow one-way push, no Cast shot, a cut to a held medium shot of the target on the hit (B-600h, E33)", [this, Tuning]()
 	{
 		const FCameraShotContext Context = StyleTestContext();
 		const TOptional<FCameraShot> WindUp = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::WindUp, Context, Tuning);
@@ -298,9 +405,58 @@ void FSkillCameraStyleSpec::Define()
 		TestFalse(TEXT("no Cast shot"), FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::Cast, Context, Tuning).IsSet());
 		const TOptional<FCameraShot> Hit = FCombatCameraRules::ComputeStyledShot(ESkillCameraStyle::HeavyWindUp, ECameraShotMoment::Impact, Context, Tuning);
 		TestTrue(TEXT("the hit cuts and holds"), Hit.IsSet() && Hit->bCut && IsStill(*Hit));
-		TestTrue(TEXT("low, looking up"), Hit.IsSet() && Hit->End.GetLocation().Z - Context.Caster.Z < STYLE_TEST_LOW_CAMERA_HEIGHT && Hit->End.GetRotation().Rotator().Pitch > 0.0f);
-		TestTrue(TEXT("both fighters in frame"), Hit.IsSet() && CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, Context.Caster) &&
-													 CameraFraming::IsOnScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET));
+		if (!Hit.IsSet())
+		{
+			return;
+		}
+		// B-600h (E33 section 7: a spell's hit cuts to a medium shot of the target; it replaces B-600's low hero angle).
+		const FVector Up = FVector::UpVector * STYLE_TEST_HALF_HEIGHT;
+		FVector2D Centre, Head, Feet;
+		const bool bProjected = CameraFraming::ProjectToScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET, Centre) &&
+								CameraFraming::ProjectToScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET + Up, Head) &&
+								CameraFraming::ProjectToScreen(Hit->End, Hit->FieldOfView, CameraFraming::DEFAULT_ASPECT, STYLE_TEST_TARGET - Up, Feet);
+		const float Share = static_cast<float>(Head.Y - Feet.Y) * 0.5f;
+		const FString Where = FString::Printf(TEXT("target %s, %.2f of the frame"), *CameraFraming::GetThirdsCell(Centre), Share);
+		TestTrue(FString::Printf(TEXT("the target in the middle band (%s)"), *Where),
+				 bProjected && FMath::Abs(Centre.X) <= CameraFraming::THIRD_LINE && FMath::Abs(Centre.Y) <= CameraFraming::THIRD_LINE);
+		TestTrue(FString::Printf(TEXT("a medium shot: the whole target, %.2f to %.2f of the frame (%s)"), STYLE_TEST_MEDIUM_MIN_SHARE, STYLE_TEST_MEDIUM_MAX_SHARE, *Where),
+				 bProjected && Share >= STYLE_TEST_MEDIUM_MIN_SHARE && Share <= STYLE_TEST_MEDIUM_MAX_SHARE);
+		const FVector ToCaster = (Context.Caster - STYLE_TEST_TARGET).GetSafeNormal2D();
+		TestTrue(TEXT("from the caster's side of the target"), FVector::DotProduct(Hit->End.GetLocation() - STYLE_TEST_TARGET, ToCaster) > 0.0f);
+		TestTrue(TEXT("about chest height"), FMath::Abs(Hit->End.GetLocation().Z - STYLE_TEST_TARGET.Z) < STYLE_TEST_LOW_CAMERA_HEIGHT);
+		TestTrue(TEXT("its punch passes (FOV back to the default)"), Hit->FovPunch > 0.0f && FMath::IsNearlyEqual(Hit->FieldOfView, FCombatCameraRules::DefaultFieldOfView));
+	});
+
+	It("B-600h: a Heavy Wind-Up blow that dashes in plays as Melee Rush; nothing else changes", [this]()
+	{
+		TestEqual(TEXT("Heavy Wind-Up that dashes: Melee Rush (the rush, the cut as the dash ends)"),
+				  FCombatCameraRules::GetStyleForDash(ESkillCameraStyle::HeavyWindUp, true), ESkillCameraStyle::MeleeRush);
+		TestEqual(TEXT("Heavy Wind-Up in place: its own push and target shot"), FCombatCameraRules::GetStyleForDash(ESkillCameraStyle::HeavyWindUp, false),
+				  ESkillCameraStyle::HeavyWindUp);
+		for (const ESkillCameraStyle Style : {ESkillCameraStyle::Standard, ESkillCameraStyle::MeleeRush, ESkillCameraStyle::RangedRelease, ESkillCameraStyle::AreaSweep,
+											  ESkillCameraStyle::Cinematic})
+		{
+			for (const bool bDashes : {false, true})
+			{
+				TestEqual(FString::Printf(TEXT("%s, dash %d: unchanged"), *UEnum::GetValueAsString(Style), bDashes), FCombatCameraRules::GetStyleForDash(Style, bDashes), Style);
+			}
+		}
+	});
+
+	It("B-600h: the real Heavy Attack is a Heavy Wind-Up ritual whose fire-turn montage dashes, so its fire turn plays as Melee Rush", [this]()
+	{
+		const USkillDataBase *Skill = LoadObject<USkillDataBase>(nullptr, STYLE_TEST_HEAVY_ATTACK);
+		if (!TestNotNull(TEXT("Heavy Attack loads (renamed? point this case at it)"), Skill) || !TestNotNull(TEXT("its fire-turn montage"), Skill->SkillMontage))
+		{
+			return;
+		}
+		TestEqual(TEXT("Heavy Wind-Up style"), Skill->CameraStyle, ESkillCameraStyle::HeavyWindUp);
+		TestNotNull(TEXT("a ritual: the wind-up turn plays its own montage first"), Skill->RitualCastMontage);
+		const FVector Strike = ApproachWarp::GetStrikePosition(FVector::ZeroVector, STYLE_TEST_DASH_TARGET, Skill->ExecutionRange);
+		const FApproachBurst Burst = ApproachWarp::Measure(Skill->SkillMontage, static_cast<float>(FVector::Dist2D(FVector::ZeroVector, Strike)), 1.0f,
+														   ApproachWarp::GetApproachBurstSeconds());
+		TestTrue(FString::Printf(TEXT("its fire-turn montage dashes %.0f cm (%s)"), FVector::Dist2D(FVector::ZeroVector, Strike), *Burst.ToString()), Burst.bHasWindow);
+		TestEqual(TEXT("so its fire turn plays as Melee Rush"), FCombatCameraRules::GetStyleForDash(Skill->CameraStyle, Burst.bHasWindow), ESkillCameraStyle::MeleeRush);
 	});
 
 	It("Area Sweep: one wide still shot of the attacker and every target, held through the hit", [this, Tuning]()
