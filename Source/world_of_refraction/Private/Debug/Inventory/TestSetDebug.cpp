@@ -169,7 +169,14 @@ namespace
 			EItemTier *Owned = Weapon ? &Weapon->Tier : Ring ? &Ring->Tier : nullptr;
 			if (Owned && *Owned != Tier)
 			{
-				Raised.Add(Weapon ? Weapon->Weapon->Name : Ring->Ring->Name);
+				if (Weapon)
+				{
+					Raised.Add(Weapon->Weapon ? Weapon->Weapon->Name : TEXT("?"));
+				}
+				else
+				{
+					Raised.Add(Ring->Ring ? Ring->Ring->Name : TEXT("?"));
+				}
 				*Owned = Tier;
 				Changed.Add(ID);
 			}
@@ -191,6 +198,11 @@ namespace
 			{
 				Stored->Tier = Tier;
 			}
+		}
+		// The loadouts' copies of a worn evolution take the new tier too (a refused or skipped kit leaves them in place).
+		for (const FGuid &ID : EvolutionIDs)
+		{
+			Inventory.RefreshEvolutionInLoadouts(ID);
 		}
 		Lines.Add(FString::Printf(TEXT("tier %s: %s"), *UEnum::GetValueAsString(Tier), Raised.IsEmpty() ? TEXT("every piece already") : *FString::Join(Raised, TEXT(", "))));
 	}
