@@ -1,0 +1,1641 @@
+{
+ "note": "B-626b picked infusion looks, read from TestLevel_Encounter 2026-11-25 (unsaved scratch systems in /Game/QA_Scratch/B626/). Weapon picks: see docs/Design/InfusionVisualDefaults.md.",
+ "looks": {
+  "Fire": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_FireOrbs.NS_Aura25_FireOrbs",
+    "vars": {
+     "Color_Plane1": [
+      10,
+      0.1,
+      0,
+      1
+     ],
+     "Color_Plane2": [
+      1,
+      0.01,
+      0,
+      30
+     ],
+     "Color_Ray": [
+      1,
+      0.01,
+      0,
+      0.3
+     ],
+     "Color_Sparks1": [
+      20,
+      0.2,
+      0,
+      1
+     ],
+     "Color_Wave1": [
+      1,
+      0.01,
+      0,
+      1
+     ],
+     "Color_Wave2": [
+      1,
+      0.01,
+      0,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 1,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 0,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_35"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_FireOrbs.NS_Aura25_FireOrbs",
+    "vars": {
+     "Color_Plane1": [
+      10,
+      0.1,
+      0,
+      1
+     ],
+     "Color_Plane2": [
+      1,
+      0.01,
+      0,
+      30
+     ],
+     "Color_Ray": [
+      1,
+      0.01,
+      0,
+      0.3
+     ],
+     "Color_Sparks1": [
+      20,
+      0.2,
+      0,
+      1
+     ],
+     "Color_Wave1": [
+      1,
+      0.01,
+      0,
+      1
+     ],
+     "Color_Wave2": [
+      1,
+      0.01,
+      0,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 1.6,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 0,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_45"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_FireOrbs.NS_Aura25_FireOrbs",
+    "vars": {
+     "Color_Plane1": [
+      10,
+      0.1,
+      0,
+      1
+     ],
+     "Color_Plane2": [
+      1,
+      0.01,
+      0,
+      30
+     ],
+     "Color_Ray": [
+      1,
+      0.01,
+      0,
+      0.3
+     ],
+     "Color_Sparks1": [
+      20,
+      0.2,
+      0,
+      1
+     ],
+     "Color_Wave1": [
+      1,
+      0.01,
+      0,
+      1
+     ],
+     "Color_Wave2": [
+      1,
+      0.01,
+      0,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 0.2,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 0,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_55"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_FireOrbs.NS_Aura25_FireOrbs",
+    "vars": {
+     "Color_Plane1": [
+      10,
+      0.1,
+      0,
+      1
+     ],
+     "Color_Plane2": [
+      1,
+      0.01,
+      0,
+      30
+     ],
+     "Color_Ray": [
+      1,
+      0.01,
+      0,
+      0.3
+     ],
+     "Color_Sparks1": [
+      20,
+      0.2,
+      0,
+      1
+     ],
+     "Color_Wave1": [
+      1,
+      0.01,
+      0,
+      1
+     ],
+     "Color_Wave2": [
+      1,
+      0.01,
+      0,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 0.32,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 0,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_65"
+   }
+  },
+  "Water": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Water_Loop.NS_Body_Water_Loop",
+    "vars": {
+     "Color_Bubble": [
+      0,
+      0.785,
+      5,
+      1
+     ],
+     "Color_Smoke1": [
+      0,
+      0.157,
+      1,
+      1
+     ],
+     "Color_Sparks1": [
+      0,
+      1.57,
+      10,
+      1
+     ],
+     "Color_Spiral": [
+      0,
+      1.57,
+      10,
+      1
+     ],
+     "Color_Wave1": [
+      0,
+      0.157,
+      1,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1,
+     "Scale_Bubble1": 1,
+     "Scale_Smoke1": 1,
+     "Scale_Sparks1": 0,
+     "Scale_Spiral": 0,
+     "Scale_Wave1": 1,
+     "Shape_Bubble1": 1,
+     "Shape_Smoke1": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Bubble1": 1,
+     "Velocity_Smoke1": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_36"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Water_Loop.NS_Body_Water_Loop",
+    "vars": {
+     "Color_Bubble": [
+      0,
+      0.785,
+      5,
+      1
+     ],
+     "Color_Smoke1": [
+      0,
+      0.157,
+      1,
+      1
+     ],
+     "Color_Sparks1": [
+      0,
+      1.57,
+      10,
+      1
+     ],
+     "Color_Spiral": [
+      0,
+      1.57,
+      10,
+      1
+     ],
+     "Color_Wave1": [
+      0,
+      0.157,
+      1,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1.6,
+     "Scale_Bubble1": 1,
+     "Scale_Smoke1": 1,
+     "Scale_Sparks1": 0,
+     "Scale_Spiral": 0,
+     "Scale_Wave1": 1,
+     "Shape_Bubble1": 1,
+     "Shape_Smoke1": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Bubble1": 1.5,
+     "Velocity_Smoke1": 1.5,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_46"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Water_Loop.NS_Body_Water_Loop",
+    "vars": {
+     "Color_Bubble": [
+      0,
+      0.785,
+      5,
+      1
+     ],
+     "Color_Smoke1": [
+      0,
+      0.157,
+      1,
+      1
+     ],
+     "Color_Sparks1": [
+      0,
+      1.57,
+      10,
+      1
+     ],
+     "Color_Spiral": [
+      0,
+      1.57,
+      10,
+      1
+     ],
+     "Color_Wave1": [
+      0,
+      0.157,
+      1,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.2,
+     "Scale_Bubble1": 1,
+     "Scale_Smoke1": 1,
+     "Scale_Sparks1": 0,
+     "Scale_Spiral": 0,
+     "Scale_Wave1": 0,
+     "Shape_Bubble1": 1,
+     "Shape_Smoke1": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Bubble1": 1,
+     "Velocity_Smoke1": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_56"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Water_Loop.NS_Body_Water_Loop",
+    "vars": {
+     "Color_Bubble": [
+      0,
+      0.785,
+      5,
+      1
+     ],
+     "Color_Smoke1": [
+      0,
+      0.157,
+      1,
+      1
+     ],
+     "Color_Sparks1": [
+      0,
+      1.57,
+      10,
+      1
+     ],
+     "Color_Spiral": [
+      0,
+      1.57,
+      10,
+      1
+     ],
+     "Color_Wave1": [
+      0,
+      0.157,
+      1,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.32,
+     "Scale_Bubble1": 1,
+     "Scale_Smoke1": 1,
+     "Scale_Sparks1": 0,
+     "Scale_Spiral": 0,
+     "Scale_Wave1": 0,
+     "Shape_Bubble1": 1,
+     "Shape_Smoke1": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Bubble1": 1.5,
+     "Velocity_Smoke1": 1.5,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_66"
+   }
+  },
+  "Wind": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Wind_Loop.NS_Body_Wind_Loop",
+    "vars": {
+     "Color_Sparks1": [
+      0,
+      10,
+      3.59,
+      1
+     ],
+     "Color_Sparks2": [
+      0,
+      1,
+      0.359,
+      1
+     ],
+     "Color_Spiral1": [
+      0,
+      10,
+      3.59,
+      1
+     ],
+     "Color_Spiral2": [
+      0,
+      2,
+      0.718,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1,
+     "Scale_Sparks1": 0,
+     "Scale_Sparks2": 0,
+     "Scale_Spiral1": 1,
+     "Scale_Spiral2": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Shape_Spiral1": 1,
+     "Velocity_Sparks1": 1,
+     "Velocity_Sparks2": 1,
+     "Velocity_Spiral2": 1
+    },
+    "level_actor": "NiagaraActor_37"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Wind_Loop.NS_Body_Wind_Loop",
+    "vars": {
+     "Color_Sparks1": [
+      0,
+      10,
+      3.59,
+      1
+     ],
+     "Color_Sparks2": [
+      0,
+      1,
+      0.359,
+      1
+     ],
+     "Color_Spiral1": [
+      0,
+      10,
+      3.59,
+      1
+     ],
+     "Color_Spiral2": [
+      0,
+      2,
+      0.718,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1.6,
+     "Scale_Sparks1": 0,
+     "Scale_Sparks2": 0,
+     "Scale_Spiral1": 1,
+     "Scale_Spiral2": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Shape_Spiral1": 1,
+     "Velocity_Sparks1": 1.5,
+     "Velocity_Sparks2": 1.5,
+     "Velocity_Spiral2": 1.5
+    },
+    "level_actor": "NiagaraActor_47"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Wind_Loop.NS_Body_Wind_Loop",
+    "vars": {
+     "Color_Sparks1": [
+      0,
+      10,
+      3.59,
+      1
+     ],
+     "Color_Sparks2": [
+      0,
+      1,
+      0.359,
+      1
+     ],
+     "Color_Spiral1": [
+      0,
+      10,
+      3.59,
+      1
+     ],
+     "Color_Spiral2": [
+      0,
+      2,
+      0.718,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.2,
+     "Scale_Sparks1": 0,
+     "Scale_Sparks2": 0,
+     "Scale_Spiral1": 1,
+     "Scale_Spiral2": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Shape_Spiral1": 1,
+     "Velocity_Sparks1": 1,
+     "Velocity_Sparks2": 1,
+     "Velocity_Spiral2": 1
+    },
+    "level_actor": "NiagaraActor_57"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Wind_Loop.NS_Body_Wind_Loop",
+    "vars": {
+     "Color_Sparks1": [
+      0,
+      10,
+      3.59,
+      1
+     ],
+     "Color_Sparks2": [
+      0,
+      1,
+      0.359,
+      1
+     ],
+     "Color_Spiral1": [
+      0,
+      10,
+      3.59,
+      1
+     ],
+     "Color_Spiral2": [
+      0,
+      2,
+      0.718,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.32,
+     "Scale_Sparks1": 0,
+     "Scale_Sparks2": 0,
+     "Scale_Spiral1": 1,
+     "Scale_Spiral2": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Shape_Spiral1": 1,
+     "Velocity_Sparks1": 1.5,
+     "Velocity_Sparks2": 1.5,
+     "Velocity_Spiral2": 1.5
+    },
+    "level_actor": "NiagaraActor_67"
+   }
+  },
+  "Lightning": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Lightning_Loop.NS_Body_Lightning_Loop",
+    "vars": {
+     "Color_Smoke1": [
+      1,
+      0.133,
+      0,
+      3
+     ],
+     "Color_Sparks1": [
+      10,
+      1.33,
+      0,
+      1
+     ],
+     "Color_Sparks2": [
+      30,
+      3.99,
+      0,
+      1
+     ],
+     "Duration": 3,
+     "Scale_All": 1,
+     "Scale_Smoke1": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 0,
+     "Shape_Smoke1": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Sparks1": 1,
+     "Velocity_Sparks2": 1
+    },
+    "level_actor": "NiagaraActor_38"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Lightning_Loop.NS_Body_Lightning_Loop",
+    "vars": {
+     "Color_Smoke1": [
+      1,
+      0.133,
+      0,
+      3
+     ],
+     "Color_Sparks1": [
+      10,
+      1.33,
+      0,
+      1
+     ],
+     "Color_Sparks2": [
+      30,
+      3.99,
+      0,
+      1
+     ],
+     "Duration": 3,
+     "Scale_All": 1.6,
+     "Scale_Smoke1": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 0,
+     "Shape_Smoke1": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Sparks1": 1.5,
+     "Velocity_Sparks2": 1.5
+    },
+    "level_actor": "NiagaraActor_48"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Lightning_Loop.NS_Body_Lightning_Loop",
+    "vars": {
+     "Color_Smoke1": [
+      1,
+      0.133,
+      0,
+      3
+     ],
+     "Color_Sparks1": [
+      10,
+      1.33,
+      0,
+      1
+     ],
+     "Color_Sparks2": [
+      30,
+      3.99,
+      0,
+      1
+     ],
+     "Duration": 3,
+     "Scale_All": 0.3,
+     "Scale_Smoke1": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 0,
+     "Shape_Smoke1": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Sparks1": 1,
+     "Velocity_Sparks2": 1
+    },
+    "level_actor": "NiagaraActor_58"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Body_Lightning_Loop.NS_Body_Lightning_Loop",
+    "vars": {
+     "Color_Smoke1": [
+      1,
+      0.133,
+      0,
+      3
+     ],
+     "Color_Sparks1": [
+      10,
+      1.33,
+      0,
+      1
+     ],
+     "Color_Sparks2": [
+      30,
+      3.99,
+      0,
+      1
+     ],
+     "Duration": 3,
+     "Scale_All": 0.48,
+     "Scale_Smoke1": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 0,
+     "Shape_Smoke1": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Sparks1": 1.5,
+     "Velocity_Sparks2": 1.5
+    },
+    "level_actor": "NiagaraActor_68"
+   }
+  },
+  "Ice": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura9_Loop.NS_Aura9_Loop",
+    "vars": {
+     "Color_Plane": [
+      0.133,
+      0.89,
+      1,
+      0.5
+     ],
+     "Color_Sparks1": [
+      1.33,
+      8.9,
+      10,
+      1
+     ],
+     "Color_Sparks2": [
+      1.33,
+      8.9,
+      10,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1,
+     "Scale_Plane": 1,
+     "Scale_Smoke": 0,
+     "Scale_Sparks1": 0,
+     "Scale_Sparks2": 1,
+     "Shape_Plane": 1,
+     "Shape_Smoke": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Smoke": 1,
+     "Velocity_Sparks1": 1,
+     "Velocity_Sparks2": 1
+    },
+    "level_actor": "NiagaraActor_39"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura9_Loop.NS_Aura9_Loop",
+    "vars": {
+     "Color_Plane": [
+      0.133,
+      0.89,
+      1,
+      0.5
+     ],
+     "Color_Sparks1": [
+      1.33,
+      8.9,
+      10,
+      1
+     ],
+     "Color_Sparks2": [
+      1.33,
+      8.9,
+      10,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1.6,
+     "Scale_Plane": 1,
+     "Scale_Smoke": 0,
+     "Scale_Sparks1": 0,
+     "Scale_Sparks2": 1,
+     "Shape_Plane": 1,
+     "Shape_Smoke": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Smoke": 1.5,
+     "Velocity_Sparks1": 1.5,
+     "Velocity_Sparks2": 1.5
+    },
+    "level_actor": "NiagaraActor_49"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura9_Loop.NS_Aura9_Loop",
+    "vars": {
+     "Color_Plane": [
+      0.133,
+      0.89,
+      1,
+      0.5
+     ],
+     "Color_Sparks1": [
+      1.33,
+      8.9,
+      10,
+      1
+     ],
+     "Color_Sparks2": [
+      1.33,
+      8.9,
+      10,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.2,
+     "Scale_Plane": 0,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 1,
+     "Shape_Plane": 1,
+     "Shape_Smoke": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Smoke": 1,
+     "Velocity_Sparks1": 1,
+     "Velocity_Sparks2": 1
+    },
+    "level_actor": "NiagaraActor_59"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura9_Loop.NS_Aura9_Loop",
+    "vars": {
+     "Color_Plane": [
+      0.133,
+      0.89,
+      1,
+      0.5
+     ],
+     "Color_Sparks1": [
+      1.33,
+      8.9,
+      10,
+      1
+     ],
+     "Color_Sparks2": [
+      1.33,
+      8.9,
+      10,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.32,
+     "Scale_Plane": 0,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 1,
+     "Shape_Plane": 1,
+     "Shape_Smoke": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Smoke": 1.5,
+     "Velocity_Sparks1": 1.5,
+     "Velocity_Sparks2": 1.5
+    },
+    "level_actor": "NiagaraActor_69"
+   }
+  },
+  "Earth": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_EarthFlow_Loop.NS_EarthFlow_Loop",
+    "vars": {
+     "Color_Plane": [
+      2,
+      2,
+      0.028,
+      1
+     ],
+     "Color_Sparks1": [
+      10,
+      10,
+      0.14,
+      1
+     ],
+     "Color_Spiral1": [
+      2,
+      2,
+      0.028,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1,
+     "Scale_Plane": 1,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Spiral1": 1,
+     "Scale_Stone1": 1,
+     "Shape_Smoke": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Stone1": 1,
+     "Velocity_Smoke": 1,
+     "Velocity_Sparks1": 1,
+     "Velocity_Spiral1": 1,
+     "Velocity_Stone1": 0.5
+    },
+    "level_actor": "NiagaraActor_40"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_EarthFlow_Loop.NS_EarthFlow_Loop",
+    "vars": {
+     "Color_Plane": [
+      2,
+      2,
+      0.028,
+      1
+     ],
+     "Color_Sparks1": [
+      10,
+      10,
+      0.14,
+      1
+     ],
+     "Color_Spiral1": [
+      2,
+      2,
+      0.028,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1.6,
+     "Scale_Plane": 1,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Spiral1": 1,
+     "Scale_Stone1": 1.3,
+     "Shape_Smoke": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Stone1": 1,
+     "Velocity_Smoke": 1.5,
+     "Velocity_Sparks1": 1.5,
+     "Velocity_Spiral1": 1.5,
+     "Velocity_Stone1": 0.75
+    },
+    "level_actor": "NiagaraActor_50"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_EarthFlow_Loop.NS_EarthFlow_Loop",
+    "vars": {
+     "Color_Plane": [
+      2,
+      2,
+      0.028,
+      1
+     ],
+     "Color_Sparks1": [
+      10,
+      10,
+      0.14,
+      1
+     ],
+     "Color_Spiral1": [
+      2,
+      2,
+      0.028,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.2,
+     "Scale_Plane": 0,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Spiral1": 1,
+     "Scale_Stone1": 1,
+     "Shape_Smoke": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Stone1": 1,
+     "Velocity_Smoke": 1,
+     "Velocity_Sparks1": 1,
+     "Velocity_Spiral1": 1,
+     "Velocity_Stone1": 0.5
+    },
+    "level_actor": "NiagaraActor_60"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_EarthFlow_Loop.NS_EarthFlow_Loop",
+    "vars": {
+     "Color_Plane": [
+      2,
+      2,
+      0.028,
+      1
+     ],
+     "Color_Sparks1": [
+      10,
+      10,
+      0.14,
+      1
+     ],
+     "Color_Spiral1": [
+      2,
+      2,
+      0.028,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.32,
+     "Scale_Plane": 0,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Spiral1": 1,
+     "Scale_Stone1": 1,
+     "Shape_Smoke": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Stone1": 1,
+     "Velocity_Smoke": 1.5,
+     "Velocity_Sparks1": 1.5,
+     "Velocity_Spiral1": 1.5,
+     "Velocity_Stone1": 0.75
+    },
+    "level_actor": "NiagaraActor_70"
+   }
+  },
+  "Void": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura2_Loop.NS_Aura2_Loop",
+    "vars": {
+     "Color_Sparks1": [
+      7.74,
+      0.33,
+      10,
+      1
+     ],
+     "Color_Sparks2": [
+      23.22,
+      0.99,
+      30,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 1,
+     "Scale_Trail": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_41"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura2_Loop.NS_Aura2_Loop",
+    "vars": {
+     "Color_Sparks1": [
+      7.74,
+      0.33,
+      10,
+      1
+     ],
+     "Color_Sparks2": [
+      23.22,
+      0.99,
+      30,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 1.6,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 1,
+     "Scale_Trail": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_51"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura2_Loop.NS_Aura2_Loop",
+    "vars": {
+     "Color_Sparks1": [
+      7.74,
+      0.33,
+      10,
+      1
+     ],
+     "Color_Sparks2": [
+      23.22,
+      0.99,
+      30,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.2,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 1,
+     "Scale_Trail": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_61"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura2_Loop.NS_Aura2_Loop",
+    "vars": {
+     "Color_Sparks1": [
+      7.74,
+      0.33,
+      10,
+      1
+     ],
+     "Color_Sparks2": [
+      23.22,
+      0.99,
+      30,
+      1
+     ],
+     "Duration": 1,
+     "Scale_All": 0.32,
+     "Scale_Smoke": 1,
+     "Scale_Sparks1": 1,
+     "Scale_Sparks2": 1,
+     "Scale_Trail": 1,
+     "Shape_Sparks1": 1,
+     "Shape_Sparks2": 1,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_71"
+   }
+  },
+  "Reality": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_KikiAttractor_Body.NS_KikiAttractor_Body",
+    "vars": {
+     "MainColor": [
+      0.024,
+      0,
+      1,
+      1
+     ],
+     "MeshOffset1": 45,
+     "Rate1": 15000,
+     "Rate2": 1500,
+     "Speed1": 500,
+     "Speed2": 0,
+     "TrailSpawnRate": 0
+    },
+    "level_actor": "NiagaraActor_42"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_KikiAttractor_Body.NS_KikiAttractor_Body",
+    "vars": {
+     "MainColor": [
+      0.024,
+      0,
+      1,
+      1
+     ],
+     "MeshOffset1": 45,
+     "Rate1": 15000,
+     "Rate2": 1500,
+     "Speed1": 1000,
+     "Speed2": 0,
+     "TrailSpawnRate": 0
+    },
+    "level_actor": "NiagaraActor_52"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_KikiAttractor_Body.NS_KikiAttractor_Body",
+    "vars": {
+     "MainColor": [
+      0.024,
+      0,
+      1,
+      1
+     ],
+     "MeshOffset1": 9,
+     "Rate1": 15000,
+     "Rate2": 1500,
+     "Speed1": 100,
+     "Speed2": 0,
+     "TrailSpawnRate": 0
+    },
+    "level_actor": "NiagaraActor_62"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_KikiAttractor_Body.NS_KikiAttractor_Body",
+    "vars": {
+     "MainColor": [
+      0.024,
+      0,
+      1,
+      1
+     ],
+     "MeshOffset1": 14.4,
+     "Rate1": 15000,
+     "Rate2": 1500,
+     "Speed1": 200,
+     "Speed2": 0,
+     "TrailSpawnRate": 0
+    },
+    "level_actor": "NiagaraActor_72"
+   }
+  },
+  "Light": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_Loop.NS_Aura25_Loop",
+    "vars": {
+     "Color_Plane1": [
+      10,
+      10,
+      10,
+      1
+     ],
+     "Color_Plane2": [
+      1,
+      1,
+      1,
+      30
+     ],
+     "Color_Ray": [
+      1,
+      1,
+      1,
+      0.3
+     ],
+     "Color_Sparks1": [
+      10,
+      10,
+      10,
+      1
+     ],
+     "Color_Wave1": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "Color_Wave2": [
+      1,
+      1,
+      1,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 1,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 0,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_43"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_Loop.NS_Aura25_Loop",
+    "vars": {
+     "Color_Plane1": [
+      10,
+      10,
+      10,
+      1
+     ],
+     "Color_Plane2": [
+      1,
+      1,
+      1,
+      30
+     ],
+     "Color_Ray": [
+      1,
+      1,
+      1,
+      0.3
+     ],
+     "Color_Sparks1": [
+      10,
+      10,
+      10,
+      1
+     ],
+     "Color_Wave1": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "Color_Wave2": [
+      1,
+      1,
+      1,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 1.6,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 0,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_53"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_Loop.NS_Aura25_Loop",
+    "vars": {
+     "Color_Plane1": [
+      10,
+      10,
+      10,
+      1
+     ],
+     "Color_Plane2": [
+      1,
+      1,
+      1,
+      30
+     ],
+     "Color_Ray": [
+      1,
+      1,
+      1,
+      0.3
+     ],
+     "Color_Sparks1": [
+      10,
+      10,
+      10,
+      1
+     ],
+     "Color_Wave1": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "Color_Wave2": [
+      1,
+      1,
+      1,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 0.2,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 0,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_63"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_Loop.NS_Aura25_Loop",
+    "vars": {
+     "Color_Plane1": [
+      10,
+      10,
+      10,
+      1
+     ],
+     "Color_Plane2": [
+      1,
+      1,
+      1,
+      30
+     ],
+     "Color_Ray": [
+      1,
+      1,
+      1,
+      0.3
+     ],
+     "Color_Sparks1": [
+      10,
+      10,
+      10,
+      1
+     ],
+     "Color_Wave1": [
+      1,
+      1,
+      1,
+      1
+     ],
+     "Color_Wave2": [
+      1,
+      1,
+      1,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 0.32,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 0,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 1,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_73"
+   }
+  },
+  "Darkness": {
+   "Body_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_Loop.NS_Aura25_Loop",
+    "vars": {
+     "Color_Plane1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Plane2": [
+      0,
+      0,
+      0,
+      30
+     ],
+     "Color_Ray": [
+      0,
+      0,
+      0,
+      0.3
+     ],
+     "Color_Sparks1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Wave1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Wave2": [
+      0,
+      0,
+      0,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 1,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 1,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 0,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 1,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_44"
+   },
+   "Body_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_Loop.NS_Aura25_Loop",
+    "vars": {
+     "Color_Plane1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Plane2": [
+      0,
+      0,
+      0,
+      30
+     ],
+     "Color_Ray": [
+      0,
+      0,
+      0,
+      0.3
+     ],
+     "Color_Sparks1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Wave1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Wave2": [
+      0,
+      0,
+      0,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 1.6,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 1,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 0,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 1,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_54"
+   },
+   "Hand_L1": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_Loop.NS_Aura25_Loop",
+    "vars": {
+     "Color_Plane1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Plane2": [
+      0,
+      0,
+      0,
+      30
+     ],
+     "Color_Ray": [
+      0,
+      0,
+      0,
+      0.3
+     ],
+     "Color_Sparks1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Wave1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Wave2": [
+      0,
+      0,
+      0,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 0.2,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 1,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 0,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1
+    },
+    "level_actor": "NiagaraActor_64"
+   },
+   "Hand_L2": {
+    "system": "/Game/QA_Scratch/B626/NS_Aura25_Loop.NS_Aura25_Loop",
+    "vars": {
+     "Color_Plane1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Plane2": [
+      0,
+      0,
+      0,
+      30
+     ],
+     "Color_Ray": [
+      0,
+      0,
+      0,
+      0.3
+     ],
+     "Color_Sparks1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Wave1": [
+      0,
+      0,
+      0,
+      1
+     ],
+     "Color_Wave2": [
+      0,
+      0,
+      0,
+      5
+     ],
+     "Duration": 1,
+     "Scale_All": 0.32,
+     "Scale_Plane1": 0,
+     "Scale_Plane2": 1,
+     "Scale_Ray": 0,
+     "Scale_Sparks1": 0,
+     "Scale_Wave1": 0,
+     "Scale_Wave2": 0,
+     "Shape_Ray": 1,
+     "Shape_Sparks1": 1,
+     "Velocity_Sparks1": 1.5
+    },
+    "level_actor": "NiagaraActor_74"
+   }
+  }
+ }
+}
