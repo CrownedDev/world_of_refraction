@@ -755,7 +755,9 @@ void ULoadoutV2ScreenWidget::RefreshSkills()
 
 void ULoadoutV2ScreenWidget::LogSkillsTab() const
 {
-	UE_LOG(LogWoRUI, Log, TEXT("%s"), *WoRLoadoutV2Skills::GetSkillsString(SkillsPage)); // B-476d debug: the tab as shown
+	// B-476d debug: the tab as shown; B-629: the entry shown and the picker's selector.
+	UE_LOG(LogWoRUI, Log, TEXT("%s; shown entry %d; picker %s"), *WoRLoadoutV2Skills::GetSkillsString(SkillsPage), SkillEntry,
+		   bSkillsAllLearned ? TEXT("all learned") : TEXT("fits this slot"));
 }
 
 void ULoadoutV2ScreenWidget::RefreshInventorySide()
@@ -3364,7 +3366,7 @@ void ULoadoutV2ScreenWidget::TurnSkillEntry(int32 Delta)
 		return;
 	}
 	SkillEntry = ((SkillEntry + (Delta < 0 ? -1 : 1)) % Count + Count) % Count;
-	Mode = ELoadoutV2Mode::SkillRows; // from the picker too: its slot was the other entry's
+	Mode = ELoadoutV2Mode::SkillRows; // the slots (a call from the picker leaves it: its slot was the other entry's)
 	Selected = 0;
 	Message = FText::GetEmpty();
 	RefreshData();
