@@ -398,11 +398,13 @@ FInventoryScreenPage WoRInventoryScreen::BuildPage(UWorld *World, FName Member, 
 		Page.Slots = Pool->GetItemSlotCount(PouchKey);
 		Page.LockedSlots = FMath::Max(0, InventoryConstants::ITEM_SLOTS_MAX - Page.Slots);
 		// D-250: the counter is the fight-item pick, not how much is carried (that has no limit).
-		Page.Heading = FText::Format(LOCTEXT("PouchHeading", "Pouch  {0}/{1} fight items"), FText::AsNumber(Pool->GetUsedItemSlots(PouchKey)),
+		// B-598c piece 4 (mockup inventory/v4): "Fight items 3 / 10" over the bag's grid.
+		Page.Heading = FText::Format(LOCTEXT("PouchHeading", "Fight items {0} / {1}"), FText::AsNumber(Pool->GetUsedItemSlots(PouchKey)),
 									 FText::AsNumber(Page.Slots));
 		for (FInventoryScreenTile &Tile : Page.Tiles)
 		{
-			if (Tile.IsStack() && Pool->IsFightItem(PouchKey, Tile.Row.Item))
+			Tile.bFightItem = Tile.IsStack() && Pool->IsFightItem(PouchKey, Tile.Row.Item);
+			if (Tile.bFightItem)
 			{
 				Tile.Details.Add({LOCTEXT("DetailFightItem", "Fight item"),
 								  FText::Format(LOCTEXT("FightItemUpTo", "up to {0} a fight"), FText::AsNumber(InventoryConstants::ITEM_STACK_MAX))});
@@ -483,7 +485,22 @@ TArray<FLoadoutScreenDetail> WoRInventoryScreen::BuildFacts(UWorld *World, FName
 			Owned += Each.Kind == Tile.Kind && Each.TierValue == Tile.TierValue && Each.Name.EqualTo(Tile.Name) ? 1 : 0;
 		}
 	}
+	const UPoolSubsystem *Pool = InventoryScreenBuild::PoolOf(World);
+	const FName PouchKey = WoRGive::GetPouchKey(World, Member);
+	if (Tile.IsStack() && Pool)
+	{
+		// B-598c piece 4 (mockup inventory/v4): the fight-item pick (D-250).
+		const int32 Pick = Pool->GetFightItems(PouchKey).IndexOfByKey(Tile.Row.Item);
+		const int32 Picked = Pool->GetUsedItemSlots(PouchKey);
+		Facts.Add({LOCTEXT("FactFightItem", "Fight item"), Pick == INDEX_NONE ? LOCTEXT("FactNotPicked", "Not picked")
+																			  : FText::Format(LOCTEXT("FactPicked", "Picked ({0} of {1})"), Pick + 1, Picked)});
+		Facts.Add({LOCTEXT("FactBrings", "Brings into a fight"), FText::AsNumber(Pick == INDEX_NONE ? 0 : FMath::Min(Tile.Row.Count, InventoryConstants::ITEM_STACK_MAX))});
+	}
 	Facts.Add({LOCTEXT("FactOwned", "Owned"), FText::AsNumber(FMath::Max(Owned, 1))});
+	if (Tile.IsStack() && Pool)
+	{
+		Facts.Add({LOCTEXT("FactSlots", "Slots"), FText::Format(LOCTEXT("FactSlotsUsed", "{0} of {1} used"), Pool->GetUsedItemSlots(PouchKey), Pool->GetItemSlotCount(PouchKey))});
+	}
 	if (const FLoadoutScreenDetail *Wear = Tile.Details.FindByPredicate([](const FLoadoutScreenDetail &Detail) { return Detail.Label.IsEmpty() && !Detail.Value.IsEmpty(); }))
 	{
 		Facts.Add({LOCTEXT("FactDurability", "Durability"), Wear->Value}); // D-231: the wear line has no word of its own
@@ -493,6 +510,44 @@ TArray<FLoadoutScreenDetail> WoRInventoryScreen::BuildFacts(UWorld *World, FName
 		Facts.Add({LOCTEXT("FactSellsFor", "Sells for"), FText::Format(LOCTEXT("FactGold", "{0} Gold"), FText::AsNumber(UEconomyService::GetSellPriceForTier(Tile.TierValue)))});
 	}
 	return Facts;
+}
+
+FText WoRInventoryScreen::GetFightPickRefusal(UWorld *World, FName Member, const FInventoryScreenTile &Tile)
+{
+	const UPoolSubsystem *Pool = InventoryScreenBuild::PoolOf(World);
+	if (!Tile.IsStack() || !Pool)
+	{
+		return LOCTEXT("PickNotStack", "Only the pouch's items are picked for a fight.");
+	}
+	const FName PouchKey = WoRGive::GetPouchKey(World, Member);
+	if (Pool->IsFightItem(PouchKey, Tile.Row.Item))
+	{
+		return FText::GetEmpty(); // unpicking is always open
+	}
+	if (!UPoolSubsystem::CanBeFightItem(Tile.Row.Item))
+	{
+		return LOCTEXT("PickNoUse", "This has no use in a fight.");
+	}
+	if (Pool->GetUsedItemSlots(PouchKey) >= Pool->GetItemSlotCount(PouchKey))
+	{
+		return LOCTEXT("PickSlotsFull", "Every fight-item slot is taken: unpick one, or buy another slot at the Jeweler.");
+	}
+	return FText::GetEmpty();
+}
+
+bool WoRInventoryScreen::ToggleFightPick(UWorld *World, FName Member, const FInventoryScreenTile &Tile)
+{
+	const UGameInstance *GI = World ? World->GetGameInstance() : nullptr;
+	UPoolSubsystem *Pool = GI ? GI->GetSubsystem<UPoolSubsystem>() : nullptr;
+	if (!Pool || !GetFightPickRefusal(World, Member, Tile).IsEmpty())
+	{
+		return false;
+	}
+	const FName PouchKey = WoRGive::GetPouchKey(World, Member);
+	const bool bPick = !Pool->IsFightItem(PouchKey, Tile.Row.Item);
+	const bool bChanged = Pool->SetFightItem(PouchKey, Tile.Row.Item, bPick);
+	UE_LOG(LogWoRUI, Log, TEXT("[Inventory] %s %s as a fight item: %s"), *Member.ToString(), bPick ? TEXT("picks") : TEXT("unpicks"), *Tile.Name.ToString());
+	return bChanged;
 }
 
 TArray<FInventoryScreenReceiver> WoRInventoryScreen::BuildReceivers(UWorld *World, FName Member, const FInventoryScreenTile &Tile)

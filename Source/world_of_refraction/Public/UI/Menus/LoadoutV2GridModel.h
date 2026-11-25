@@ -22,6 +22,8 @@ struct FLoadoutV2GridTile
 	bool bWorn = false;
 	/** It can't go in the focused slot (the reason is in the details): greyed, with the lock. */
 	bool bLocked = false;
+	/** B-598c piece 4 (D-250): a Pouch stack picked as a fight item: the F badge. */
+	bool bFightItem = false;
 };
 
 namespace WoRLoadoutV2Grid
