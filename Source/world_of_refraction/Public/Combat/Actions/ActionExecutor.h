@@ -1439,8 +1439,9 @@ protected:
 	 *  a hit every BurstInterval after the first). No projectile actor flies. */
 	void LaunchWave(AActor *Caster, const TArray<AActor *> &Targets, USkillDataBase *Skill, const FSkillCastEntry &Entry,
 					ESpellElement InElement, float FinalVisualScale, bool bIsBrokenDarkness, int32 CastEntryIndex);
-	/** One wave hit on Target, if the action that sent it is still running. */
-	void ResolveWaveArrival(TWeakObjectPtr<AActor> Target, int32 CastEntryIndex);
+	/** One wave hit on Target, if the action that sent it (ActionSerial) is still running. */
+	void ResolveWaveArrival(TWeakObjectPtr<AActor> Target, int32 CastEntryIndex, int32 ActionSerial);
+	bool IsWaveActionRunning(int32 ActionSerial) const;
 
 	/** Spawn support skill VFX (Self/Ally - no defense window). B-043e: routed (RouteSpellResolve); the effect
 	 *  itself is ResolveSupportSpellEffect. */

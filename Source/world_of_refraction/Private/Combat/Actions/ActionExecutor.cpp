@@ -4140,7 +4140,7 @@ void UActionExecutor::DispatchSpellCast(
 	case ESpellDeliveryType::Projectile:
 		if (CurrentExecutionContext.IsSet())
 		{
-			CurrentExecutionContext->bArrivalsSent = true; // B-607: the windows wait for these arrivals
+			CurrentExecutionContext->ArrivalsSentPerTarget += FMath::Max(Entry.Count, 1); // B-607: the windows may wait for these
 		}
 		if (Skill->MultiTargetDelivery == EMultiTargetDelivery::OneBigWave)
 		{
@@ -4257,8 +4257,9 @@ void UActionExecutor::LaunchWave(AActor *Caster, const TArray<AActor *> &Targets
 	const FVector Forward = Caster->GetActorForwardVector();
 	const TArray<float> Arrivals = WoRMultiTargetDelivery::GetArrivalSeconds(EMultiTargetDelivery::OneBigWave, Start, TargetLocations,
 																			   Entry.ProjectileSpeed, Forward);
-	UE_LOG(LogTemp, Verbose, TEXT("[Runner] '%s' wave: %s"), *Entry.Label,
-		   *WoRMultiTargetDelivery::GetArrivalString(EMultiTargetDelivery::OneBigWave, Arrivals, Entry.ProjectileSpeed));
+	const int32 HitsPerTarget = FMath::Max(Entry.Count, 1);
+	UE_LOG(LogWoRCombat, Log, TEXT("[Wave] %s '%s': %d target(s), %d hit(s) each; %s"), *GetNameSafe(Skill), *Entry.Label, Targets.Num(),
+		   HitsPerTarget, *WoRMultiTargetDelivery::GetArrivalString(EMultiTargetDelivery::OneBigWave, Arrivals, Entry.ProjectileSpeed));
 
 	// TODO: B-231b's clients don't see the wave yet (projectiles send a cosmetic copy; this is server-side only).
 	if (UNiagaraSystem *WaveVFX = Entry.Trail.LoadSynchronous())
@@ -4275,29 +4276,37 @@ void UActionExecutor::LaunchWave(AActor *Caster, const TArray<AActor *> &Targets
 	}
 
 	const float HitInterval = FMath::Max(Entry.BurstInterval, WAVE_MIN_HIT_INTERVAL);
-	for (int32 TargetIndex = 0; TargetIndex < Targets.Num(); ++TargetIndex)
+	// A hit landed at once can finish or interrupt the action (clearing its timers); stop scheduling for it then.
+	const int32 ActionSerial = AsyncActionSerial;
+	for (int32 TargetIndex = 0; TargetIndex < Targets.Num() && IsWaveActionRunning(ActionSerial); ++TargetIndex)
 	{
 		const TWeakObjectPtr<AActor> Target = Targets[TargetIndex];
-		for (int32 Hit = 0; Hit < Entry.Count; ++Hit)
+		for (int32 Hit = 0; Hit < HitsPerTarget && IsWaveActionRunning(ActionSerial); ++Hit)
 		{
 			const float Delay = Arrivals[TargetIndex] + Hit * HitInterval;
 			if (Delay <= 0.0f)
 			{
-				ResolveWaveArrival(Target, CastEntryIndex); // standing on the caster: hit as the wave leaves
+				ResolveWaveArrival(Target, CastEntryIndex, ActionSerial); // standing on the caster: hit as the wave leaves
 				continue;
 			}
 			FTimerHandle Handle;
 			World->GetTimerManager().SetTimer(
-				Handle, FTimerDelegate::CreateUObject(this, &UActionExecutor::ResolveWaveArrival, Target, CastEntryIndex), Delay, false);
+				Handle, FTimerDelegate::CreateUObject(this, &UActionExecutor::ResolveWaveArrival, Target, CastEntryIndex, ActionSerial),
+				Delay, false);
 			TelegraphTimerHandles.Add(Handle);
 		}
 	}
 }
 
-void UActionExecutor::ResolveWaveArrival(TWeakObjectPtr<AActor> Target, int32 CastEntryIndex)
+bool UActionExecutor::IsWaveActionRunning(int32 ActionSerial) const
 {
-	// A cancelled or finished action clears these timers; this guards a stale one all the same.
-	if (!Target.IsValid() || !CurrentExecutionContext.IsSet() || !CurrentExecutionContext->bInProgress)
+	return CurrentExecutionContext.IsSet() && CurrentExecutionContext->bInProgress && AsyncActionSerial == ActionSerial;
+}
+
+void UActionExecutor::ResolveWaveArrival(TWeakObjectPtr<AActor> Target, int32 CastEntryIndex, int32 ActionSerial)
+{
+	// A cancelled or finished action clears these timers; this guards a stale one (or one meant for an earlier action).
+	if (!Target.IsValid() || !IsWaveActionRunning(ActionSerial))
 	{
 		return;
 	}
