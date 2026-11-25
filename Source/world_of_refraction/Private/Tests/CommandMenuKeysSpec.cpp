@@ -47,21 +47,27 @@ namespace
 	/** B-620: the test buff's heal. */
 	constexpr float MENU_KEYS_BUFF_HEAL = 10.0f;
 
-	/** B-620: a no-damage weapon ability with a heal effect, aimed at Target (a weapon buff when Self or Ally). */
-	UAbilityData *MakeWeaponBuff(ETargetType Target)
+	/** B-620: Skill with one effect of Type (a heal by default) and no damage, aimed at Target. */
+	template <typename TSkill>
+	TSkill *MakeNoDamageSkill(ETargetType Target, ESkillEffectType Type = ESkillEffectType::HealthRestore)
 	{
 		UEffectDefinition *Def = NewObject<UEffectDefinition>(GetTransientPackage());
-		FSkillEffectPayload Heal;
-		Heal.EffectType = ESkillEffectType::HealthRestore;
-		Heal.Magnitude = MENU_KEYS_BUFF_HEAL;
+		FSkillEffectPayload Payload;
+		Payload.EffectType = Type;
+		Payload.Magnitude = MENU_KEYS_BUFF_HEAL;
 		FSkillEffect Effect;
-		Effect.Payloads.Add(Heal);
+		Effect.Payloads.Add(Payload);
 		Def->Effects.Add(Effect);
-		UAbilityData *Buff = NewObject<UAbilityData>(GetTransientPackage());
-		Buff->BaseDamage = 0;
-		Buff->TargetType = Target;
-		Buff->ReferencedEffects.Add(Def);
-		return Buff;
+		TSkill *Skill = NewObject<TSkill>(GetTransientPackage());
+		Skill->BaseDamage = 0;
+		Skill->TargetType = Target;
+		Skill->ReferencedEffects.Add(Def);
+		return Skill;
+	}
+
+	UAbilityData *MakeWeaponBuff(ETargetType Target)
+	{
+		return MakeNoDamageSkill<UAbilityData>(Target);
 	}
 
 	void MenuKeysAddLoadout(AActor *Actor)
@@ -1360,20 +1366,27 @@ void FCommandMenuKeysSpec::Define()
 		TestEqual(TEXT("the infusion stays on for the next strike"), Menu->GetStickyInfusionLevel(Hero), 1);
 	});
 
-	It("drops the infusion of a weapon buff's action, not of a strike's (B-620, D-275)", [this]()
+	It("drops the infusion of a weapon buff's or debuff's action, not of a strike's or a spell buff's (B-620, D-275)", [this]()
 	{
 		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
 		Strike->BaseDamage = MENU_KEYS_STRIKE_EP; // any damage
 		UAbilityData *Rally = MakeWeaponBuff(ETargetType::Ally);
-		UAbilityData *Hex = MakeWeaponBuff(ETargetType::Enemy); // no damage, aimed at a foe: not a buff
-		UAbilityData *Utility = NewObject<UAbilityData>(GetTransientPackage()); // no damage, on self, no buff effect
+		UAbilityData *Hex = MakeNoDamageSkill<UAbilityData>(ETargetType::Enemy, ESkillEffectType::DefenseDebuff);
+		UAbilityData *Utility = NewObject<UAbilityData>(GetTransientPackage()); // no damage, on self, no effect
 		Utility->BaseDamage = 0;
 		Utility->TargetType = ETargetType::Self;
-		TestTrue(TEXT("Rally is a weapon buff"), SupportSkillRules::IsWeaponBuff(Rally));
-		TestFalse(TEXT("a strike isn't"), SupportSkillRules::IsWeaponBuff(Strike));
-		TestFalse(TEXT("a foe-aimed no-damage skill isn't"), SupportSkillRules::IsWeaponBuff(Hex));
-		TestFalse(TEXT("a self skill with no buff effect isn't"), SupportSkillRules::IsWeaponBuff(Utility));
-		TestFalse(TEXT("a spell isn't"), SupportSkillRules::IsWeaponBuff(NewObject<USpellData>(GetTransientPackage())));
+		USpellData *SpellBuff = MakeNoDamageSkill<USpellData>(ETargetType::Ally);
+		TestTrue(TEXT("Rally (a buff) counts"), SupportSkillRules::IsWeaponBuffOrDebuff(Rally));
+		TestTrue(TEXT("a debuff on a foe counts"), SupportSkillRules::IsWeaponBuffOrDebuff(Hex));
+		TestFalse(TEXT("a strike doesn't"), SupportSkillRules::IsWeaponBuffOrDebuff(Strike));
+		TestFalse(TEXT("a no-damage skill with no effect doesn't"), SupportSkillRules::IsWeaponBuffOrDebuff(Utility));
+		TestFalse(TEXT("a spell buff doesn't: spells are naturally infused"), SupportSkillRules::IsWeaponBuffOrDebuff(SpellBuff));
+
+		FAction SpellCast;
+		SpellCast.ActionType = EActionType::Spell;
+		SpellCast.SpellData = SpellBuff;
+		SpellCast.SpellInfusionLevel = 2;
+		TestEqual(TEXT("a spell buff keeps its infusion"), SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(SpellCast).SpellInfusionLevel, 2);
 
 		FAction Infused;
 		Infused.ActionType = EActionType::Ability;
@@ -1381,11 +1394,11 @@ void FCommandMenuKeysSpec::Define()
 		Infused.AbilityInfusionLevel = 2;
 		Infused.bIceInfusion = true;
 		Infused.SkillData = Rally;
-		const FAction Dropped = SupportSkillRules::WithoutWeaponBuffInfusion(Infused);
+		const FAction Dropped = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(Infused);
 		TestTrue(TEXT("the buff's infusion is dropped"), Dropped.SelectedSource == EInfusionSourceOption::None &&
 															 Dropped.AbilityInfusionLevel == 0 && !Dropped.bIceInfusion);
 		Infused.SkillData = Strike;
-		const FAction Kept = SupportSkillRules::WithoutWeaponBuffInfusion(Infused);
+		const FAction Kept = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(Infused);
 		TestTrue(TEXT("the strike's is kept"), Kept.SelectedSource == EInfusionSourceOption::Raw && Kept.AbilityInfusionLevel == 2);
 	});
 }
