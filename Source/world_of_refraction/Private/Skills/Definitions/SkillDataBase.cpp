@@ -9,6 +9,7 @@
 #include "Skills/Effects/EffectDefinition.h"
 #include "Character/CharacterData.h"
 #include "Combat/CombatConstants.h"
+#include "Combat/Presentation/SkillSounds.h"
 #include "Combat/Damage/TierGapConstants.h"
 
 TArray<float> ResolveDamageSplit(int32 HitCount, const TArray<FDamageSplitEntry> &Split)
@@ -344,6 +345,7 @@ FString USkillDataBase::GetSkillDataString() const
                               ExecutionRange, *UEnum::GetValueAsString(TargetType));
     Output += FString::Printf(TEXT("  Base damage: %d | Activation delay: %d | Action cost: %d\n"), BaseDamage, ActivationDelay, ActionCost);
     Output += FString::Printf(TEXT("  Montage: %s\n"), SkillMontage ? *SkillMontage->GetName() : TEXT("(none)"));
+    Output += FString::Printf(TEXT("  %s\n"), *SkillSounds::GetSoundsString(this)); // B-618
     return Output;
 }
 
