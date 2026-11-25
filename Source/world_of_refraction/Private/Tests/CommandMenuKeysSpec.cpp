@@ -293,6 +293,22 @@ void FCommandMenuKeysSpec::Define()
 		TestEqual(TEXT("the other order: one more"), Menu->GetPendingInfusionLevel(), 2);
 		TestTrue(TEXT("no Defend: still Hero's turn, still picking"),
 				 Orchestrator->GetCurrentActor() == Hero && Menu->IsOpen() && !Menu->IsAtMainMenu());
+
+		// B-627: R is Defend and the infusion source the same way; in the picker it doesn't Defend.
+		TArray<EPieMenuCategory> OnR;
+		for (const FCombatMenuKey &Key : ACombatPlayerController::GetMenuKeys())
+		{
+			if (Key.Keyboard == EKeys::R)
+			{
+				OnR.Add(Key.Category);
+			}
+		}
+		if (TestEqual(TEXT("R is two actions"), OnR.Num(), 2))
+		{
+			Menu->PressMenuKey(OnR[0]);
+			Menu->PressMenuKey(OnR[1]);
+			TestTrue(TEXT("R in the picker: no Defend"), Orchestrator->GetCurrentActor() == Hero && Menu->IsOpen() && !Menu->IsAtMainMenu());
+		}
 	});
 
 	It("opens the only kind of skill at once, and Back returns to the main menu (D-258a)", [this]()
@@ -360,7 +376,7 @@ void FCommandMenuKeysSpec::Define()
 			return;
 		}
 		TestTrue(TEXT("Attack key"), Menu->PressMenuKey(EPieMenuCategory::Attack));
-		TestEqual(TEXT("the header"), Menu->GetViewTitle().ToString(), FString(TEXT("Attack · choose a target"))); // B-592: refine_v4's heading
+		TestEqual(TEXT("the header"), Menu->GetViewTitle().ToString(), FString(TEXT("Attack\nchoose a target"))); // B-592: refine_v4's heading; B-627: the step on its own line
 		TestTrue(TEXT("Back key"), Menu->PressMenuKey(EPieMenuCategory::Back));
 		TestTrue(TEXT("the main menu"), Menu->IsAtMainMenu());
 	});
@@ -549,7 +565,7 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("2 / X: the weapon line"), Menu->PressMenuKey(EPieMenuCategory::Skills));
 		Panel = View->GetPanel();
 		TestTrue(TEXT("not Skills: still the Attack step"), Panel.bShown && Menu->GetHighlightedTarget() == Foe);
-		TestEqual(TEXT("its heading"), View->GetTitle().ToString(), FString(TEXT("Attack · weapon")));
+		TestEqual(TEXT("its heading"), View->GetTitle().ToString(), FString(TEXT("Attack\nweapon")));
 		if (TestEqual(TEXT("both weapons"), Panel.Weapons.Num(), 2))
 		{
 			TestEqual(TEXT("Sword first"), Panel.Weapons[0].ToString(), FString(TEXT("Sword")));
@@ -571,26 +587,26 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("3 / Y: the infusion lines"), Menu->PressMenuKey(EPieMenuCategory::Items));
 		Panel = View->GetPanel();
 		TestTrue(TEXT("not Items: the infusion line, the weapon line hidden"), Panel.Open == ETargetPanelLine::Infusion && Panel.Weapons.IsEmpty());
-		TestEqual(TEXT("its heading"), View->GetTitle().ToString(), FString(TEXT("Attack · infusion")));
+		TestEqual(TEXT("its heading"), View->GetTitle().ToString(), FString(TEXT("Attack\ninfusion")));
 		TestEqual(TEXT("levels none, I, II"), Panel.Levels.Num(), MENU_KEYS_INFUSION_LEVELS);
 		TestTrue(TEXT("hint T Level while it is open"), HasHint(View, TEXT("Level"), EKeys::T));
 		TestTrue(TEXT("T steps the level, as now"), Menu->PressMenuKey(EPieMenuCategory::CycleLevel));
 		TestEqual(TEXT("the level chip follows"), View->GetPanel().ActiveLevel, 1);
-		TestEqual(TEXT("B-599: source None, so the heading names no element"), View->GetTitle().ToString(), FString(TEXT("Attack · infusion")));
+		TestEqual(TEXT("B-599: source None, so the heading names no element"), View->GetTitle().ToString(), FString(TEXT("Attack\ninfusion")));
 		const TArray<FText> Sources = View->GetPanel().Elements;
 		if (!TestTrue(TEXT("a second source to pick"), Sources.Num() > 1)) return;
 		Menu->PickTargetPanelChoice(ETargetPanelChoice::Element, 1);
 		const FString Source = Sources[1].ToString();
-		TestEqual(TEXT("B-599: the infused action's heading names its source"), View->GetTitle().ToString(), FString::Printf(TEXT("Attack (%s) · infusion"), *Source));
+		TestEqual(TEXT("B-599: the infused action's heading names its source"), View->GetTitle().ToString(), FString::Printf(TEXT("Attack (%s)\ninfusion"), *Source));
 		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 0);
-		TestEqual(TEXT("B-599: a source at level 0 is no infusion, the heading bare"), View->GetTitle().ToString(), FString(TEXT("Attack · infusion")));
+		TestEqual(TEXT("B-599: a source at level 0 is no infusion, the heading bare"), View->GetTitle().ToString(), FString(TEXT("Attack\ninfusion")));
 		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 1);
 
 		TestTrue(TEXT("3 / Y again closes it"), Menu->PressMenuKey(EPieMenuCategory::Items));
 		Panel = View->GetPanel();
 		TestTrue(TEXT("back to the small panel"), Panel.Open == ETargetPanelLine::None && Panel.Levels.IsEmpty());
 		TestTrue(TEXT("its summary has the level"), Panel.Summary.ToString().Contains(TEXT("Lv I")));
-		TestEqual(TEXT("B-599: Attack (source) · choose a target"), View->GetTitle().ToString(), FString::Printf(TEXT("Attack (%s) · choose a target"), *Source));
+		TestEqual(TEXT("B-599: Attack (source), then choose a target"), View->GetTitle().ToString(), FString::Printf(TEXT("Attack (%s)\nchoose a target"), *Source));
 		TestTrue(TEXT("B-599: hint 3 names the source"), HasHint(View, *FString::Printf(TEXT("%s infusion"), *Source), EKeys::Three));
 		Menu->PressMenuKey(EPieMenuCategory::Skills);
 		Menu->PressMenuKey(EPieMenuCategory::Back);
@@ -1160,7 +1176,7 @@ void FCommandMenuKeysSpec::Define()
 		TestTrue(TEXT("Level"), Keys.Contains(TEXT("IA_Combat_MenuInfusionLevel")));
 		TestTrue(TEXT("Attack (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuAttack")));
 		TestTrue(TEXT("Skills (B-391)"), Keys.Contains(TEXT("IA_Combat_MenuSkills")));
-		TestFalse(TEXT("End Turn has no key yet (Crown, 2026-11-12)"), Keys.Contains(TEXT("IA_Combat_MenuEndTurn")));
+		TestTrue(TEXT("End Turn (B-627, Crown: end turn on G)"), Keys.Contains(TEXT("IA_Combat_MenuEndTurn")));
 	});
 
 	It("has no End Turn button when the player hid it, and the turn goes on (B-170e, Crown 2026-11-12)", [this]()
