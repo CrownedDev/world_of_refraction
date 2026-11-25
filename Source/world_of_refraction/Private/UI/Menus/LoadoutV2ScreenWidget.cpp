@@ -2557,6 +2557,7 @@ void ULoadoutV2ScreenWidget::ShowPage(int32 NewPage)
 	bLoadoutOpen = true;
 	bOnLoadoutSide = true;
 	HoveredInvTile = INDEX_NONE;
+	HoveredInvTab = INDEX_NONE;
 	ShowTab(static_cast<ELoadoutV2Tab>(static_cast<int32>(ELoadoutV2Tab::Weapons) + FMath::Clamp(NewPage, EQUIPMENT_PAGE, PAGE_COUNT - 1) - EQUIPMENT_PAGE));
 }
 
@@ -2655,6 +2656,7 @@ void ULoadoutV2ScreenWidget::SelectInventoryFilter(int32 Index)
 	}
 	InvFilter = InvFilters[Index];
 	InvSelected = 0;
+	bOnInvKinds = false; // a click on a filter from the selector: the keys leave the selector
 	RefreshData();
 }
 
