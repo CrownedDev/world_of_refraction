@@ -2151,29 +2151,12 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 	FText Compare;
 	if (Mode == ELoadoutV2Mode::WindowItems && bComparing && Items.IsValidIndex(Selected) && Slots.IsValidIndex(SlotIndex))
 	{
-		const ELoadoutV2Slot GearSlot = Slots[SlotIndex];
-		const FWeaponInventoryEntry *Equipped = nullptr;
-		ULoadoutComponent *Loadout = nullptr;
-		UInventoryComponent *Inventory = nullptr;
-		const FCombatLoadout *Active = nullptr;
-		FLoadoutV2Draft Current;
-		if (bEditing && FindActive(Loadout, Inventory, Active))
+		FLoadoutV2Compare Result;
+		FText EquippedName;
+		if (BuildEquipCompare(Result, EquippedName))
 		{
-			Current = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry);
-			Equipped = GearSlot == ELoadoutV2Slot::MainHand ? &Current.MainHand : GearSlot == ELoadoutV2Slot::OffHand ? &Current.OffHand : nullptr;
-		}
-		else if (!bEditing && GearSlot == ELoadoutV2Slot::MainHand && FindActive(Loadout, Inventory, Active))
-		{
-			// A new entry: against the weapon in hand (a Generic's second weapon when it is the ACTIVE entry).
-			const bool bSecondInHand = Page.Entries.ContainsByPredicate([](const FLoadoutV2Entry &Entry)
-																		{ return Entry.bActive && Entry.Place == ELoadoutV2Place::Secondary; });
-			Equipped = bSecondInHand ? &Active->SecondaryWeapon.WeaponEntry : &Active->PrimaryWeapon.WeaponEntry;
-		}
-		if ((GearSlot == ELoadoutV2Slot::MainHand || GearSlot == ELoadoutV2Slot::OffHand) && Equipped && Equipped->IsValid() && Items[Selected].Weapon.IsValid())
-		{
-			const FLoadoutV2Compare Result = WoRLoadoutV2::BuildCompare(*Equipped, Items[Selected].Weapon);
 			Compare = FText::Format(LOCTEXT("CompareLine", "Equipped {0} / Selected {1} · Power {2} / {3} · Cells change {4} · Built-in gained: {5} · lost: {6}"),
-									WeaponName(*Equipped), Items[Selected].Name, FText::AsNumber(Result.EquippedPower), FText::AsNumber(Result.SelectedPower),
+									EquippedName, Items[Selected].Name, FText::AsNumber(Result.EquippedPower), FText::AsNumber(Result.SelectedPower),
 									FText::AsNumber(Result.CellsChange), JoinNames(Result.BuiltInsGained), JoinNames(Result.BuiltInsLost));
 		}
 		else
@@ -2193,11 +2176,47 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 	WoRKeyHints::SetHint(HintsText, GetHints(), HintArguments);
 }
 
+bool ULoadoutV2ScreenWidget::BuildEquipCompare(FLoadoutV2Compare &OutResult, FText &OutEquippedName) const
+{
+	if (!Items.IsValidIndex(Selected) || !Slots.IsValidIndex(SlotIndex) || !Items[Selected].Weapon.IsValid())
+	{
+		return false;
+	}
+	const ELoadoutV2Slot GearSlot = Slots[SlotIndex];
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	const FCombatLoadout *Active = nullptr;
+	if ((GearSlot != ELoadoutV2Slot::MainHand && GearSlot != ELoadoutV2Slot::OffHand) || !FindActive(Loadout, Inventory, Active))
+	{
+		return false;
+	}
+	FWeaponInventoryEntry Equipped;
+	if (bEditing)
+	{
+		const FLoadoutV2Draft Current = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry);
+		Equipped = GearSlot == ELoadoutV2Slot::MainHand ? Current.MainHand : Current.OffHand;
+	}
+	else if (GearSlot == ELoadoutV2Slot::MainHand)
+	{
+		// A new entry: against the weapon in hand (a Generic's second weapon when it is the ACTIVE entry).
+		const bool bSecondInHand = Page.Entries.ContainsByPredicate([](const FLoadoutV2Entry &Entry)
+																	{ return Entry.bActive && Entry.Place == ELoadoutV2Place::Secondary; });
+		Equipped = bSecondInHand ? Active->SecondaryWeapon.WeaponEntry : Active->PrimaryWeapon.WeaponEntry;
+	}
+	if (!Equipped.IsValid())
+	{
+		return false;
+	}
+	OutResult = WoRLoadoutV2::BuildCompare(Equipped, Items[Selected].Weapon);
+	OutEquippedName = LoadoutV2ScreenStyle::WeaponName(Equipped);
+	return true;
+}
+
 void ULoadoutV2ScreenWidget::RefreshRightPanel()
 {
 	using namespace LoadoutV2ScreenStyle;
-	// B-598c: what the page is about; on the Inventory page the lit piece's facts and its buttons (piece 2).
-	// TODO: B-598c: the picker's "if you equip it" changes on the loadout's pages.
+	// B-598c: what the page is about; on the Inventory page the lit piece's facts and its buttons (piece 2); while a
+	// slot's grid is open, what the lit piece would change (mockup v5's "If you equip the Hand Axe").
 	TArray<TPair<FText, FText>> Rows;
 	FText Sub;
 	if (IsOnInventoryPage())
@@ -2212,6 +2231,30 @@ void ULoadoutV2ScreenWidget::RefreshRightPanel()
 			{
 				Rows.Emplace(Fact.Label, Fact.Value);
 			}
+		}
+	}
+	else if (IsGridOpen() && !IsOnGridKinds() && Items.IsValidIndex(Selected) && !Items[Selected].bEquipped && !Items[Selected].bRestore)
+	{
+		// B-598c: the lit piece against what it would replace. TODO: B-598c: the character's stats before and after
+		// (mockup v5's Body, HP, Attack power…) need the stat composition run on the changed loadout.
+		const FLoadoutV2WindowItem &Item = Items[Selected];
+		Sub = FText::Format(IsSocketGrid() ? LOCTEXT("RightIfPutIn", "If you put in the {0}") : LOCTEXT("RightIfEquip", "If you equip the {0}"), Item.Name);
+		FLoadoutV2Compare Result;
+		FText EquippedName;
+		if (BuildEquipCompare(Result, EquippedName))
+		{
+			Rows.Emplace(LOCTEXT("RightReplaces", "Replaces"), EquippedName);
+			Rows.Emplace(LOCTEXT("RightPower", "Power"), FText::Format(LOCTEXT("RightNowThen", "{0} → {1}"), Result.EquippedPower, Result.SelectedPower));
+			Rows.Emplace(LOCTEXT("RightGained", "Built-in gained"), JoinNames(Result.BuiltInsGained));
+			Rows.Emplace(LOCTEXT("RightLost", "Built-in lost"), JoinNames(Result.BuiltInsLost));
+		}
+		if (!Item.Line.IsEmpty())
+		{
+			Rows.Emplace(LOCTEXT("RightAfter", "After"), Item.Line); // "Cells after: 3 of 5"
+		}
+		if (!Item.Refusal.IsEmpty())
+		{
+			Rows.Emplace(LOCTEXT("RightCant", "Can't"), Item.Refusal);
 		}
 	}
 	else if (Members.IsValidIndex(MemberIndex))

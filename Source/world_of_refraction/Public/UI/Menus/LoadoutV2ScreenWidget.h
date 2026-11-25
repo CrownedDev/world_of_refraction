@@ -535,6 +535,9 @@ private:
 	bool IsAboveInventoryTiles() const { return bOnInvFilters || bOnInvKinds; }
 	/** B-598c: the Details column on the right: what the page is about (the character and loadout, or the lit piece). */
 	void RefreshRightPanel();
+	/** The lit weapon of a hand's grid against the one it would replace (Compare, and the Details column); false when
+	 *  there is none to set beside it. */
+	bool BuildEquipCompare(FLoadoutV2Compare &OutResult, FText &OutEquippedName) const;
 	bool bLoadoutOpen = false;
 	bool bOnLoadoutSide = false;
 	bool bOnInvFilters = false;
