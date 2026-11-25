@@ -53,8 +53,9 @@ void FWeaponFollowsSkillSpec::Define()
 			TestTrue(TEXT("L3"), Switch->Gamepad == EKeys::Gamepad_LeftThumbstick);
 			TestTrue(TEXT("keyboard 6"), Switch->Keyboard == EKeys::Six);
 		}
-		TestFalse(TEXT("D-pad Left is free"), ACombatPlayerController::GetMenuKeys().ContainsByPredicate([](const FCombatMenuKey &Key)
-																										{ return Key.Gamepad == EKeys::Gamepad_DPad_Left; }));
+		TestFalse(TEXT("D-pad Left isn't Switch Weapon (it is End Turn's since B-627)"),
+				  ACombatPlayerController::GetMenuKeys().ContainsByPredicate([](const FCombatMenuKey &Key)
+																			 { return Key.Gamepad == EKeys::Gamepad_DPad_Left && Key.Category != EPieMenuCategory::EndTurn; }));
 	});
 
 	Describe("a Generic with two weapons", [this]()

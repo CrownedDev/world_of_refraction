@@ -1026,7 +1026,8 @@ const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 	// main menu and the infusion level in a target picker: two actions on one button, and the menu's depth lets only
 	// one of them act.
 	static const TArray<FCombatMenuKey> Keys = {
-		{TEXT("IA_Combat_MenuDefend"), EPieMenuCategory::Defend, EKeys::G, EKeys::Gamepad_RightShoulder},
+		// B-627 (Crown: "Defend can be R"): R is Defend on the main menu and the infusion source in a target picker, as RB.
+		{TEXT("IA_Combat_MenuDefend"), EPieMenuCategory::Defend, EKeys::R, EKeys::Gamepad_RightShoulder},
 		{TEXT("IA_Combat_MenuInfusionSource"), EPieMenuCategory::CycleSource, EKeys::R, EKeys::Gamepad_LeftShoulder},
 		{TEXT("IA_Combat_MenuInfusionLevel"), EPieMenuCategory::CycleLevel, EKeys::T, EKeys::Gamepad_RightShoulder},
 		{TEXT("IA_Combat_MenuAttack"), EPieMenuCategory::Attack, EKeys::One, EKeys::Gamepad_FaceButton_Bottom},
@@ -1043,8 +1044,9 @@ const TArray<FCombatMenuKey> &ACombatPlayerController::GetMenuKeys()
 		{TEXT("IA_Combat_MenuChangeRing"), EPieMenuCategory::ChangeRing, EKeys::Seven, EKeys::Gamepad_DPad_Right},
 		// B-588 (D-263): Position opens the row picker; 4 and D-pad Up were free (B-436g, D-258).
 		{TEXT("IA_Combat_MenuPosition"), EPieMenuCategory::MoveRow, EKeys::Four, EKeys::Gamepad_DPad_Up},
-		// B-170e (Crown, 2026-11-12): End Turn has no key yet; it comes later, with its InputMap.md row. The menu already
-		// takes it as a main-menu key (CommandMenuRules::IsMainMenuKey, PressMenuKey(EPieMenuCategory::EndTurn)).
+		// B-627 (Crown: "end turn doesnt have a keybinding lets use g"): End Turn, main menu only (IsMainMenuKey). On a pad
+		// D-pad Left (free since B-474), not View, its old key: the join request card's hold of View lets a tap through.
+		{TEXT("IA_Combat_MenuEndTurn"), EPieMenuCategory::EndTurn, EKeys::G, EKeys::Gamepad_DPad_Left},
 	};
 	return Keys;
 }
