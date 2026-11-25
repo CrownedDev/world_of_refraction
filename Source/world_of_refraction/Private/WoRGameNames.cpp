@@ -18,6 +18,7 @@
 #include "Field/FieldSkillTypes.h"
 #include "Equipment/Weapons/EWeaponWieldMode.h"
 #include "Equipment/Weapons/WeaponData.h"
+#include "Infusion/EInfusionSourceOption.h"
 #include "Inventory/ItemTier.h"
 #include "Memory/HiddenQuestData.h"
 #include "Merchant/MerchantData.h"
@@ -557,6 +558,27 @@ FText GetAdapterWordPlural()
 FText GetActiveAdapterWord()
 {
     return LOCTEXT("ActiveAdapter", "Active adapter");
+}
+
+FText GetInfusionSourceWord(EInfusionSourceOption Source)
+{
+    switch (Source)
+    {
+    case EInfusionSourceOption::None:
+        return LOCTEXT("SourceNone", "None");
+    case EInfusionSourceOption::Raw:
+        return LOCTEXT("SourceRaw", "Raw");
+    case EInfusionSourceOption::Innate:
+        return LOCTEXT("SourceInnate", "Innate");
+    case EInfusionSourceOption::ActiveRing:
+    case EInfusionSourceOption::PrimaryRing:
+        return GetAdapterWord();
+    case EInfusionSourceOption::WeaponCrystal:
+        return LOCTEXT("SourceWeapon", "Weapon");
+    case EInfusionSourceOption::Evolution:
+        return LOCTEXT("SourceEvolution", "Evolution");
+    }
+    return FText::GetEmpty();
 }
 
 FText GetYourselfWord()

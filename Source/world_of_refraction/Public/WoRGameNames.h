@@ -28,6 +28,7 @@ enum class ECrystalType : uint8;
 enum class EWeaponType : uint8;
 enum class EWeaponWieldMode : uint8;
 enum class EItemTier : uint8;
+enum class EInfusionSourceOption : uint8;
 class UWeaponData;
 class URingData;
 struct FRuntimeAttachedItem;
@@ -92,6 +93,8 @@ namespace WoRGameNames
     WORLD_OF_REFRACTION_API FText GetAdapterWordPlural();
     /** "Active adapter" (the Resonator's one in use) */
     WORLD_OF_REFRACTION_API FText GetActiveAdapterWord();
+    /** B-634: the piece an infusion draws from, beside its element in the fight ("Fire · Weapon"): Weapon, Adapter, Evolution, Innate. */
+    WORLD_OF_REFRACTION_API FText GetInfusionSourceWord(EInfusionSourceOption Source);
     /** B-316: "yourself", the player's own character as a receiver (the shop's buy-for). */
     WORLD_OF_REFRACTION_API FText GetYourselfWord();
     /** B-170e: "Actions", the banked actions a turn spends (action pips, ActionPips.md). */
