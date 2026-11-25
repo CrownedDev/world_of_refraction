@@ -248,6 +248,9 @@ public:
 	// D-248 step 1: the picture grid (WoRLoadoutV2Grid), shown while a weapon slot (Main hand, Off hand) is being filled:
 	// the entry's slots stay in the list on the left, the choices are tiles beside it. The specs call these too.
 	bool IsGridOpen() const;
+	/** B-612: the slots whose choices are the picture grid: the two hands (D-248) and the two sockets (the crystals,
+	 *  stones and evolutions that fit, not the inventory's tab). */
+	static bool HasSlotGrid(ELoadoutV2Slot GearSlot);
 	/** The tiles as drawn, one per line of GetItems(). */
 	TArray<FLoadoutV2GridTile> GetGridTiles() const;
 	/** The filter tabs after All: the weapon types among the slot's pieces. */
@@ -449,6 +452,8 @@ private:
 	bool IsLoadoutAtTopLevel() const { return Mode == ELoadoutV2Mode::List || Mode == ELoadoutV2Mode::SkillEntries; }
 	/** The grid shows the inventory's tab (always, but while a weapon slot is being filled: then it shows its choices). */
 	bool IsInventoryGrid() const { return !IsGridOpen(); }
+	/** B-612: the grid is a socket's choices (a crystal, stone or evolution goes in on A). */
+	bool IsSocketGrid() const;
 	/** The inventory's page for the shown member, tab, filter and sort, read fresh. */
 	void RefreshInventorySide();
 	/** The inventory's tiles as grid tiles (FInventoryScreenTile to FLoadoutV2GridTile). */
