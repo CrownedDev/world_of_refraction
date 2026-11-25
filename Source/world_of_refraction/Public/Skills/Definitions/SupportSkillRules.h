@@ -31,10 +31,10 @@ namespace SupportSkillRules
 	}
 
 	/** B-620 (D-275, Crown 2026-11-25): "weapon buffs cannot be infused with elements". A weapon ability with no
-	 *  damage aimed at its user or an ally (a buff like Rally) takes no infusion. */
+	 *  damage and a buff or heal effect, aimed at its user or an ally (a buff like Rally), takes no infusion. */
 	inline bool IsWeaponBuff(const USkillDataBase *Skill)
 	{
-		return Skill && Skill->IsA<UAbilityData>() && Skill->BaseDamage <= 0 &&
+		return Skill && Skill->IsA<UAbilityData>() && Skill->BaseDamage <= 0 && Skill->HasBuffEffects() &&
 			   (Skill->TargetType == ETargetType::Self || Skill->TargetType == ETargetType::Ally);
 	}
 

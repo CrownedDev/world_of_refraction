@@ -180,8 +180,9 @@ float UActionExecutor::GetSpellInfusionCostMultiplier(int32 InfusionLevel)
 // VALIDATION
 // ========================================
 
-FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAction &Action) const
+FActionValidationResult UActionExecutor::ValidateAction(AActor *Actor, const FAction &InAction) const
 {
+	const FAction Action = SupportSkillRules::WithoutWeaponBuffInfusion(InAction); // B-620 (D-275): ignored, so never refused for it
 	if (!Actor)
 	{
 		return FActionValidationResult(false, TEXT("Invalid actor"));

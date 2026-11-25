@@ -27,6 +27,7 @@
 #include "Inventory/InventoryComponent.h"
 #include "Skills/Definitions/SpellData.h"
 #include "Skills/Definitions/SupportSkillRules.h"
+#include "Skills/Effects/EffectDefinition.h"
 #include "UI/Combat/Battle/BattleCommandMenuWidget.h"
 #include "UI/Combat/Battle/BattleHUDWidget.h"
 #include "UI/Combat/CombatCommandMenuSubsystem.h"
@@ -43,6 +44,25 @@ namespace
 	constexpr int32 MENU_KEYS_PLENTY_EP = 100;
 	/** B-613: an attack that costs EP, so an infused one costs more than this. */
 	constexpr int32 MENU_KEYS_STRIKE_EP = 10;
+	/** B-620: the test buff's heal. */
+	constexpr float MENU_KEYS_BUFF_HEAL = 10.0f;
+
+	/** B-620: a no-damage weapon ability with a heal effect, aimed at Target (a weapon buff when Self or Ally). */
+	UAbilityData *MakeWeaponBuff(ETargetType Target)
+	{
+		UEffectDefinition *Def = NewObject<UEffectDefinition>(GetTransientPackage());
+		FSkillEffectPayload Heal;
+		Heal.EffectType = ESkillEffectType::HealthRestore;
+		Heal.Magnitude = MENU_KEYS_BUFF_HEAL;
+		FSkillEffect Effect;
+		Effect.Payloads.Add(Heal);
+		Def->Effects.Add(Effect);
+		UAbilityData *Buff = NewObject<UAbilityData>(GetTransientPackage());
+		Buff->BaseDamage = 0;
+		Buff->TargetType = Target;
+		Buff->ReferencedEffects.Add(Def);
+		return Buff;
+	}
 
 	void MenuKeysAddLoadout(AActor *Actor)
 	{
@@ -1284,9 +1304,7 @@ void FCommandMenuKeysSpec::Define()
 		HeroData->MaxEP = HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
 		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
 		Strike->BaseEnergyCost = MENU_KEYS_STRIKE_EP;
-		UAbilityData *Rally = NewObject<UAbilityData>(GetTransientPackage());
-		Rally->BaseDamage = 0;
-		Rally->TargetType = ETargetType::Self;
+		UAbilityData *Rally = MakeWeaponBuff(ETargetType::Self);
 		const auto OpenAttack = [this]()
 		{
 			FPieMenuButtonData Attack;
@@ -1323,15 +1341,15 @@ void FCommandMenuKeysSpec::Define()
 	{
 		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
 		Strike->BaseDamage = MENU_KEYS_STRIKE_EP; // any damage
-		UAbilityData *Rally = NewObject<UAbilityData>(GetTransientPackage());
-		Rally->BaseDamage = 0;
-		Rally->TargetType = ETargetType::Ally;
-		UAbilityData *Hex = NewObject<UAbilityData>(GetTransientPackage()); // no damage, aimed at a foe: a debuff, not a buff
-		Hex->BaseDamage = 0;
-		Hex->TargetType = ETargetType::Enemy;
+		UAbilityData *Rally = MakeWeaponBuff(ETargetType::Ally);
+		UAbilityData *Hex = MakeWeaponBuff(ETargetType::Enemy); // no damage, aimed at a foe: not a buff
+		UAbilityData *Utility = NewObject<UAbilityData>(GetTransientPackage()); // no damage, on self, no buff effect
+		Utility->BaseDamage = 0;
+		Utility->TargetType = ETargetType::Self;
 		TestTrue(TEXT("Rally is a weapon buff"), SupportSkillRules::IsWeaponBuff(Rally));
 		TestFalse(TEXT("a strike isn't"), SupportSkillRules::IsWeaponBuff(Strike));
 		TestFalse(TEXT("a foe-aimed no-damage skill isn't"), SupportSkillRules::IsWeaponBuff(Hex));
+		TestFalse(TEXT("a self skill with no buff effect isn't"), SupportSkillRules::IsWeaponBuff(Utility));
 		TestFalse(TEXT("a spell isn't"), SupportSkillRules::IsWeaponBuff(NewObject<USpellData>(GetTransientPackage())));
 
 		FAction Infused;
