@@ -130,15 +130,23 @@ namespace
 		return Names.IsEmpty() ? FString(TEXT("none")) : FString::Join(Names, TEXT(", "));
 	}
 
-	/** Gives the weapon or adapter through the member's inventory (it reaches the pool as the character's); its id. */
-	FGuid GiveWeapon(UInventoryComponent &Inventory, UWeaponData *Weapon)
+	/** An owned copy of Asset used again (not a class kit piece, not taken yet, and with Want set: its crystal socket empty
+	 *  or holding Want), so a second run doesn't pile copies in the chest; else Give() gives a fresh one through the
+	 *  inventory (it reaches the pool as the character's). Its id, invalid when refused. */
+	template <class TEntry, class TAsset>
+	FGuid ReuseOrGive(const TArray<TEntry> &Owned, TAsset *TEntry::*Field, const TAsset *Asset, const TSet<FGuid> &Taken, const UPoolSubsystem &Pool,
+					  const FCrystalId *Want, TFunctionRef<bool()> Give)
 	{
-		return Weapon && Inventory.AddWeapon(Weapon) ? Inventory.Weapons.Last().PersistentID : FGuid();
-	}
-
-	FGuid GiveAdapter(UInventoryComponent &Inventory, URingData *Ring)
-	{
-		return Ring && Inventory.AddRing(Ring) ? Inventory.Rings.Last().PersistentID : FGuid();
+		const TEntry *Found = Owned.FindByPredicate([&](const TEntry &Entry)
+		{
+			return Entry.*Field == Asset && !Taken.Contains(Entry.PersistentID) && !Pool.IsClassDefault(Entry.PersistentID) &&
+				   (!Want || Entry.AttachedItem.IsEmpty() || (Entry.AttachedItem.IsCrystal() && Entry.AttachedItem.Crystal.Id == *Want));
+		});
+		if (Found)
+		{
+			return Found->PersistentID;
+		}
+		return Give() ? Owned.Last().PersistentID : FGuid();
 	}
 
 #if !UE_BUILD_SHIPPING
@@ -146,7 +154,8 @@ namespace
 		TEXT("wor.Debug.TestSet"),
 		TEXT("DEBUG (B-634): the played character's bag, worn gear and learned skills become the current test set "
 			 "(Config/DefaultGame.ini [/Script/world_of_refraction.WoRTestSet]); every currency 9999; saves. Replaced gear goes to "
-			 "the home chest, replaced items to storage; the log lists what was replaced. Hub only."),
+			 "the home chest, replaced items to storage; learned skills outside the set are overwritten (a set skill already known "
+			 "keeps its tier). The log lists what was replaced. Hub only."),
 		FConsoleCommandWithWorldDelegate::CreateLambda(
 			[](UWorld *World)
 			{
@@ -362,15 +371,24 @@ FString WoRTestSet::Apply(UWorld *World)
 		Pool->CarryOrStore(PouchKey, Item.Crystal, Item.Count);
 	}
 
-	// The bag: the set's gear, each once.
+	// The bag: the set's gear, each once (an owned copy is used again). The Generic's sword and adapter need their socket
+	// empty or already holding the set's crystal.
+	const bool bGeneric = Class == ECharacterClass::Generic;
 	TMap<FName, FGuid> Given;
+	TSet<FGuid> Taken;
 	for (UWeaponData *Weapon : Resolve<UWeaponData>(Set.Weapons))
 	{
-		Given.Add(Weapon->GetFName(), GiveWeapon(*Inventory, Weapon));
+		const FCrystalId *Want = bGeneric && Weapon->GetFName() == Set.GenericWeapon ? &Set.GenericWeaponCrystal : nullptr;
+		const FGuid ID = ReuseOrGive(Inventory->Weapons, &FWeaponInventoryEntry::Weapon, Weapon, Taken, *Pool, Want, [&]() { return Inventory->AddWeapon(Weapon); });
+		Given.Add(Weapon->GetFName(), ID);
+		Taken.Add(ID);
 	}
 	for (URingData *Ring : Resolve<URingData>(Set.Adapters))
 	{
-		Given.Add(Ring->GetFName(), GiveAdapter(*Inventory, Ring));
+		const FCrystalId *Want = bGeneric && Ring->GetFName() == Set.GenericAdapter ? &Set.GenericAdapterCrystal : nullptr;
+		const FGuid ID = ReuseOrGive(Inventory->Rings, &FRingInventoryEntry::Ring, Ring, Taken, *Pool, Want, [&]() { return Inventory->AddRing(Ring); });
+		Given.Add(Ring->GetFName(), ID);
+		Taken.Add(ID);
 	}
 	FGuid SeatID;
 	for (UEvolutionItemData *Evolution : Resolve<UEvolutionItemData>(Set.Evolutions))
@@ -387,17 +405,30 @@ FString WoRTestSet::Apply(UWorld *World)
 	}
 
 	// A Generic's three sources (Crown, 2026-11-25): the evolution primary, the sword and shield with a crystal, the adapter with one.
-	if (Class == ECharacterClass::Generic)
+	bool bKitWorn = true;
+	if (bGeneric)
 	{
 		const FGuid WeaponID = Given.FindRef(Set.GenericWeapon);
 		const FGuid OffHandID = Given.FindRef(Set.GenericOffHand);
 		const FGuid AdapterID = Given.FindRef(Set.GenericAdapter);
-		Pool->CarryOrStore(PouchKey, Set.GenericWeaponCrystal, 1);
-		Pool->CarryOrStore(PouchKey, Set.GenericAdapterCrystal, 1);
-		const bool bWeaponSocket = Inventory->AttachCrystalToWeapon(WeaponID, Set.GenericWeaponCrystal);
-		const bool bAdapterSocket = Inventory->AttachCrystalToRing(AdapterID, Set.GenericAdapterCrystal);
-		Lines.Add(FString::Printf(TEXT("sockets: weapon %s %s, adapter %s %s"), *CrystalName(Set.GenericWeaponCrystal), bWeaponSocket ? TEXT("in") : TEXT("REFUSED"),
-								  *CrystalName(Set.GenericAdapterCrystal), bAdapterSocket ? TEXT("in") : TEXT("REFUSED")));
+		// A socket takes its crystal from the pouch; a reused piece may hold it already.
+		const auto Socket = [&](bool bEmpty, const FCrystalId &Crystal, TFunctionRef<bool()> Attach)
+		{
+			if (!bEmpty)
+			{
+				return TEXT("already in");
+			}
+			Pool->CarryOrStore(PouchKey, Crystal, 1);
+			return Attach() ? TEXT("in") : TEXT("REFUSED");
+		};
+		const FWeaponInventoryEntry *OwnedWeapon = Inventory->FindOwnedWeapon(WeaponID);
+		const FRingInventoryEntry *OwnedAdapter = Inventory->FindOwnedRing(AdapterID);
+		const TCHAR *WeaponSocket = Socket(OwnedWeapon && OwnedWeapon->AttachedItem.IsEmpty(), Set.GenericWeaponCrystal,
+										   [&]() { return Inventory->AttachCrystalToWeapon(WeaponID, Set.GenericWeaponCrystal); });
+		const TCHAR *AdapterSocket = Socket(OwnedAdapter && OwnedAdapter->AttachedItem.IsEmpty(), Set.GenericAdapterCrystal,
+											[&]() { return Inventory->AttachCrystalToRing(AdapterID, Set.GenericAdapterCrystal); });
+		Lines.Add(FString::Printf(TEXT("sockets: weapon %s %s, adapter %s %s"), *CrystalName(Set.GenericWeaponCrystal), WeaponSocket,
+								  *CrystalName(Set.GenericAdapterCrystal), AdapterSocket));
 		const FWeaponInventoryEntry *Weapon = Inventory->FindOwnedWeapon(WeaponID);
 		const FWeaponInventoryEntry *OffHand = Inventory->FindOwnedWeapon(OffHandID);
 		const FRingInventoryEntry *Adapter = Inventory->FindOwnedRing(AdapterID);
@@ -409,7 +440,7 @@ FString WoRTestSet::Apply(UWorld *World)
 			const FWeaponInventoryEntry OffHandCopy = *OffHand;
 			const FRingInventoryEntry AdapterCopy = *Adapter;
 			const FEvolutionInventoryEntry SeatCopy = *Seat;
-			ChangeGear(*Loadout, *Inventory,
+			bKitWorn = ChangeGear(*Loadout, *Inventory,
 					   [&](FCombatLoadout &Changed, FText &Refusal)
 					   {
 						   FCombatLoadout Kit = Changed; // all or nothing: a refusal leaves the worn gear as it was
@@ -425,37 +456,53 @@ FString WoRTestSet::Apply(UWorld *World)
 		else
 		{
 			Lines.Add(TEXT("three sources: REFUSED (a Generic piece of the set was not given; see above)"));
+			bKitWorn = false;
 		}
 	}
 	else
 	{
 		Lines.Add(FString::Printf(TEXT("worn gear: kept (the three-source kit is the Generic's; this is %s)"), *UEnum::GetValueAsString(Class)));
 	}
+	if (!bKitWorn)
+	{
+		// The gear and items are given; nothing more is changed or saved, so the refusal above can be read and fixed.
+		Lines.Add(TEXT("STOPPED before the chest, the skills, the currencies and the save: the three sources were refused (see above)"));
+		return FString::Join(Lines, TEXT("\n"));
+	}
 
-	// The old gear that isn't worn now goes to the home chest (nothing leaves the pool). A class kit piece stays its own.
+	// The old gear that isn't worn now goes to the home chest (nothing leaves the pool; GiveGear also takes it out of the
+	// character's other loadouts). A class kit piece stays its own; a reused set piece stays in the bag.
 	const FWornGear *Worn = Pool->GetWornGear(Key);
 	const TArray<FGuid> WornIDs = Worn ? Worn->GetPieceIDs() : TArray<FGuid>();
 	int32 Chested = 0;
 	for (const FGuid &ID : Old.Movable)
 	{
-		if (!WornIDs.Contains(ID) && !Pool->IsClassDefault(ID) && Pool->GiveGear(ID, UPoolSubsystem::GetChestKey()))
+		if (!WornIDs.Contains(ID) && !Taken.Contains(ID) && !Pool->IsClassDefault(ID) && Pool->GiveGear(ID, UPoolSubsystem::GetChestKey()))
 		{
 			++Chested;
 		}
 	}
 	Lines.Add(FString::Printf(TEXT("old gear to the home chest: %d of %d"), Chested, Old.Movable.Num()));
 
-	// The learned skills: exactly the set's (the member reloads them from the store).
-	Pool->SetSkills(Key, {}, {});
+	// The learned skills: exactly the set's (the member reloads them from the store). One already known keeps its instance
+	// (its tier); the others are overwritten, their names in "replaced skills" above.
+	const TArray<UAbilityData *> SetAbilities = Resolve<UAbilityData>(Set.Abilities);
+	const TArray<USpellData *> SetSpells = Resolve<USpellData>(Set.Spells);
+	const FPoolSkills *Known = Pool->FindSkills(Key);
+	const TArray<FSpellInstance> KeptSpells = Known ? Known->Spells.FilterByPredicate([&SetSpells](const FSpellInstance &S) { return SetSpells.Contains(S.Spell); })
+													: TArray<FSpellInstance>();
+	const TArray<FAbilityInstance> KeptAbilities = Known ? Known->Abilities.FilterByPredicate([&SetAbilities](const FAbilityInstance &A) { return SetAbilities.Contains(A.Ability); })
+														 : TArray<FAbilityInstance>();
+	Pool->SetSkills(Key, KeptSpells, KeptAbilities);
 	TArray<FString> Learned;
 	TArray<FString> Refused;
-	for (UAbilityData *Ability : Resolve<UAbilityData>(Set.Abilities))
+	for (UAbilityData *Ability : SetAbilities)
 	{
-		(Pool->LearnSkillCopy(Key, Ability) ? Learned : Refused).Add(Ability->Name);
+		(Pool->KnowsAbility(Key, Ability) || Pool->LearnSkillCopy(Key, Ability) ? Learned : Refused).Add(Ability->Name);
 	}
-	for (USpellData *Spell : Resolve<USpellData>(Set.Spells))
+	for (USpellData *Spell : SetSpells)
 	{
-		(Pool->LearnSkillCopy(Key, Spell) ? Learned : Refused).Add(Spell->Name);
+		(Pool->KnowsSpell(Key, Spell) || Pool->LearnSkillCopy(Key, Spell) ? Learned : Refused).Add(Spell->Name);
 	}
 	Lines.Add(FString::Printf(TEXT("skills learned: %s%s"), Learned.IsEmpty() ? TEXT("none") : *FString::Join(Learned, TEXT(", ")),
 							  Refused.IsEmpty() ? TEXT("") : *FString::Printf(TEXT("; REFUSED: %s"), *FString::Join(Refused, TEXT(", ")))));

@@ -5,8 +5,9 @@
 //   adapters, Combat Master the abilities, Spell Shop the spells, Spiritualist the evolutions and gems, Stone Smith the
 //   stones. A slice left empty keeps the vendor's own stock; a trial vendor still rolls its own.
 // - wor.Debug.TestSet (typed by Crown, never run by an agent on Crown's save) makes the played character's bag, worn gear
-//   and learned skills exactly the set, tops every currency to 9999, saves, and logs what it replaced. Nothing leaves the
-//   pool: replaced gear goes to the home chest, replaced items to storage.
+//   and learned skills exactly the set, tops every currency to 9999, saves, and logs what it replaced. Gear and items
+//   stay in the pool (replaced gear to the home chest, items to storage, owned set pieces used again); learned skills
+//   outside the set are overwritten (their names logged; a set skill already known keeps its tier).
 // - A Generic wears three infusion sources of three elements (Crown, 2026-11-25): the evolution as its primary (Wind), the
 //   Arming Sword and Round Shield with a crystal as its second weapon (Fire), and the adapter with a crystal (Water).
 // Names are asset names, found anywhere in the asset registry, so a moved asset still resolves. wor.Debug.PrintTestSet
