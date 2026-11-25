@@ -718,6 +718,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [B-611](B-611.md) | `feature/B-611-training-dummy` (built 2026-11-25) | A training dummy in the hub: E (or `wor.Hub.TrainingDummy`) starts a practice fight that keeps nothing; End practice returns you beside it. **Editor step: place `HubTrainingDummy` in `TestLevel_Nav`** | Pending |
 | [B-613](B-613.md) | `feature/B-613-sticky-infusion` (built 2026-11-25) | Infusion stays on for your next actions in a fight, until you turn it off | Pending |
 | [B-620](B-620.md) | `feature/B-620-weapon-buffs-no-infusion` (built 2026-11-25, on B-613) | A weapon buff or debuff offers no infusion, and using one keeps the infusion on; spells unchanged | Pending |
+| [B-623](B-623.md) | `feature/B-623-debug-max-resources` (built 2026-11-25) | `wor.Debug.MaxResources`: 9999 of every currency, saved; run Prisms clear at a trial start, so type it again inside a trial | Pending |
 | [B-600k](B-600k.md) | `fix/B-600k-rush-frames-attacker` (built 2026-11-25) | The close Melee Rush hit shot keeps the attacker in frame, even on a long reach | Pending |
 | [B-618](B-618.md) | `feature/B-618-skill-sounds` (built 2026-11-25) | Skills play their sounds: the SFX notify's sound and an impact sound on each landed hit (needs sounds set on a skill first) | Pending |
 | [B-602](B-602.md) | `fix/B-602-scroll-click-picks-stale-row` (built 2026-11-24) | A click after a wheel scroll picks the row now under the mouse (vendor, and every scrolling menu list) | Pending |
