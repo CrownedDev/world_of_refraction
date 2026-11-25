@@ -80,10 +80,10 @@ namespace
             }
         }
 
-        // Action-level immunity — single cast to base is sufficient. B-620 (D-275): a weapon buff takes no infusion either.
+        // Action-level immunity — single cast to base is sufficient. B-620 (D-275): a weapon buff or debuff takes no infusion either.
         if (const USkillDataBase *Skill = Cast<USkillDataBase>(ActionData))
         {
-            return bEquipmentImmune || Skill->bImmuneToInfusion || SupportSkillRules::IsWeaponBuff(Skill);
+            return bEquipmentImmune || Skill->bImmuneToInfusion || SupportSkillRules::IsWeaponBuffOrDebuff(Skill);
         }
 
         return bEquipmentImmune;

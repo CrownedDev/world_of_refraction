@@ -30,19 +30,19 @@ namespace SupportSkillRules
 		return Skill->BaseDamage == 0 && Skill->HasBuffEffects();
 	}
 
-	/** B-620 (D-275, Crown 2026-11-25): "weapon buffs cannot be infused with elements". A weapon ability with no
-	 *  damage and a buff or heal effect, aimed at its user or an ally (a buff like Rally), takes no infusion. */
-	inline bool IsWeaponBuff(const USkillDataBase *Skill)
+	/** B-620 (D-275, Crown 2026-11-25): "weapon buffs cannot be infused with elements", debuffs too. A weapon ability
+	 *  with no damage and a buff, heal or debuff effect (a buff like Rally), whatever its target, takes no infusion.
+	 *  Spells keep theirs: "spells buffs would be fine since they are naturally infused". */
+	inline bool IsWeaponBuffOrDebuff(const USkillDataBase *Skill)
 	{
-		return Skill && Skill->IsA<UAbilityData>() && Skill->BaseDamage <= 0 && Skill->HasBuffEffects() &&
-			   (Skill->TargetType == ETargetType::Self || Skill->TargetType == ETargetType::Ally);
+		return Skill && Skill->IsA<UAbilityData>() && Skill->BaseDamage <= 0 && (Skill->HasBuffEffects() || Skill->HasDebuffEffects());
 	}
 
-	/** Action with any infusion dropped when it uses a weapon buff (the executor ignores it, it doesn't refuse it). */
-	inline FAction WithoutWeaponBuffInfusion(const FAction &Action)
+	/** Action with any infusion dropped when it uses a weapon buff or debuff (the executor ignores it, it doesn't refuse it). */
+	inline FAction WithoutWeaponBuffOrDebuffInfusion(const FAction &Action)
 	{
 		FAction Out = Action;
-		if (IsWeaponBuff(Action.SkillData))
+		if (IsWeaponBuffOrDebuff(Action.SkillData))
 		{
 			Out.SelectedSource = EInfusionSourceOption::None;
 			Out.bIceInfusion = false;
