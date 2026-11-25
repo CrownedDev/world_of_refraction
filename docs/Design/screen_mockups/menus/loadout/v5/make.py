@@ -99,7 +99,7 @@ def middle_details(d, name, tier, kind, col, type_line, stats, sockets, blurb, n
 def right_status(d, who, rows, cells_used, cells_after, compare_with):
     """The character's status; a stat the focused piece changes shows worn → new, green up, red down."""
     panel(d, (SX0, TOP, SX1, BOTTOM))
-    text(d, (SX0 + 18, TOP + 14), "Character status", 17, True)
+    text(d, (SX0 + 18, TOP + 14), "Details", 17, True)
     text(d, (SX0 + 18, TOP + 38), who, 14, fill=DIM)
     text(d, (SX0 + 18, TOP + 62), compare_with, 12, True, CYAN)
     y = TOP + 90
