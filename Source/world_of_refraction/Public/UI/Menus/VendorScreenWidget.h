@@ -37,6 +37,17 @@ class UScrollBox;
 class UTextBlock;
 class UWidget;
 
+/** B-608: what a left click on a stock row does. */
+enum class EVendorRowClick : uint8
+{
+	/** Only selects it (and shows its details). */
+	Select,
+	/** Buy: the row's "+": one more into the cart. */
+	Add,
+	/** Another service: a click on the row already selected confirms, as A. */
+	Confirm
+};
+
 UCLASS()
 class WORLD_OF_REFRACTION_API UVendorScreenWidget : public UWoRActivatableWidget
 {
@@ -74,6 +85,11 @@ public:
 	void MoveMergeTarget(int32 Delta);
 	/** Cancels a pending confirm, then closes. */
 	void PressBack() { HandleBackAction(); }
+	/** B-608: a left click on row Index (bOnAddButton: on its "+"), as GetRowClick says. */
+	void ClickRow(int32 Index, bool bOnAddButton);
+	/** B-608: a click on a Buy row only selects it; its "+" adds. On another service, a click on the selected row
+	 *  confirms (the first selects). */
+	static EVendorRowClick GetRowClick(bool bBuy, bool bOnAddButton, bool bAlreadySelected);
 
 	EMerchantType GetVendor() const { return Vendor; }
 	EVendorScreenTab GetTab() const { return Tabs.IsValidIndex(TabIndex) ? Tabs[TabIndex] : EVendorScreenTab::Buy; }
@@ -112,6 +128,8 @@ private:
 		/** B-487: the row's icon before its name, and its tier badge in the tier letter's place. */
 		TWeakObjectPtr<UImage> Icon;
 		TWeakObjectPtr<UImage> TierBadge;
+		/** B-608, Buy: the "+" a click adds with. */
+		TWeakObjectPtr<UBorder> AddButton;
 	};
 
 	void BuildTree();
