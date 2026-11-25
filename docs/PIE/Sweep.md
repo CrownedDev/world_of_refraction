@@ -46,6 +46,7 @@
 | 20 | Old loadout fields, entries and wrappers (pre-unified slots) | The unified slots (B-301..B-308) | PIE of B-301..B-308 | B-309b (not a delete yet: the slots must become the stored truth first) | [ ] |
 | 24 | `CrystalBreakDismantleEvolution`, the Evolution case and `CrystalBreakDestroyPrimaryEvolution` — `Private/Equipment/Durability/CrystalBreak.cpp:55`, `:127`, `:174` (Q-159) | Evolutions are never lost to wear | [B-159](B-159.md) (break a crystal next to an evolution: the evolution stays) | sweep | [ ] |
 | 25 | `UInventoryComponent::MaxSavedLoadouts` — `Public/Inventory/InventoryComponent.h:126` (B-311) | `PoolConstants::MAX_CUSTOM_LOADOUTS` (D-111) | [B-311](B-311.md) | sweep | [ ] |
+| 59 | D-249's two sides and the pop-up card (B-598c): `ULoadoutV2ScreenWidget::PlaceBox`, `WoRLoadoutV2Grid::PlaceCard` / `FCardPlace` / `GetTilePosition` and their spec, `CardWidth` / `CardGap` / `CardFrameWidth`, `COLUMNS_WIDE`, `ListWidth` / `BoxWidth` / `ColumnGap` / `GridSlotsWidth` / `GridWidth` / `GridGap`, `LoadoutButton` / `LoadoutButtonText`, `FocusLoadoutSide` / `FocusInventorySide` and `IsOnInventorySide` — `Public/UI/Menus/LoadoutV2ScreenWidget.h`, `Private/UI/Menus/LoadoutV2ScreenWidget.cpp`, `Public/UI/Menus/LoadoutV2GridModel.h` | The pages and the three fixed columns (`ShowPage`, `RefreshRightPanel`) | [B-598c](B-598c.md) | sweep | [ ] |
 
 ## Inventory, pool and party gear
 
