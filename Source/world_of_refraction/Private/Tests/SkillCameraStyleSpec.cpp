@@ -49,6 +49,10 @@ namespace
 	constexpr float STYLE_TEST_SIDE_ON_DEGREES = 45.0f;
 	constexpr float STYLE_TEST_BODY_HEIGHT = 180.0f;
 	constexpr float STYLE_TEST_WEAPON_REACH = 120.0f;
+	// B-600k: strike reaches from a skill's default ExecutionRange out to a long lunge, and from where the attacker sits
+	// in a side (front) third of the frame.
+	constexpr float STYLE_TEST_REACHES[] = {100.0f, 150.0f, 300.0f, 450.0f};
+	constexpr float STYLE_TEST_FRONT_THIRD_FROM_REACH = 150.0f;
 
 	FCameraShotContext StyleTestContext()
 	{
@@ -174,6 +178,33 @@ void FSkillCameraStyleSpec::Define()
 											  ESkillCameraStyle::Cinematic, ESkillCameraStyle::Support})
 		{
 			TestFalse(FString::Printf(TEXT("%s: never"), *UEnum::GetValueAsString(Style)), FCombatCameraRules::RecutsOnLaterHit(Style, Tuning, false));
+		}
+	});
+
+	It("B-600k Melee Rush: every hit angle frames the whole attacker and the target, at any reach, the attacker in a side third once it stands off", [this, Tuning]()
+	{
+		const FVector Up = FVector::UpVector * STYLE_TEST_HALF_HEIGHT;
+		for (const float Reach : STYLE_TEST_REACHES)
+		{
+			FCameraShotContext Arrived = StyleTestContext();
+			Arrived.Caster = ApproachWarp::GetStrikePosition(FVector::ZeroVector, STYLE_TEST_TARGET, Reach);
+			for (int32 Hit = 0; Hit < FCombatCameraRules::ComboRecutAngles; ++Hit)
+			{
+				const FCameraShot Shot = FCombatCameraRules::ComputeComboHitShot(Arrived, Tuning, Hit);
+				const FString Name = FString::Printf(TEXT("reach %.0f, hit %d"), Reach, Hit + 1);
+				const auto OnScreen = [&Shot](const FVector &Point) { return CameraFraming::IsOnScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Point); };
+				TestTrue(Name + TEXT(": the attacker whole (head, chest, feet)"), OnScreen(Arrived.Caster + Up) && OnScreen(Arrived.Caster) && OnScreen(Arrived.Caster - Up));
+				TestTrue(Name + TEXT(": the target whole"), OnScreen(STYLE_TEST_TARGET + Up) && OnScreen(STYLE_TEST_TARGET) && OnScreen(STYLE_TEST_TARGET - Up));
+				TestTrue(FString::Printf(TEXT("%s: the attacker at least %.0f cm from the lens"), *Name, STYLE_TEST_MIN_LENS_DISTANCE),
+						 FVector::Dist(Shot.End.GetLocation(), Arrived.Caster) >= STYLE_TEST_MIN_LENS_DISTANCE);
+				FVector2D Attacker;
+				if (Hit < FCombatCameraRules::ComboRecutAngles - 1 && Reach >= STYLE_TEST_FRONT_THIRD_FROM_REACH &&
+					CameraFraming::ProjectToScreen(Shot.End, Shot.FieldOfView, CameraFraming::DEFAULT_ASPECT, Arrived.Caster, Attacker))
+				{
+					TestTrue(FString::Printf(TEXT("%s: the attacker in a side third (%s)"), *Name, *CameraFraming::GetThirdsCell(Attacker)),
+							 FMath::Abs(Attacker.X) >= CameraFraming::THIRD_LINE);
+				}
+			}
 		}
 	});
 
