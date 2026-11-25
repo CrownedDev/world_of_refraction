@@ -277,6 +277,55 @@ void FInventoryScreenSpec::Define()
 		TestTrue(TEXT("A, Equip on: the Equipment page, saying what to pick"), Screen->GetPageIndex() == ULoadoutV2ScreenWidget::EQUIPMENT_PAGE && !Screen->GetMessage().IsEmpty());
 	});
 
+	It("B-614: a slot's grid has the kind selector: Up reaches it, a refused kind says why, a turn changes the entry's kind and keeps each kind's draft", [this]()
+	{
+		if (!IsReady()) return;
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen)) return;
+		Screen->ActivateWidget();
+		Screen->ToggleLoadout();
+		Screen->PressA(); // the weapon set: the window's first question
+		Screen->PressA(); // its own kind: the slots
+		Screen->PressA(); // the main hand's grid
+		if (!TestTrue(TEXT("the main hand's grid is open"), Screen->IsGridOpen() && Screen->GetSlots().IsValidIndex(0) && Screen->GetSlots()[0] == ELoadoutV2Slot::MainHand)) return;
+		const TArray<ELoadoutV2PieceKind> Kinds = Screen->GetGridKinds();
+		if (!TestTrue(TEXT("Weapon, Adapter, Evolution, on Weapon"), Kinds == ULoadoutV2ScreenWidget::GetSlotKinds(ELoadoutV2Slot::MainHand) && Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon)) return;
+		TestFalse(TEXT("not on the selector yet"), Screen->IsOnGridKinds());
+		Screen->MoveInDirection(0, -1);
+		TestTrue(TEXT("Up off the top row: the selector"), Screen->IsOnGridKinds());
+		TestEqual(TEXT("with the Move cue"), Screen->GetLastCue(), EWoRMenuCue::Move);
+
+		int32 Open = INDEX_NONE;
+		for (int32 Index = 1; Index < Kinds.Num(); ++Index)
+		{
+			const FText Refusal = Screen->GetGridKindRefusal(Kinds[Index]);
+			if (Refusal.IsEmpty())
+			{
+				Open = Open == INDEX_NONE ? Index : Open;
+				continue;
+			}
+			Screen->PickGridKind(Index);
+			TestTrue(TEXT("a refused kind: stays on Weapon, says why"), Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon && Screen->GetMessage().EqualTo(Refusal));
+		}
+		if (Open == INDEX_NONE)
+		{
+			Screen->TurnGridKind(1);
+			TestTrue(TEXT("nothing to turn to: stays, with the reason"), Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon && !Screen->GetMessage().IsEmpty());
+			return;
+		}
+		Screen->TurnGridKind(1);
+		TestTrue(TEXT("Right: the first kind that can be turned to (refused ones skipped)"), Screen->GetGridKind() == Kinds[Open]);
+		TestTrue(TEXT("the entry is that kind now, its first slot's grid open, the keys still on the selector"),
+				 Screen->GetDraft().Kind != ELoadoutV2DraftKind::Weapon && Screen->IsGridOpen() && Screen->IsOnGridKinds());
+		Screen->PickGridKind(0);
+		TestTrue(TEXT("back to Weapon: the main hand again"), Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon && Screen->GetSlots()[0] == ELoadoutV2Slot::MainHand);
+		TestEqual(TEXT("with the weapon draft as it was left: the sword in hand"), Screen->GetDraft().MainHand.PersistentID, IDOf(Sword));
+		Screen->MoveInDirection(0, 1);
+		TestFalse(TEXT("Down: back to the tiles"), Screen->IsOnGridKinds());
+		Screen->PressBack();
+		TestTrue(TEXT("Back: the slots, the screen stays"), !Screen->IsGridOpen() && Screen->IsActivated());
+	});
+
 	It("lists the member's gear on the Gear tab and marks the worn piece", [this]()
 	{
 		if (!IsReady()) return;

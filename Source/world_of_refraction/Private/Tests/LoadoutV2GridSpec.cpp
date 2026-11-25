@@ -116,14 +116,27 @@ void FLoadoutV2GridSpec::Define()
 		}
 	});
 
-	It("B-612: the hands and the sockets fill from the picture grid; the other slots don't", [this]()
+	It("B-612, B-614: every slot fills from the picture grid, with its kind selector", [this]()
 	{
 		TestTrue(TEXT("main hand"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::MainHand));
 		TestTrue(TEXT("off hand"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::OffHand));
 		TestTrue(TEXT("the crystal socket: its fitting choices, not the inventory's All tab"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Socket1));
 		TestTrue(TEXT("the stone socket"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Socket2));
-		TestFalse(TEXT("the adapter: its list"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Adapter));
-		TestFalse(TEXT("the evolution: its list"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Evolution));
+		// B-614 (mockup v5: the owned pieces as a grid): the adapter and the evolution too (B-612 had them as lists).
+		TestTrue(TEXT("the adapter"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Adapter));
+		TestTrue(TEXT("the evolution"), ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot::Evolution));
+
+		const TArray<ELoadoutV2PieceKind> Entry = {ELoadoutV2PieceKind::Weapon, ELoadoutV2PieceKind::Adapter, ELoadoutV2PieceKind::Evolution};
+		const TArray<ELoadoutV2PieceKind> Socket = {ELoadoutV2PieceKind::Crystal, ELoadoutV2PieceKind::Stone, ELoadoutV2PieceKind::Evolution};
+		for (const ELoadoutV2Slot Piece : {ELoadoutV2Slot::MainHand, ELoadoutV2Slot::OffHand, ELoadoutV2Slot::Adapter, ELoadoutV2Slot::Evolution})
+		{
+			TestTrue(TEXT("a piece's slot turns the entry's kind: Weapon, Adapter, Evolution"), ULoadoutV2ScreenWidget::GetSlotKinds(Piece) == Entry);
+		}
+		for (const ELoadoutV2Slot Hole : {ELoadoutV2Slot::Socket1, ELoadoutV2Slot::Socket2})
+		{
+			TestTrue(TEXT("a socket's kinds: Crystal, Stone, Evolution"), ULoadoutV2ScreenWidget::GetSlotKinds(Hole) == Socket);
+		}
+		TestEqual(TEXT("each kind has its word"), ULoadoutV2ScreenWidget::GetPieceKindName(ELoadoutV2PieceKind::Stone).ToString(), FString(TEXT("Stone")));
 	});
 
 	It("on the screen with no party the grid is closed and its keys do nothing (headless)", [this]()
@@ -143,6 +156,9 @@ void FLoadoutV2GridSpec::Define()
 		Screen->MoveInGrid(1, 0);
 		Screen->CycleGridFilter(1);
 		Screen->ClickGridTab(1);
+		Screen->TurnGridKind(1);
+		Screen->PickGridKind(1);
+		TestTrue(TEXT("no kind selector (B-614)"), Screen->GetGridKinds().IsEmpty() && !Screen->IsOnGridKinds());
 		TestTrue(TEXT("still the list, no tiles, no tabs"), Screen->GetMode() == ELoadoutV2Mode::List && Screen->GetGridTiles().IsEmpty() && Screen->GetGridTypes().IsEmpty());
 		Screen->PressBack();
 	});
