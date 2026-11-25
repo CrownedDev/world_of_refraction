@@ -9,6 +9,7 @@
 #include "Combat/Grid/ECombatRow.h"
 #include "Currency/CurrencyTypes.h"
 #include "Field/FieldSkillTypes.h"
+#include "Infusion/EInfusionSourceOption.h"
 #include "Inventory/InventoryVerbs.h"
 #include "Merchant/MerchantData.h"
 #include "Skills/Definitions/SpellSchool.h"
@@ -50,6 +51,12 @@ void FGameNamesSpec::Define()
 	It("names every element", [this]()
 	{
 		ExpectEveryValueNamed<ESpellElement>(&WoRGameNames::GetElementName);
+	});
+
+	It("names every infusion source by its piece (B-634)", [this]()
+	{
+		ExpectEveryValueNamed<EInfusionSourceOption>(&WoRGameNames::GetInfusionSourceWord);
+		TestEqual(TEXT("the ring is the Adapter"), WoRGameNames::GetInfusionSourceWord(EInfusionSourceOption::PrimaryRing).ToString(), FString(TEXT("Adapter")));
 	});
 
 	It("names every status effect type", [this]()

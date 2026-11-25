@@ -2328,17 +2328,15 @@ FText UCombatCommandMenuSubsystem::GetInfusionSourceName(int32 SourceIndex) cons
         return WoRGameNames::GetIceName(); // B-593: a Water source's Ice entry
     }
     const EInfusionSourceOption Source = VFX->GetCachedSources()[SourceIndex];
-    if (Source == EInfusionSourceOption::None)
-    {
-        return LOCTEXT("PanelSourceNone", "None");
-    }
-    if (Source == EInfusionSourceOption::Raw)
-    {
-        return LOCTEXT("PanelSourceRaw", "Raw");
-    }
+    const FText SourceWord = WoRGameNames::GetInfusionSourceWord(Source);
     const UActionExecutor *Exec = WoRFight::Get<UActionExecutor>(this);
-    return Exec ? WoRGameNames::GetElementName(Exec->GetElementForSourceOption(CurrentActor.Get(), Source))
-                : FText::FromString(InfusionSourceOptionHelpers::GetDisplayName(Source));
+    if (Source == EInfusionSourceOption::None || Source == EInfusionSourceOption::Raw || !Exec)
+    {
+        return SourceWord;
+    }
+    // B-634: the element and the piece it comes from, so two sources of one element can be told apart.
+    return FText::Format(LOCTEXT("PanelSourceWithPiece", "{0} · {1}"),
+                         WoRGameNames::GetElementName(Exec->GetElementForSourceOption(CurrentActor.Get(), Source)), SourceWord);
 }
 
 FText UCombatCommandMenuSubsystem::GetCurrentInfusionSourceName() const
