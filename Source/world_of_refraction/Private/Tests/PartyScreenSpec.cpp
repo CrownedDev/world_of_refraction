@@ -93,7 +93,13 @@ void FPartyScreenSpec::Define()
 		TestEqual(TEXT("Mind is the live level"), Leader.Mind, WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Party->Members[0], EWorldPillar::Mind));
 		TestEqual(TEXT("Body is the live level"), Leader.Body, WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Party->Members[0], EWorldPillar::Body));
 		TestEqual(TEXT("Spirit is the live level"), Leader.Spirit, WoRLevelDrops::GetLiveLevel(TestWorld->GetWorld(), Party->Members[0], EWorldPillar::Spirit));
-		TestTrue(TEXT("no loadout here: no weapon line"), Leader.Weapon.IsEmpty() == WoRPartyScreen::BuildLoadout(TestWorld->GetWorld(), 0).Entries.IsEmpty());
+		// The test world spawns no member, so there is no loadout to read: the weapon line is empty. With one, it is the first piece.
+		const FPartyScreenLoadout LeaderLoadout = WoRPartyScreen::BuildLoadout(TestWorld->GetWorld(), 0);
+		TestEqual(TEXT("the weapon is the active loadout's first piece, or nothing"), Leader.Weapon.ToString(),
+				  LeaderLoadout.Entries.IsEmpty() ? FString() : LeaderLoadout.Entries[0].Name.ToString());
+		const FPartyScreenPage NoWorld = WoRPartyScreen::BuildPage(Party, false);
+		TestTrue(TEXT("with no world: the vitals, no pillars or weapon"), NoWorld.Members[0].MaxHP == Leader.MaxHP &&
+				 NoWorld.Members[0].Mind == 0 && NoWorld.Members[0].Weapon.IsEmpty());
 	});
 
 	It("keeps the leader's seat yours and toggles another member's seat", [this]()

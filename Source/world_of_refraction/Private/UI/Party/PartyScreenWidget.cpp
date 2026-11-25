@@ -3,6 +3,7 @@
 #include "UI/Party/PartyScreenWidget.h"
 
 #include "Algo/IndexOf.h"
+#include "Character/EWorldPillar.h"
 #include "Combat/Grid/CombatGridConstants.h"
 #include "Components/Border.h"
 #include "Components/ScrollBox.h"
@@ -378,7 +379,11 @@ void UPartyScreenWidget::RefreshData()
 		// B-628b: Mind / Body / Spirit, the active weapon, and HP / EP when their maximums can be read.
 		if (Widgets.Pillars.IsValid() && Widgets.Weapon.IsValid())
 		{
-			Widgets.Pillars->SetText(FText::Format(LOCTEXT("Pillars", "Mind {0}    Body {1}    Spirit {2}"), Member.Mind, Member.Body, Member.Spirit));
+			// D-200's "no level" is an AI seat's skill level (D-191), not its pillars: every seat shows them (the Pause mockup's cards).
+			Widgets.Pillars->SetText(FText::Format(LOCTEXT("Pillars", "{0} {1}    {2} {3}    {4} {5}"),
+												   WoRGameNames::GetPillarName(EWorldPillar::Mind), Member.Mind,
+												   WoRGameNames::GetPillarName(EWorldPillar::Body), Member.Body,
+												   WoRGameNames::GetPillarName(EWorldPillar::Spirit), Member.Spirit));
 			Widgets.Weapon->SetText(Member.Weapon);
 			SetShown(Widgets.Weapon.Get(), !Member.Weapon.IsEmpty());
 		}
