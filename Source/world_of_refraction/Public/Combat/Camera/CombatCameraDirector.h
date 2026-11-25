@@ -425,6 +425,15 @@ private:
 	bool bArrivedOnSide = false;
 	void CutOnArrival();
 
+	/** B-600i: Melee Rush's hits shown this pattern (the next re-cut's angle), the frame of the last one (hits on one
+	 *  frame, several targets at once, cut once), and the re-cuts this fight (wor.Camera.Print). */
+	int32 ShotHitIndex = 0;
+	uint64 LastShotHitFrame = 0;
+	int32 ComboRecutCount = 0;
+	/** B-600i: Support's cut to the wide of the allies, SupportCasterSeconds after the front shot. */
+	FTimerHandle SupportWideTimer;
+	void CutToSupportWide();
+
 	/** B-604c: the enemy whose defend camera is up, and when its first hit landed (< 0: not yet). The next turn's camera
 	 *  waits for that hit and its hold (FCombatCameraRules::GetDefendTurnWait). */
 	TWeakObjectPtr<AActor> DefendAttacker;
