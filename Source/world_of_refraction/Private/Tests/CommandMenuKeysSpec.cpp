@@ -1366,57 +1366,6 @@ void FCommandMenuKeysSpec::Define()
 		TestEqual(TEXT("the infusion stays on for the next strike"), Menu->GetStickyInfusionLevel(Hero), 1);
 	});
 
-	It("sends a weapon buff with the infusion that is on, for its look only (B-622, D-275)", [this]()
-	{
-		if (!StartTwoWeaponDuel())
-		{
-			return;
-		}
-		UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
-		ULoadoutComponent *Loadout = Hero->FindComponentByClass<ULoadoutComponent>();
-		UWeaponData *Sword = Loadout ? Loadout->GetPrimaryWeapon() : nullptr;
-		const UInfusionVFXComponent *VFX = Hero->FindComponentByClass<UInfusionVFXComponent>();
-		if (!TestNotNull(TEXT("hero data"), HeroData) || !TestNotNull(TEXT("the sword in hand"), Sword) || !TestNotNull(TEXT("infusion"), VFX))
-		{
-			return;
-		}
-		HeroData->CharacterData->CharacterClass = ECharacterClass::Caster; // an Innate source to pick
-		HeroData->CharacterData->InnateElement = ESpellElement::Fire;
-		HeroData->MaxEP = HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
-		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
-		Strike->BaseEnergyCost = MENU_KEYS_STRIKE_EP;
-		Sword->WeaponAttack = Strike;
-		FAction RallyAction;
-		RallyAction.ActionType = EActionType::Ability;
-		RallyAction.SkillData = MakeWeaponBuff(ETargetType::Self);
-		RallyAction.Targets.Add(Hero);
-		FAction StrikeAction = RallyAction;
-		StrikeAction.SkillData = Strike;
-
-		Menu->OpenForActor(Hero);
-		TestTrue(TEXT("no infusion on: the buff is sent clear"), Menu->WithStickyInfusionLook(RallyAction).SelectedSource == EInfusionSourceOption::None);
-
-		FPieMenuButtonData Attack;
-		Attack.Category = EPieMenuCategory::Attack;
-		Menu->HandleSelection(Attack);
-		Menu->PressMenuKey(EPieMenuCategory::Items); // 3 / Y: the infusion line (B-592)
-		Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, 1);
-		const int32 InnateIndex = VFX->GetCachedSources().IndexOfByKey(EInfusionSourceOption::Innate);
-		if (!TestTrue(TEXT("Innate offered"), InnateIndex != INDEX_NONE)) return;
-		Menu->PickTargetPanelChoice(ETargetPanelChoice::Element, InnateIndex);
-		TestTrue(TEXT("strike at Innate (Fire), Lv I"), Menu->PressMenuKey(EPieMenuCategory::Attack));
-		TestEqual(TEXT("infusion on"), Menu->GetStickyInfusionLevel(Hero), 1);
-
-		TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
-		Menu->OpenForActor(Hero);
-		const FAction Sent = Menu->WithStickyInfusionLook(RallyAction);
-		TestTrue(TEXT("the buff carries the infusion's source"), Sent.SelectedSource == EInfusionSourceOption::Innate);
-		TestEqual(TEXT("at no level: it isn't infused"), Sent.GetChargeLevel(), 0);
-		TestTrue(TEXT("a strike is left as built"), Menu->WithStickyInfusionLook(StrikeAction).SelectedSource == EInfusionSourceOption::None);
-		const FAction Kept = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(Sent);
-		TestTrue(TEXT("the executor drops it from the action"), Kept.SelectedSource == EInfusionSourceOption::None);
-	});
-
 	It("greys a skill the fighter can't pay the EP for, and the targets of a level it can't pay, with the reason (B-625)", [this]()
 	{
 		if (!StartTwoWeaponDuel())

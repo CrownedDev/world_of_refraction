@@ -1,8 +1,8 @@
 // WeaponBuffTintSpec.cpp
-// B-622 (D-275, Crown 2026-11-25: "Yes, tint only"): a weapon buff or debuff takes no infusion, but its VFX takes the
-// colour of the caster's infusion that is on: the action's LookElement, through the same EffectTint path. No EP for
-// it, and the action's element stays its own. With no infusion on, no tint. The menu's half is in
-// WoR.UI.CommandMenu.Keys. Unproven here: the colour on screen (no montage VFX headless; docs/PIE/B-622.md).
+// B-622b (D-275, Crown 2026-11-25: "wait rally doesnt get a tint as buffs cannot be infused"; replaces B-622's tint):
+// a weapon buff or debuff takes no infusion and no tint, even with an infusion riding on its action. Its VFX tint is
+// the action's own element (AttackElement), which isn't the infusion's. Unproven here: the look on screen (no montage
+// VFX headless; docs/PIE/B-622b.md).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -96,33 +96,24 @@ void FWeaponBuffTintSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("tints with the look element when it is an element, else the action's", [this]()
-	{
-		TestTrue(TEXT("an infusion on: its element"), EffectTint::ChooseTintElement(ESpellElement::None, ESpellElement::Fire) == ESpellElement::Fire);
-		TestTrue(TEXT("no infusion on: the action's own"), EffectTint::ChooseTintElement(ESpellElement::Water, ESpellElement::None) == ESpellElement::Water);
-		TestTrue(TEXT("an inherit look doesn't tint"), EffectTint::ChooseTintElement(ESpellElement::None, ESpellElement::Generic) == ESpellElement::None);
-	});
-
-	It("gives a weapon buff the infusion's element as its look, not as its element", [this]()
+	It("leaves a weapon buff untinted with a Fire infusion riding on it", [this]()
 	{
 		if (!TestNotNull(TEXT("Executor"), Executor) || !TestNotNull(TEXT("Hero"), Hero)) return;
 		TestTrue(TEXT("Rally is a weapon buff"), SupportSkillRules::IsWeaponBuffOrDebuff(Rally));
 		const TOptional<FActionResult> Result = UseRally(EInfusionSourceOption::Innate);
 		if (!TestTrue(TEXT("Rally completed"), Result.IsSet())) return;
 		TestTrue(FString::Printf(TEXT("it ran (%s)"), *Result->ErrorMessage), Result->bSuccess);
-		TestTrue(TEXT("the look is the infusion's Fire"), Result->LookElement == ESpellElement::Fire);
-		TestTrue(TEXT("the action itself isn't Fire"), Result->AttackElement != ESpellElement::Fire);
-		TestTrue(TEXT("its VFX tint is Fire"), EffectTint::ChooseTintElement(Result->AttackElement, Result->LookElement) == ESpellElement::Fire);
+		TestTrue(TEXT("the action isn't Fire"), Result->AttackElement != ESpellElement::Fire);
+		TestFalse(TEXT("its VFX isn't tinted"), EffectTint::ShouldSetSoftTofuColour(Result->AttackElement));
 	});
 
-	It("leaves it clear with no infusion on", [this]()
+	It("leaves it untinted with no infusion on", [this]()
 	{
 		if (!TestNotNull(TEXT("Executor"), Executor) || !TestNotNull(TEXT("Hero"), Hero)) return;
 		const TOptional<FActionResult> Result = UseRally(EInfusionSourceOption::None);
 		if (!TestTrue(TEXT("Rally completed"), Result.IsSet())) return;
 		TestTrue(TEXT("it ran"), Result->bSuccess);
-		TestTrue(TEXT("no look element"), Result->LookElement == ESpellElement::None);
-		TestFalse(TEXT("no tint"), EffectTint::ShouldSetSoftTofuColour(EffectTint::ChooseTintElement(Result->AttackElement, Result->LookElement)));
+		TestFalse(TEXT("its VFX isn't tinted"), EffectTint::ShouldSetSoftTofuColour(Result->AttackElement));
 	});
 }
 
