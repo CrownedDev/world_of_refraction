@@ -496,7 +496,7 @@ void FBattleHUDSpec::Define()
 			const TArray<int32> WithEndTurn = BattleHUDView::AssignMenuKeys({EPieMenuCategory::EndTurn}, {true}, /*bAtMainMenu=*/true);
 			if (TestTrue(TEXT("B-627: the End Turn hint has a key"), KeyCategory(WithEndTurn[0]) == EPieMenuCategory::EndTurn))
 			{
-				TestTrue(TEXT("B-627: G, View on a pad"), Keys[WithEndTurn[0]].Keyboard == EKeys::G && Keys[WithEndTurn[0]].Gamepad == EKeys::Gamepad_Special_Left);
+				TestTrue(TEXT("B-627: G, D-pad Left on a pad"), Keys[WithEndTurn[0]].Keyboard == EKeys::G && Keys[WithEndTurn[0]].Gamepad == EKeys::Gamepad_DPad_Left);
 			}
 
 			const TArray<int32> Sub = BattleHUDView::AssignMenuKeys(Rows, {true, true, true, true, true}, /*bAtMainMenu=*/false);

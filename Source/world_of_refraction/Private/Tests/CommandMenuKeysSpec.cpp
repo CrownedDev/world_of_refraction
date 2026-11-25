@@ -38,6 +38,8 @@
 namespace
 {
 	constexpr int32 MENU_KEYS_SETTLE_FRAMES = 3;
+	/** B-627: Backs from a target picker to the main menu (picker, list, kinds). */
+	constexpr int32 MENU_KEYS_MAX_BACK_STEPS = 3;
 	/** Infusion levels 0, 1, 2 (UInfusionVFXComponent::CycleInfusionLevel). */
 	constexpr int32 MENU_KEYS_INFUSION_LEVELS = 3;
 	/** B-613: enough EP for any infusion the specs pick. */
@@ -308,6 +310,19 @@ void FCommandMenuKeysSpec::Define()
 			Menu->PressMenuKey(OnR[0]);
 			Menu->PressMenuKey(OnR[1]);
 			TestTrue(TEXT("R in the picker: no Defend"), Orchestrator->GetCurrentActor() == Hero && Menu->IsOpen() && !Menu->IsAtMainMenu());
+			Menu->PressMenuKey(OnR[1]);
+			Menu->PressMenuKey(OnR[0]);
+			TestTrue(TEXT("the other order: still no Defend"), Orchestrator->GetCurrentActor() == Hero && Menu->IsOpen() && !Menu->IsAtMainMenu());
+			for (int32 Step = 0; Step < MENU_KEYS_MAX_BACK_STEPS && !Menu->IsAtMainMenu(); ++Step)
+			{
+				Menu->HandleBack();
+			}
+			if (TestTrue(TEXT("back on the main menu"), Menu->IsAtMainMenu()))
+			{
+				Menu->PressMenuKey(OnR[1]);
+				Menu->PressMenuKey(OnR[0]);
+				TestTrue(TEXT("R on the main menu: Defend, the turn moved on"), Orchestrator->GetCurrentActor() != Hero);
+			}
 		}
 	});
 
