@@ -112,7 +112,8 @@ void FLoadoutV2SkillsSpec::Define()
 			return;
 		}
 		Screen->ActivateWidget();
-		TestFalse(TEXT("opens on Weapons"), Screen->IsOnSkillsTab());
+		Screen->ToggleLoadout(); // B-598c: from the Inventory page to Equipment
+		TestFalse(TEXT("on Weapons"), Screen->IsOnSkillsTab());
 		Screen->SwitchTab(1);
 		TestTrue(TEXT("RB: Skills"), Screen->GetTab() == ELoadoutV2Tab::Skills && Screen->GetMode() == ELoadoutV2Mode::SkillEntries);
 		Screen->SwitchTab(1);
@@ -135,6 +136,7 @@ void FLoadoutV2SkillsSpec::Define()
 			return;
 		}
 		Screen->ActivateWidget();
+		Screen->ToggleLoadout(); // B-598c: from the Inventory page to Equipment
 		TestFalse(TEXT("no party, no entry: nothing to open"), Screen->JumpToEntrySkills());
 		TestTrue(TEXT("still on the Equipment list"), Screen->GetTab() == ELoadoutV2Tab::Weapons && Screen->GetMode() == ELoadoutV2Mode::List);
 		TestEqual(TEXT("no line to return to"), Screen->GetSkillsReturnLine(), static_cast<int32>(INDEX_NONE));

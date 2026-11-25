@@ -108,7 +108,7 @@ void FLoadoutApparelSpec::Define()
 		}
 		Screen->ActivateWidget();
 		TestTrue(TEXT("opens on Weapons"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
-		Screen->SwitchTab(-1); // LB: Weapons | Skills | Apparel in a ring (B-476d); D-249: the loadout's own Inventory tab is gone
+		Screen->SwitchTab(-1); // LB: B-598c, the pages Inventory | Equipment | Skills | Apparel in a ring, from Inventory
 		TestTrue(TEXT("the Apparel tab"), Screen->GetTab() == ELoadoutV2Tab::Apparel);
 		TestTrue(TEXT("no character: no apparel places"), Screen->GetApparelRows().IsEmpty());
 		Screen->PressA();
@@ -116,7 +116,7 @@ void FLoadoutApparelSpec::Define()
 		Screen->PressSetActive();
 		TestFalse(TEXT("Set active says why not here"), Screen->GetMessage().IsEmpty());
 		Screen->SwitchTab(1); // RB
-		TestTrue(TEXT("back on Weapons"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
+		TestTrue(TEXT("round to the Inventory page"), Screen->IsOnInventoryPage() && Screen->GetTab() == ELoadoutV2Tab::Weapons);
 		Screen->PressBack();
 		TestFalse(TEXT("Back closes it"), Screen->IsActivated());
 	});
