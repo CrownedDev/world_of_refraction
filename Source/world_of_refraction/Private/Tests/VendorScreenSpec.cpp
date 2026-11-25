@@ -577,7 +577,7 @@ void FVendorScreenSpec::Define()
 		TestEqual(TEXT("for the merge's price"), Money(), Before - EconomyYield::GetMergeCostForTier(EItemTier::E_Tier));
 	});
 
-	It("B-616 Upgrade: aims at the next tier; a jump costs every step; Left / Right picks the tier; the second A raises it; S is refused", [this]()
+	It("B-616 Upgrade: aims at the next tier; a jump costs every step; Y / R picks the tier (B-616b); the second A raises it; S is refused", [this]()
 	{
 		if (!Inventory) return;
 		const FGuid DaggerId = IdOf(Dagger);
@@ -608,8 +608,8 @@ void FVendorScreenSpec::Define()
 		Row = FindGear(Screen->GetPage(), DaggerId);
 		if (!TestTrue(TEXT("the dagger is a row on the screen"), Row != INDEX_NONE)) return;
 		Screen->SelectRow(Row);
-		Screen->MoveUpgradeTarget(1);
-		TestTrue(TEXT("Right: one tier further"), Screen->GetPage().Rows[Row].UpgradeTo == Jump);
+		Screen->PressSecond();
+		TestTrue(TEXT("Y / R: one tier further"), Screen->GetPage().Rows[Row].UpgradeTo == Jump);
 		TestEqual(TEXT("Details: tier, what it dismantles for, the wallet before and after"), Screen->GetPage().Rows[Row].Changes.Num(), 3);
 		const int32 Before = Wallet()->GetBalance(ECurrencyType::GearEssence);
 		Screen->Confirm();
@@ -623,6 +623,52 @@ void FVendorScreenSpec::Define()
 		Page = WoRVendorScreen::BuildUpgradePage(World(), Key(), {});
 		Row = FindGear(Page, DaggerId);
 		TestTrue(TEXT("a piece at S is refused with the reason"), Row != INDEX_NONE && !Page.Rows[Row].Refusal.IsEmpty());
+	});
+
+	It("B-616b (Q-616b): Buy is a tile grid under filters; the arrows move, Up reaches the filters, A adds and Y / R takes one back", [this]()
+	{
+		if (!Inventory) return;
+		Fund();
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Buy);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		TestTrue(TEXT("Buy is a grid"), Screen->IsTileGrid());
+		const TArray<FVendorGridFilter> &Filters = Screen->GetFilters();
+		if (!TestEqual(TEXT("All, the spear's weapon type, the gems"), Filters.Num(), 3)) return;
+		TestTrue(TEXT("the first filter is All"), Filters[0].IsAll());
+		TestEqual(TEXT("All shows every line"), Screen->GetShownRows().Num(), Screen->GetPage().Rows.Num());
+
+		Screen->SelectRow(VENDOR_SCREEN_SPEAR_ROW);
+		Screen->MoveInGrid(1, 0);
+		TestEqual(TEXT("Right: the next tile"), Screen->GetSelectedRow(), static_cast<int32>(VENDOR_SCREEN_GEM_ROW));
+		Screen->MoveInGrid(0, -1);
+		TestTrue(TEXT("Up off the top row: the filters"), Screen->IsOnFilters());
+		Screen->MoveInGrid(1, 0);
+		TestEqual(TEXT("Right on the filters picks the next"), Screen->GetFilterIndex(), 1);
+		const FVendorGridFilter Picked = Filters[1];
+		TestEqual(TEXT("one kind: one tile"), Screen->GetShownRows().Num(), 1);
+		for (const int32 Shown : Screen->GetShownRows())
+		{
+			TestTrue(TEXT("each tile passes the filter"), WoRVendorScreen::PassesFilter(Screen->GetPage().Rows[Shown], Picked));
+		}
+		TestTrue(TEXT("the lit line is a shown tile"), Screen->GetShownRows().Contains(Screen->GetSelectedRow()));
+		Screen->MoveInGrid(0, 1);
+		TestFalse(TEXT("Down: back to the tiles"), Screen->IsOnFilters());
+		Screen->PickFilter(0);
+		TestEqual(TEXT("All again"), Screen->GetShownRows().Num(), Screen->GetPage().Rows.Num());
+
+		Screen->SelectRow(VENDOR_SCREEN_GEM_ROW);
+		Screen->Confirm();
+		const int32 OneLine = Screen->GetPage().Rows[VENDOR_SCREEN_GEM_ROW].Row.Count; // the shelf's line: VENDOR_SCREEN_GEM_COUNT gems
+		TestEqual(TEXT("A: the line in the cart"), OneLine, VENDOR_SCREEN_GEM_COUNT);
+		Screen->Confirm();
+		TestEqual(TEXT("two A: twice"), Screen->GetPage().Rows[VENDOR_SCREEN_GEM_ROW].Row.Count, 2 * OneLine);
+		Screen->PressSecond();
+		TestEqual(TEXT("Y / R takes one line back"), Screen->GetPage().Rows[VENDOR_SCREEN_GEM_ROW].Row.Count, OneLine);
+
+		UVendorScreenWidget *Slots = OpenScreen(EVendorScreenTab::ItemSlots, EMerchantType::Jeweler);
+		if (!TestNotNull(TEXT("item slots screen"), Slots)) return;
+		TestFalse(TEXT("Item slots stays a list"), Slots->IsTileGrid());
+		TestTrue(TEXT("and has no filters"), Slots->GetFilters().IsEmpty());
 	});
 }
 

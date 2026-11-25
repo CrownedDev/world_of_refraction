@@ -22,7 +22,9 @@
 // B-616: three columns (mockup screen_mockups/hub/vendors/v2): the rows left, the focused thing in the middle,
 // Details right (the price, what changes, the question, Buy's cart).
 // What it shows comes from WoRVendorScreen (VendorScreenModel.h), which the specs read.
-// Not built: the left column as a tile grid (B-616b); Merge's two columns (one list with the tier on Left / Right instead).
+// B-616b (Q-616b): on Buy, Sell, Dismantle and Upgrade the left column is the v2 tile grid (filters, five to a row,
+// tier badge, count, the cart corner and the lock, the legend under it); Item slots, Repair, Curses and Merge keep rows.
+// Not built: Merge's two columns (one list with the tier on Left / Right instead); the mockup's Y Sort.
 
 #pragma once
 
@@ -35,10 +37,12 @@
 class AActor;
 class APlayerController;
 class UBorder;
+class UHorizontalBox;
 class UImage;
 class UMerchantData;
 class UScrollBox;
 class UTextBlock;
+class UUniformGridPanel;
 class UWidget;
 
 /** B-608: what a left click on a stock row does. */
@@ -97,6 +101,23 @@ public:
 	 *  confirms (the first selects). */
 	static EVendorRowClick GetRowClick(bool bBuy, bool bOnAddButton, bool bAlreadySelected);
 
+	// B-616b (mockup hub/vendors/v2, Q-616b): on Buy, Sell, Dismantle and Upgrade the left column is a grid of tiles,
+	// five to a row, under filter tabs (All, then each kind of thing shown). The arrows move tile to tile; Up off the
+	// top row reaches the filters (Left / Right turn them, Down or A back). A click on a tile lights it, on the lit one
+	// is A (Buy: adds one).
+	bool IsTileGrid() const { return WoRVendorScreen::HasTileGrid(GetTab()); }
+	void MoveInGrid(int32 DeltaX, int32 DeltaY);
+	/** The filter tab Index (0 is All): only its rows are tiles; the first of them is lit. */
+	void PickFilter(int32 Index);
+	bool IsOnFilters() const { return bOnFilters && IsTileGrid(); }
+	const TArray<FVendorGridFilter> &GetFilters() const { return Filters; }
+	int32 GetFilterIndex() const { return FilterIndex; }
+	/** The tiles in order: each one's row in GetPage().Rows. */
+	const TArray<int32> &GetShownRows() const { return ShownRows; }
+	/** Buy (Q-616b): Y / R takes one of the lit line back out of the cart (Left moves now). Upgrade: Y / R aims one tier
+	 *  further (wrapping). Elsewhere nothing. */
+	void PressSecond();
+
 	EMerchantType GetVendor() const { return Vendor; }
 	EVendorScreenTab GetTab() const { return Tabs.IsValidIndex(TabIndex) ? Tabs[TabIndex] : EVendorScreenTab::Buy; }
 	int32 GetMemberIndex() const { return MemberIndex; }
@@ -137,8 +158,31 @@ private:
 		TWeakObjectPtr<UBorder> AddButton;
 	};
 
+	/** B-616b: one tile's widgets, made as a page first needs them and refilled after. */
+	struct FTileWidgets
+	{
+		TWeakObjectPtr<UBorder> Frame;
+		TWeakObjectPtr<UImage> Icon;
+		TWeakObjectPtr<UImage> IconCentre;
+		/** The icon's name where the icon table has no picture. */
+		TWeakObjectPtr<UTextBlock> Word;
+		TWeakObjectPtr<UImage> TierBadge;
+		/** The tier in letters where the row has no badge ("F", Upgrade's "F → E"). */
+		TWeakObjectPtr<UTextBlock> TierText;
+		TWeakObjectPtr<UTextBlock> Count;
+		/** Buy: the violet corner of a line in the cart. */
+		TWeakObjectPtr<UWidget> InCart;
+		TWeakObjectPtr<UWidget> Lock;
+	};
+
 	void BuildTree();
 	FRowWidgets BuildRow();
+	FTileWidgets BuildTile(int32 Index);
+	/** B-616b: the filters and the tiles from Page (the rows' column is hidden on a grid tab). */
+	void RefreshGrid();
+	/** B-616b: ShownRows from Page and the filter; the lit row kept when it is still shown, else the first. */
+	void UpdateShownRows();
+	int32 FindTileUnder(const FPointerEvent &MouseEvent) const;
 	/** Back to the vendor's first built tab and first row, nothing pending. */
 	void ResetState();
 	/** The members and the shown tab, read fresh from the model; the heading, the tabs and the rows. */
@@ -185,6 +229,11 @@ private:
 	TMap<FGuid, EItemTier> UpgradeTargets;
 	FText Status;
 	bool bStatusIsRefusal = false;
+	// B-616b: the grid's filter and the rows it shows.
+	TArray<FVendorGridFilter> Filters;
+	int32 FilterIndex = 0;
+	bool bOnFilters = false;
+	TArray<int32> ShownRows;
 	/** Buy: whose stock (held, so the stock lines the page and the cart point at stay loaded), whose wallet, and
 	 *  what is picked so far. */
 	UPROPERTY(Transient)
@@ -265,4 +314,27 @@ private:
 	TObjectPtr<UTextBlock> HintsText;
 
 	TArray<FRowWidgets> RowWidgets;
+
+	// B-616b: the grid's panel (in the rows' place), its heading, filters, tiles and legend.
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> GridColumnWidget;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GridTitleText;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> GridCountText;
+	UPROPERTY(Transient)
+	TObjectPtr<UHorizontalBox> FilterRow;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UBorder>> FilterTabs;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UImage>> FilterIcons;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UTextBlock>> FilterLabels;
+	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> GridScroll;
+	UPROPERTY(Transient)
+	TObjectPtr<UUniformGridPanel> GridPanel;
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> LegendCart;
+	TArray<FTileWidgets> TileWidgets;
 };

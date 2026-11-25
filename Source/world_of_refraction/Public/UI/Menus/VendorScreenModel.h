@@ -46,6 +46,19 @@ struct FVendorScreenChange
 	bool bBetter = true;
 };
 
+/** B-616b: one filter tab over the tile grid: All (Kind None), or one kind of icon (a weapon type for WeaponType). */
+struct FVendorGridFilter
+{
+	EWoRIconKind Kind = EWoRIconKind::None;
+	EWeaponType WeaponType = EWeaponType::Sword;
+
+	bool IsAll() const { return Kind == EWoRIconKind::None; }
+	bool operator==(const FVendorGridFilter &Other) const
+	{
+		return Kind == Other.Kind && (Kind != EWoRIconKind::WeaponType || WeaponType == Other.WeaponType);
+	}
+};
+
 /** One line of a tab: what the service acts on (Row; on Buy, Stock) and how it reads. */
 struct FVendorScreenRow
 {
@@ -230,4 +243,26 @@ namespace WoRVendorScreen
 
 	/** Payer: who would buy (the Buy rows' refusals); null lists the stock with no buyer. */
 	WORLD_OF_REFRACTION_API FString GetVendorScreenString(UWorld *World, EMerchantType Vendor, AActor *Payer = nullptr);
+
+	// ---- B-616b (mockup hub/vendors/v2, Q-616b): the left column as a tile grid ----
+
+	/** The tabs that list things draw them as tiles (Buy, Sell, Dismantle, Upgrade); Item slots, Repair, Curses and
+	 *  Merge keep their rows (their lines carry pips, wear and tiers). */
+	WORLD_OF_REFRACTION_API bool HasTileGrid(EVendorScreenTab Tab);
+
+	/** The filter tabs over the tiles: All, then each kind of thing among Rows once (a weapon type each, an adapter, a
+	 *  crystal, a stone...), in the order the kinds and weapon types are declared. Rows with no icon are under All only. */
+	WORLD_OF_REFRACTION_API TArray<FVendorGridFilter> GetGridFilters(const TArray<FVendorScreenRow> &Rows);
+
+	/** Row shows under Filter (All shows every row). */
+	WORLD_OF_REFRACTION_API bool PassesFilter(const FVendorScreenRow &Row, const FVendorGridFilter &Filter);
+
+	/** The filter tab's picture; its Name is the word shown where the icon table has no picture ("All", "Sword"). */
+	WORLD_OF_REFRACTION_API FWoRIcon GetFilterIcon(const FVendorGridFilter &Filter);
+
+	/** Over the tiles: "Stock" on Buy, "Your gear" on the others (mockup v2). */
+	WORLD_OF_REFRACTION_API FText GetGridTitle(EVendorScreenTab Tab);
+
+	/** "5 skills" at a skill vendor's stock, else "7 pieces". */
+	WORLD_OF_REFRACTION_API FText GetGridCount(EMerchantType Vendor, EVendorScreenTab Tab, int32 Count);
 }
