@@ -180,6 +180,7 @@ void UTrialRunSubsystem::EnterTrial(UTrialData *Trial)
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
+    RestoreRunStats(0, 0.0); // B-632: no items yet, the clock from now
     RunMemories.Reset();
     NotifyRunProgressChanged(); // B-232d (review): the copy clears too
     PendingEncounterSources.Reset();
@@ -427,6 +428,7 @@ void UTrialRunSubsystem::FinishRun()
     RunLevels.Reset(); // B-223: the run's pillar levels end with it (D-102)
     UnspentLevels.Reset();
     FoundFeatures.Reset();
+    RestoreRunStats(0, 0.0); // B-632: no items yet, the clock from now
     RunMemories.Reset();
     NotifyRunProgressChanged(); // B-232d (review): the copy clears too
     PendingEncounterSources.Reset();
@@ -1045,6 +1047,28 @@ void UTrialRunSubsystem::RecordFound(FName FeatureId, const FText &What)
     NotifyRunProgressChanged();
 }
 
+void UTrialRunSubsystem::RecordItemFound()
+{
+    if (!IsRunActive())
+    {
+        return;
+    }
+    ++RunItemsFound;
+    UE_LOG(LogWoR, Verbose, TEXT("[TrialRun] Item found (%d this run)"), RunItemsFound);
+}
+
+double UTrialRunSubsystem::GetRunSeconds() const
+{
+    return IsRunActive() ? RunSecondsBefore + (FPlatformTime::Seconds() - RunClockStart) : 0.0;
+}
+
+void UTrialRunSubsystem::RestoreRunStats(int32 ItemsFound, double Seconds)
+{
+    RunItemsFound = FMath::Max(ItemsFound, 0);
+    RunSecondsBefore = FMath::Max(Seconds, 0.0);
+    RunClockStart = FPlatformTime::Seconds();
+}
+
 void UTrialRunSubsystem::NotifyRunProgressChanged() const
 {
     if (URunStateComponent *RunState = URunStateComponent::Find(GetGameInstance()))
@@ -1161,6 +1185,7 @@ void UTrialRunSubsystem::RestoreRun(UTrialData *Trial, int32 InRunSeed, int32 In
     bHasRestStand = false;
     bHasPendingReturnStand = false;
     FoundFeatures = Found;
+    RestoreRunStats(0, 0.0); // B-632: USaveSubsystem::RestoreRun puts the saved count and time back after this
     RunMemories = TArray<TObjectPtr<UMemoryData>>(Memories);
     NotifyRunProgressChanged();
     PendingEncounterSources.Reset();

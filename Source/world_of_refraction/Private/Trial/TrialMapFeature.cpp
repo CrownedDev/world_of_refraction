@@ -223,6 +223,7 @@ void ATrialChest::Interact(APawn *Pawn)
 	{
 		TrialRun->RecordChestReward(); // B-073 (D-094): chests add more to the run's tally
 	}
+	TrialRun->RecordItemFound(); // B-632: the Pause menu's Items found
 	TrialRun->RecordFound(PlayerFeatureId, FText::Format(LOCTEXT("ChestFound", "Found {0}."), ItemName));
 	ShowMessageTo(Pawn, FText::Format(LOCTEXT("ChestFoundMessage", "Found {0}."), ItemName));
 	RefreshHint();
