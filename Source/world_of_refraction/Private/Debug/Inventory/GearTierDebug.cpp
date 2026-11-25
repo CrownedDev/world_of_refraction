@@ -31,6 +31,7 @@ namespace
 		return Entry.PersistentID;
 	}
 
+#if !UE_BUILD_SHIPPING
 	FAutoConsoleCommandWithWorldAndArgs GSetGearTierCmd(
 		TEXT("wor.Debug.SetGearTier"),
 		TEXT("DEBUG (B-609a): wor.Debug.SetGearTier <name-part> <F|E|D|C|B|A|S> sets every owned weapon or adapter whose name contains "
@@ -66,6 +67,7 @@ namespace
 					GEngine->AddOnScreenDebugMessage(-1, GEAR_TIER_SCREEN_SECONDS, FColor::Cyan, Report);
 				}
 			}));
+#endif // !UE_BUILD_SHIPPING
 }
 
 TArray<FString> WoRGearTier::SetOwnedGearTier(UInventoryComponent &Inventory, const FString &NamePart, EItemTier Tier)

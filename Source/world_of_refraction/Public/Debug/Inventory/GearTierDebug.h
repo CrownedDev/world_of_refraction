@@ -1,7 +1,8 @@
 // GearTierDebug.h
 // B-609a: wor.Debug.SetGearTier <name-part> <F|E|D|C|B|A|S> sets the instance tier of every owned weapon or adapter whose
-// name contains the text, free. It writes where UEconomyService::LevelUpWeapon writes (the owned entry's Tier, then
-// RefreshLoadoutsFromOwned, so every loadout slot and the party's shared pool follow), then saves.
+// name contains the text, free. It writes where a level-up writes (UEconomyService::LevelUpOwnedGear: the owned entry's
+// Tier, then RefreshLoadoutsFromOwned, so every loadout slot and the party's shared pool follow), then saves. Unlike a
+// level-up it unlocks no bound or upgrade memories: it is a test shortcut to a tier, not a played upgrade.
 
 #pragma once
 
