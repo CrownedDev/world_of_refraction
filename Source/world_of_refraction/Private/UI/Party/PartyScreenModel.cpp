@@ -239,7 +239,7 @@ FString WoRPartyScreen::GetPartyScreenString(UWorld *World)
 			Out += FString::Printf(TEXT("\n        %s %s | %s"), *Entry.Name.ToString(), *Entry.TypeLine.ToString(), *Entry.SkillsLine.ToString());
 		}
 	}
-	Out +=FString::Printf(TEXT("\n  Invite: %s"), *Page.InviteStatus.ToString());
+	Out += FString::Printf(TEXT("\n  Invite: %s"), *Page.InviteStatus.ToString());
 	return Out;
 }
 

@@ -281,6 +281,7 @@ void UPartyScreenWidget::BuildGrid(UVerticalBox *Column)
 void UPartyScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
+	bDismissArmed = false; // an arm doesn't outlive a trip to another screen
 	RefreshData(); // also on the way back from the loadout screen (Y): what changed there shows
 	UE_LOG(LogWoRUI, Log, TEXT("[PartyScreen] Opened (%d member(s))"), Page.Members.Num());
 }
@@ -588,6 +589,8 @@ void UPartyScreenWidget::PressOpenLoadout()
 	{
 		Screen->MoveMember(Target - Screen->GetMemberIndex());
 	}
+	UE_CLOG(Target != Screen->GetMemberIndex(), LogWoRUI, Warning, TEXT("[PartyScreen] Open loadout: the loadout screen shows character %d, not %d"),
+			Screen->GetMemberIndex(), Target);
 	UE_LOG(LogWoRUI, Log, TEXT("[PartyScreen] Open loadout on %s (character %d, shown %d)"), *Page.Members[SelectedRow].Name.ToString(), Target,
 		   Screen->GetMemberIndex());
 }
