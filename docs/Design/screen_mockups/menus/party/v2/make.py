@@ -43,10 +43,7 @@ def left_party(d, focus_i):
     for i in range(3):
         seat_card(d, y, i, i == focus_i)
         y += 104
-    y += 6
-    cut(d, (GX0 + 16, y, GX1 - 16, y + 44), BG, (52, 54, 62), 8)
-    text(d, (GX0 + 34, y + 22), "Co-op", 15, True, anchor="lm")
-    text(d, (GX1 - 32, y + 22), "1 friend joined", 14, fill=DIM, anchor="rm")
+    # no co-op line: who plays each seat (You / a friend's name / AI) already says it (Crown)
 
 
 def start_grid(d, x, y, cell, mine):
