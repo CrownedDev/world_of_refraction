@@ -852,6 +852,9 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 	ArmContext.Action = ArmedAction;
 	ArmContext.Executor = Actor;
 	ArmContext.bInProgress = true;
+	// B-624: the arming cast's VFX takes the element the ritual will strike with (its locked infusion; a spell's own).
+	const ESpellElement RitualElement = PreviewActionDamage(Actor, ArmedAction, FActionStatModifiers()).Element;
+	ArmContext.PartialResult.AttackElement = RitualElement;
 	CurrentExecutionContext = ArmContext;
 	ApplyCommitCosts(Actor, ArmedAction);
 	ApplyPendingInfusionHPCost(Actor);
@@ -870,6 +873,7 @@ bool UActionExecutor::TryArmDeferredActivation(AActor *Actor, const FAction &Act
 	Result.ActionType = Action.ActionType;
 	Result.bSuccess = true;
 	Result.EnergySpent = EnergyCost;
+	Result.AttackElement = RitualElement; // B-624: the arm reports the element it locked in
 
 	// 2b: the ritual cast montage IS the arm turn — play ONLY it, hold the turn
 	// open, and complete the arm when it ends (FinishArmTurn). The cost/commit
