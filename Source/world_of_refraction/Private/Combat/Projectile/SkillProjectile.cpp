@@ -8,6 +8,7 @@
 #include "NiagaraSystem.h"
 #include "NiagaraFunctionLibrary.h"
 #include "Infusion/HybridSpellColors.h"
+#include "Combat/Presentation/EffectTint.h"
 #include "DrawDebugHelpers.h"
 
 // Note: SpellData properties used:
@@ -511,6 +512,10 @@ void ASkillProjectile::ApplyElementColors()
             Comp->SetColorParameter(FName("CoreColor"), Colors.PrimaryColor);
             Comp->SetColorParameter(FName("EdgeColor"), Colors.BlendedColor);
             Comp->SetColorParameter(FName("TrailColor"), Colors.SecondaryColor);
+            if (EffectTint::ShouldSetSoftTofuColour(Element)) // B-619
+            {
+                EffectTint::SetSoftTofuColour(*Comp, Colors.PrimaryColor);
+            }
         }
     }
 }
