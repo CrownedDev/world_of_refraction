@@ -1485,6 +1485,22 @@ void UActionExecutor::ExecuteSpellAsync(AActor *Caster, const FAction &Action, U
 	// Per-cast-entry hybrid flags (B1), parallel to ResolvedCastDifficulty (indexed by CastEntryIndex).
 	CurrentExecutionContext->ResolvedCastFlags = ResolveCastFlags(Spell->CastArray);
 
+	// B-621: a no-damage Self / Ally spell (a buff or heal) lands no hit, as the ability path: no defend window, no
+	// damage; its targets are the affected ones and its effects apply at finalize (the support VFX still plays).
+	if (SupportSkillRules::IsFriendlyNoDamageSkill(Spell))
+	{
+		PendingSpellDamage = 0;
+		CurrentExecutionContext->PartialResult.BaseDamageBeforeDefense = 0;
+		for (AActor *Target : ValidTargets)
+		{
+			CurrentExecutionContext->PartialResult.AffectedTargets.AddUnique(Target);
+		}
+		UE_LOG(LogWoRCombat, Log, TEXT("[ActionExecutor] %s is a no-damage %s spell: no hit, its effects go to %d target(s) (B-621)"),
+			   *Spell->Name, *UEnum::GetDisplayValueAsText(Spell->TargetType).ToString(), ValidTargets.Num());
+		LogActionDispatch(EActionType::Spell, Action.SpellInfusionLevel, 0, ValidTargets.Num());
+		return;
+	}
+
 	// Open defense windows for all targets (damage and buildup both applied after defense resolves)
 	OpenDefenseWindowsForTargets(
 		Caster,

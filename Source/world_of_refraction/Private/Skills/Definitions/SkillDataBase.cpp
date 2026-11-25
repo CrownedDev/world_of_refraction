@@ -360,18 +360,31 @@ void USkillDataBase::PostLoad()
     {
         // B-621: while a redirect sent the saved TargetType into LegacyTargetType, a skill re-saved in the editor
         // dropped its Self / Ally target and kept it in the legacy field only. Take it back from there (an enemy
-        // legacy value says nothing). TargetCount was saved on its own and stays.
-        const bool bLegacyFriendly = LegacyTargetType != ETargetType_Legacy::SingleEnemy &&
-                                     LegacyTargetType != ETargetType_Legacy::AllEnemies;
-        if (TargetType == ETargetType::Enemy && bLegacyFriendly)
+        // legacy value says nothing). TargetCount was saved on its own and stays. The legacy field is cleared once read,
+        // so the next save drops it and a target later set to Enemy on purpose is never taken back.
+        if (TargetType == ETargetType::Enemy)
         {
-            TargetType = LegacyTargetType == ETargetType_Legacy::Self ? ETargetType::Self
-                         : (LegacyTargetType == ETargetType_Legacy::SingleAlly || LegacyTargetType == ETargetType_Legacy::AllAllies)
-                             ? ETargetType::Ally
-                             : ETargetType::Anyone;
-            UE_LOG(LogWoR, Warning, TEXT("%s: TargetType taken back from the legacy field (%s), re-save the asset to keep it (B-621)"),
-                   *GetPathName(), *UEnum::GetDisplayValueAsText(TargetType).ToString());
+            switch (LegacyTargetType)
+            {
+            case ETargetType_Legacy::Self:
+                TargetType = ETargetType::Self; break;
+            case ETargetType_Legacy::SingleAlly:
+            case ETargetType_Legacy::AllAllies:
+                TargetType = ETargetType::Ally; break;
+            case ETargetType_Legacy::SingleAnyone:
+            case ETargetType_Legacy::Everyone:
+                TargetType = ETargetType::Anyone; break;
+            case ETargetType_Legacy::SingleEnemy:
+            case ETargetType_Legacy::AllEnemies:
+                break;
+            }
+            if (TargetType != ETargetType::Enemy)
+            {
+                UE_LOG(LogWoR, Warning, TEXT("%s: TargetType taken back from the legacy field (%s), re-save the asset to keep it (B-621)"),
+                       *GetPathName(), *UEnum::GetDisplayValueAsText(TargetType).ToString());
+            }
         }
+        LegacyTargetType = ETargetType_Legacy::SingleEnemy;
         return; // already migrated — don't corrupt re-saved assets
     }
 

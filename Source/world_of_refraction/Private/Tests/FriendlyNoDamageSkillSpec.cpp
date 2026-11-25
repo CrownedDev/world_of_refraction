@@ -71,7 +71,7 @@ BEGIN_DEFINE_SPEC(FFriendlyNoDamageSkillSpec, "WoR.Combat.FriendlyNoDamageSkill"
 	TUniquePtr<FWoRTestWorld> TestWorld;
 	ACombatOrchestrator *Orchestrator = nullptr;
 	UAbilityData *Strike = nullptr;
-	UAbilityData *Buff = nullptr;
+	USkillDataBase *Buff = nullptr;
 
 	/** What one use of the buff did. */
 	struct FBuffOutcome
@@ -86,8 +86,10 @@ BEGIN_DEFINE_SPEC(FFriendlyNoDamageSkillSpec, "WoR.Combat.FriendlyNoDamageSkill"
 		bool bTurnMovedOn = false;
 	};
 
-	/** A montage-less weapon buff: no damage, one Defense Buff on its target. */
-	UAbilityData *MakeBuff(ETargetType Target)
+	/** A montage-less buff ability or spell (Generic: castable by the test character, a Caster): no damage, one
+	 *  Defense Buff on its target. */
+	template <typename TSkill>
+	TSkill *MakeBuff(ETargetType Target)
 	{
 		FSkillEffectPayload Payload;
 		Payload.EffectType = ESkillEffectType::DefenseBuff;
@@ -98,12 +100,20 @@ BEGIN_DEFINE_SPEC(FFriendlyNoDamageSkillSpec, "WoR.Combat.FriendlyNoDamageSkill"
 		Effect.Payloads.Add(Payload);
 		UEffectDefinition *Definition = NewObject<UEffectDefinition>(GetTransientPackage());
 		Definition->Effects.Add(Effect); // kept alive by the rooted skill's ReferencedEffects
-		UAbilityData *NewBuff = NewObject<UAbilityData>(GetTransientPackage());
+		TSkill *NewBuff = NewObject<TSkill>(GetTransientPackage());
 		NewBuff->Name = TEXT("Montage-less Guard Up");
 		NewBuff->BaseDamage = 0;
 		NewBuff->BaseEnergyCost = FRIENDLY_SPEC_BUFF_EP;
-		NewBuff->ExecutionType = EAbilityExecutionType::Melee;
 		NewBuff->TargetType = Target;
+		if constexpr (std::is_same_v<TSkill, USpellData>)
+		{
+			NewBuff->ExecutionType = EAbilityExecutionType::Ranged;
+			NewBuff->Element = ESpellElement::Generic;
+		}
+		else
+		{
+			NewBuff->ExecutionType = EAbilityExecutionType::Melee;
+		}
 		NewBuff->HitCount = FRIENDLY_SPEC_TWO_HITS;
 		NewBuff->ReferencedEffects.Add(Definition);
 		NewBuff->AddToRoot();
@@ -133,7 +143,7 @@ BEGIN_DEFINE_SPEC(FFriendlyNoDamageSkillSpec, "WoR.Combat.FriendlyNoDamageSkill"
 
 	/** The hero (with an ally beside him) uses Skill on Self or the ally, until the turn moves on. bInstantImpacts 0
 	 *  checks the window right after the submit and then runs the animation-end fallback, as a montage's end does. */
-	FBuffOutcome RunBuff(UAbilityData *Skill, bool bOnAlly, bool bInstantImpacts)
+	FBuffOutcome RunBuff(USkillDataBase *Skill, bool bOnAlly, bool bInstantImpacts)
 	{
 		FBuffOutcome Outcome;
 		SetFriendlySpecCVar(TEXT("wor.Combat.InstantImpacts"), bInstantImpacts ? 1 : 0);
@@ -168,8 +178,16 @@ BEGIN_DEFINE_SPEC(FFriendlyNoDamageSkillSpec, "WoR.Combat.FriendlyNoDamageSkill"
 		Hits->Listen(Executor);
 
 		FAction Action;
-		Action.ActionType = EActionType::Ability;
-		Action.SkillData = Skill;
+		if (USpellData *AsSpell = Cast<USpellData>(Skill))
+		{
+			Action.ActionType = EActionType::Spell;
+			Action.SpellData = AsSpell;
+		}
+		else
+		{
+			Action.ActionType = EActionType::Ability;
+			Action.SkillData = Skill;
+		}
 		Action.Targets.Add(Target);
 		Outcome.Refusal = Executor->ValidateAction(Hero, Action).ErrorMessage;
 		const int32 TargetHPBefore = CurrentHPOf(Target);
@@ -249,7 +267,7 @@ void FFriendlyNoDamageSkillSpec::Define()
 	{
 		It("is told apart from a damaging or enemy one", [this]()
 		{
-			Buff = MakeBuff(ETargetType::Self);
+			Buff = MakeBuff<UAbilityData>(ETargetType::Self);
 			TestTrue(TEXT("No damage at Self"), SupportSkillRules::IsFriendlyNoDamageSkill(Buff));
 			Buff->TargetType = ETargetType::Ally;
 			TestTrue(TEXT("No damage at an ally"), SupportSkillRules::IsFriendlyNoDamageSkill(Buff));
@@ -260,16 +278,25 @@ void FFriendlyNoDamageSkillSpec::Define()
 
 		It("on Self: no defend window, no damage, no fallback impact; the buff lands", [this]()
 		{
-			Buff = MakeBuff(ETargetType::Self);
+			Buff = MakeBuff<UAbilityData>(ETargetType::Self);
 			TestNoHit(TEXT("Self, animation-end fallback"), RunBuff(Buff, /*bOnAlly*/ false, /*bInstantImpacts*/ false));
 			TestNoHit(TEXT("Self, instant impacts"), RunBuff(Buff, /*bOnAlly*/ false, /*bInstantImpacts*/ true));
 		});
 
-		It("on an ally: no defend window, no damage, no fallback impact; the buff lands", [this]()
+		It("on an ally: no defend window, no damage, no fallback impact; the buff lands on that ally", [this]()
 		{
-			Buff = MakeBuff(ETargetType::Ally);
+			Buff = MakeBuff<UAbilityData>(ETargetType::Ally);
 			TestNoHit(TEXT("Ally, animation-end fallback"), RunBuff(Buff, /*bOnAlly*/ true, /*bInstantImpacts*/ false));
 			TestNoHit(TEXT("Ally, instant impacts"), RunBuff(Buff, /*bOnAlly*/ true, /*bInstantImpacts*/ true));
+		});
+
+		It("as a spell, on Self and on an ally: no defend window, no damage; the buff lands", [this]()
+		{
+			Buff = MakeBuff<USpellData>(ETargetType::Self);
+			TestNoHit(TEXT("Self spell"), RunBuff(Buff, /*bOnAlly*/ false, /*bInstantImpacts*/ true));
+			Buff->RemoveFromRoot();
+			Buff = MakeBuff<USpellData>(ETargetType::Ally); // its payload at the ally too
+			TestNoHit(TEXT("Ally spell"), RunBuff(Buff, /*bOnAlly*/ true, /*bInstantImpacts*/ true));
 		});
 	});
 
@@ -312,6 +339,7 @@ void FFriendlyNoDamageSkillSpec::Define()
 				const FString Legacy = UEnum::GetValueAsString(Case.Key);
 				TestEqual(FString::Printf(TEXT("%s: target"), *Legacy), Ability->TargetType, Case.Value);
 				TestEqual(FString::Printf(TEXT("%s: the saved count stays"), *Legacy), Ability->TargetCount, ETargetCount::All);
+				TestEqual(FString::Printf(TEXT("%s: the legacy field is cleared"), *Legacy), Ability->LegacyTargetType, ETargetType_Legacy::SingleEnemy);
 			}
 			UAbilityData *Kept = NewObject<UAbilityData>(GetTransientPackage());
 			Kept->bTargetAxisMigrated = true;
@@ -319,6 +347,11 @@ void FFriendlyNoDamageSkillSpec::Define()
 			Kept->LegacyTargetType = ETargetType_Legacy::Self;
 			Kept->PostLoad();
 			TestEqual(TEXT("A target that loaded is never overwritten"), Kept->TargetType, ETargetType::Ally);
+			// Later set to Enemy on purpose and saved: the cleared legacy field no longer takes it back.
+			Kept->TargetType = ETargetType::Enemy;
+			UAbilityData *Resaved = SaveAndReload(Kept);
+			Resaved->PostLoad();
+			TestEqual(TEXT("A target set to Enemy after the fix stays Enemy"), Resaved->TargetType, ETargetType::Enemy);
 		});
 
 		It("loads the shipped support spells at their own targets", [this]()
