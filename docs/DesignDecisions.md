@@ -1347,6 +1347,11 @@ The queue of questions only Crown can answer.
 **Question:** on the Add gear window, how does a socket get its crystal or stone from the picture grid, and what does that grid list?
 **Answer (default, built):** (1) a socket opens a grid of its own choices: only the crystals, stones and evolutions that fit that socket, no weapon-type tabs (Q / E do nothing there); the count reads "N choices", not counting the Remove and Restore lines. (2) **A on a tile puts it in at once** (was: mark it in the left list, then Y Confirm); a refused one stays out with its reason in the details line. A full socket's line is Remove first (CL-28b), so one press never swaps out a gem unasked. (3) B-614 later adds the Crystal · Stone · Evolution kind selector on top (v5 mockup).
 **Reference:** Elden Ring and Dark Souls equip or attach the focused item on one confirm from the grid, with the details pane already showing what it does; Diablo IV socketing is the same one press. Players read the two-step mark-then-confirm as "nothing happened" (Crown's report).
+### Q-599 — Which infusion the Act panel heading names
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-599, Crown: drop No infusion when the action is raw; put the element in the title when infused) · **Blocks:** nothing
+**Question:** Crown's "raw" could mean no infusion or the Raw source. Which sources does the heading name, and what does the infusion key read?
+**Answer (default, built):** "raw" is read as **no infusion** (level 0, or the None source): no second line, a bare heading. Any other picked source at a level is named, the Raw source too ("Attack (Raw) · choose a target"), and a fixed-element spell names its element once a level is set. The infusion key names the chosen source even at level 0 ("Fire infusion"), so you see what the key will infuse; with None it reads "Infusion".
+**Reference:** Expedition 33 and Persona 5 show only the modifiers that apply on the action line, never a "none" line; Final Fantasy XVI's and Octopath Traveler's boost readouts name the element on the command itself.
 
 ### Q-609 — The gear upgrade screen: who, where and how much per press
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-609) · **Blocks:** nothing
