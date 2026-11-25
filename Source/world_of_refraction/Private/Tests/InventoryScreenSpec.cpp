@@ -223,7 +223,9 @@ void FInventoryScreenSpec::Define()
 			TestTrue(TEXT("the page can't change under a window"), Screen->IsLoadoutOpen() && !Screen->GetMessage().IsEmpty());
 			TestTrue(TEXT("and that is the Refused cue (UI_Theme 5a)"), Screen->GetLastCue() == EWoRMenuCue::Refused);
 			Screen->PressBack();
-			TestFalse(TEXT("Back leaves the window"), Screen->IsAdding());
+			TestTrue(TEXT("Back from the grid: the slots (B-633: the window opens on the grid)"), Screen->GetMode() == ELoadoutV2Mode::WindowSlots);
+			Screen->PressBack();
+			TestFalse(TEXT("Back again leaves the window"), Screen->IsAdding());
 		}
 		Screen->ToggleLoadout();
 		TestTrue(TEXT("and then back to the Inventory page"), Screen->IsOnInventoryPage() && Screen->IsOnInventorySide());
@@ -285,9 +287,7 @@ void FInventoryScreenSpec::Define()
 		if (!TestNotNull(TEXT("screen"), Screen)) return;
 		Screen->ActivateWidget();
 		Screen->ToggleLoadout();
-		Screen->PressA(); // the weapon set: the window's first question
-		Screen->PressA(); // its own kind: the slots
-		Screen->PressA(); // the main hand's grid
+		Screen->PressA(); // the weapon set: B-633, straight to the main hand's grid (no kind rows)
 		if (!TestTrue(TEXT("the main hand's grid is open"), Screen->IsGridOpen() && Screen->GetSlots().IsValidIndex(0) && Screen->GetSlots()[0] == ELoadoutV2Slot::MainHand)) return;
 		const TArray<ELoadoutV2PieceKind> Kinds = Screen->GetGridKinds();
 		if (!TestTrue(TEXT("Weapon, Adapter, Evolution, on Weapon"), Kinds == ULoadoutV2ScreenWidget::GetSlotKinds(ELoadoutV2Slot::MainHand) && Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon)) return;
@@ -325,6 +325,36 @@ void FInventoryScreenSpec::Define()
 		TestFalse(TEXT("Down: back to the tiles"), Screen->IsOnGridKinds());
 		Screen->PressBack();
 		TestTrue(TEXT("Back: the slots, the screen stays"), !Screen->IsGridOpen() && Screen->IsActivated());
+	});
+
+	It("B-633 (Q-633): A equips at once: a weapon picked in an entry's grid is in the loadout, and stays after Back, Back", [this]()
+	{
+		if (!IsReady()) return;
+		const FGuid DaggerID = AddDagger();
+		UInventoryComponent *Inventory = Inventories[SCREEN_MEMBER];
+		const auto MainHandID = [Inventory]() { return Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex].PrimaryWeapon.WeaponEntry.PersistentID; };
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen)) return;
+		Screen->ActivateWidget();
+		Screen->ToggleLoadout();
+		Screen->PressA(); // the weapon set's entry
+		if (!TestTrue(TEXT("its main hand's grid, no kind rows"), Screen->IsGridOpen() && Screen->GetSlots()[0] == ELoadoutV2Slot::MainHand)) return;
+		const int32 DaggerItem = Screen->GetItems().IndexOfByPredicate([&DaggerID](const FLoadoutV2WindowItem &Item) { return Item.Weapon.PersistentID == DaggerID; });
+		if (!TestTrue(TEXT("the dagger is a tile"), DaggerItem != INDEX_NONE)) return;
+		for (int32 Step = 0; Step < DaggerItem; ++Step)
+		{
+			Screen->MoveInGrid(1, 0);
+		}
+		if (!TestEqual(TEXT("the dagger lit"), Screen->GetSelected(), DaggerItem)) return;
+		Screen->PressA();
+		TestEqual(TEXT("A: the dagger is in the loadout's main hand at once"), MainHandID(), DaggerID);
+		TestTrue(TEXT("the window stays open on the slots, editing that entry"), Screen->GetMode() == ELoadoutV2Mode::WindowSlots && Screen->GetDraft().MainHand.PersistentID == DaggerID);
+		Screen->PressConfirm();
+		TestTrue(TEXT("Y does nothing in the window now"), Screen->GetMode() == ELoadoutV2Mode::WindowSlots);
+		Screen->PressBack();
+		TestFalse(TEXT("Back closes the window"), Screen->IsAdding());
+		Screen->PressBack();
+		TestEqual(TEXT("and the dagger stayed (Crown's lost pick)"), MainHandID(), DaggerID);
 	});
 
 	It("lists the member's gear on the Gear tab and marks the worn piece", [this]()
