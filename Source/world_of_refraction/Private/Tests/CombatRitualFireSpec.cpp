@@ -148,6 +148,37 @@ void FCombatRitualFireSpec::Define()
 		TestTrue(TEXT("Back on a normal turn"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
 	});
 
+	It("B-624c: starts the fire a tick after its Execution turn starts, not in the frame the caster's last action ended", [this]()
+	{
+		const auto MakeDefend = []()
+		{
+			FAction Defend;
+			Defend.ActionType = EActionType::Defend;
+			return Defend;
+		};
+		if (!StartDuelWithRitual(MakeDefend))
+		{
+			return;
+		}
+		for (int32 Turn = 0; Turn < RITUAL_MAX_TURNS_TO_PLAY; ++Turn)
+		{
+			const TArray<FPreviewTurnEntry> Next = TurnManager->PreviewTurnOrder(1);
+			if (Next.Num() > 0 && Next[0].Type == ETurnType::Execution)
+			{
+				break;
+			}
+			Orchestrator->OnActionCompleted();
+			TestWorld->Tick(RITUAL_SETTLE_FRAMES);
+		}
+		TestTrue(TEXT("the caster's own turn comes right before its ritual"), Orchestrator->GetCurrentActor() == Hero);
+		Orchestrator->OnActionCompleted(); // the caster's action ends: its Execution turn starts in this frame
+		TestTrue(TEXT("on the Execution turn"), TurnManager->GetCurrentTurnType() == ETurnType::Execution);
+		TestEqual(TEXT("nothing fired in that frame"), Recorder->Entries.Num(), 0);
+		TestWorld->Tick(RITUAL_SETTLE_FRAMES);
+		TestTrue(TEXT("it fired on the next tick"), Recorder->Saw(Hero, EActionType::Defend, true));
+		TestTrue(TEXT("and the turn moved on"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
+	});
+
 	It("fires a montage-less ritual ability (the case the old sync router dropped)", [this]()
 	{
 		UAbilityData *Ability = NewObject<UAbilityData>(GetTransientPackage());
@@ -223,6 +254,11 @@ void FCombatRitualFireSpec::Define()
 			Orchestrator->OnActionCompleted();
 			TestWorld->Tick(RITUAL_SETTLE_FRAMES);
 		}
+		// B-624c: a ritual counts only its caster's turns, so it now comes straight after the caster's own; a bonus turn
+		// for the foe lands in between (a ready bonus fires before a ready Execution, FIFO).
+		TurnManager->GrantBonusTurn(Foe, 1);
+		Orchestrator->OnActionCompleted();
+		TestWorld->Tick(RITUAL_SETTLE_FRAMES);
 		const TArray<FPreviewTurnEntry> Next = TurnManager->PreviewTurnOrder(1);
 		if (!TestTrue(TEXT("The Execution turn is next"), Next.Num() > 0 && Next[0].Type == ETurnType::Execution))
 		{

@@ -1193,7 +1193,16 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 			OnActionCompleted();
 			return;
 		}
-		FireScheduledExecution();
+		// B-624c: fire next tick. Right after the caster's own action this turn starts in the frame its last montage
+		// ended, and the anim instance's return to stance stomps a montage started in that frame (the executor plays
+		// chain legs next tick for the same reason): the strike was cut at once and the turn moved on.
+		GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+		{
+			if (CombatState == ECombatState::InProgress)
+			{
+				FireScheduledExecution();
+			}
+		}));
 		return;
 	}
 
