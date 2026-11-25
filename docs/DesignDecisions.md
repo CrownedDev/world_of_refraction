@@ -1443,6 +1443,12 @@ The queue of questions only Crown can answer.
 - **Left as it is:** items, a stunned fighter, and an action immune to infusion.
 - **Scope:** per fighter, for one fight (kept by the fight's command menu, cleared with the fight, as B-582's last target). Enemies are unchanged: the AI builds its own actions and never reads it. In co-op each machine's menu keeps its own players'.
 **Reference:** FFXIV's stances stay on until switched off, so a player sets them once per fight; Octopath Traveler's boost is picked per action. Crown asked for the first. The deckbuilder has no infusion carry rule.
+### Q-624c — A ritual's delay: whose turns count
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-624c, from the B-624 QA) · **Blocks:** nothing
+**Question:** a ritual's delay counted every turn on the belt, the foe's too, so a delay-2 ritual fired before its caster's next turn and the infusion could not be turned off in between (D-276's case). Count every turn, or only the caster's own?
+**Answer (default, built):** only the caster's own turns. Armed with delay N, the ritual fires right after the caster's Nth own turn after the arm (the arm turn doesn't count; any turn the caster takes does, D-055). A pinned bonus turn (Emerald) still counts every turn. The fire starts a tick after its turn begins, so its strike montage plays even right after the caster's own action. Also: arming from a weapon or adapter crystal costs no EP, as any crystal-sourced ability (ED-31, ET-26); that was the QA's "no EP", not a bug.
+**Reference:** Pokémon's two-turn moves (Solar Beam charges on one turn and strikes on the user's next turn), counted in the user's own turns whatever the foe does; one of the most played turn-based rules.
+
 ### Q-624 — When a ritual's infusion EP is paid
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-624) · **Blocks:** nothing
 **Question:** A ritual locks its infusion at the arm (D-276). Is the infusion's EP (and HP, crystal wear) paid at the arm or at the fire?

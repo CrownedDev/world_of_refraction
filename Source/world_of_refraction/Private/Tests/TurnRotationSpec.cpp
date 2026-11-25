@@ -234,19 +234,36 @@ void FTurnRotationSpec::Define()
 			TestEqual(TEXT("the skip is used up"), TurnManager->GetTurnsToSkip(E[0]), 0);
 		});
 
-		It("fire an Execution turn after its delay, counting every turn, without moving the rotation", [this]()
+		It("fire an Execution turn after its delay, counting only the caster's own turns (B-624c), without moving the rotation", [this]()
 		{
 			const TArray<AActor *> P = SpawnSide(2, false);
 			const TArray<AActor *> E = SpawnSide(2, true);
 			if (!StartFight(P, E)) return;
 			TurnManager->ScheduleExecutionTurn(P[0], TURN_ROTATION_TEST_EXECUTION_DELAY, TURN_ROTATION_TEST_PAYLOAD, TURN_ROTATION_TEST_SPELL_SPEED);
-			const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(5);
-			ExpectActors(TEXT("execution"), Turns, {E[0], P[1], P[0], E[1], P[0]});
-			if (Turns.Num() == 5)
+			const TArray<FPreviewTurnEntry> Turns = RecordNextTurns(10);
+			// The others' turns don't count; P1's next two turns do, and the ritual fires right after the second.
+			ExpectActors(TEXT("execution"), Turns, {E[0], P[1], E[1], P[0], E[0], P[1], E[1], P[0], P[0], E[0]});
+			if (Turns.Num() == 10)
 			{
-				TestTrue(TEXT("turn 4 is P1's Execution turn"), Turns[2].Type == ETurnType::Execution && Turns[2].PayloadId == TURN_ROTATION_TEST_PAYLOAD);
-				TestTrue(TEXT("turn 6 is P1's own rotation turn"), Turns[4].Type == ETurnType::Normal);
+				TestTrue(TEXT("P1's own turns stay rotation turns"), Turns[3].Type == ETurnType::Normal && Turns[7].Type == ETurnType::Normal);
+				TestTrue(TEXT("then P1's Execution turn"), Turns[8].Type == ETurnType::Execution && Turns[8].PayloadId == TURN_ROTATION_TEST_PAYLOAD);
+				TestTrue(TEXT("the rotation goes on where it was"), Turns[9].Type == ETurnType::Normal);
 			}
+		});
+
+		It("B-624c: an Emerald bonus turn still counts every turn", [this]()
+		{
+			const TArray<AActor *> P = SpawnSide(2, false);
+			const TArray<AActor *> E = SpawnSide(2, true);
+			if (!StartFight(P, E)) return;
+			FScheduledTurn Bonus;
+			Bonus.Actor = P[0];
+			Bonus.Type = ETurnType::Bonus;
+			FScheduledTurn Ritual = Bonus;
+			Ritual.Type = ETurnType::Execution;
+			TestTrue(TEXT("a bonus turn counts another's turn"), UTurnManager::CountsTurnOf(Bonus, E[0]));
+			TestFalse(TEXT("a ritual doesn't count another's turn"), UTurnManager::CountsTurnOf(Ritual, E[0]));
+			TestTrue(TEXT("a ritual counts its caster's turn"), UTurnManager::CountsTurnOf(Ritual, P[0]));
 		});
 
 		It("ignore a Wind place delay (B-170d gives Wind its action loss)", [this]()
