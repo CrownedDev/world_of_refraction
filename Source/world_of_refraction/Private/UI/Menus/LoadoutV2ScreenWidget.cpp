@@ -2078,7 +2078,8 @@ void ULoadoutV2ScreenWidget::ApplyGridFilter()
 		{
 			Types.Add(Item.Weapon.Weapon->WeaponType);
 		}
-		GridPieceCount += (Item.Weapon.Weapon || IsSocketGrid()) ? Item.Count : 0; // B-612: a socket's choices count too
+		const bool bSocketChoice = IsSocketGrid() && !Item.bEquipped && !Item.bRestore; // B-612: not the Remove / Restore lines
+		GridPieceCount += (Item.Weapon.Weapon || bSocketChoice) ? Item.Count : 0;
 	}
 	GridTypes = WoRLoadoutV2Grid::GetTypesPresent(Types);
 	bGridFiltered = bGridFiltered && GridTypes.Contains(GridFilter); // a type that left the list: back to All
@@ -4235,7 +4236,12 @@ void ULoadoutV2ScreenWidget::PickItem()
 		{
 			PickedSocket = INDEX_NONE; // refused: the reason is in Message, nothing stays marked
 			RefreshView();
+			return;
 		}
+		SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // put in: as a picked piece below, the grid's hover and compare end
+		HoveredGridTab = INDEX_NONE;
+		bComparing = false;
+		RefreshView();
 		return;
 	}
 	// A piece is picked: back to the slots, the draft shown in the box.
