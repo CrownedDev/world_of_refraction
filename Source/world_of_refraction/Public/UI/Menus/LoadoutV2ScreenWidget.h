@@ -123,6 +123,16 @@ enum class ELoadoutV2Slot : uint8
 	Socket2
 };
 
+/** B-614 (mockup menus/loadout/v5): a word of the kind selector over a slot's grid. */
+enum class ELoadoutV2PieceKind : uint8
+{
+	Weapon,
+	Adapter,
+	Evolution,
+	Crystal,
+	Stone
+};
+
 /** B-476c: Y Options' lines. */
 enum class ELoadoutV2Option : uint8
 {
@@ -279,7 +289,8 @@ public:
 	// the entry's slots stay in the list on the left, the choices are tiles beside it. The specs call these too.
 	bool IsGridOpen() const;
 	/** B-612: the slots whose choices are the picture grid: the two hands (D-248) and the two sockets (the crystals,
-	 *  stones and evolutions that fit, not the inventory's tab). */
+	 *  stones and evolutions that fit, not the inventory's tab). B-614 (mockup v5: the owned pieces as a grid): the
+	 *  adapter and the evolution too, so every slot has the kind selector. */
 	static bool HasSlotGrid(ELoadoutV2Slot GearSlot);
 	/** The tiles as drawn, one per line of GetItems(). */
 	TArray<FLoadoutV2GridTile> GetGridTiles() const;
@@ -291,6 +302,22 @@ public:
 	void CycleGridFilter(int32 Delta);
 	/** A click on a filter tab: 0 is All, then GetGridTypes() in order. */
 	void ClickGridTab(int32 GridTab);
+	// B-614 (Q-614, mockup v5): the kind selector over a slot's grid, reached by Up from the top row (Left / Right turn
+	// it, Down or A back to the tiles, a click picks). A hand, the adapter and the evolution turn the entry's kind, as
+	// the window's first question does (the draft of each kind is kept while the window is open); a socket shows its
+	// choices of one kind (Crystal, Stone, Evolution), opening on its own (Crystal; the stone socket Stone).
+	static TArray<ELoadoutV2PieceKind> GetSlotKinds(ELoadoutV2Slot GearSlot);
+	static FText GetPieceKindName(ELoadoutV2PieceKind Kind);
+	/** The open grid's kinds; empty with no grid open. */
+	TArray<ELoadoutV2PieceKind> GetGridKinds() const;
+	ELoadoutV2PieceKind GetGridKind() const;
+	/** Why Kind can't be turned to here (the entry kind's refusal; a socket: nothing of it fits); empty when it can. */
+	FText GetGridKindRefusal(ELoadoutV2PieceKind Kind) const;
+	bool IsOnGridKinds() const { return bOnGridKinds && IsGridOpen(); }
+	/** Left / Right on the selector: the next kind that can be turned to, in a ring (the others are skipped). */
+	void TurnGridKind(int32 Delta);
+	/** A click on a word of the selector (an index of GetGridKinds()); a refused one says why. */
+	void PickGridKind(int32 Index);
 
 	const FLoadoutV2WeaponsPage &GetPage() const { return Page; }
 	ELoadoutV2Mode GetMode() const { return Mode; }
@@ -300,6 +327,8 @@ public:
 	const TArray<FLoadoutV2DetailLine> &GetDetails() const { return Details; }
 	int32 GetSelected() const { return Selected; }
 	const FText &GetMessage() const { return Message; }
+	/** The window's draft (the specs read it). */
+	const FLoadoutV2Draft &GetDraft() const { return Draft; }
 	const FText &GetStandingNote() const { return StandingNote; }
 	const FLoadoutSavedList &GetSavedList() const { return Saved; }
 	ELoadoutV2Tab GetTab() const { return Tab; }
@@ -597,6 +626,24 @@ private:
 	/** The tile the grid was last scrolled to, so only a change scrolls it. */
 	uint32 GridScrolledKey = 0;
 	int32 HoveredGridTab = INDEX_NONE;
+	// B-614: the kind selector over a slot's grid.
+	/** WindowSlots' A: the slot at Index opens (its grid, or its list), its choices read fresh. */
+	void OpenSlot(int32 Index);
+	/** Turns the entry to Kind (the window's first question's answer), keeping the draft it had, and opens its first slot. */
+	void TurnEntryKind(ELoadoutV2DraftKind Kind);
+	bool IsSocketSlot() const;
+	bool bOnGridKinds = false;
+	/** A socket's kind shown; set when the socket opens. */
+	ELoadoutV2PieceKind SocketKind = ELoadoutV2PieceKind::Crystal;
+	/** The kinds among the socket's choices before the kind is applied (the others are refused on the selector). */
+	TArray<ELoadoutV2PieceKind> SocketKindsPresent;
+	/** Each entry kind's draft as it was left by a turn of the selector (cleared when the window opens). */
+	TMap<ELoadoutV2DraftKind, FLoadoutV2Draft> KindDrafts;
+	WoRMenuStyle::FChipRow GridKindChips;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> GridKindsPlate;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> GridKindUnderlines;
 
 	// B-482: the mouse.
 	/** The shown list line under ScreenPosition; INDEX_NONE for none. */

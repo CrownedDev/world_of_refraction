@@ -91,6 +91,8 @@ namespace LoadoutV2ScreenStyle
 	// B-575c (D-250): no Chest tab.
 	const EInventoryScreenTab InventoryTabOrder[] = {EInventoryScreenTab::Gear, EInventoryScreenTab::Pouch};
 	constexpr int32 INVENTORY_TAB_COUNT = UE_ARRAY_COUNT(InventoryTabOrder);
+	/** B-614: a slot's kind selector has three words (GetSlotKinds). */
+	constexpr int32 PIECE_KINDS_PER_SLOT = 3;
 	constexpr float TileMarkInset = 6.0f;
 	constexpr float TileTickSize = 24.0f;
 	constexpr float GridTabIconSize = 36.0f;
@@ -455,6 +457,9 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		// B-598c (mockup inventory/v4): the Inventory page's ‹ Gear  Pouch › selector (B-575c: no Chest).
 		InvKindsPlate = MakeKindSelector(WidgetTree, INVENTORY_TAB_COUNT, InvTabChips, InvKindUnderlines);
 		AddToColumn(GridColumn, InvKindsPlate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		// B-614 (mockup v5): a slot's ‹ Weapon  Adapter  Evolution › (a socket's Crystal  Stone  Evolution), the same plate.
+		GridKindsPlate = MakeKindSelector(WidgetTree, PIECE_KINDS_PER_SLOT, GridKindChips, GridKindUnderlines);
+		AddToColumn(GridColumn, GridKindsPlate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		GridTabsRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		AddToColumn(GridColumn, GridTabsRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 		// The wheel: over a grid with more rows than fit, the scroll box takes it and scrolls (its default); otherwise
@@ -1424,6 +1429,10 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	case ELoadoutV2Mode::WindowSlots:
 		return LOCTEXT("HintsSlots", "{Confirm}  Open        {Second}  Confirm        {Back}  Cancel");
 	case ELoadoutV2Mode::WindowItems:
+		if (IsOnGridKinds())
+		{
+			return LOCTEXT("HintsGridKinds", "{Arrows}  Kind        {Confirm}  To the pieces        {Back}  Back"); // B-614
+		}
 		if (Items.IsValidIndex(Selected) && Items[Selected].bRestore)
 		{
 			return LOCTEXT("HintsItemsRestore", "{Confirm}  Restore        {Second}  Confirm        {Back}  Back");
@@ -1432,9 +1441,9 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		{
 			return LOCTEXT("HintsGridSocket", "{Confirm}  Put in        {Toggle}  Compare        {Back}  Back"); // B-612: one kind, no filter
 		}
-		if (IsGridOpen())
+		if (IsGridOpen() && !GridTypes.IsEmpty())
 		{
-			// D-248 step 1: the tab keys turn the grid's filter.
+			// D-248 step 1: the tab keys turn the grid's filter (B-614: when it has weapon types to filter by).
 			return Items.IsValidIndex(Selected) && Items[Selected].bEquipped
 					   ? LOCTEXT("HintsGridEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Tabs}  Filter        {Second}  Confirm        {Back}  Back")
 					   : LOCTEXT("HintsGrid", "{Confirm}  Pick        {Toggle}  Compare        {Tabs}  Filter        {Second}  Confirm        {Back}  Back");
@@ -1528,6 +1537,20 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		InvKindUnderlines[Index]->SetVisibility(Index == InvKind ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 	}
 	InvKindsPlate->SetBrushColor(bOnInvKinds ? FocusColor : PlateColor);
+	// B-614: a slot's kind selector: the lit kind underlined, a kind that can't be turned to dim.
+	const TArray<ELoadoutV2PieceKind> GridKinds = GetGridKinds();
+	const int32 LitGridKind = GridKinds.IndexOfByKey(GetGridKind());
+	for (int32 Index = 0; Index < GridKindChips.Labels.Num(); ++Index)
+	{
+		const bool bKindShown = GridKinds.IsValidIndex(Index);
+		if (UTextBlock *Label = GridKindChips.Labels[Index].Get())
+		{
+			Label->SetText(bKindShown ? GetPieceKindName(GridKinds[Index]) : FText::GetEmpty());
+			Label->SetColorAndOpacity(FSlateColor(Index == LitGridKind ? TextColor : bKindShown && GetGridKindRefusal(GridKinds[Index]).IsEmpty() ? DimColor : OffColor));
+		}
+		GridKindUnderlines[Index]->SetVisibility(Index == LitGridKind ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
+	GridKindsPlate->SetBrushColor(IsOnGridKinds() ? FocusColor : PlateColor);
 	LoadoutNameText->SetText(LoadoutName);
 	CellsText->SetText(IsOnSkillsTab() ? LOCTEXT("SkillsByEntry", "Skills by entry") : Page.CellsLine); // mockup 6: cells are the Weapons tab's
 	TitleText->SetText(GetTitle());
@@ -2339,12 +2362,203 @@ bool ULoadoutV2ScreenWidget::IsGridOpen() const
 bool ULoadoutV2ScreenWidget::HasSlotGrid(ELoadoutV2Slot GearSlot)
 {
 	return GearSlot == ELoadoutV2Slot::MainHand || GearSlot == ELoadoutV2Slot::OffHand || GearSlot == ELoadoutV2Slot::Socket1 ||
-		   GearSlot == ELoadoutV2Slot::Socket2;
+		   GearSlot == ELoadoutV2Slot::Socket2 || GearSlot == ELoadoutV2Slot::Adapter || GearSlot == ELoadoutV2Slot::Evolution; // B-614: every slot
+}
+
+bool ULoadoutV2ScreenWidget::IsSocketSlot() const
+{
+	return Slots.IsValidIndex(SlotIndex) && (Slots[SlotIndex] == ELoadoutV2Slot::Socket1 || Slots[SlotIndex] == ELoadoutV2Slot::Socket2);
 }
 
 bool ULoadoutV2ScreenWidget::IsSocketGrid() const
 {
-	return IsGridOpen() && (Slots[SlotIndex] == ELoadoutV2Slot::Socket1 || Slots[SlotIndex] == ELoadoutV2Slot::Socket2);
+	return IsGridOpen() && IsSocketSlot();
+}
+
+// ==================== THE KIND SELECTOR (B-614) ====================
+
+namespace LoadoutV2Kinds
+{
+	ELoadoutV2PieceKind FromDraftKind(ELoadoutV2DraftKind Kind)
+	{
+		return Kind == ELoadoutV2DraftKind::Adapter ? ELoadoutV2PieceKind::Adapter : Kind == ELoadoutV2DraftKind::Evolution ? ELoadoutV2PieceKind::Evolution : ELoadoutV2PieceKind::Weapon;
+	}
+
+	ELoadoutV2DraftKind ToDraftKind(ELoadoutV2PieceKind Kind)
+	{
+		return Kind == ELoadoutV2PieceKind::Adapter ? ELoadoutV2DraftKind::Adapter : Kind == ELoadoutV2PieceKind::Evolution ? ELoadoutV2DraftKind::Evolution : ELoadoutV2DraftKind::Weapon;
+	}
+
+	/** A socket line's kind; false for the lines that aren't a choice (the piece in it, Restore, a note). */
+	bool GetChoiceKind(const FLoadoutV2WindowItem &Item, ELoadoutV2PieceKind &OutKind)
+	{
+		if (Item.bEquipped || Item.bRestore || Item.Socket.Attachment.IsEmpty())
+		{
+			return false;
+		}
+		const EAttachedItemKind Kind = Item.Socket.Attachment.Kind;
+		OutKind = Kind == EAttachedItemKind::Evolution ? ELoadoutV2PieceKind::Evolution : Kind == EAttachedItemKind::AugmentStone ? ELoadoutV2PieceKind::Stone : ELoadoutV2PieceKind::Crystal;
+		return true;
+	}
+}
+
+TArray<ELoadoutV2PieceKind> ULoadoutV2ScreenWidget::GetSlotKinds(ELoadoutV2Slot GearSlot)
+{
+	if (GearSlot == ELoadoutV2Slot::Socket1 || GearSlot == ELoadoutV2Slot::Socket2)
+	{
+		return {ELoadoutV2PieceKind::Crystal, ELoadoutV2PieceKind::Stone, ELoadoutV2PieceKind::Evolution};
+	}
+	return {ELoadoutV2PieceKind::Weapon, ELoadoutV2PieceKind::Adapter, ELoadoutV2PieceKind::Evolution};
+}
+
+FText ULoadoutV2ScreenWidget::GetPieceKindName(ELoadoutV2PieceKind Kind)
+{
+	switch (Kind)
+	{
+	case ELoadoutV2PieceKind::Adapter:
+		return LOCTEXT("PieceKindAdapter", "Adapter");
+	case ELoadoutV2PieceKind::Evolution:
+		return LOCTEXT("PieceKindEvolution", "Evolution");
+	case ELoadoutV2PieceKind::Crystal:
+		return LOCTEXT("PieceKindCrystal", "Crystal");
+	case ELoadoutV2PieceKind::Stone:
+		return LOCTEXT("PieceKindStone", "Stone");
+	case ELoadoutV2PieceKind::Weapon:
+	default:
+		return LOCTEXT("PieceKindWeapon", "Weapon");
+	}
+}
+
+TArray<ELoadoutV2PieceKind> ULoadoutV2ScreenWidget::GetGridKinds() const
+{
+	return IsGridOpen() ? GetSlotKinds(Slots[SlotIndex]) : TArray<ELoadoutV2PieceKind>();
+}
+
+ELoadoutV2PieceKind ULoadoutV2ScreenWidget::GetGridKind() const
+{
+	return IsSocketSlot() ? SocketKind : LoadoutV2Kinds::FromDraftKind(Draft.Kind);
+}
+
+FText ULoadoutV2ScreenWidget::GetGridKindRefusal(ELoadoutV2PieceKind Kind) const
+{
+	if (IsSocketSlot())
+	{
+		return SocketKindsPresent.Contains(Kind) || Kind == SocketKind ? FText::GetEmpty()
+																	   : LOCTEXT("RefuseKindNoneFits", "You have nothing of this kind that fits here.");
+	}
+	const ELoadoutV2DraftKind DraftKind = LoadoutV2Kinds::ToDraftKind(Kind);
+	const FLoadoutV2KindChoice *Choice = Kinds.FindByPredicate([DraftKind](const FLoadoutV2KindChoice &Each) { return Each.Kind == DraftKind; });
+	return Choice && DraftKind != Draft.Kind ? Choice->Refusal : FText::GetEmpty();
+}
+
+void ULoadoutV2ScreenWidget::TurnGridKind(int32 Delta)
+{
+	const TArray<ELoadoutV2PieceKind> GridKinds = GetGridKinds();
+	const int32 Current = GridKinds.IndexOfByKey(GetGridKind());
+	if (GridKinds.IsEmpty() || Current == INDEX_NONE)
+	{
+		return;
+	}
+	const int32 Step = Delta < 0 ? -1 : 1;
+	for (int32 Turn = 1; Turn < GridKinds.Num(); ++Turn)
+	{
+		const int32 Index = ((Current + Step * Turn) % GridKinds.Num() + GridKinds.Num()) % GridKinds.Num();
+		if (GetGridKindRefusal(GridKinds[Index]).IsEmpty())
+		{
+			PickGridKind(Index);
+			return;
+		}
+	}
+	// Nothing else can be turned to: the next one says why.
+	Message = GetGridKindRefusal(GridKinds[((Current + Step) % GridKinds.Num() + GridKinds.Num()) % GridKinds.Num()]);
+	RefreshView();
+}
+
+void ULoadoutV2ScreenWidget::PickGridKind(int32 Index)
+{
+	const TArray<ELoadoutV2PieceKind> GridKinds = GetGridKinds();
+	if (!GridKinds.IsValidIndex(Index) || GridKinds[Index] == GetGridKind())
+	{
+		return;
+	}
+	const FText Refusal = GetGridKindRefusal(GridKinds[Index]);
+	if (!Refusal.IsEmpty())
+	{
+		Message = Refusal;
+		RefreshView();
+		return;
+	}
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] kind selector: %s"), *GetPieceKindName(GridKinds[Index]).ToString());
+	if (IsSocketSlot())
+	{
+		SocketKind = GridKinds[Index];
+		Selected = 0;
+		bComparing = false;
+		bRemoveArmed = false;
+		PickedSocket = INDEX_NONE;
+		Message = FText::GetEmpty();
+		RefreshData();
+		LogGrid();
+		return;
+	}
+	TurnEntryKind(LoadoutV2Kinds::ToDraftKind(GridKinds[Index]));
+}
+
+void ULoadoutV2ScreenWidget::OpenSlot(int32 Index)
+{
+	if (!Slots.IsValidIndex(Index))
+	{
+		return;
+	}
+	SlotIndex = Index;
+	Mode = ELoadoutV2Mode::WindowItems;
+	Selected = 0;
+	bComparing = false;
+	bRemoveArmed = false;
+	bOnGridKinds = false;
+	PickedSocket = INDEX_NONE;
+	bGridFiltered = false; // D-248: a slot's grid opens on All
+	SocketKind = Slots[Index] == ELoadoutV2Slot::Socket2 ? ELoadoutV2PieceKind::Stone : ELoadoutV2PieceKind::Crystal; // B-614: the socket's own kind
+	Message = FText::GetEmpty();
+	RefreshData();
+	if (IsSocketSlot() && !SocketKindsPresent.IsEmpty() && !SocketKindsPresent.Contains(SocketKind))
+	{
+		SocketKind = SocketKindsPresent[0]; // none of its own kind: the first kind it has
+		RefreshData();
+	}
+	if (Items.IsEmpty())
+	{
+		Message = LOCTEXT("NothingToPick", "You own nothing that goes here.");
+		RefreshView();
+	}
+	else if (PendingEquipGear.IsValid())
+	{
+		// B-598c: Equip on… from the Inventory page: that piece is lit, ready for A.
+		const int32 Pending = Items.IndexOfByPredicate([this](const FLoadoutV2WindowItem &Item)
+													   { return Item.Weapon.PersistentID == PendingEquipGear || Item.Adapter.PersistentID == PendingEquipGear; });
+		if (Pending != INDEX_NONE)
+		{
+			Selected = Pending;
+			RefreshView();
+		}
+	}
+	if (IsGridOpen())
+	{
+		LogGrid();
+	}
+}
+
+void ULoadoutV2ScreenWidget::TurnEntryKind(ELoadoutV2DraftKind Kind)
+{
+	KindDrafts.Add(Draft.Kind, Draft);
+	StartDraft(Kind);
+	if (const FLoadoutV2Draft *Kept = KindDrafts.Find(Kind))
+	{
+		Draft = *Kept; // its pieces as they were left (an edited entry's own kind: the entry as it is)
+	}
+	OpenSlot(0);
+	bOnGridKinds = true; // the keys stay on the selector
+	RefreshView();
 }
 
 TArray<FLoadoutV2GridTile> ULoadoutV2ScreenWidget::GetGridTiles() const
@@ -2375,20 +2589,37 @@ void ULoadoutV2ScreenWidget::ApplyGridFilter()
 {
 	TArray<EWeaponType> Types;
 	GridPieceCount = 0;
+	SocketKindsPresent.Reset();
+	const bool bSocket = IsSocketSlot();
 	for (const FLoadoutV2WindowItem &Item : Items)
 	{
 		if (Item.Weapon.Weapon)
 		{
 			Types.Add(Item.Weapon.Weapon->WeaponType);
 		}
-		const bool bSocketChoice = IsSocketGrid() && !Item.bEquipped && !Item.bRestore; // B-612: not the Remove / Restore lines
-		GridPieceCount += (Item.Weapon.Weapon || bSocketChoice) ? Item.Count : 0;
+		ELoadoutV2PieceKind Kind = ELoadoutV2PieceKind::Crystal;
+		const bool bSocketChoice = bSocket && LoadoutV2Kinds::GetChoiceKind(Item, Kind); // B-612: not the Remove / Restore lines
+		if (bSocketChoice)
+		{
+			SocketKindsPresent.AddUnique(Kind);
+		}
+		const bool bPiece = !bSocket && (Item.Weapon.Weapon || Item.Adapter.Ring || Item.Evolution.InstanceID.IsValid()); // B-614: an adapter's, an evolution's
+		GridPieceCount += ((bSocketChoice && Kind == SocketKind) || bPiece) ? Item.Count : 0;
 	}
 	GridTypes = WoRLoadoutV2Grid::GetTypesPresent(Types);
 	bGridFiltered = bGridFiltered && GridTypes.Contains(GridFilter); // a type that left the list: back to All
 	if (bGridFiltered)
 	{
 		Items.RemoveAll([this](const FLoadoutV2WindowItem &Item) { return !Item.Weapon.Weapon || Item.Weapon.Weapon->WeaponType != GridFilter; });
+	}
+	if (bSocket)
+	{
+		// B-614: a socket shows its choices of the selector's kind (the piece in it and Restore stay).
+		Items.RemoveAll([this](const FLoadoutV2WindowItem &Item)
+						{
+							ELoadoutV2PieceKind Kind = ELoadoutV2PieceKind::Crystal;
+							return LoadoutV2Kinds::GetChoiceKind(Item, Kind) && Kind != SocketKind;
+						});
 	}
 }
 
@@ -2469,6 +2700,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 	SetShown(ListSizer, bLoadoutOpen && !bSlotGrid);
 	SetShown(GridSizer, !bLoadoutOpen || bSlotGrid);
 	SetShown(InvKindsPlate, !bSlotGrid);
+	SetShown(GridKindsPlate, bSlotGrid);
 	const float AreaHeight = ListArea->GetCachedGeometry().GetLocalSize().Y;
 	GridSizer->SetMaxDesiredHeight(AreaHeight > 0.0f ? AreaHeight : ListMaxHeight); // as the list's panel
 
@@ -2478,8 +2710,9 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 	if (bSlotGrid)
 	{
 		GridTitleText->SetText(GetSlotName(Slots[SlotIndex]));
-		GridCountText->SetText(IsSocketGrid() ? FText::Format(LOCTEXT("GridCountSocket", "{0} {0}|plural(one=choice,other=choices)"), GridPieceCount)
-											  : FText::Format(LOCTEXT("GridCount", "{0} {0}|plural(one=weapon,other=weapons)"), GridPieceCount));
+		const bool bHand = Slots[SlotIndex] == ELoadoutV2Slot::MainHand || Slots[SlotIndex] == ELoadoutV2Slot::OffHand;
+		GridCountText->SetText(bHand ? FText::Format(LOCTEXT("GridCount", "{0} {0}|plural(one=weapon,other=weapons)"), GridPieceCount)
+									 : FText::Format(LOCTEXT("GridCountSocket", "{0} {0}|plural(one=choice,other=choices)"), GridPieceCount));
 	}
 	else
 	{
@@ -2880,13 +3113,19 @@ void ULoadoutV2ScreenWidget::PlayCue(EWoRMenuCue Cue)
 
 uint32 ULoadoutV2ScreenWidget::GetFocusKey() const
 {
-	return HashCombine(HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(InvSelected)), HashCombine(GetTypeHash(bOnLoadoutSide), GetTypeHash(bOnInvFilters))),
-					   HashCombine(HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), GetTypeHash(static_cast<uint8>(Mode))),
-								   HashCombine(HashCombine(GetTypeHash(bOnInvKinds), GetTypeHash(static_cast<uint8>(InvTab))), HashCombine(GetTypeHash(bGiving), GetTypeHash(GiveSelected)))));
+	const uint32 GridKindKey = HashCombine(GetTypeHash(IsOnGridKinds()), HashCombine(GetTypeHash(static_cast<uint8>(GetGridKind())), GetTypeHash(SlotIndex))); // B-614
+	return HashCombine(HashCombine(HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(InvSelected)), HashCombine(GetTypeHash(bOnLoadoutSide), GetTypeHash(bOnInvFilters))),
+								   HashCombine(HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), GetTypeHash(static_cast<uint8>(Mode))),
+											   HashCombine(HashCombine(GetTypeHash(bOnInvKinds), GetTypeHash(static_cast<uint8>(InvTab))), HashCombine(GetTypeHash(bGiving), GetTypeHash(GiveSelected))))),
+					   GridKindKey);
 }
 
 bool ULoadoutV2ScreenWidget::IsLitRefused() const
 {
+	if (IsOnGridKinds())
+	{
+		return false; // B-614: A there goes down to the pieces
+	}
 	if (IsGridOpen() || bOnLoadoutSide)
 	{
 		return Selected >= 0 && Selected < GetLineCount() && IsLineRefused(Selected);
@@ -2911,6 +3150,26 @@ bool ULoadoutV2ScreenWidget::MoveInDirection(int32 DeltaX, int32 DeltaY)
 	}
 	if (IsGridOpen())
 	{
+		// B-614: Up off the top row reaches the kind selector; there Left / Right turn it and Down returns to the tiles.
+		if (IsOnGridKinds())
+		{
+			if (DeltaX != 0)
+			{
+				TurnGridKind(DeltaX);
+			}
+			else if (DeltaY > 0 && !Items.IsEmpty())
+			{
+				bOnGridKinds = false;
+				RefreshView();
+			}
+			return true;
+		}
+		if (DeltaY < 0 && DeltaX == 0 && Selected < WoRLoadoutV2Grid::COLUMNS)
+		{
+			bOnGridKinds = true;
+			RefreshView();
+			return true;
+		}
 		MoveInGrid(DeltaX, DeltaY); // D-248: a slot's grid, tile to tile
 		return true;
 	}
@@ -3256,12 +3515,20 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 		const int32 GridTab = FindGridTabUnder(Position);
 		const int32 Tile = FindTileUnder(Position);
 		const int32 SlotRow = FindLineUnder(Position);
-		if (GridTab != INDEX_NONE)
+		const int32 KindChip = WoRMenuStyle::FindChipUnder(GridKindChips, Position); // B-614: a word of the kind selector
+		if (KindChip != INDEX_NONE)
+		{
+			const bool bRefused = GetGridKinds().IsValidIndex(KindChip) && !GetGridKindRefusal(GetGridKinds()[KindChip]).IsEmpty();
+			PickGridKind(KindChip);
+			PlayCue(bRefused ? EWoRMenuCue::Refused : EWoRMenuCue::Move);
+		}
+		else if (GridTab != INDEX_NONE)
 		{
 			ClickGridTab(GridTab);
 		}
 		else if (Tile != INDEX_NONE)
 		{
+			bOnGridKinds = false;
 			ClickLine(Tile);
 		}
 		else if (SlotRow != INDEX_NONE && SlotRow != SlotIndex)
@@ -3422,41 +3689,15 @@ void ULoadoutV2ScreenWidget::PressA()
 		StartDraft(Kinds[Selected].Kind);
 		return;
 	case ELoadoutV2Mode::WindowSlots:
-		if (!Slots.IsValidIndex(Selected))
-		{
-			return;
-		}
-		SlotIndex = Selected;
-		Mode = ELoadoutV2Mode::WindowItems;
-		Selected = 0;
-		bComparing = false;
-		bRemoveArmed = false;
-		PickedSocket = INDEX_NONE;
-		bGridFiltered = false; // D-248: a slot's grid opens on All
-		Message = FText::GetEmpty();
-		RefreshData();
-		if (Items.IsEmpty())
-		{
-			Message = LOCTEXT("NothingToPick", "You own nothing that goes here.");
-			RefreshView();
-		}
-		else if (PendingEquipGear.IsValid())
-		{
-			// B-598c: Equip on… from the Inventory page: that piece is lit, ready for A.
-			const int32 Pending = Items.IndexOfByPredicate([this](const FLoadoutV2WindowItem &Item)
-														   { return Item.Weapon.PersistentID == PendingEquipGear || Item.Adapter.PersistentID == PendingEquipGear; });
-			if (Pending != INDEX_NONE)
-			{
-				Selected = Pending;
-				RefreshView();
-			}
-		}
-		if (IsGridOpen())
-		{
-			LogGrid();
-		}
+		OpenSlot(Selected);
 		return;
 	case ELoadoutV2Mode::WindowItems:
+		if (IsOnGridKinds())
+		{
+			bOnGridKinds = false; // B-614: A on the selector goes down to the pieces
+			RefreshView();
+			return;
+		}
 		if (!Items.IsValidIndex(Selected))
 		{
 			return;
@@ -4125,6 +4366,7 @@ void ULoadoutV2ScreenWidget::OpenWindowForNew()
 	bEditing = false;
 	EditEntry = FLoadoutV2Entry();
 	Draft = FLoadoutV2Draft();
+	KindDrafts.Reset(); // B-614
 	Slots.Reset();
 	Items.Reset();
 	Mode = ELoadoutV2Mode::WindowKind;
@@ -4150,6 +4392,7 @@ void ULoadoutV2ScreenWidget::OpenWindowForEntry(const FLoadoutV2Entry &Entry)
 	bEditing = true;
 	EditEntry = Entry;
 	Draft = WoRLoadoutV2::DraftFromEntry(*Active, Entry);
+	KindDrafts.Reset(); // B-614
 	// B-531 (D-230): the same first question as "+ Add equipment"; the entry's own kind is lit (A: edit it as before).
 	Slots.Reset();
 	Items.Reset();
@@ -4330,6 +4573,14 @@ void ULoadoutV2ScreenWidget::BuildItems()
 														  { return !Item.bEquipped && Item.Socket.Crystal == PickedBefore.Crystal && Item.Socket.EvolutionID == PickedBefore.EvolutionID; })
 								: INDEX_NONE;
 	};
+	ON_SCOPE_EXIT
+	{
+		// D-248, B-614: declared after the pick's search above, so the filter (weapon type, a socket's kind) runs first.
+		if (Slots.IsValidIndex(SlotIndex) && HasSlotGrid(Slots[SlotIndex]))
+		{
+			ApplyGridFilter();
+		}
+	};
 	Items.Reset();
 	ULoadoutComponent *Loadout = nullptr;
 	UInventoryComponent *Inventory = nullptr;
@@ -4379,8 +4630,7 @@ void ULoadoutV2ScreenWidget::BuildItems()
 		}
 		const TArray<FLoadoutV2OffHandChoice> OffHands = bMain ? TArray<FLoadoutV2OffHandChoice>() : WoRLoadoutV2::BuildOffHandChoices(Draft.MainHand, Inventory->Weapons, Class);
 		const int32 FirstPiece = Items.Num();
-		ON_SCOPE_EXIT { ApplyGridFilter(); };					// D-248: declared first, so it runs after the stacking below
-		ON_SCOPE_EXIT { StackPieceLines(Items, FirstPiece); }; // B-531 (D-230)
+		ON_SCOPE_EXIT { StackPieceLines(Items, FirstPiece); }; // B-531 (D-230); the grid's filter runs after it (BuildItems' own scope)
 		for (const FWeaponInventoryEntry &Owned : Inventory->Weapons)
 		{
 			if (!Owned.Weapon || (InSlot.IsValid() && Owned.PersistentID == InSlot.PersistentID) || Owned.PersistentID == (bMain ? Draft.OffHand : Draft.MainHand).PersistentID)
