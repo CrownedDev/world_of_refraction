@@ -3,7 +3,8 @@
 // ritual activates it will auto infuse for the attack"): a weapon ability armed as a ritual locks the infusion picked at
 // the arm. The arm reports (and its VFX tints with) that element and pays all the EP, infusion included; the fire
 // strikes with it, cost-free, even after the player's next action went out uninfused (infusion turned off). Driven
-// through a real ACombatOrchestrator on a bare 1v1. Unproven here: the colour on screen (docs/PIE/B-624.md).
+// through a real ACombatOrchestrator on a bare 1v1. Unproven here: the colour on screen. These skills have no montage, so
+// the arm context the VFX reads is gone before a check; the arm's result carries the same value (docs/PIE/B-624.md).
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -19,6 +20,7 @@
 #include "HAL/IConsoleManager.h"
 #include "Loadout/LoadoutComponent.h"
 #include "Skills/Definitions/AbilityData.h"
+#include "Skills/Definitions/SpellData.h"
 
 namespace
 {
@@ -215,6 +217,31 @@ void FRitualInfusionSpec::Define()
 		TestTrue(FString::Printf(TEXT("the fire ran (%s)"), *Fire.ErrorMessage), Fire.bSuccess);
 		TestTrue(TEXT("the fire strikes with the locked Fire"), Fire.AttackElement == ESpellElement::Fire);
 		TestEqual(TEXT("the fire pays nothing"), Fire.EnergySpent, 0);
+	});
+
+	It("arms a Generic spell ritual with its source's element, not Generic or None", [this]()
+	{
+		if (!Recorder || !TestTrue(TEXT("Hero has the first turn"), Orchestrator->GetCurrentActor() == Hero)) return;
+		USpellData *Spell = NewObject<USpellData>(GetTransientPackage());
+		Spell->Name = TEXT("Montage-less Ritual Spell");
+		Spell->BaseDamage = RITUAL_INFUSION_DAMAGE;
+		Spell->BaseEnergyCost = RITUAL_INFUSION_EP;
+		Spell->ExecutionType = EAbilityExecutionType::Ranged;
+		Spell->TargetType = ETargetType::Enemy;
+		Spell->Element = ESpellElement::Generic; // inherit: takes the caster's source element
+		Spell->ActivationDelay = RITUAL_INFUSION_DELAY_TURNS;
+		FAction Action;
+		Action.ActionType = EActionType::Spell;
+		Action.SpellData = Spell;
+		Action.SelectedSource = EInfusionSourceOption::Innate;
+		Action.Targets.Add(Foe);
+		Orchestrator->SubmitActionAsync(Action);
+		TestWorld->Tick(RITUAL_INFUSION_SETTLE_FRAMES);
+		const UActionExecutedRecorder::FEntry *Arm = Recorder->Entries.FindByPredicate(
+			[this](const UActionExecutedRecorder::FEntry &Entry) { return Entry.Actor.Get() == Hero && Entry.ActionType == EActionType::Spell; });
+		if (!TestNotNull(TEXT("the arm is recorded"), Arm)) return;
+		TestTrue(FString::Printf(TEXT("armed (%s)"), *Arm->Result.ErrorMessage), Arm->bSuccess);
+		TestTrue(TEXT("the arm's look is the Innate Fire"), Arm->Result.AttackElement == ESpellElement::Fire);
 	});
 
 	It("arms and fires clear with no infusion picked", [this]()
