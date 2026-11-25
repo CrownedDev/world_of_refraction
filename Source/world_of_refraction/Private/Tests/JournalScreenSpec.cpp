@@ -471,10 +471,16 @@ void FJournalScreenSpec::Define()
 		TestEqual(TEXT("back from All: Secret"), Screen->GetFilter(), static_cast<int32>(EJournalQuestFilter::Secret));
 		TestEqual(TEXT("one secret quest"), Screen->GetView().Rows.Num(), 1);
 		TestTrue(TEXT("the hint offers Show"), WoRKeyHints::Format(Screen->GetHints(), true).ToString().Contains(TEXT("X  Show"))); // B-481: a key-hint pattern
+		TArray<UJournalScreenWidget::FJournalButton> Buttons = Screen->GetButtons();
+		TestTrue(TEXT("B-630: Details has X Show, then Y Hide all, greyed with none shown"),
+				 Buttons.Num() == 2 && Buttons[0].Kind == UJournalScreenWidget::EJournalButton::Toggle &&
+					 Buttons[1].Kind == UJournalScreenWidget::EJournalButton::HideAll && !Buttons[1].Refusal.IsEmpty());
 
-		Screen->PressToggle();
+		Screen->PressButton(UJournalScreenWidget::EJournalButton::Toggle);
 		TestEqual(TEXT("X shows the focused one"), Screen->GetFocusedRow()->Title.ToString(), FString(TEXT("ScreenSecretSpec")));
 		TestTrue(TEXT("the hint flips to Hide"), WoRKeyHints::Format(Screen->GetHints(), true).ToString().Contains(TEXT("X  Hide")));
+		Buttons = Screen->GetButtons();
+		TestTrue(TEXT("B-630: and Y Hide all can be pressed now"), Buttons.Num() == 2 && Buttons[1].Refusal.IsEmpty());
 		Screen->PressHideAll();
 		TestEqual(TEXT("Y hides it"), Screen->GetFocusedRow()->Title.ToString(), FString(TEXT("Secret Quest 1")));
 

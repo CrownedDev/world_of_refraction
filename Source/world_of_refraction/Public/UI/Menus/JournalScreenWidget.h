@@ -8,6 +8,10 @@
 // Y hides them all; every secret quest is hidden again when the journal closes (Q-397b).
 // What it shows comes from WoRJournalScreen (JournalScreenModel.h), which the specs read.
 // The placeholder UMemoryJournalWidget stays for the hub's journal station (it has V's lines) until B-471.
+// B-630 (mockup menus/journal/v2, Q-630): the loadout screen's three columns (v5). Left: the page's name and count, a
+// ‹ kind › plate (Left / Right or a click turn it; LT / RT still do) and the list (a tracked quest says so). Middle:
+// the focused entry, always open (its steps and text). Right: Details, its facts, the buttons for what A, X and Y do
+// there (each clickable), and its note. A click on a row only lights it.
 
 #pragma once
 
@@ -52,6 +56,26 @@ public:
 	void PressHideAll();
 	void PressBack() { HandleBackAction(); }
 
+	/** B-630: a Details button, in its key's job. */
+	enum class EJournalButton : uint8
+	{
+		Select,
+		Toggle,
+		HideAll
+	};
+
+	/** B-630: one Details button: its key and verb, and why it can't be pressed (empty when it can). */
+	struct FJournalButton
+	{
+		EJournalButton Kind = EJournalButton::Select;
+		FText Label;
+		FText Refusal;
+	};
+
+	/** B-630: the focused row's Details buttons, in order. */
+	TArray<FJournalButton> GetButtons() const;
+	void PressButton(EJournalButton Button);
+
 	EJournalPage GetPage() const { return Page; }
 	int32 GetFilter() const { return Filter; }
 	int32 GetSelectedRow() const { return SelectedRow; }
@@ -77,6 +101,19 @@ private:
 		TWeakObjectPtr<UTextBlock> Title;
 		TWeakObjectPtr<UTextBlock> Subtitle;
 		TWeakObjectPtr<UTextBlock> Tag;
+		TWeakObjectPtr<UTextBlock> Tracked;
+	};
+	struct FFactWidgets
+	{
+		TWeakObjectPtr<UWidget> Line;
+		TWeakObjectPtr<UTextBlock> Label;
+		TWeakObjectPtr<UTextBlock> Value;
+	};
+	struct FButtonWidgets
+	{
+		TWeakObjectPtr<UBorder> Plate;
+		TWeakObjectPtr<UTextBlock> Verb;
+		TWeakObjectPtr<UTextBlock> Reason;
 	};
 	struct FStepWidgets
 	{
@@ -88,9 +125,15 @@ private:
 	void BuildTree();
 	FRowWidgets BuildRow();
 	FStepWidgets BuildStep();
+	UBorder *MakePanel(UVerticalBox *&OutColumn) const;
+	/** B-630: one word of the kind plate, the lit one with a line under it. */
+	void AddFilterWord();
 	/** The page read fresh from the model, the list and the focused row's reader. */
 	void Refresh(bool bScrollIntoView = true);
 	void RefreshReader();
+	/** B-630: the Details column for the focused row. */
+	void RefreshDetails();
+	int32 FindButtonUnder(const FPointerEvent &MouseEvent) const;
 	int32 FindUnder(const TArray<TObjectPtr<UBorder>> &Boxes, const FPointerEvent &MouseEvent) const;
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
 
@@ -109,13 +152,30 @@ private:
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> PageTabLabels;
 	UPROPERTY(Transient)
-	TObjectPtr<UHorizontalBox> FilterRow;
+	TObjectPtr<UTextBlock> ListTitle;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> CountText;
+	/** B-630: the ‹ kind › plate (was the LT / RT sub-tab row). */
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> FilterRow;
 	UPROPERTY(Transient)
 	TObjectPtr<UHorizontalBox> FilterTabBox;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> FilterTabs;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> FilterTabLabels;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> FilterUnderlines;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> DetailsName;
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> FactBox;
+	TArray<FFactWidgets> FactWidgets;
+	UPROPERTY(Transient)
+	TObjectPtr<UVerticalBox> ButtonBox;
+	TArray<FButtonWidgets> ButtonWidgets;
+	/** The buttons as last drawn, so a click presses the one under it. */
+	TArray<FJournalButton> ShownButtons;
 	UPROPERTY(Transient)
 	TObjectPtr<UScrollBox> RowScroll;
 	TArray<FRowWidgets> RowWidgets;
