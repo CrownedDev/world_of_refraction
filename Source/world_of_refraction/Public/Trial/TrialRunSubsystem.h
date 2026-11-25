@@ -487,6 +487,15 @@ public:
     /** B-188: a map feature was used this run (a chest opened, lore read); What says what it gave. */
     void RecordFound(FName FeatureId, const FText &What);
 
+    // B-632 (mockup menus/pause/v2, "This run"): items found this run and how long it has run.
+    /** A piece, a skill or a crystal given by a chest or a fight's drop this run (not fight items). */
+    void RecordItemFound();
+    int32 GetRunItemsFound() const { return RunItemsFound; }
+    /** Seconds since the run began, a saved run's earlier time included (wall clock: menus and fights count). */
+    double GetRunSeconds() const;
+    /** Save restore: the saved run's item count and time so far; its clock runs on from now. */
+    void RestoreRunStats(int32 ItemsFound, double Seconds);
+
     bool HasFound(FName FeatureId) const { return FoundFeatures.Contains(FeatureId); }
 
     int32 GetFoundCount() const { return FoundFeatures.Num(); }
@@ -731,6 +740,12 @@ private:
     /** B-188: map features used this run (never removed from, so it keeps the order found). Run state
      *  like BeatenEncounters; cleared on trial entry and exit; moves with it for co-op (D-065). */
     TMap<FName, FText> FoundFeatures;
+
+    /** B-632: run state like FoundFeatures (D-065); reset on trial entry, restored with a saved run. */
+    int32 RunItemsFound = 0;
+    /** The run's time before RunClockStart (a saved run's), and when its clock last started (FPlatformTime). */
+    double RunSecondsBefore = 0.0;
+    double RunClockStart = 0.0;
 
     /** B-190: memories collected this run. Run state like FoundFeatures (D-065). */
     UPROPERTY(Transient)
