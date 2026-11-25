@@ -78,6 +78,8 @@ struct FInventoryScreenTile
 	ESpellElement Element = ESpellElement::None;
 	/** Gear or apparel a loadout of this member wears, or an evolution in use (the tile's "E"). */
 	bool bWorn = false;
+	/** B-598c piece 4 (D-250): a Pouch stack picked as a fight item (the tile's F badge). */
+	bool bFightItem = false;
 
 	bool IsStack() const { return Kind == EInventoryScreenKind::Stack; }
 	TArray<FLoadoutScreenDetail> Details;
@@ -145,6 +147,18 @@ namespace WoRInventoryScreen
 	 *  member can receive the tile (the reason is the first member's). An evolution or apparel tile lists them
 	 *  refused: nothing moves those yet (Q-323). */
 	WORLD_OF_REFRACTION_API TArray<FInventoryScreenVerb> BuildVerbs(UWorld *World, FName Member, EInventoryScreenTab Tab, const FInventoryScreenTile &Tile);
+
+	/** B-598c (mockup menus/inventory/v4): the Details column's facts about Tile, as label / value lines: Worn in (the
+	 *  active loadout, else "Not worn") and Also in (the other loadouts) for gear; Owned (copies of the same piece, a
+	 *  stack's count); Durability (the tile's wear line, when it has one); Sells for (by tier; not for a potion).
+	 *  Piece 4: a stack also has Fight item ("Picked (1 of 3)" / "Not picked"), Brings into a fight and Slots. */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenDetail> BuildFacts(UWorld *World, FName Member, const FInventoryScreenTile &Tile);
+
+	/** B-598c piece 4 (D-250): why A can't pick or unpick the stack as a fight item (no use in a fight, every slot
+	 *  taken); empty when it can. Unpicking is always open. */
+	WORLD_OF_REFRACTION_API FText GetFightPickRefusal(UWorld *World, FName Member, const FInventoryScreenTile &Tile);
+	/** Picks the stack, or unpicks it (it stays in the bag). False when nothing changed. */
+	WORLD_OF_REFRACTION_API bool ToggleFightPick(UWorld *World, FName Member, const FInventoryScreenTile &Tile);
 
 	/** The other party members, for Give. */
 	WORLD_OF_REFRACTION_API TArray<FInventoryScreenReceiver> BuildReceivers(UWorld *World, FName Member, const FInventoryScreenTile &Tile);

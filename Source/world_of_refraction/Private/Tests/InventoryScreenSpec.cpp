@@ -155,19 +155,19 @@ void FInventoryScreenSpec::Define()
 		TestWorld.Reset();
 	});
 
-	It("on the merged screen (D-249) the inventory is home: its tabs fill the grid, Y brings the loadout in, the keys cross sides at the grid's edge", [this]()
+	It("on the merged screen (B-598c) the Inventory is a page: the bag fills the grid, the pages turn in a ring, Up reaches the filters then the Gear / Pouch selector", [this]()
 	{
 		if (!IsReady()) return;
 		AddDagger();
 		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
 		if (!TestNotNull(TEXT("screen"), Screen)) return;
 		Screen->ActivateWidget();
-		TestTrue(TEXT("opens with the loadout out and the keys on the inventory"), !Screen->IsLoadoutOpen() && Screen->IsOnInventorySide());
+		TestTrue(TEXT("opens on the Inventory page"), Screen->IsOnInventoryPage() && Screen->IsOnInventorySide() && Screen->GetPageIndex() == ULoadoutV2ScreenWidget::INVENTORY_PAGE);
 		TestTrue(TEXT("on the Gear tab"), Screen->GetInventoryTab() == EInventoryScreenTab::Gear);
 		TestEqual(TEXT("the Gear tab's tiles are the inventory screen's"), Screen->GetInventorySide().Tiles.Num(), PageOf(EInventoryScreenTab::Gear).Tiles.Num());
 		TestTrue(TEXT("at least the sword and the dagger"), Screen->GetInventorySide().Tiles.Num() >= 2);
-		TestEqual(TEXT("the whole width: the wide row"), Screen->GetGridColumns(), WoRLoadoutV2Grid::COLUMNS_WIDE);
-		TestFalse(TEXT("the card has the lit tile's details"), Screen->GetDetails().IsEmpty());
+		TestEqual(TEXT("the left column's five to a row"), Screen->GetGridColumns(), WoRLoadoutV2Grid::COLUMNS);
+		TestFalse(TEXT("the middle column has the lit tile's details"), Screen->GetDetails().IsEmpty());
 		TestFalse(TEXT("no slot is being filled"), Screen->IsGridOpen());
 
 		// UI_Theme 5a: a move redraws only what changed (the light view), never the whole screen.
@@ -176,48 +176,154 @@ void FInventoryScreenSpec::Define()
 		Screen->MoveInventoryTile(1, 0);
 		TestEqual(TEXT("Right: the next tile"), Screen->GetInventoryTile(), 1);
 		TestTrue(TEXT("a tile move takes the light view only"), Screen->GetFullRefreshCount() == FullBefore && Screen->GetLightRefreshCount() == LightBefore + 1);
-		Screen->MoveSelection(1);
-		TestTrue(TEXT("so does a move down the loadout's list"), Screen->GetFullRefreshCount() == FullBefore && Screen->GetLightRefreshCount() == LightBefore + 2);
-		Screen->MoveSelection(-1);
 		Screen->MoveInventoryTile(-1, 0);
 		Screen->MoveInventoryTile(-1, 0);
-		TestTrue(TEXT("Left off the first column with the loadout out: stays on the inventory"), Screen->IsOnInventorySide() && Screen->GetInventoryTile() == 0);
+		TestTrue(TEXT("Left off the first column: stays on the first tile"), Screen->IsOnInventoryPage() && Screen->GetInventoryTile() == 0);
 
 		Screen->ToggleLoadout();
-		TestTrue(TEXT("Y: the loadout comes in; the keys stay on the inventory"), Screen->IsLoadoutOpen() && Screen->IsOnInventorySide());
-		TestEqual(TEXT("the grid narrows"), Screen->GetGridColumns(), WoRLoadoutV2Grid::COLUMNS);
-		Screen->MoveInventoryTile(-1, 0);
-		TestFalse(TEXT("Left off the first column: the loadout's side"), Screen->IsOnInventorySide());
+		TestTrue(TEXT("to the Equipment page: the keys are the loadout's"), Screen->IsLoadoutOpen() && !Screen->IsOnInventorySide() && Screen->GetPageIndex() == ULoadoutV2ScreenWidget::EQUIPMENT_PAGE);
 		TestTrue(TEXT("the loadout lists the member's weapon set"), Screen->GetPage().Entries.Num() > 0);
-		TestTrue(TEXT("Right from the list: back to the inventory's side"), Screen->FocusInventorySide() && Screen->IsOnInventorySide());
+		const int32 ListFullBefore = Screen->GetFullRefreshCount();
+		const int32 ListLightBefore = Screen->GetLightRefreshCount();
+		Screen->MoveSelection(1);
+		TestTrue(TEXT("a move down the loadout's list takes the light view too"), Screen->GetFullRefreshCount() == ListFullBefore && Screen->GetLightRefreshCount() == ListLightBefore + 1);
+		Screen->MoveSelection(-1);
+		TestFalse(TEXT("no inventory side to cross to (D-249's sides are gone)"), Screen->FocusInventorySide());
+		Screen->SwitchTab(-1);
+		TestTrue(TEXT("Q from Equipment: back to the Inventory page"), Screen->IsOnInventoryPage());
 
-		Screen->MoveInventoryTab(1);
-		TestTrue(TEXT("RB on the inventory: the Pouch"), Screen->GetInventoryTab() == EInventoryScreenTab::Pouch);
-		Screen->MoveInventoryTab(1);
-		TestTrue(TEXT("no Chest tab (B-575c): in a ring, straight back to Gear"), Screen->GetInventoryTab() == EInventoryScreenTab::Gear);
 		Screen->MoveInventoryTile(0, -1);
-		TestTrue(TEXT("Up off the top row: the filter row"), Screen->IsOnInventoryFilters());
+		TestTrue(TEXT("Up off the top row: the filter row"), Screen->IsOnInventoryFilters() && !Screen->IsOnInventoryKinds());
+		Screen->MoveInventoryTile(0, -1);
+		TestTrue(TEXT("Up again: the Gear / Pouch selector"), Screen->IsOnInventoryKinds() && !Screen->IsOnInventoryFilters());
+		Screen->MoveInventoryTile(1, 0);
+		TestTrue(TEXT("Right on the selector: the Pouch, the keys stay on it"), Screen->GetInventoryTab() == EInventoryScreenTab::Pouch && Screen->IsOnInventoryKinds());
 		Screen->MoveInventoryTile(0, 1);
-		TestFalse(TEXT("Down: back on the tiles"), Screen->IsOnInventoryFilters());
+		TestTrue(TEXT("Down: the Pouch has no filters, so the tiles"), !Screen->IsOnInventoryKinds() && !Screen->IsOnInventoryFilters());
+		Screen->MoveInventoryTile(0, -1);
+		TestTrue(TEXT("Up from the Pouch's top row: straight to the selector"), Screen->IsOnInventoryKinds());
+		Screen->MoveInventoryTile(1, 0);
+		TestTrue(TEXT("no Chest (B-575c): in a ring, straight back to Gear"), Screen->GetInventoryTab() == EInventoryScreenTab::Gear);
+		Screen->MoveInventoryTile(0, 1);
+		TestTrue(TEXT("Down from the selector on Gear: its filter row"), Screen->IsOnInventoryFilters());
+		Screen->MoveInventoryTile(0, -1);
+		Screen->PressBack();
+		TestTrue(TEXT("Back from the selector: the tiles, the screen stays"), !Screen->IsOnInventoryKinds() && Screen->IsActivated());
 		const EInventoryScreenSort SortBefore = Screen->GetInventorySort();
 		Screen->CycleInventorySort();
 		TestTrue(TEXT("the sort steps on"), Screen->GetInventorySort() == WoRInventoryScreen::GetNextSort(SortBefore));
 
-		// The loadout in the middle of something keeps the keys, and can't be closed under it.
-		TestTrue(TEXT("the keys go to the loadout"), Screen->FocusLoadoutSide());
+		// The loadout in the middle of something can't be left for the Inventory page under it.
+		Screen->ToggleLoadout();
 		Screen->PressA();
 		if (TestTrue(TEXT("A on the weapon set opens its window"), Screen->IsAdding()))
 		{
-			TestFalse(TEXT("the keys can't leave a window"), Screen->FocusInventorySide());
 			Screen->ToggleLoadout();
-			TestTrue(TEXT("nor can the loadout be closed"), Screen->IsLoadoutOpen() && !Screen->GetMessage().IsEmpty());
+			TestTrue(TEXT("the page can't change under a window"), Screen->IsLoadoutOpen() && !Screen->GetMessage().IsEmpty());
 			TestTrue(TEXT("and that is the Refused cue (UI_Theme 5a)"), Screen->GetLastCue() == EWoRMenuCue::Refused);
 			Screen->PressBack();
 			TestFalse(TEXT("Back leaves the window"), Screen->IsAdding());
 		}
 		Screen->ToggleLoadout();
-		TestTrue(TEXT("Y again (or the button): the loadout goes out and the keys are on the inventory"), !Screen->IsLoadoutOpen() && Screen->IsOnInventorySide());
-		TestFalse(TEXT("no loadout side to go to"), Screen->FocusLoadoutSide());
+		TestTrue(TEXT("and then back to the Inventory page"), Screen->IsOnInventoryPage() && Screen->IsOnInventorySide());
+		TestFalse(TEXT("FocusLoadoutSide is gone (OBSOLETE)"), Screen->FocusLoadoutSide());
+	});
+
+	It("B-598c piece 2: the Details column's facts (worn in, owned, sells for) and buttons (Equip on…, Give to…, Sell greyed)", [this]()
+	{
+		if (!IsReady()) return;
+		const FGuid DaggerID = AddDagger();
+		const FInventoryScreenPage Gear = PageOf(EInventoryScreenTab::Gear);
+		const int32 SwordTile = FindGear(Gear, IDOf(Sword));
+		const int32 DaggerTile = FindGear(Gear, DaggerID);
+		if (!TestTrue(TEXT("both tiles"), SwordTile != INDEX_NONE && DaggerTile != INDEX_NONE)) return;
+		const auto FactOf = [](const TArray<FLoadoutScreenDetail> &Facts, const TCHAR *Label) -> const FLoadoutScreenDetail *
+		{ return Facts.FindByPredicate([Label](const FLoadoutScreenDetail &Fact) { return Fact.Label.ToString() == Label; }); };
+		const TArray<FLoadoutScreenDetail> SwordFacts = WoRInventoryScreen::BuildFacts(World(), KeyOf(SCREEN_MEMBER), Gear.Tiles[SwordTile]);
+		const FLoadoutScreenDetail *SwordWorn = FactOf(SwordFacts, TEXT("Worn in"));
+		TestTrue(TEXT("the sword is worn in the active loadout"), SwordWorn && SwordWorn->Value.ToString() != TEXT("Not worn"));
+		const FLoadoutScreenDetail *SwordOwned = FactOf(SwordFacts, TEXT("Owned"));
+		TestTrue(TEXT("one sword owned"), SwordOwned && SwordOwned->Value.ToString() == TEXT("1"));
+		TestNotNull(TEXT("a price by tier"), FactOf(SwordFacts, TEXT("Sells for")));
+		const FLoadoutScreenDetail *DaggerWorn = FactOf(WoRInventoryScreen::BuildFacts(World(), KeyOf(SCREEN_MEMBER), Gear.Tiles[DaggerTile]), TEXT("Worn in"));
+		TestTrue(TEXT("the dagger is not worn"), DaggerWorn && DaggerWorn->Value.ToString() == TEXT("Not worn"));
+
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen)) return;
+		Screen->ActivateWidget();
+		const int32 ScreenSword = FindGear(Screen->GetInventorySide(), IDOf(Sword));
+		const int32 ScreenDagger = FindGear(Screen->GetInventorySide(), DaggerID);
+		const auto LightTile = [Screen](int32 Tile)
+		{
+			while (Screen->GetInventoryTile() < Tile) Screen->MoveInventoryTile(1, 0);
+			while (Screen->GetInventoryTile() > Tile) Screen->MoveInventoryTile(-1, 0);
+		};
+		LightTile(ScreenSword);
+		TestFalse(TEXT("the lit tile's facts are in the Details column"), Screen->GetInventoryFacts().IsEmpty());
+		if (!TestEqual(TEXT("three buttons: Equip on, Give to, Sell"), Screen->GetInventoryActions().Num(), 3)) return;
+		TestTrue(TEXT("Equip on is open for a weapon"), Screen->GetInventoryActions()[0].Refusal.IsEmpty());
+		TestFalse(TEXT("the worn sword can't be given (D-116), with the reason"), Screen->GetInventoryActions()[1].Refusal.IsEmpty());
+		TestFalse(TEXT("Sell is greyed: the Blacksmith's"), Screen->GetInventoryActions()[2].Refusal.IsEmpty());
+		Screen->PressGive();
+		TestFalse(TEXT("a refused Give opens no list, it says why"), Screen->IsGiving() || Screen->GetMessage().IsEmpty());
+
+		LightTile(ScreenDagger);
+		TestTrue(TEXT("the spare dagger can be given"), Screen->GetInventoryActions().IsValidIndex(1) && Screen->GetInventoryActions()[1].Refusal.IsEmpty());
+		Screen->PressGive();
+		TestTrue(TEXT("X: the other members are the buttons"), Screen->IsGiving() && Screen->GetInventoryActions().Num() == SCREEN_PARTY_SIZE - 1);
+		Screen->PressBack();
+		TestTrue(TEXT("Back: out of the list, the screen stays"), !Screen->IsGiving() && Screen->IsActivated() && Screen->GetInventoryActions().Num() == 3);
+		Screen->PressEquipOn();
+		TestTrue(TEXT("A, Equip on: the Equipment page, saying what to pick"), Screen->GetPageIndex() == ULoadoutV2ScreenWidget::EQUIPMENT_PAGE && !Screen->GetMessage().IsEmpty());
+	});
+
+	It("B-614: a slot's grid has the kind selector: Up reaches it, a refused kind says why, a turn changes the entry's kind and keeps each kind's draft", [this]()
+	{
+		if (!IsReady()) return;
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen)) return;
+		Screen->ActivateWidget();
+		Screen->ToggleLoadout();
+		Screen->PressA(); // the weapon set: the window's first question
+		Screen->PressA(); // its own kind: the slots
+		Screen->PressA(); // the main hand's grid
+		if (!TestTrue(TEXT("the main hand's grid is open"), Screen->IsGridOpen() && Screen->GetSlots().IsValidIndex(0) && Screen->GetSlots()[0] == ELoadoutV2Slot::MainHand)) return;
+		const TArray<ELoadoutV2PieceKind> Kinds = Screen->GetGridKinds();
+		if (!TestTrue(TEXT("Weapon, Adapter, Evolution, on Weapon"), Kinds == ULoadoutV2ScreenWidget::GetSlotKinds(ELoadoutV2Slot::MainHand) && Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon)) return;
+		TestFalse(TEXT("not on the selector yet"), Screen->IsOnGridKinds());
+		Screen->MoveInDirection(0, -1);
+		TestTrue(TEXT("Up off the top row: the selector"), Screen->IsOnGridKinds());
+		TestEqual(TEXT("with the Move cue"), Screen->GetLastCue(), EWoRMenuCue::Move);
+
+		int32 Open = INDEX_NONE;
+		for (int32 Index = 1; Index < Kinds.Num(); ++Index)
+		{
+			const FText Refusal = Screen->GetGridKindRefusal(Kinds[Index]);
+			if (Refusal.IsEmpty())
+			{
+				Open = Open == INDEX_NONE ? Index : Open;
+				continue;
+			}
+			Screen->PickGridKind(Index);
+			TestTrue(TEXT("a refused kind: stays on Weapon, says why"), Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon && Screen->GetMessage().EqualTo(Refusal));
+		}
+		if (Open == INDEX_NONE)
+		{
+			Screen->TurnGridKind(1);
+			TestTrue(TEXT("nothing to turn to: stays, with the reason"), Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon && !Screen->GetMessage().IsEmpty());
+			return;
+		}
+		Screen->TurnGridKind(1);
+		TestTrue(TEXT("Right: the first kind that can be turned to (refused ones skipped)"), Screen->GetGridKind() == Kinds[Open]);
+		TestTrue(TEXT("the entry is that kind now, its first slot's grid open, the keys still on the selector"),
+				 Screen->GetDraft().Kind != ELoadoutV2DraftKind::Weapon && Screen->IsGridOpen() && Screen->IsOnGridKinds());
+		Screen->PickGridKind(0);
+		TestTrue(TEXT("back to Weapon: the main hand again"), Screen->GetGridKind() == ELoadoutV2PieceKind::Weapon && Screen->GetSlots()[0] == ELoadoutV2Slot::MainHand);
+		TestEqual(TEXT("with the weapon draft as it was left: the sword in hand"), Screen->GetDraft().MainHand.PersistentID, IDOf(Sword));
+		Screen->MoveInDirection(0, 1);
+		TestFalse(TEXT("Down: back to the tiles"), Screen->IsOnGridKinds());
+		Screen->PressBack();
+		TestTrue(TEXT("Back: the slots, the screen stays"), !Screen->IsGridOpen() && Screen->IsActivated());
 	});
 
 	It("lists the member's gear on the Gear tab and marks the worn piece", [this]()
@@ -314,8 +420,8 @@ void FInventoryScreenSpec::Define()
 		TestEqual(TEXT("its count"), Pouch.Tiles[0].Row.Count, SCREEN_GEM_COUNT);
 		TestEqual(TEXT("the slots it starts with"), Pouch.Slots, InventoryConstants::ITEM_SLOTS_START);
 		TestEqual(TEXT("the rest are the Jeweler's"), Pouch.LockedSlots, InventoryConstants::ITEM_SLOTS_MAX - InventoryConstants::ITEM_SLOTS_START);
-		TestEqual(TEXT("the heading counts the fight items picked of the slots (D-250)"), Pouch.Heading.ToString(),
-				  FString::Printf(TEXT("Pouch  1/%d fight items"), InventoryConstants::ITEM_SLOTS_START));
+		TestEqual(TEXT("the heading counts the fight items picked of the slots (D-250; B-598c piece 4's wording)"), Pouch.Heading.ToString(),
+				  FString::Printf(TEXT("Fight items 1 / %d"), InventoryConstants::ITEM_SLOTS_START));
 		TestTrue(TEXT("the picked stack's card says it is a fight item"),
 				 Pouch.Tiles[0].Details.ContainsByPredicate([](const FLoadoutScreenDetail &Detail) { return Detail.Label.ToString() == TEXT("Fight item"); }));
 		const FName Giver = KeyOf(SCREEN_MEMBER);
@@ -328,6 +434,44 @@ void FInventoryScreenSpec::Define()
 		Pool->CarryOrStore(Receiver, SCREEN_GEM, InventoryConstants::ITEM_STACK_MAX - 1);
 		TestEqual(TEXT("the whole stack is given"), WoRInventoryScreen::GetMoveCount(World(), EInventoryVerb::Give, Giver, Receiver, Pouch.Tiles[0], /*bWholeStack=*/true),
 				  SCREEN_GEM_COUNT);
+	});
+
+	It("B-598c piece 4: on the Pouch, A picks a stack as a fight item and unpicks it; its F badge, the counter and the facts follow", [this]()
+	{
+		if (!IsReady()) return;
+		const FName Member = KeyOf(SCREEN_MEMBER);
+		Pool->CarryOrStore(Member, SCREEN_GEM, SCREEN_GEM_COUNT);
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen)) return;
+		Screen->ActivateWidget();
+		Screen->MoveInventoryTile(0, -1);
+		Screen->MoveInventoryTile(0, -1);
+		Screen->MoveInventoryTile(1, 0); // the selector: Pouch
+		Screen->MoveInventoryTile(0, 1);
+		if (!TestTrue(TEXT("on the Pouch's tiles"), Screen->IsOnPouch() && !Screen->IsOnInventoryKinds() && Screen->GetInventorySide().Tiles.Num() == 1)) return;
+		const auto FactOf = [Screen](const TCHAR *Label) -> FString
+		{
+			const FLoadoutScreenDetail *Fact = Screen->GetInventoryFacts().FindByPredicate([Label](const FLoadoutScreenDetail &Each) { return Each.Label.ToString() == Label; });
+			return Fact ? Fact->Value.ToString() : FString();
+		};
+		const bool bStartsPicked = Pool->IsFightItem(Member, SCREEN_GEM); // a new carried stack is picked while a slot is free
+		TestEqual(TEXT("the tile's F badge is the pick"), Screen->GetInventorySide().Tiles[0].bFightItem, bStartsPicked);
+		TestEqual(TEXT("Slots: used of the pouch's"), FactOf(TEXT("Slots")),
+				  FString::Printf(TEXT("%d of %d used"), Pool->GetUsedItemSlots(Member), Pool->GetItemSlotCount(Member)));
+		Screen->PressFightPick(); // A on the Pouch's tiles
+		TestNotEqual(TEXT("A turns the pick"), Pool->IsFightItem(Member, SCREEN_GEM), bStartsPicked);
+		Screen->PressFightPick();
+		TestEqual(TEXT("A again turns it back"), Pool->IsFightItem(Member, SCREEN_GEM), bStartsPicked);
+		if (!bStartsPicked)
+		{
+			Screen->PressFightPick();
+		}
+		TestTrue(TEXT("picked: the F badge, Picked (1 of 1), brings its stack"), Screen->GetInventorySide().Tiles[0].bFightItem && FactOf(TEXT("Fight item")) == TEXT("Picked (1 of 1)") &&
+																					 FactOf(TEXT("Brings into a fight")) == FString::FromInt(FMath::Min(SCREEN_GEM_COUNT, InventoryConstants::ITEM_STACK_MAX)));
+		TestEqual(TEXT("the counter over the grid"), Screen->GetInventorySide().Heading.ToString(), FString::Printf(TEXT("Fight items 1 / %d"), Pool->GetItemSlotCount(Member)));
+		Screen->PressFightPick();
+		TestTrue(TEXT("unpicked: left in the bag, no badge"), !Pool->IsFightItem(Member, SCREEN_GEM) && Pool->GetCarriedCount(Member, SCREEN_GEM) == SCREEN_GEM_COUNT &&
+															   !Screen->GetInventorySide().Tiles[0].bFightItem && FactOf(TEXT("Fight item")) == TEXT("Not picked"));
 	});
 
 	It("never greys Take for room: a pouch with every slot picked still takes the stack (D-250)", [this]()

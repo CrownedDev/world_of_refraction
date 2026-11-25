@@ -101,7 +101,7 @@ void FLoadoutV2ScreenSpec::Define()
 		Screen->ClickTabChip(LoadoutV2Chip_Cosmetics);
 		TestTrue(TEXT("Cosmetics is not built either"), Screen->GetTab() == ELoadoutV2Tab::Weapons);
 		Screen->ClickTabChip(LoadoutV2Chip_Inventory);
-		TestTrue(TEXT("the Inventory chip answers nothing (D-249: that tab is gone)"), Screen->GetTab() == ELoadoutV2Tab::Weapons && Screen->GetMode() == ELoadoutV2Mode::List);
+		TestTrue(TEXT("the Inventory chip: the Inventory page (B-598c)"), Screen->IsOnInventoryPage() && Screen->GetPageIndex() == ULoadoutV2ScreenWidget::INVENTORY_PAGE);
 		Screen->PressA();
 		TestTrue(TEXT("no character: A opens nothing"), !Screen->IsAdding());
 		Screen->ClickTabChip(LoadoutV2Chip_Weapons);
