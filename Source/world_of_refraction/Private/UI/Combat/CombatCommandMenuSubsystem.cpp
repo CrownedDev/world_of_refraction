@@ -683,7 +683,8 @@ void UCombatCommandMenuSubsystem::ApplyStickyInfusion(UInfusionVFXComponent &VFX
     const UCharacterDataComponent *CDC = CurrentActor->FindComponentByClass<UCharacterDataComponent>();
     FPieMenuButtonData Pending;
     Pending.Category = EPieMenuCategory::Target;
-    if (Exec && CDC && Exec->PreviewActionCost(CurrentActor.Get(), BuildActionFromButton(Pending)).EP > CDC->CurrentEP)
+    // B-625: the spendable EP (a Silenced seal off), as the target step's greying and ValidateAction read it.
+    if (Exec && CDC && Exec->PreviewActionCost(CurrentActor.Get(), BuildActionFromButton(Pending)).EP > Exec->GetSpendableEP(CurrentActor.Get()))
     {
         SetPendingInfusionLevel(0);
         bStickyInfusionDropped = true; // still on for the next action
