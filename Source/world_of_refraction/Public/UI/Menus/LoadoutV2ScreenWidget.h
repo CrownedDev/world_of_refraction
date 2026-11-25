@@ -29,6 +29,8 @@
 // B-531 (D-230): the Inventory tab, first in the row (the screen still opens on Equipment): what the character owns and
 // isn't wearing, grouped (WoRLoadoutV2::BuildInventoryPage); the box shows the lit or hovered piece; A on a piece opens
 // the Add equipment window with it already picked (the same window and Confirm as "+ Add equipment").
+// B-633 (Q-633): the window opens straight on its first slot's grid with the ‹ Weapon · Adapter · Evolution › selector
+// (mockup v5); A equips a piece at once (no Y Confirm), a new evolution still asks first, a refused pick says why.
 
 #pragma once
 
@@ -74,7 +76,8 @@ enum class ELoadoutV2Mode : uint8
 	Saved,
 	/** B-440f: the owned apparel pieces for the focused apparel place. */
 	ApparelItems,
-	/** The Add gear window's first question: Weapon / Adapter / Evolution. */
+	/** OBSOLETE (B-633): the Add gear window's old first question, Weapon / Adapter / Evolution; the grid's kind
+	 *  selector asks it now. Nothing opens it; removed after Crown's PIE pass. */
 	WindowKind,
 	/** The window's slots (Main hand, Off hand, sockets...). */
 	WindowSlots,
@@ -509,11 +512,18 @@ private:
 	const FLoadoutV2Entry *GetFocusedEntry() const;
 
 	// The window.
+	/** B-633: the window's state for a new entry (Entry null) or an edit, with the kinds read for the grid's selector. */
+	bool PrepareWindow(const FLoadoutV2Entry *Entry);
+	/** B-633 (Q-633, mockup v5): the first fitting kind's first slot grid, the ‹ Weapon · Adapter · Evolution › selector above. */
 	void OpenWindowForNew();
-	/** A on an entry (B-531, D-230): the Add window's first question; its own kind edits it, another replaces it on Y. */
+	/** A on an entry (B-531, D-230; B-633): its own kind's first slot grid; the selector turns it to another kind. */
 	void OpenWindowForEntry(const FLoadoutV2Entry &Entry);
-	/** B-531: the window edits an entry with a piece of another kind (it replaces the entry on Y Confirm). */
+	/** B-531: the window edits an entry with a piece of another kind (it replaces the entry once a piece is picked). */
 	bool IsReplacingKind() const;
+	/** B-633 (Q-633): a picked piece goes into the loadout at once (a new evolution asks first; a refusal says why). */
+	void CommitPick();
+	/** B-633: after a pick went in, the window stays open on that entry as the loadout now holds it. */
+	void StayOnAppliedEntry(const FLoadoutV2Draft &Applied);
 	void StartDraft(ELoadoutV2DraftKind Kind);
 	void BuildItems();
 	void PickItem();

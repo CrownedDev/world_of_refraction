@@ -636,14 +636,15 @@ void ULoadoutV2ScreenWidget::RefreshData()
 		{
 			RefreshSkills(); // B-476d
 		}
-		else if (Mode == ELoadoutV2Mode::WindowKind)
+		else if (IsAdding())
 		{
+			// B-633: the grid's kind selector reads these in every window step (the WindowKind rows are gone).
 			Kinds = bEditing ? WoRLoadoutV2::BuildEditKinds(*Active, Members[MemberIndex].Class, EditEntry) // B-531 (D-230)
 							 : WoRLoadoutV2::BuildAddKinds(*Active, Members[MemberIndex].Class);
-		}
-		else if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
-		{
-			BuildItems();
+			if (Mode == ELoadoutV2Mode::WindowItems || Mode == ELoadoutV2Mode::WindowAsk)
+			{
+				BuildItems();
+			}
 		}
 		else if (Mode == ELoadoutV2Mode::Saved)
 		{
@@ -1513,7 +1514,7 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 	case ELoadoutV2Mode::WindowKind:
 		return LOCTEXT("HintsKind", "{Confirm}  Pick        {Back}  Cancel");
 	case ELoadoutV2Mode::WindowSlots:
-		return LOCTEXT("HintsSlots", "{Confirm}  Open        {Second}  Confirm        {Back}  Cancel");
+		return LOCTEXT("HintsSlotsB633", "{Confirm}  Open        {Back}  Close"); // B-633: no Y Confirm, each pick is in already
 	case ELoadoutV2Mode::WindowItems:
 		if (IsOnGridKinds())
 		{
@@ -1521,7 +1522,7 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		}
 		if (Items.IsValidIndex(Selected) && Items[Selected].bRestore)
 		{
-			return LOCTEXT("HintsItemsRestore", "{Confirm}  Restore        {Second}  Confirm        {Back}  Back");
+			return LOCTEXT("HintsItemsRestoreB633", "{Confirm}  Restore        {Back}  Back");
 		}
 		if (IsSocketGrid() && !(Items.IsValidIndex(Selected) && Items[Selected].bEquipped))
 		{
@@ -1531,12 +1532,12 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		{
 			// D-248 step 1: the tab keys turn the grid's filter (B-614: when it has weapon types to filter by).
 			return Items.IsValidIndex(Selected) && Items[Selected].bEquipped
-					   ? LOCTEXT("HintsGridEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Tabs}  Filter        {Second}  Confirm        {Back}  Back")
-					   : LOCTEXT("HintsGrid", "{Confirm}  Pick        {Toggle}  Compare        {Tabs}  Filter        {Second}  Confirm        {Back}  Back");
+					   ? LOCTEXT("HintsGridEquippedB633", "{Confirm}  Remove        {Toggle}  Compare        {Tabs}  Filter        {Back}  Back")
+					   : LOCTEXT("HintsGridB633", "{Confirm}  Equip        {Toggle}  Compare        {Tabs}  Filter        {Back}  Back"); // B-633: A equips at once
 		}
 		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped
-				   ? LOCTEXT("HintsItemsEquipped", "{Confirm}  Remove        {Toggle}  Compare        {Second}  Confirm        {Back}  Back")
-				   : LOCTEXT("HintsItems", "{Confirm}  Pick        {Toggle}  Compare        {Second}  Confirm        {Back}  Back");
+				   ? LOCTEXT("HintsItemsEquippedB633", "{Confirm}  Remove        {Toggle}  Compare        {Back}  Back")
+				   : LOCTEXT("HintsItemsB633", "{Confirm}  Equip        {Toggle}  Compare        {Back}  Back");
 	case ELoadoutV2Mode::WindowAsk:
 		return LOCTEXT("HintsAsk", "{Confirm}  Attach        {Back}  Not now");
 	case ELoadoutV2Mode::SkillRows:
@@ -4128,11 +4129,7 @@ void ULoadoutV2ScreenWidget::PressConfirm()
 		RefreshView();
 		return;
 	}
-	if (Mode == ELoadoutV2Mode::WindowSlots || Mode == ELoadoutV2Mode::WindowItems)
-	{
-		ConfirmWindow();
-		return;
-	}
+	// B-633 (Q-633): no Y Confirm in the window: a pick goes in on A.
 	if (Mode == ELoadoutV2Mode::SkillRows)
 	{
 		// B-488: the first screen's X on a skill, kept: the lit slot's skill comes out. Nothing is lost (an innate spell
@@ -4275,9 +4272,24 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		RefreshView();
 		return true;
 	case ELoadoutV2Mode::WindowAsk:
-		Mode = ELoadoutV2Mode::WindowItems; // Not now: the pick stays
-		RefreshView();
+	{
+		// Not now (B-633): the evolution stays out, the grid again.
+		ULoadoutComponent *Loadout = nullptr;
+		UInventoryComponent *Inventory = nullptr;
+		const FCombatLoadout *Active = nullptr;
+		const ELoadoutV2DraftKind Kind = Draft.Kind;
+		Draft = FLoadoutV2Draft();
+		Draft.Kind = Kind;
+		if (bEditing && !IsReplacingKind() && FindActive(Loadout, Inventory, Active))
+		{
+			Draft = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry);
+		}
+		Mode = ELoadoutV2Mode::WindowItems;
+		Selected = 0;
+		Message = FText::GetEmpty();
+		RefreshData();
 		return true;
+	}
 	case ELoadoutV2Mode::WindowItems:
 		SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // D-248: a hovered tile's index is not a slot row's
 		HoveredGridTab = INDEX_NONE;
@@ -4723,55 +4735,56 @@ void ULoadoutV2ScreenWidget::HandleNameCommitted(const FText &Text, ETextCommit:
 
 // ==================== THE ADD GEAR WINDOW ====================
 
-void ULoadoutV2ScreenWidget::OpenWindowForNew()
+bool ULoadoutV2ScreenWidget::PrepareWindow(const FLoadoutV2Entry *Entry)
 {
 	ULoadoutComponent *Loadout = nullptr;
 	UInventoryComponent *Inventory = nullptr;
 	const FCombatLoadout *Active = nullptr;
 	if (!FindActive(Loadout, Inventory, Active))
 	{
-		return;
+		return false;
 	}
 	ListSelected = Selected;
-	bEditing = false;
-	EditEntry = FLoadoutV2Entry();
-	Draft = FLoadoutV2Draft();
+	bEditing = Entry != nullptr;
+	EditEntry = Entry ? *Entry : FLoadoutV2Entry();
+	Draft = Entry ? WoRLoadoutV2::DraftFromEntry(*Active, *Entry) : FLoadoutV2Draft();
 	KindDrafts.Reset(); // B-614
 	Slots.Reset();
 	Items.Reset();
-	Mode = ELoadoutV2Mode::WindowKind;
+	Mode = ELoadoutV2Mode::WindowSlots; // B-633: any window step reads the kinds (RefreshData); WindowKind is OBSOLETE
 	Selected = 0;
 	Message = FText::GetEmpty();
 	RefreshData();
-	// Start on the first kind that fits (UIScreens: the window asks Weapon, Adapter or Evolution).
-	const int32 FirstOpen = Kinds.IndexOfByPredicate([](const FLoadoutV2KindChoice &Kind) { return Kind.Refusal.IsEmpty(); });
-	Selected = FirstOpen == INDEX_NONE ? 0 : FirstOpen;
-	RefreshView();
+	return true;
+}
+
+void ULoadoutV2ScreenWidget::OpenWindowForNew()
+{
+	if (!PrepareWindow(nullptr))
+	{
+		return;
+	}
+	const FLoadoutV2KindChoice *Open = Kinds.FindByPredicate([](const FLoadoutV2KindChoice &Kind) { return Kind.Refusal.IsEmpty(); });
+	if (!Open)
+	{
+		const FText Refusal = Kinds.IsEmpty() ? LOCTEXT("InventoryNoPlace", "There's no place for it.") : Kinds[0].Refusal;
+		CloseWindow();
+		Message = Refusal;
+		RefreshView();
+		return;
+	}
+	StartDraft(Open->Kind);
+	OpenSlot(0);
 }
 
 void ULoadoutV2ScreenWidget::OpenWindowForEntry(const FLoadoutV2Entry &Entry)
 {
-	ULoadoutComponent *Loadout = nullptr;
-	UInventoryComponent *Inventory = nullptr;
-	const FCombatLoadout *Active = nullptr;
-	if (!FindActive(Loadout, Inventory, Active))
+	if (!PrepareWindow(&Entry))
 	{
 		return;
 	}
-	ListSelected = Selected;
-	bEditing = true;
-	EditEntry = Entry;
-	Draft = WoRLoadoutV2::DraftFromEntry(*Active, Entry);
-	KindDrafts.Reset(); // B-614
-	// B-531 (D-230): the same first question as "+ Add equipment"; the entry's own kind is lit (A: edit it as before).
-	Slots.Reset();
-	Items.Reset();
-	Mode = ELoadoutV2Mode::WindowKind;
-	Message = FText::GetEmpty();
-	RefreshData();
-	const int32 Own = Kinds.IndexOfByPredicate([this](const FLoadoutV2KindChoice &Kind) { return Kind.Kind == Draft.Kind; });
-	Selected = Own == INDEX_NONE ? 0 : Own;
-	RefreshView();
+	StartDraft(Draft.Kind); // its own kind keeps the entry's pieces
+	OpenSlot(0);
 }
 
 bool ULoadoutV2ScreenWidget::IsReplacingKind() const
@@ -4782,7 +4795,7 @@ bool ULoadoutV2ScreenWidget::IsReplacingKind() const
 void ULoadoutV2ScreenWidget::StartDraft(ELoadoutV2DraftKind Kind)
 {
 	// An edit keeps the entry's pieces (OpenWindowForEntry's draft); another kind starts empty and replaces the entry
-	// on Y Confirm only (WoRLoadoutV2::ReplaceEntry), so Back before then leaves it as it was.
+	// once a piece is picked (B-633: WoRLoadoutV2::ReplaceEntry at once), so turning back before then leaves it as it was.
 	if (!bEditing || Kind != WoRLoadoutV2::GetDraftKind(EditEntry.Kind))
 	{
 		Draft = FLoadoutV2Draft();
@@ -5210,14 +5223,81 @@ void ULoadoutV2ScreenWidget::PickItem()
 		RefreshView();
 		return;
 	}
-	// A piece is picked: back to the slots, the draft shown in the box.
+	// A piece is picked: it goes in at once (B-633), back to the slots on the next one.
 	SetHovered(INDEX_NONE, INDEX_NONE, INDEX_NONE); // D-248: a hovered tile's index is not a slot row's
 	HoveredGridTab = INDEX_NONE;
+	bComparing = false;
+	CommitPick();
+}
+
+void ULoadoutV2ScreenWidget::CommitPick()
+{
+	const FText PickNote = Message; // PutPieceInDraft's note ("... came off the off hand") outlives the apply
 	Mode = ELoadoutV2Mode::WindowSlots;
 	Selected = FMath::Min(SlotIndex + 1, Slots.Num() - 1);
-	Items.Reset();
-	bComparing = false;
+	ConfirmWindow(); // checks the draft: refused says why, a new evolution asks, else ApplyWindowDraft
+	if (Mode != ELoadoutV2Mode::WindowSlots)
+	{
+		return; // the evolution's ask, or the window closed
+	}
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	const FCombatLoadout *Active = nullptr;
+	if (bEditing && !IsReplacingKind() && FindActive(Loadout, Inventory, Active))
+	{
+		Draft = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry); // a refused change: the box shows the entry as it still is
+	}
+	if (Message.IsEmpty() && !PickNote.IsEmpty())
+	{
+		Message = PickNote;
+	}
 	RefreshView();
+}
+
+void ULoadoutV2ScreenWidget::StayOnAppliedEntry(const FLoadoutV2Draft &Applied)
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	const FCombatLoadout *Active = nullptr;
+	if (!FindActive(Loadout, Inventory, Active))
+	{
+		CloseWindow();
+		return;
+	}
+	const auto SamePiece = [&Applied](const FLoadoutV2Draft &Each)
+	{
+		if (Each.Kind != Applied.Kind)
+		{
+			return false;
+		}
+		switch (Applied.Kind)
+		{
+		case ELoadoutV2DraftKind::Weapon:
+			return Each.MainHand.PersistentID == Applied.MainHand.PersistentID;
+		case ELoadoutV2DraftKind::Adapter:
+			return Each.Adapter.PersistentID == Applied.Adapter.PersistentID;
+		case ELoadoutV2DraftKind::Evolution:
+		default:
+			return Each.EvolutionInstance == Applied.EvolutionInstance;
+		}
+	};
+	const FLoadoutV2WeaponsPage Now = WoRLoadoutV2::BuildWeaponsPage(*Active, Members[MemberIndex].Class);
+	const FLoadoutV2Entry *Found = Now.Entries.FindByPredicate([Active, &SamePiece](const FLoadoutV2Entry &Entry) { return SamePiece(WoRLoadoutV2::DraftFromEntry(*Active, Entry)); });
+	if (!Found)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[LoadoutV2] the applied entry wasn't found in the loadout: the window closes"));
+		CloseWindow();
+		return;
+	}
+	bEditing = true;
+	EditEntry = *Found;
+	Draft = WoRLoadoutV2::DraftFromEntry(*Active, *Found);
+	KindDrafts.Reset(); // the entry changed: the other kinds' kept drafts are stale
+	Mode = ELoadoutV2Mode::WindowSlots;
+	Selected = FMath::Clamp(SlotIndex + 1, 0, FMath::Max(0, Slots.Num() - 1));
+	Items.Reset();
+	PickedSocket = INDEX_NONE;
+	RefreshData();
 }
 
 bool ULoadoutV2ScreenWidget::PutPieceInDraft(ELoadoutV2Slot GearSlot, const FLoadoutV2WindowItem &Item)
@@ -5305,9 +5385,9 @@ void ULoadoutV2ScreenWidget::WearFromInventory()
 	Piece.Adapter = Row->Adapter;
 	Piece.Evolution = Row->Evolution;
 	const FText PieceName = Row->Name;
-	OpenWindowForNew();
+	const bool bOpened = PrepareWindow(nullptr);
 	const FLoadoutV2KindChoice *Choice = Kinds.FindByPredicate([Kind](const FLoadoutV2KindChoice &Each) { return Each.Kind == Kind; });
-	if (Mode != ELoadoutV2Mode::WindowKind || !Choice || !Choice->Refusal.IsEmpty())
+	if (!bOpened || !Choice || !Choice->Refusal.IsEmpty())
 	{
 		const FText Refusal = Choice ? Choice->Refusal : LOCTEXT("InventoryNoPlace", "There's no place for it.");
 		CloseWindow();
@@ -5318,14 +5398,12 @@ void ULoadoutV2ScreenWidget::WearFromInventory()
 	StartDraft(Kind);
 	if (Slots.IsValidIndex(0) && PutPieceInDraft(Slots[0], Piece))
 	{
-		Selected = FMath::Min(1, Slots.Num() - 1); // as a pick: on to the next slot, the draft in the box
-		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: Inventory tab, %s opened in Add equipment"), *Members[MemberIndex].Name.ToString(), *PieceName.ToString());
+		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: Inventory tab, %s picked in Add equipment"), *Members[MemberIndex].Name.ToString(), *PieceName.ToString());
+		CommitPick(); // B-633: as a pick, it goes in at once
+		return;
 	}
-	else
-	{
-		Message = FText::Format(LOCTEXT("InventoryPickIt", "Pick {0} in the first slot."), PieceName);
-		UE_LOG(LogWoRUI, Warning, TEXT("[LoadoutV2] Inventory tab: %s couldn't be put in the window's first slot"), *PieceName.ToString());
-	}
+	Message = FText::Format(LOCTEXT("InventoryPickIt", "Pick {0} in the first slot."), PieceName);
+	UE_LOG(LogWoRUI, Warning, TEXT("[LoadoutV2] Inventory tab: %s couldn't be put in the window's first slot"), *PieceName.ToString());
 	RefreshView();
 }
 
@@ -5338,11 +5416,9 @@ void ULoadoutV2ScreenWidget::RemoveEquipped()
 	const ELoadoutV2Slot GearSlot = Slots[SlotIndex];
 	if (GearSlot == ELoadoutV2Slot::OffHand)
 	{
-		Draft.OffHand = FWeaponInventoryEntry(); // goes on Y Confirm (a twin-only main hand refuses then)
-		Mode = ELoadoutV2Mode::WindowSlots;
-		Selected = SlotIndex;
+		Draft.OffHand = FWeaponInventoryEntry(); // B-633: comes off at once (a twin-only main hand refuses, saying why)
 		Items.Reset();
-		RefreshView();
+		CommitPick();
 		return;
 	}
 	if (GearSlot == ELoadoutV2Slot::Socket1 || GearSlot == ELoadoutV2Slot::Socket2)
@@ -5450,7 +5526,7 @@ void ULoadoutV2ScreenWidget::ConfirmWindow()
 		Message = WoRLoadoutScreen::ApplySocketChoice(GetWorld(), Members[MemberIndex], Row, Socket, Items[PickedSocket].Socket);
 		if (Message.IsEmpty())
 		{
-			// B-516: a new entry's piece is socketed as it waits in the window; the entry goes in on Y Confirm.
+			// B-516: a new entry's piece is socketed as it waits in the window (B-633: rare now, its piece goes in first).
 			UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: %s socketed into %s"), *Members[MemberIndex].Name.ToString(), *Items[PickedSocket].Name.ToString(),
 				   bNewEntry ? *Row.Name.ToString() : *EditEntry.Name.ToString());
 			Active = &Inventory->SavedLoadouts[Inventory->ActiveLoadoutIndex];
@@ -5554,7 +5630,7 @@ void ULoadoutV2ScreenWidget::ApplyWindowDraft()
 	}
 	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] %s: entry %s (%s)"), *Members[MemberIndex].Name.ToString(), bEdit ? TEXT("changed") : TEXT("added"), *GetNameSafe(Piece));
 	Message = FText::GetEmpty();
-	CloseWindow();
+	StayOnAppliedEntry(Applied); // B-633: the window stays open, on the entry as it is now
 }
 
 void ULoadoutV2ScreenWidget::CloseWindow()
@@ -5576,7 +5652,7 @@ void ULoadoutV2ScreenWidget::CloseWindow()
 static FAutoConsoleCommandWithWorld GLoadoutV2OpenCommand(
 	TEXT("wor.UI.LoadoutV2"),
 	TEXT("B-476b/c: open the loadout screen, as the game menu's Loadout page does: A Edit / Equip, X Simple / Full, L3 / 6 Set active, Y Options; "
-		 "in the Add equipment window A Pick / Remove, X Compare, Y Confirm."),
+		 "in the Add equipment window A Equip (at once) / Remove, X Compare."),
 	FConsoleCommandWithWorldDelegate::CreateLambda([](UWorld *World)
 	{
 		if (!ULoadoutV2ScreenWidget::Open(World ? World->GetFirstPlayerController() : nullptr))
