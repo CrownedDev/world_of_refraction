@@ -9,6 +9,7 @@
 // closes (Q-397b).
 // Conversations: a ready talk is played here line by line until NPC talk is built (Q-463, B-471).
 // Debug: wor.UI.PrintJournal logs GetJournalString.
+// B-630 (mockup menus/journal/v2, Q-630): each row's Details facts and each page's count line, for the three columns.
 
 #pragma once
 
@@ -60,6 +61,15 @@ struct FJournalStep
 	bool bDone = false;
 };
 
+/** B-630 (mockup menus/journal/v2): one line of the Details column, "Status · Step 3". */
+struct FJournalFact
+{
+	FText Label;
+	FText Value;
+	/** Shown in the lit colour (a tracked quest's "Yes, on the HUD"). */
+	bool bLit = false;
+};
+
 /** One row of a page's list, with what the reader shows for it. */
 struct FJournalRow
 {
@@ -75,6 +85,10 @@ struct FJournalRow
 	EQuestKind Kind = EQuestKind::Main;
 	/** A finished quest: the row is dimmed. */
 	bool bDone = false;
+	/** B-630: the quest shown on the HUD (the row says "tracked"). */
+	bool bTracked = false;
+	/** B-630: the Details column's lines for this row. */
+	TArray<FJournalFact> Facts;
 
 	/** The reader: the line under the title, the steps (quests), the text, and a closing note. */
 	FText Kicker;
@@ -97,6 +111,8 @@ struct FJournalView
 	TArray<FText> Filters;
 	TArray<FJournalRow> Rows;
 	FText ListNote;
+	/** B-630: the count beside the list's title: "2 open · 1 done", "3 found", "1 ready". */
+	FText CountLine;
 };
 
 namespace WoRJournalScreen

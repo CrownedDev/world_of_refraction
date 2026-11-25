@@ -91,6 +91,13 @@ namespace
 		}
 		return Out;
 	}
+
+	/** B-630: the Details value under Label; empty when the row has no such line. */
+	FString FactOf(const FJournalRow &Row, const TCHAR *Label)
+	{
+		const FJournalFact *Fact = Row.Facts.FindByPredicate([Label](const FJournalFact &Each) { return Each.Label.ToString() == Label; });
+		return Fact ? Fact->Value.ToString() : FString();
+	}
 }
 
 BEGIN_DEFINE_SPEC(FJournalScreenSpec, "WoR.UI.Journal", EAutomationTestFlags_ApplicationContextMask | EAutomationTestFlags::ProductFilter)
@@ -157,11 +164,15 @@ void FJournalScreenSpec::Define()
 		TestEqual(TEXT("only the first step"), StepsOf(Page.Rows[0]), FString(TEXT("now:StepsMainSpec goal 1;")));
 		TestFalse(TEXT("the reward stays hidden"), Page.Rows[0].Note.IsEmpty());
 		TestTrue(TEXT("a main quest has no Show / Hide"), Page.Rows[0].ToggleVerb.IsEmpty());
+		TestEqual(TEXT("B-630: Details' status"), FactOf(Page.Rows[0], TEXT("Status")), FString(TEXT("Step 1")));
+		TestEqual(TEXT("B-630: not tracked"), FactOf(Page.Rows[0], TEXT("Tracked")), FString(TEXT("No")));
+		TestEqual(TEXT("B-630: the count"), Page.CountLine.ToString(), FString(TEXT("1 open · 0 done")));
 
 		DoStep(Main);
 		Page = QuestView();
 		TestEqual(TEXT("step 1 ticked, step 2 lit, step 3 not shown"), StepsOf(Page.Rows[0]),
 				  FString(TEXT("done:StepsMainSpec goal 1;now:StepsMainSpec goal 2;")));
+		TestEqual(TEXT("B-630: the status follows"), FactOf(Page.Rows[0], TEXT("Status")), FString(TEXT("Step 2")));
 
 		DoStep(Main);
 		DoStep(Main);
@@ -169,6 +180,8 @@ void FJournalScreenSpec::Define()
 		TestTrue(TEXT("finished: dimmed, reads done"), Page.Rows[0].bDone && Page.Rows[0].Subtitle.ToString() == TEXT("done"));
 		TestEqual(TEXT("every step ticked"), StepsOf(Page.Rows[0]),
 				  FString(TEXT("done:StepsMainSpec goal 1;done:StepsMainSpec goal 2;done:StepsMainSpec goal 3;")));
+		TestEqual(TEXT("B-630: Done, and no Tracked line"), FactOf(Page.Rows[0], TEXT("Status")) + FactOf(Page.Rows[0], TEXT("Tracked")), FString(TEXT("Done")));
+		TestEqual(TEXT("B-630: counted done"), Page.CountLine.ToString(), FString(TEXT("0 open · 1 done")));
 	});
 
 	It("tracks one quest with A, saves it, and drops it when the quest finishes; a secret quest can't be tracked (B-463b)", [this]()
@@ -193,6 +206,8 @@ void FJournalScreenSpec::Define()
 		Page = QuestView();
 		MainRow = Page.Rows.FindByPredicate([](const FJournalRow &Row) { return Row.Id == TEXT("TrackMainSpec"); });
 		TestTrue(TEXT("the row says so"), MainRow && MainRow->SelectVerb.ToString() == TEXT("Stop tracking") && MainRow->Kicker.ToString().Contains(TEXT("tracked")));
+		TestTrue(TEXT("B-630: and Details, lit"), MainRow && MainRow->bTracked && FactOf(*MainRow, TEXT("Tracked")) == TEXT("Yes, on the HUD") &&
+													  MainRow->Facts.ContainsByPredicate([](const FJournalFact &Fact) { return Fact.bLit; }));
 		SideRow = Page.Rows.FindByPredicate([](const FJournalRow &Row) { return Row.Id == TEXT("TrackSideSpec"); }); // the page was rebuilt
 		TestTrue(TEXT("one at a time"), SideRow && WoRJournalScreen::ToggleTrack(Game(), *SideRow) && Quests->GetTrackedQuest() == FName(TEXT("TrackSideSpec")));
 
@@ -226,10 +241,13 @@ void FJournalScreenSpec::Define()
 		TestEqual(TEXT("its hint reads Show"), Page.Rows[1].ToggleVerb.ToString(), FString(TEXT("Show")));
 		TestTrue(TEXT("masked: no step, no name"), Page.Rows[1].Steps.IsEmpty() && !Page.Rows[1].Subtitle.ToString().Contains(TEXT("SecretOlderSpec")));
 		TestFalse(TEXT("no player-facing Hidden quest (D-196)"), Page.Rows[1].Kicker.ToString().Contains(TEXT("Hidden")));
+		TestEqual(TEXT("B-630: masked, Details says Hidden only"), Page.Rows[1].Facts.Num() == 1 ? FactOf(Page.Rows[1], TEXT("Status")) : FString(),
+				  FString(TEXT("Hidden")));
 
 		TestTrue(TEXT("X shows it"), WoRJournalScreen::ToggleSecret(Page.Rows[1], State));
 		Page = QuestView();
 		TestEqual(TEXT("its name"), Page.Rows[1].Title.ToString(), FString(TEXT("SecretOlderSpec")));
+		TestEqual(TEXT("B-630: no step number (D-171)"), FactOf(Page.Rows[1], TEXT("Status")), FString(TEXT("In progress")));
 		TestEqual(TEXT("its hint reads Hide"), Page.Rows[1].ToggleVerb.ToString(), FString(TEXT("Hide")));
 		TestEqual(TEXT("found, and the current step only: not the done one, not the next"), StepsOf(Page.Rows[1]),
 				  FString(TEXT("done:(found);now:SecretOlderSpec goal 2;")));
@@ -284,6 +302,9 @@ void FJournalScreenSpec::Define()
 		TestEqual(TEXT("whose it is, and where"), Everyone.Rows[0].Kicker.ToString(), FString(TEXT("SeraSpec · found in The Hub")));
 		TestEqual(TEXT("its text in the reader"), Everyone.Rows[0].Body.ToString(), FString(TEXT("NewSeraMemory text")));
 		TestEqual(TEXT("found, never 'of'"), Everyone.ListNote.ToString(), FString(TEXT("3 found")));
+		TestEqual(TEXT("B-630: the count beside the title"), Everyone.CountLine.ToString(), FString(TEXT("3 found")));
+		TestEqual(TEXT("B-630: Details, whose"), FactOf(Everyone.Rows[0], TEXT("Belongs to")), FString(TEXT("SeraSpec")));
+		TestEqual(TEXT("B-630: Details, where"), FactOf(Everyone.Rows[0], TEXT("Found in")), FString(TEXT("The Hub")));
 		TestTrue(TEXT("Everyone, then each character by name"),
 				 Everyone.Filters.Num() == 3 && Everyone.Filters[1].ToString() == TEXT("BramSpec") && Everyone.Filters[2].ToString() == TEXT("SeraSpec"));
 
