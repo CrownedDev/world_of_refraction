@@ -524,6 +524,8 @@ private:
 	void CommitPick();
 	/** B-633: after a pick went in, the window stays open on that entry as the loadout now holds it. */
 	void StayOnAppliedEntry(const FLoadoutV2Draft &Applied);
+	/** B-633: the draft as the loadout holds it (the edited entry, or empty of its kind): a refused or skipped pick stays out of the box. */
+	void ResetDraftToLoadout();
 	void StartDraft(ELoadoutV2DraftKind Kind);
 	void BuildItems();
 	void PickItem();

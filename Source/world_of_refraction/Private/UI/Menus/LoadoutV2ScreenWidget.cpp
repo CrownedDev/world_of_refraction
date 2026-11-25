@@ -4273,21 +4273,16 @@ bool ULoadoutV2ScreenWidget::NativeOnHandleBackAction()
 		return true;
 	case ELoadoutV2Mode::WindowAsk:
 	{
-		// Not now (B-633): the evolution stays out, the grid again.
-		ULoadoutComponent *Loadout = nullptr;
-		UInventoryComponent *Inventory = nullptr;
-		const FCombatLoadout *Active = nullptr;
-		const ELoadoutV2DraftKind Kind = Draft.Kind;
-		Draft = FLoadoutV2Draft();
-		Draft.Kind = Kind;
-		if (bEditing && !IsReplacingKind() && FindActive(Loadout, Inventory, Active))
-		{
-			Draft = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry);
-		}
+		// Not now (B-633): the evolution stays out, the grid again on the same tile.
+		ResetDraftToLoadout();
 		Mode = ELoadoutV2Mode::WindowItems;
-		Selected = 0;
+		bComparing = false;
+		bOnGridKinds = false;
+		PickedSocket = INDEX_NONE;
 		Message = FText::GetEmpty();
 		RefreshData();
+		Selected = FMath::Clamp(Selected, 0, FMath::Max(0, Items.Num() - 1));
+		RefreshView();
 		return true;
 	}
 	case ELoadoutV2Mode::WindowItems:
@@ -5240,18 +5235,27 @@ void ULoadoutV2ScreenWidget::CommitPick()
 	{
 		return; // the evolution's ask, or the window closed
 	}
-	ULoadoutComponent *Loadout = nullptr;
-	UInventoryComponent *Inventory = nullptr;
-	const FCombatLoadout *Active = nullptr;
-	if (bEditing && !IsReplacingKind() && FindActive(Loadout, Inventory, Active))
-	{
-		Draft = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry); // a refused change: the box shows the entry as it still is
-	}
+	ResetDraftToLoadout(); // applied: no change; refused: the box shows only what is in the loadout
 	if (Message.IsEmpty() && !PickNote.IsEmpty())
 	{
 		Message = PickNote;
 	}
 	RefreshView();
+}
+
+void ULoadoutV2ScreenWidget::ResetDraftToLoadout()
+{
+	ULoadoutComponent *Loadout = nullptr;
+	UInventoryComponent *Inventory = nullptr;
+	const FCombatLoadout *Active = nullptr;
+	if (bEditing && !IsReplacingKind() && FindActive(Loadout, Inventory, Active))
+	{
+		Draft = WoRLoadoutV2::DraftFromEntry(*Active, EditEntry);
+		return;
+	}
+	const ELoadoutV2DraftKind Kind = Draft.Kind;
+	Draft = FLoadoutV2Draft();
+	Draft.Kind = Kind;
 }
 
 void ULoadoutV2ScreenWidget::StayOnAppliedEntry(const FLoadoutV2Draft &Applied)
@@ -5608,6 +5612,7 @@ void ULoadoutV2ScreenWidget::ApplyWindowDraft()
 		Message = ApplyRefusal; // the loadout changed since the window read it: nothing went in
 		Mode = ELoadoutV2Mode::WindowSlots;
 		Selected = SlotIndex;
+		ResetDraftToLoadout(); // B-633
 		RefreshData();
 		return;
 	}
@@ -5616,6 +5621,7 @@ void ULoadoutV2ScreenWidget::ApplyWindowDraft()
 		Message = Refusal;
 		Mode = ELoadoutV2Mode::WindowSlots;
 		Selected = SlotIndex;
+		ResetDraftToLoadout(); // B-633
 		RefreshView();
 		return;
 	}
