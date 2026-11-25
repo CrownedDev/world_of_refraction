@@ -909,6 +909,10 @@ FText WoRVendorScreen::RunService(UWorld *World, AActor *Payer, FName Member, EV
 		UEconomyService *Economy = VendorScreenBuild::EconomyOf(World);
 		bool bAdapter = false;
 		const EItemTier From = VendorScreenUpgrade::OwnedTier(Inventory, Row.Row.GearID, bAdapter);
+		if (TierHelpers::GetTierValue(Row.UpgradeTo) <= TierHelpers::GetTierValue(From))
+		{
+			return FText::Format(LOCTEXT("UpgradeAlreadyThere", "It is already {0}."), WoRGameNames::GetTierLetter(From)); // a stale row
+		}
 		const FText Refusal = VendorScreenUpgrade::AffordRefusal(CurrencyWallet::FindFor(Owner), From, Row.UpgradeTo);
 		if (!Refusal.IsEmpty())
 		{

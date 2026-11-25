@@ -84,7 +84,7 @@ struct FVendorScreenRow
 	FText State;
 	bool bStateIsBad = false;
 	FName CurseId;
-	/** B-616 Upgrade: Row.GearID's piece at Row.Tier, raised to UpgradeTo. Buy and Upgrade: what changes (Details). */
+	/** B-616 Upgrade: Row.GearID's piece at Row.Tier, raised to UpgradeTo, and what that changes (Details). */
 	EItemTier UpgradeTo = EItemTier::F_Tier;
 	TArray<FVendorScreenChange> Changes;
 };
