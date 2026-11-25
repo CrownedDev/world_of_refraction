@@ -38,6 +38,10 @@ namespace
 	constexpr int32 MENU_KEYS_SETTLE_FRAMES = 3;
 	/** Infusion levels 0, 1, 2 (UInfusionVFXComponent::CycleInfusionLevel). */
 	constexpr int32 MENU_KEYS_INFUSION_LEVELS = 3;
+	/** B-613: enough EP for any infusion the specs pick. */
+	constexpr int32 MENU_KEYS_PLENTY_EP = 100;
+	/** B-613: an attack that costs EP, so an infused one costs more than this. */
+	constexpr int32 MENU_KEYS_STRIKE_EP = 10;
 
 	void MenuKeysAddLoadout(AActor *Actor)
 	{
@@ -1175,6 +1179,91 @@ void FCommandMenuKeysSpec::Define()
 									CommandMenuRules::IsMainMenuKey(Key.Category);
 			TestTrue(FString::Printf(TEXT("%s presses a category PressMenuKey knows"), *Key.ActionName.ToString()), bKnownRule);
 		}
+	});
+
+	It("keeps a fighter's infusion on for its next actions until turned off, off for one it can't pay, for one fight (B-613, Q-613)", [this]()
+	{
+		if (!StartTwoWeaponDuel())
+		{
+			return;
+		}
+		UCharacterDataComponent *HeroData = Hero->FindComponentByClass<UCharacterDataComponent>();
+		if (!TestNotNull(TEXT("hero data"), HeroData))
+		{
+			return;
+		}
+		HeroData->MaxEP = HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
+		ULoadoutComponent *Loadout = Hero->FindComponentByClass<ULoadoutComponent>();
+		UWeaponData *Sword = Loadout ? Loadout->GetPrimaryWeapon() : nullptr;
+		if (!TestNotNull(TEXT("the sword in hand"), Sword))
+		{
+			return;
+		}
+		UAbilityData *Strike = NewObject<UAbilityData>(GetTransientPackage());
+		Strike->BaseEnergyCost = MENU_KEYS_STRIKE_EP;
+		Sword->WeaponAttack = Strike;
+		const auto OpenAttack = [this]()
+		{
+			FPieMenuButtonData Attack;
+			Attack.Category = EPieMenuCategory::Attack;
+			Menu->HandleSelection(Attack);
+		};
+		const auto PickLevel = [this](int32 Level)
+		{
+			Menu->PressMenuKey(EPieMenuCategory::Items); // 3 / Y: the infusion line (B-592)
+			Menu->PickTargetPanelChoice(ETargetPanelChoice::Level, Level);
+		};
+		const auto HerosNextTurn = [this, HeroData]()
+		{
+			TestWorld->Tick(MENU_KEYS_SETTLE_FRAMES);
+			HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
+			Menu->OpenForActor(Hero);
+		};
+
+		OpenAttack();
+		TestEqual(TEXT("the first Attack: no infusion"), Menu->GetPendingInfusionLevel(), 0);
+		PickLevel(1);
+		const UInfusionVFXComponent *VFX = Hero->FindComponentByClass<UInfusionVFXComponent>();
+		const int32 RawIndex = VFX ? VFX->GetCachedSources().IndexOfByKey(EInfusionSourceOption::Raw) : INDEX_NONE;
+		if (!TestTrue(TEXT("Raw is offered"), RawIndex != INDEX_NONE))
+		{
+			return;
+		}
+		Menu->PickTargetPanelChoice(ETargetPanelChoice::Element, RawIndex); // an infused source: it costs EP
+		TestTrue(TEXT("attack at Raw, Lv I"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestEqual(TEXT("remembered"), Menu->GetStickyInfusionLevel(Hero), 1);
+		TestEqual(TEXT("not the foe's"), Menu->GetStickyInfusionLevel(Foe), 0);
+
+		HerosNextTurn();
+		OpenAttack();
+		TestEqual(TEXT("the next Attack opens at Lv I"), Menu->GetPendingInfusionLevel(), 1);
+		TestEqual(TEXT("on Raw"), VFX->GetCurrentSourceIndex(), RawIndex);
+		Menu->HandleBack();
+		TestEqual(TEXT("backing out keeps it"), Menu->GetStickyInfusionLevel(Hero), 1);
+
+		HeroData->CurrentEP = MENU_KEYS_STRIKE_EP; // the attack, not its infusion
+		OpenAttack();
+		TestEqual(TEXT("not the EP to infuse it: off for this action"), Menu->GetPendingInfusionLevel(), 0);
+		TestTrue(TEXT("and says so"), Menu->IsStickyInfusionDropped() &&
+										  Menu->GetTargetPanel().Summary.ToString().Contains(TEXT("not enough EP")));
+		Menu->HandleBack();
+		TestEqual(TEXT("still on for the next action"), Menu->GetStickyInfusionLevel(Hero), 1);
+
+		HeroData->CurrentEP = MENU_KEYS_PLENTY_EP;
+		OpenAttack();
+		TestTrue(TEXT("EP back: on again"), Menu->GetPendingInfusionLevel() == 1 && !Menu->IsStickyInfusionDropped());
+		PickLevel(0);
+		TestTrue(TEXT("attack at no infusion"), Menu->PressMenuKey(EPieMenuCategory::Attack));
+		TestEqual(TEXT("turned off"), Menu->GetStickyInfusionLevel(Hero), 0);
+
+		HerosNextTurn();
+		OpenAttack();
+		TestEqual(TEXT("the next Attack: no infusion"), Menu->GetPendingInfusionLevel(), 0);
+		PickLevel(2);
+		Menu->PressMenuKey(EPieMenuCategory::Attack);
+		TestEqual(TEXT("on at Lv II"), Menu->GetStickyInfusionLevel(Hero), 2);
+		Menu->SetCombatOrchestrator(Orchestrator); // a new fight
+		TestEqual(TEXT("forgotten with the fight"), Menu->GetStickyInfusionLevel(Hero), 0);
 	});
 }
 
