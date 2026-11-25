@@ -1,7 +1,8 @@
 // PauseMenuWidget.h
-// B-439 (D-181, UIScreens #1, mockups screen_mockups/menus/pause/): the game menu. A CommonUI screen on the
-// root layout's menu layer: the page list on the left, the party beside it, one side panel that says what the
-// focused page is (or why it can't open yet), the place and its money on top.
+// B-439 (D-181, UIScreens #1), B-632 (mockup screen_mockups/menus/pause/v2): the game menu. A CommonUI screen on the
+// root layout's menu layer, two columns: the pages on the left (a name and a short line each); on the right "This run"
+// (fights won, run gold, items found, time; in a run only), each member's Mind, Body and Spirit, then the lit page's
+// note (or why it can't open yet, or the quit question). "Paused" and the place on top.
 //
 // Built in C++ (no WBP); the layout follows the mockup, the look is the mockup kit's flat colours until the
 // Hidris art pass. What it shows comes from WoRPauseMenu (PauseMenuModel.h), which the specs read.
@@ -46,11 +47,13 @@ public:
 
 	int32 GetSelectedIndex() const { return SelectedIndex; }
 	bool IsConfirmingQuit() const { return bConfirmingQuit; }
-	/** B-543: H / View / a click on the Help hint: the side panel's descriptions on or off (off at first). */
-	void ToggleHelp();
-	bool IsHelpShown() const { return bShowHelp; }
 	bool IsHoldingQuit() const { return QuitHoldTimer.IsValid(); }
 	const TArray<FPauseMenuPage> &GetPages() const { return Pages; }
+	/** B-632: what the right column shows (the specs read it). */
+	const FPauseMenuRunSummary &GetRunSummary() const { return Summary; }
+	/** B-632: the lit page's note heading and text, as drawn. */
+	FText GetNoteHeading() const;
+	FText GetNoteText() const;
 
 protected:
 	virtual TSharedRef<SWidget> RebuildWidget() override;
@@ -66,25 +69,23 @@ protected:
 	virtual void NativeOnRemovedFromFocusPath(const FFocusEvent &InFocusEvent) override;
 
 private:
-	/** One party card's widgets, built once and refilled each time the menu opens (never rebuilt: TransBuffer). */
-	struct FMemberCard
+	/** One member's Mind · Body · Spirit row, built once and refilled each time the menu opens (never rebuilt: TransBuffer). */
+	struct FMemberRow
 	{
 		TWeakObjectPtr<UWidget> Root;
+		TWeakObjectPtr<class UImage> Badge;
 		TWeakObjectPtr<UTextBlock> Name;
-		TWeakObjectPtr<UTextBlock> Tier;
-		TWeakObjectPtr<UTextBlock> ClassLine;
-		TWeakObjectPtr<UProgressBar> HPBar;
-		TWeakObjectPtr<UTextBlock> HPValue;
-		TWeakObjectPtr<UProgressBar> EPBar;
-		TWeakObjectPtr<UTextBlock> EPValue;
+		TWeakObjectPtr<UTextBlock> ClassName;
 		TWeakObjectPtr<UTextBlock> Mind;
 		TWeakObjectPtr<UTextBlock> Body;
 		TWeakObjectPtr<UTextBlock> Spirit;
 	};
 
 	void BuildTree();
-	FMemberCard BuildMemberCard(class UVerticalBox *Into);
-	/** Header, pages and party, read fresh from the model. */
+	UWidget *BuildPagesColumn();
+	UWidget *BuildRunColumn();
+	FMemberRow BuildMemberRow(class UVerticalBox *Into);
+	/** Header, pages, the run and the party, read fresh from the model. */
 	void RefreshData();
 	/** The focused row's colour and the side panel. */
 	void RefreshSelection();
@@ -99,10 +100,10 @@ private:
 	int32 FindRowUnder(const FPointerEvent &MouseEvent) const;
 
 	TArray<FPauseMenuPage> Pages;
+	FPauseMenuRunSummary Summary;
 	bool bInRun = false;
 	int32 SelectedIndex = 0;
 	bool bConfirmingQuit = false;
-	bool bShowHelp = false;
 	FTimerHandle QuitHoldTimer;
 	double QuitHoldStartSeconds = 0.0;
 
@@ -111,15 +112,24 @@ private:
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> SubtitleText;
 	UPROPERTY(Transient)
-	TArray<TObjectPtr<UTextBlock>> ChipValues;
-	UPROPERTY(Transient)
-	TArray<TObjectPtr<UTextBlock>> ChipLabels;
-	UPROPERTY(Transient)
 	TArray<TObjectPtr<UBorder>> PageRows;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UTextBlock>> PageLabels;
 	UPROPERTY(Transient)
-	TObjectPtr<UBorder> Panel;
+	TArray<TObjectPtr<UTextBlock>> PageSubLines;
+	/** The run block: "This run", the place, the four rows and the line under them (hidden outside a run). */
+	UPROPERTY(Transient)
+	TObjectPtr<UWidget> RunBlock;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> RunPlace;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> FightsWonValue;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> RunGoldValue;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> ItemsFoundValue;
+	UPROPERTY(Transient)
+	TObjectPtr<UTextBlock> TimeValue;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> PanelHeading;
 	UPROPERTY(Transient)
@@ -130,8 +140,6 @@ private:
 	TObjectPtr<UTextBlock> HoldHint;
 	UPROPERTY(Transient)
 	TObjectPtr<UProgressBar> HoldBar;
-	UPROPERTY(Transient)
-	TObjectPtr<UTextBlock> ExtractNote;
 
-	TArray<FMemberCard> MemberCards;
+	TArray<FMemberRow> MemberRows;
 };
