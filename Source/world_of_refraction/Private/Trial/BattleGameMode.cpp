@@ -51,6 +51,7 @@
 #include "GameFramework/PlayerController.h"
 #include "Player/WoRGameState.h"
 #include "Player/WoRPlayerState.h"
+#include "Hub/HubTrainingDummy.h"
 
 namespace BattleGameModeConstants
 {
@@ -347,8 +348,24 @@ void ABattleGameMode::BootstrapCombat()
     const TArray<FFiredReaction> Fired = FightTriggers->StartReactions(Reactions, LocalParty, OpposingParty);
     const int32 ReactionEffects = ReactionTriggers::ApplyFired(Fired);
     // B-209: fired reactions and worn bound gear whose conditions hold unlock their memories (since
-    // B-211 memories no longer change bosses).
-    MemoryUnlock::UnlockAtFightStart(GetGameInstance(), Fired, LocalParty, OpposingParty);
+    // B-211 memories no longer change bosses). B-611: a practice fight unlocks nothing; every fighter there never
+    // falls, and the dummy never acts.
+    const bool bPractice = TrialRun->IsPracticeFight();
+    if (bPractice)
+    {
+        for (AActor *Fighter : LocalParty)
+        {
+            WoRPractice::MarkFighter(Fighter, /*bDummy=*/false);
+        }
+        for (AActor *Fighter : OpposingParty)
+        {
+            WoRPractice::MarkFighter(Fighter, /*bDummy=*/true);
+        }
+    }
+    else
+    {
+        MemoryUnlock::UnlockAtFightStart(GetGameInstance(), Fired, LocalParty, OpposingParty);
+    }
     // B-193: any opposing combatant with boss data gets its phases: after reactions change its
     // stats (so they can't reach a phase early), before boss triggers skip or add phases.
     for (AActor *Enemy : OpposingParty)
@@ -535,6 +552,16 @@ void ABattleGameMode::HandleCombatEnd(const FCombatResult &Result)
 
     UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Combat ended (%s, %d turns)"),
            *UEnum::GetValueAsString(Result.FinalState), Result.TotalTurns);
+
+    // B-611 (Q-611): a practice fight banks nothing, pays nothing, shows no results and saves nothing: straight back
+    // to the hub, where the party stood.
+    UTrialRunSubsystem *PracticeRun = GetGameInstance()->GetSubsystem<UTrialRunSubsystem>();
+    if (PracticeRun && PracticeRun->IsPracticeFight())
+    {
+        UE_LOG(LogTemp, Log, TEXT("[BattleGameMode] Practice fight over: nothing kept, back to the hub"));
+        PracticeRun->ExitEncounter();
+        return;
+    }
 
     // Bank player-side vitals into the party slots BEFORE the level swap - the
     // pawns are still alive here, and ExitEncounter's OpenLevel destroys them.
