@@ -234,7 +234,7 @@ void UVendorScreenWidget::BuildTree()
 	// B-608: the side fills the body's height and no more: the details scroll in what the cart leaves, so nothing runs
 	// over the hint bar.
 	UVerticalBox *Side = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	UScrollBox *DetailScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+	DetailScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
 	DetailScroll->SetScrollBarVisibility(ESlateVisibility::Visible);
 	DetailScroll->AddChild(DetailPanel);
 	AddToColumn(Side, DetailScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
@@ -510,11 +510,11 @@ void UVendorScreenWidget::RefreshData()
 		Widgets.Count->SetColorAndOpacity(FSlateColor(Row.bStateIsBad ? WarnColor : CyanColor));
 		Widgets.Pay->SetText(bRefused && HasMemberTabs() ? FText::GetEmpty() : Row.PayMoney.IsEmpty() ? Row.Pay : FText::Format(LOCTEXT("PayAndMore", "{0} +"), Row.PayMoney));
 		Widgets.Pay->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor));
-		// B-608: the "+" only on Buy; a refused line keeps its place (the columns stay lined up) but shows none.
+		// B-608: the "+" only on Buy; a refused line keeps its place (the columns stay lined up) but shows none, and
+		// a Hidden one takes no click.
 		if (UBorder *AddButton = Widgets.AddButton.Get())
 		{
-			SetShown(AddButton, bBuy);
-			AddButton->SetRenderOpacity(bRefused ? 0.0f : 1.0f);
+			AddButton->SetVisibility(!bBuy ? ESlateVisibility::Collapsed : bRefused ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
 		}
 	}
 }
@@ -1001,7 +1001,10 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 		return FReply::Handled();
 	}
 	// The line sits in the detail panel: hidden with it, it keeps the place it last had.
-	if (bBuy && BuyForButton && DetailPanel && DetailPanel->IsVisible() && BuyForButton->GetCachedGeometry().IsUnderLocation(Position))
+	// B-608: the details scroll; the line counts only where its scroll box shows it (a scrolled-away line's place may lie
+	// over the cart).
+	if (bBuy && BuyForButton && DetailPanel && DetailPanel->IsVisible() && BuyForButton->GetCachedGeometry().IsUnderLocation(Position) &&
+		DetailScroll && DetailScroll->GetCachedGeometry().IsUnderLocation(Position))
 	{
 		MoveMember(1);
 		return FReply::Handled();

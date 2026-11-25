@@ -203,6 +203,9 @@ private:
 	TObjectPtr<UScrollBox> RowScroll;
 	UPROPERTY(Transient)
 	TObjectPtr<UWidget> DetailPanel;
+	/** B-608: the details scroll in what the cart leaves. */
+	UPROPERTY(Transient)
+	TObjectPtr<UScrollBox> DetailScroll;
 	UPROPERTY(Transient)
 	TObjectPtr<UTextBlock> DetailTitle;
 	UPROPERTY(Transient)
