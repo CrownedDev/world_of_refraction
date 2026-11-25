@@ -1396,6 +1396,12 @@ The queue of questions only Crown can answer.
 - **Left as it is:** items, a stunned fighter, and an action immune to infusion.
 - **Scope:** per fighter, for one fight (kept by the fight's command menu, cleared with the fight, as B-582's last target). Enemies are unchanged: the AI builds its own actions and never reads it. In co-op each machine's menu keeps its own players'.
 **Reference:** FFXIV's stances stay on until switched off, so a player sets them once per fight; Octopath Traveler's boost is picked per action. Crown asked for the first. The deckbuilder has no infusion carry rule.
+### Q-626 — Which hand the rings go on, and the looks D-277 left open
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-626) · **Blocks:** nothing
+**Question:** D-277 puts rings on fingers but doesn't say which hand. Also: what does a Raw infusion show, and do two aura sources (Innate and Evolution) show two auras?
+**Answer (default):** (1) **The right hand** (the weapon hand in most rigs), index finger first; the finger bones are data (`RingFingerSockets`) so the hand can change without code. (2) **Raw shows the body aura** (the character pushing past their limits is their own power, not gear). (3) **One look per kind:** Innate and Evolution stacked show one aura (same element, same place). (4) The look shows the stack as an ability's (every same-element source); a spell's origin rule (B-435b) isn't applied to the look.
+**Reference:** Katekyo Hitman Reborn's Dying Will flames burn from rings on the right hand (Tsuna's Vongola ring, Crown's own reference). Body auras for a character's own power are the anime and fighting-game standard (Dragon Ball's ki aura, Jujutsu Kaisen's cursed energy), widely liked as clear power-up feedback.
+
 ### Q-624 — When a ritual's infusion EP is paid
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-624) · **Blocks:** nothing
 **Question:** A ritual locks its infusion at the arm (D-276). Is the infusion's EP (and HP, crystal wear) paid at the arm or at the fire?
@@ -1507,6 +1513,18 @@ Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wi
 **Answer (defaults):** (1) **A hit teaches its own type:** hitting an enemy with an element or a physical type shows that line's weakness or resistance; the rest stay "?". (2) **Kept for that enemy type until the run ends,** as Kit Sight's reads are (Q-572 point 4). (3) **Never hidden:** an enemy's bars and Effects, and everything about your own party. (4) **Keys:** V / R3 opens and closes Intel in a fight (`UIScreens.md`'s Details, `IA_UI_Details`); a click on a card opens it on that character's tab; Q / E and LB / RB move along the tabs while it is open, as in every tabbed menu.
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
+
+### D-277 — An infusion's look depends on its source
+**Status:** ANSWERED (Crown, 2026-11-25) · **Raised:** 2026-11-25 (Crown, after the ritual infusion test) · **Blocks:** B-626
+**Crown:** "there should be three types of in fusions weapon / ring / innate/ evolution which because we stack sources the infusion would come from each one / im thinking weapon should be like this which we have a range of them in the mapping / ring infusion should be like hitman reborn which we should tie each rick to a finger so lets say we have sns in slot one then we have a ring in second that would cound as the first ring which goes on the index finger / then we have innate/evolution which would be like the first image i provided [a character aura: red cracks on the ground and lightning around the body] / then there will be a lock i. if infusing a weapon with weapon crystal it uses the weapon infusion if it uses innate character infsuion if its a ring ring infusion and when they stack each one is activated". Then: "5 yes" (a buff, debuff or ritual charge's tint follows the source too) / "for rings we will have default element flamees" / "weapon we should have defaults too" / "actually i think we should make them all customiseable but restricte them to their relevant places i.e weapon ring and evolution/innate is more dynamic".
+**Ruled:**
+- **Three look kinds, by source:** a weapon crystal (the weapon's own socket or augment) shows the **weapon glow** on the weapon; an adapter (ring) shows a **ring flame** on a finger; Innate or Evolution shows a **body aura**.
+- **Rings take fingers in loadout slot order:** the first ring in the loadout is the index finger, then middle, ring, little (weapons don't count). Which hand: Q-626.
+- **Stacked sources each show their own look at once** (B-435).
+- The look stays while the kept infusion is on, and clears when it's turned off.
+- A weapon buff or debuff's tint and a ritual charge's tint follow the source that's on (B-622, D-276).
+- **Defaults now:** each kind has a per-element default look. **Later (B-626b):** the player may pick each kind's look, only from looks of that kind (weapon looks on weapons, ring flames on rings, auras on innate or evolution).
+**Built:** B-626 (`InfusionLook.h`, `UImpactVisualDefaults::RingFlameLooks` / `BodyAuraLooks` / `RingFingerSockets`, `UInfusionVFXComponent`); the picker is B-626b.
 
 ### D-276 — A weapon ritual keeps the infusion it was armed with
 **Status:** ANSWERED (Crown, 2026-11-25) · **Raised:** 2026-11-25 (Crown, testing infusion on Rally's charge) · **Blocks:** B-624
