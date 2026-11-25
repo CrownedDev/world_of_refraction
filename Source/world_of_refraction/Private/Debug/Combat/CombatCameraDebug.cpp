@@ -243,7 +243,7 @@ namespace
 			[]()
 			{
 				TArray<FString> Lines;
-				for (int32 Style = 0; Style <= static_cast<int32>(ESkillCameraStyle::Cinematic); ++Style)
+				for (int32 Style = 0; Style <= static_cast<int32>(ESkillCameraStyle::Support); ++Style) // B-600i: Support is the last
 				{
 					Lines.Add(UCombatCameraDebug::GetCameraStyleShotOrderString(static_cast<ESkillCameraStyle>(Style)));
 				}
