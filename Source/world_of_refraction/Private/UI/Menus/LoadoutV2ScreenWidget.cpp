@@ -98,6 +98,9 @@ namespace LoadoutV2ScreenStyle
 	constexpr int32 SKILL_BUTTON_CHANGE = 0;
 	constexpr int32 SKILL_BUTTON_TAKE_OUT = 1;
 	constexpr int32 SKILL_BUTTON_VIEW = 2;
+	/** B-629: the skill picker's selector words, Fits this slot then All learned. */
+	constexpr int32 SKILL_PICKER_KINDS = 2;
+	constexpr int32 SKILL_PICKER_ALL = 1;
 	constexpr float TileMarkInset = 6.0f;
 	constexpr float TileTickSize = 24.0f;
 	constexpr float GridTabIconSize = 36.0f;
@@ -413,6 +416,9 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		// B-629 (mockup menus/skills/v1): the Skills tab's ‹ entry › selector, the lit entry's name between the arrows.
 		SkillEntryPlate = MakeKindSelector(WidgetTree, 1, SkillEntryChips, SkillEntryUnderlines);
 		AddToColumn(ListColumn, SkillEntryPlate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		// B-629: the picker's ‹ Fits this slot  All learned ›.
+		SkillFitsPlate = MakeKindSelector(WidgetTree, SKILL_PICKER_KINDS, SkillFitsChips, SkillFitsUnderlines);
+		AddToColumn(ListColumn, SkillFitsPlate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		// B-440e: the saved loadout's new name; shown only while renaming.
 		NameBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("LoadoutNameBox"));
 		NameBox->SetHintText(LOCTEXT("NameHint", "Loadout name"));
@@ -744,7 +750,7 @@ void ULoadoutV2ScreenWidget::RefreshSkills()
 		Selected = 0;
 		return;
 	}
-	SkillChoices = WoRLoadoutSkills::BuildSkillChoices(GetWorld(), Members[MemberIndex], SkillsPage.Source, SkillRows[SkillRowSelected].Tab, *Row);
+	SkillChoices = WoRLoadoutSkills::BuildSkillChoices(GetWorld(), Members[MemberIndex], SkillsPage.Source, SkillRows[SkillRowSelected].Tab, *Row, bSkillsAllLearned);
 }
 
 void ULoadoutV2ScreenWidget::LogSkillsTab() const
@@ -1282,6 +1288,9 @@ FText ULoadoutV2ScreenWidget::GetLineTag(int32 Line) const
 		const FLoadoutScreenRow *Row = SkillRows.IsValidIndex(Line) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[Line]) : nullptr;
 		return Row && Row->Skill ? FText::Format(LOCTEXT("SkillEPTag", "{0} EP"), Row->Skill->BaseEnergyCost) : FText::GetEmpty();
 	}
+	case ELoadoutV2Mode::SkillPicker:
+		// B-629: All learned ticks the ones in the list already (the rest that can't go here are greyed, the reason under).
+		return SkillChoices.IsValidIndex(Line) && SkillChoices[Line].bSlotted ? LOCTEXT("SlottedTag", "✓ SLOTTED") : FText::GetEmpty();
 	default:
 		return FText::GetEmpty();
 	}
@@ -1464,7 +1473,7 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		// X the view, as on Weapons; Y / R takes the lit skill out (B-488). B-629: the arrows' Left / Right turn the entry.
 		return LOCTEXT("HintsSkillRows", "{Confirm}  Change        {Arrows}  Entry        {Second}  Take out        {Toggle}  {ViewName}        {Tabs}  Page        {SubTabs}  Character        {Back}  Back");
 	case ELoadoutV2Mode::SkillPicker:
-		return LOCTEXT("HintsSkillPicker", "{Confirm}  Put in slot        {Toggle}  {ViewName}        {Back}  Cancel");
+		return LOCTEXT("HintsSkillPicker", "{Confirm}  Put in slot        {Arrows}  Fits / all        {Toggle}  {ViewName}        {Back}  Cancel");
 	case ELoadoutV2Mode::ApparelItems:
 		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped ? LOCTEXT("HintsApparelEquipped", "{Confirm}  Remove        {Back}  Back")
 																		 : LOCTEXT("HintsApparelItems", "{Confirm}  Pick        {Back}  Back");
@@ -1563,7 +1572,18 @@ void ULoadoutV2ScreenWidget::RefreshView()
 	CellsText->SetText(!IsOnSkillsTab()	 ? Page.CellsLine // mockup 6: cells are the Weapons tab's
 					   : ShownSkillEntry ? FText::Format(LOCTEXT("SkillSlotsCount", "Skill slots  {0} / {1}"), ShownSkillEntry->Filled, ShownSkillEntry->Total)
 										 : LOCTEXT("SkillSlots", "Skill slots"));
-	SetShown(SkillEntryPlate, ShownSkillEntry != nullptr);
+	SetShown(SkillEntryPlate, ShownSkillEntry != nullptr && Mode == ELoadoutV2Mode::SkillRows);
+	SetShown(SkillFitsPlate, Mode == ELoadoutV2Mode::SkillPicker);
+	for (int32 Index = 0; Index < SkillFitsChips.Labels.Num(); ++Index)
+	{
+		const bool bLit = (Index == SKILL_PICKER_ALL) == bSkillsAllLearned;
+		if (UTextBlock *Label = SkillFitsChips.Labels[Index].Get())
+		{
+			Label->SetText(Index == SKILL_PICKER_ALL ? LOCTEXT("SkillPickerAll", "All learned") : LOCTEXT("SkillPickerFits", "Fits this slot"));
+			Label->SetColorAndOpacity(FSlateColor(bLit ? TextColor : DimColor));
+		}
+		SkillFitsUnderlines[Index]->SetVisibility(bLit ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
+	}
 	if (UTextBlock *EntryWord = SkillEntryChips.Labels.IsEmpty() ? nullptr : SkillEntryChips.Labels[0].Get())
 	{
 		EntryWord->SetText(ShownSkillEntry ? ShownSkillEntry->Name : FText::GetEmpty());
@@ -2244,6 +2264,34 @@ void ULoadoutV2ScreenWidget::RefreshRightPanel()
 		if (!Item.Refusal.IsEmpty())
 		{
 			Rows.Emplace(LOCTEXT("RightCant", "Can't"), Item.Refusal);
+		}
+	}
+	else if (Mode == ELoadoutV2Mode::SkillPicker && SkillChoices.IsValidIndex(Selected) && SkillRows.IsValidIndex(SkillRowSelected) &&
+			 SkillsPage.Entries.IsValidIndex(SkillEntry))
+	{
+		// B-629 (mockup menus/skills/v1 2): the slot's skill now against the lit one.
+		const FLoadoutScreenChoice &Choice = SkillChoices[Selected];
+		const FLoadoutV2SkillEntry &Shown = SkillsPage.Entries[SkillEntry];
+		const FLoadoutScreenRow *SlotRow = WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[SkillRowSelected]);
+		const USkillDataBase *Now = SlotRow ? SlotRow->Skill : nullptr;
+		const int32 Added = Now ? 0 : 1; // an empty slot filled
+		const FText NowThen = LOCTEXT("RightNowThen", "{0} → {1}");
+		Sub = FText::Format(LOCTEXT("RightSkillPick", "Slot {0} on {1}  ·  if you put in {2}"), SkillRowSelected + 1, Shown.Name, Choice.Row.Name);
+		Rows.Emplace(LOCTEXT("RightReplaces", "Replaces"), Now ? SlotRow->Name : LOCTEXT("RightNothing", "nothing (empty slot)"));
+		Rows.Emplace(LOCTEXT("RightSkills", "Skills"), FText::Format(NowThen, Shown.Filled, Shown.Filled + Added));
+		Rows.Emplace(LOCTEXT("RightSlotsFree", "Slots free"), FText::Format(NowThen, Shown.Total - Shown.Filled, Shown.Total - Shown.Filled - Added));
+		if (Choice.Row.Skill)
+		{
+			Rows.Emplace(LOCTEXT("RightEP", "EP"), FText::Format(NowThen, Now ? FText::AsNumber(Now->BaseEnergyCost) : LOCTEXT("RightNone", "none"),
+																 FText::AsNumber(Choice.Row.Skill->BaseEnergyCost)));
+		}
+		if (Shown.bInnate)
+		{
+			Rows.Emplace(LOCTEXT("RightPoints", "Points"), FText::Format(NowThen, SkillsPage.Source.Points, Choice.NewSpent));
+		}
+		if (!Choice.Refusal.IsEmpty())
+		{
+			Rows.Emplace(LOCTEXT("RightCant", "Can't"), Choice.Refusal);
 		}
 	}
 	else if (Mode == ELoadoutV2Mode::SkillRows && SkillsPage.Entries.IsValidIndex(SkillEntry))
@@ -3216,7 +3264,7 @@ void ULoadoutV2ScreenWidget::PlayCue(EWoRMenuCue Cue)
 
 uint32 ULoadoutV2ScreenWidget::GetFocusKey() const
 {
-	const uint32 GridKindKey = HashCombine(HashCombine(GetTypeHash(IsOnGridKinds()), GetTypeHash(SkillEntry)), // B-629: the Skills tab's entry
+	const uint32 GridKindKey = HashCombine(HashCombine(GetTypeHash(IsOnGridKinds()), HashCombine(GetTypeHash(SkillEntry), GetTypeHash(bSkillsAllLearned))), // B-629
 										   HashCombine(GetTypeHash(static_cast<uint8>(GetGridKind())), GetTypeHash(SlotIndex))); // B-614
 	return HashCombine(HashCombine(HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(InvSelected)), HashCombine(GetTypeHash(bOnLoadoutSide), GetTypeHash(bOnInvFilters))),
 								   HashCombine(HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), GetTypeHash(static_cast<uint8>(Mode))),
@@ -3287,7 +3335,25 @@ bool ULoadoutV2ScreenWidget::MoveInDirection(int32 DeltaX, int32 DeltaY)
 		TurnSkillEntry(DeltaX); // B-629: ‹ › turn the entry
 		return true;
 	}
+	if (Mode == ELoadoutV2Mode::SkillPicker)
+	{
+		SetSkillsAllLearned(DeltaX > 0); // B-629: ‹ Fits this slot  All learned ›
+		return true;
+	}
 	return false;
+}
+
+void ULoadoutV2ScreenWidget::SetSkillsAllLearned(bool bAll)
+{
+	if (Mode != ELoadoutV2Mode::SkillPicker || bAll == bSkillsAllLearned)
+	{
+		return;
+	}
+	bSkillsAllLearned = bAll;
+	Selected = 0;
+	Message = FText::GetEmpty();
+	RefreshData(); // the choices read again
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] skill picker: %s, %d choices"), bAll ? TEXT("all learned") : TEXT("fits this slot"), SkillChoices.Num());
 }
 
 void ULoadoutV2ScreenWidget::TurnSkillEntry(int32 Delta)
@@ -3586,6 +3652,12 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 		PlayCue(EWoRMenuCue::Move);
 		return FReply::Handled();
 	}
+	if (const int32 FitsChip = Mode == ELoadoutV2Mode::SkillPicker ? WoRMenuStyle::FindChipUnder(SkillFitsChips, Position) : INDEX_NONE; FitsChip != INDEX_NONE)
+	{
+		SetSkillsAllLearned(FitsChip == LoadoutV2ScreenStyle::SKILL_PICKER_ALL); // B-629: a word of the picker's selector
+		PlayCue(EWoRMenuCue::Move);
+		return FReply::Handled();
+	}
 	if (IsLoadoutAtTopLevel())
 	{
 		const int32 MemberChip = WoRMenuStyle::FindChipUnder(MemberChips, Position);
@@ -3767,6 +3839,7 @@ void ULoadoutV2ScreenWidget::PressA()
 		}
 		SkillRowSelected = Selected;
 		Mode = ELoadoutV2Mode::SkillPicker;
+		bSkillsAllLearned = false; // B-629: the picker opens on Fits this slot
 		Selected = 0;
 		Message = FText::GetEmpty();
 		RefreshData();

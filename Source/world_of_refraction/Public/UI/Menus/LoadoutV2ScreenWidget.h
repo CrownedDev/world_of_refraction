@@ -196,6 +196,10 @@ public:
 	 *  before, in a ring; its first slot lit. */
 	void TurnSkillEntry(int32 Delta);
 	int32 GetSkillEntry() const { return SkillEntry; }
+	/** B-629, Left / Right in the skill picker (and a click on its selector): Fits this slot, or All learned (the ones
+	 *  that can't go here too, greyed with the reason). The picker opens on Fits this slot. */
+	void SetSkillsAllLearned(bool bAll);
+	bool IsSkillsAllLearned() const { return bSkillsAllLearned; }
 	const FLoadoutV2SkillsPage &GetSkillsPage() const { return SkillsPage; }
 	const TArray<FLoadoutV2SkillRowRef> &GetSkillRows() const { return SkillRows; }
 	const TArray<FLoadoutScreenChoice> &GetSkillChoices() const { return SkillChoices; }
@@ -685,6 +689,13 @@ private:
 	TObjectPtr<UBorder> SkillEntryPlate;
 	UPROPERTY(Transient)
 	TArray<TObjectPtr<UWidget>> SkillEntryUnderlines;
+	// B-629: the picker's ‹ Fits this slot  All learned › selector.
+	bool bSkillsAllLearned = false;
+	WoRMenuStyle::FChipRow SkillFitsChips;
+	UPROPERTY(Transient)
+	TObjectPtr<UBorder> SkillFitsPlate;
+	UPROPERTY(Transient)
+	TArray<TObjectPtr<UWidget>> SkillFitsUnderlines;
 	/** The Details column's buttons on the Skills tab's slots: Change this slot, Take it out, Short / full. */
 	TArray<FInventoryAction> SkillButtons;
 	/** The buttons the Details column shows now (the Inventory page's, or the Skills tab's). */
