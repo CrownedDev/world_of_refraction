@@ -357,6 +357,27 @@ ULoadoutV2ScreenWidget *ULoadoutV2ScreenWidget::OpenWithLoadout(APlayerControlle
 	return Screen;
 }
 
+ULoadoutV2ScreenWidget *ULoadoutV2ScreenWidget::OpenWithLoadoutOn(APlayerController *PC, FName CharacterKey)
+{
+	ULoadoutV2ScreenWidget *Screen = OpenWithLoadout(PC);
+	if (!Screen)
+	{
+		UE_LOG(LogWoRUI, Warning, TEXT("[LoadoutV2] Open on %s: the loadout screen didn't open"), *CharacterKey.ToString());
+		return nullptr;
+	}
+	// The screen's characters skip a member with no data: find this one by its key.
+	const int32 Target = Algo::IndexOfByPredicate(WoRLoadoutScreen::BuildMembers(Screen->GetWorld()),
+												  [CharacterKey](const FLoadoutScreenMember &Member) { return Member.Key == CharacterKey; });
+	if (Target != INDEX_NONE && Target != Screen->GetMemberIndex())
+	{
+		Screen->MoveMember(Target - Screen->GetMemberIndex());
+	}
+	UE_CLOG(Target != Screen->GetMemberIndex(), LogWoRUI, Warning, TEXT("[LoadoutV2] Open on %s: shows character %d, not %d"), *CharacterKey.ToString(),
+			Screen->GetMemberIndex(), Target);
+	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] Opened on %s (character %d)"), *CharacterKey.ToString(), Screen->GetMemberIndex());
+	return Screen;
+}
+
 void ULoadoutV2ScreenWidget::SetStandingNote(const FText &Note)
 {
 	StandingNote = Note;

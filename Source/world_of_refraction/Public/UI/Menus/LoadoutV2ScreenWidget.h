@@ -250,6 +250,8 @@ public:
 	bool IsOnInventoryKinds() const { return bOnInvKinds; }
 	/** Opens the screen with the loadout already in and the keys on its side (the game menu's Loadout page, the Gate). */
 	static ULoadoutV2ScreenWidget *OpenWithLoadout(APlayerController *PC);
+	/** B-635: OpenWithLoadout on the character CharacterKey (the Party screen's and the Profile's Y). */
+	static ULoadoutV2ScreenWidget *OpenWithLoadoutOn(APlayerController *PC, FName CharacterKey);
 	/** B-615: a line that stays under the screen while it is open (the Gate: a trial starts you on the class kit). */
 	void SetStandingNote(const FText &Note);
 	/** B-615: the message line: this step's message, else the standing note. */
