@@ -995,10 +995,14 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &InAction,
 {
 	// B-620 (D-275): a weapon buff or debuff can't be infused; any infusion it carries is dropped, not refused.
 	const FAction Action = SupportSkillRules::WithoutWeaponBuffOrDebuffInfusion(InAction);
+	// B-622: its look still takes the infusion's element (tint only).
+	const ESpellElement LookElement = Action.SelectedSource != InAction.SelectedSource
+										  ? GetElementForSourceOption(Actor, InAction.SelectedSource)
+										  : ESpellElement::None;
 	if (Action.AbilityInfusionLevel != InAction.AbilityInfusionLevel || Action.SelectedSource != InAction.SelectedSource)
 	{
-		UE_LOG(LogWoR, Log, TEXT("[ActionExecutor] %s: %s is a weapon buff or debuff, its infusion is ignored (D-275)"), *GetNameSafe(Actor),
-			   *GetNameSafe(Action.SkillData));
+		UE_LOG(LogWoR, Log, TEXT("[ActionExecutor] %s: %s is a weapon buff or debuff, its infusion is ignored (D-275); its look is %s (B-622)"),
+			   *GetNameSafe(Actor), *GetNameSafe(Action.SkillData), *UEnum::GetValueAsString(LookElement));
 	}
 
 	// Lazy-bind to DefenseSystem on first use. Subsystem init order is alphabetical, so
@@ -1069,6 +1073,7 @@ void UActionExecutor::ExecuteActionAsync(AActor *Actor, const FAction &InAction,
 	Context.Executor = Actor;
 	Context.bInProgress = true;
 	Context.StartTime = FPlatformTime::Seconds();
+	Context.PartialResult.LookElement = LookElement;
 
 	// Initialize partial result
 	Context.PartialResult.Executor = Actor;

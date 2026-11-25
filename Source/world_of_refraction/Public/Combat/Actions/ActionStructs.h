@@ -277,6 +277,11 @@ struct WORLD_OF_REFRACTION_API FActionResult
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Result|Defense")
 	ESpellElement AttackElement = ESpellElement::None;
 
+	/** B-622 (D-275): a weapon buff or debuff's look-only element, the caster's infusion it doesn't take (None: no
+	 *  infusion on). Tints its VFX only (EffectTint::ChooseTintElement): no EP, AttackElement stays as it is. */
+	UPROPERTY(BlueprintReadOnly, Category = "Result|Defense")
+	ESpellElement LookElement = ESpellElement::None;
+
 	// Per-target damage breakdown (for UI/logging)
 	TMap<AActor *, int32> DamagePerTarget;
 };
