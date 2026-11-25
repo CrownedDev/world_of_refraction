@@ -13,7 +13,6 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 
 ## Pending
 **The sweep:** [`Sweep.md`](Sweep.md) lists every retire-after-PIE delete as one checklist (deletes batched into one sweep per milestone, D-124) and the running list of every job waiting on Crown's PIE; nothing is DONE without it (D-128).
-
 | Job | Branch | What it covers | Status |
 |---|---|---|---|
 | [Weapon glow + trail](WeaponGlowTrail.md) | `feature/weapon-glow-trail` | An attack's infusion glow rides the weapon's own mesh and follows swaps; Slash / Thrust / Smash weapon trails (empty slots, editor steps listed), window or Impact fallback, element tint; `wor.Debug.WeaponTrail` | Pending |
@@ -707,6 +706,7 @@ Automated tests (`Scripts/ue/test.sh`) prove the logic. This folder holds what s
 | [QA-kit](QA-kit.md) | `chore/qa-kit` (built 2026-11-24) | QA setup: `wor.Debug.QAKit` puts an ability that costs EP in the weapon in hand's skill slot (B-592b's HP ghost) and has a Caster join as your seat (the selector colour; Darkness, or the TestGear bd hint). QA save only | Pending |
 | [B-598](B-598.md) | `fix/B-598-no-hover-popups` (built 2026-11-24) | No hover pop-ups (Q-598): the loadout card follows the pick, no icon or tier tooltips; hover lighting stays | Pending |
 | [B-610](B-610.md) | `feature/B-610-equipment-skills-jump` (built 2026-11-25) | Loadout: K / R3 on a weapon or adapter opens its skill slots; Back returns to the same Equipment line | Pending |
+| [B-608](B-608.md) | `fix/B-608-vendor-cart-rows` (built 2026-11-25) | Vendor screen: the cart scrolls (Total and Buy stay in view), one-line rows with a +, a click only selects | Pending |
 | [B-602](B-602.md) | `fix/B-602-scroll-click-picks-stale-row` (built 2026-11-24) | A click after a wheel scroll picks the row now under the mouse (vendor, and every scrolling menu list) | Pending |
 | [B-609a](B-609a.md) | `feature/B-609a-set-gear-tier` (built 2026-11-25) | Debug: `wor.Debug.SetGearTier <name-part> <tier>` sets owned weapons and adapters to a tier, free, and saves | Pending |
 | [B-598b](B-598b.md) | `fix/B-598b-battle-hud-no-hover` (built 2026-11-24, on B-598) | No battle HUD tooltips (Q-598b): a greyed command's reason shows in the Act panel's second line when picked | Pending |

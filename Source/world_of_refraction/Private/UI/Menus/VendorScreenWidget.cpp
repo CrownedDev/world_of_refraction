@@ -25,11 +25,18 @@ namespace VendorScreenStyle
 	// This screen's own layout (screen_mockups/hub/vendors, 1280x720, at 1080p); the shared look is WoRMenuStyle.
 	using namespace WoRMenuStyle;
 	constexpr float ListWidth = 1068.0f;
+	// B-608: compact rows (name, tag, tier, count and price on one line); buttons keep the roomier padding.
+	constexpr float RowPaddingX = 15.0f;
+	constexpr float RowPaddingY = 7.0f;
 	constexpr float RowPadding = 15.0f;
 	constexpr float ElementMarkWidth = 9.0f;
 	constexpr float TierWidth = 60.0f;
-	// B-487: icon sizes.
-	constexpr float RowIconSize = 36.0f;
+	// B-487: icon sizes (B-608: the row icon smaller, for the one-line row).
+	constexpr float RowIconSize = 28.0f;
+	/** B-608: the row's "+" (Buy). */
+	constexpr float AddButtonWidth = 42.0f;
+	/** B-608: the cart's lines scroll past this height, so Total, After purchase and Buy stay in view. */
+	constexpr float CartListMaxHeight = 190.0f; // TODO: tune in PIE (about six lines at 1080p)
 	constexpr float TierBadgeSize = 28.0f;
 	constexpr float CountWidth = 75.0f;
 	constexpr float PayWidth = 300.0f;
@@ -149,6 +156,7 @@ void UVendorScreenWidget::BuildTree()
 	EmptyText = MakeWrappedText(WidgetTree, LineFontSize, DimColor);
 	AddToColumn(ListColumn, EmptyText, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 	RowScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+	RowScroll->SetScrollBarVisibility(ESlateVisibility::Visible); // B-608: a long list shows its bar
 	AddToColumn(ListColumn, RowScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	AddToRow(Body, MakeSized(WidgetTree, ListWidth, 0.0f, ListColumn), FMargin(0.0f), VAlign_Fill);
 
@@ -203,8 +211,15 @@ void UVendorScreenWidget::BuildTree()
 	UTextBlock *CartHeading = MakeText(WidgetTree, RowFontSize, DimColor, true);
 	CartHeading->SetText(LOCTEXT("CartHeading", "Cart"));
 	AddToColumn(CartColumn, CartHeading, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+	// B-608: the lines scroll in a box of their own; Total, After purchase and Buy stay under it.
 	CartLinesText = MakeWrappedText(WidgetTree, LineFontSize, TextColor);
-	AddToColumn(CartColumn, CartLinesText, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
+	UScrollBox *CartScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+	CartScroll->SetScrollBarVisibility(ESlateVisibility::Visible);
+	CartScroll->AddChild(CartLinesText);
+	USizeBox *CartListBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+	CartListBox->SetMaxDesiredHeight(CartListMaxHeight);
+	CartListBox->SetContent(CartScroll);
+	AddToColumn(CartColumn, CartListBox, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	CartTotalText = MakeWrappedText(WidgetTree, LineFontSize, TextColor, true);
 	AddToColumn(CartColumn, CartTotalText, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 	PurchaseButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
@@ -216,10 +231,15 @@ void UVendorScreenWidget::BuildTree()
 	AddToColumn(CartColumn, PurchaseButton);
 	CartPanel = MakeSized(WidgetTree, PanelWidth, 0.0f, CartFrame);
 
+	// B-608: the side fills the body's height and no more: the details scroll in what the cart leaves, so nothing runs
+	// over the hint bar.
 	UVerticalBox *Side = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
-	AddToColumn(Side, DetailPanel);
+	DetailScroll = WidgetTree->ConstructWidget<UScrollBox>(UScrollBox::StaticClass());
+	DetailScroll->SetScrollBarVisibility(ESlateVisibility::Visible);
+	DetailScroll->AddChild(DetailPanel);
+	AddToColumn(Side, DetailScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	AddToColumn(Side, CartPanel, FMargin(0.0f, SectionGap, 0.0f, 0.0f));
-	AddToRow(Body, Side, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Top);
+	AddToRow(Body, Side, FMargin(PanelGap, 0.0f, 0.0f, 0.0f), VAlign_Fill);
 
 	HintsText = MakeHintBar(WidgetTree); // B-481 / B-483: key caps of the device in use, each clickable
 	AddToColumn(Main, HintsText)->SetHorizontalAlignment(HAlign_Right);
@@ -231,19 +251,22 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 
 	FRowWidgets Widgets;
 	UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	Frame->SetPadding(FMargin(RowPadding));
+	Frame->SetPadding(FMargin(RowPaddingX, RowPaddingY));
 	UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	Frame->SetContent(Line);
 
 	UBorder *ElementMark = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
-	AddToRow(Line, MakeSized(WidgetTree, ElementMarkWidth, 0.0f, ElementMark), FMargin(0.0f, 0.0f, RowPadding, 0.0f), VAlign_Fill);
+	AddToRow(Line, MakeSized(WidgetTree, ElementMarkWidth, 0.0f, ElementMark), FMargin(0.0f, 0.0f, RowPaddingX, 0.0f), VAlign_Fill);
 	UImage *Icon = MakeIcon(WidgetTree, RowIconSize); // B-487: a weapon's type, a crystal's element diamond
-	AddToRow(Line, Icon, FMargin(0.0f, 0.0f, RowPadding, 0.0f), VAlign_Center);
+	AddToRow(Line, Icon, FMargin(0.0f, 0.0f, RowPaddingX, 0.0f), VAlign_Center);
+	// B-608: the name, then its kind (or why it's refused: "Already known") as a small tag on the same line.
 	UVerticalBox *Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	UHorizontalBox *NameLine = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	UTextBlock *Name = MakeText(WidgetTree, RowFontSize, TextColor, true);
 	UTextBlock *Sub = MakeText(WidgetTree, SmallFontSize, DimColor);
-	AddToColumn(Words, Name);
-	AddToColumn(Words, Sub);
+	AddToRow(NameLine, Name, FMargin(0.0f, 0.0f, WordGap, 0.0f), VAlign_Center);
+	AddToRow(NameLine, Sub, FMargin(0.0f), VAlign_Center);
+	AddToColumn(Words, NameLine);
 	UHorizontalBox *PipRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	for (int32 Index = 0; Index < InventoryConstants::ITEM_SLOTS_MAX; ++Index)
 	{
@@ -253,18 +276,25 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 	}
 	AddToColumn(Words, PipRow, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 	Widgets.PipRow = PipRow;
-	AddToRow(Line, Words)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	AddToRow(Line, Words, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 	UTextBlock *Tier = MakeText(WidgetTree, LineFontSize, DimColor, true);
 	UImage *TierBadge = MakeIcon(WidgetTree, TierBadgeSize); // B-487: in the tier letter's place when the icon table has it
 	UHorizontalBox *TierCell = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 	AddToRow(TierCell, TierBadge);
 	AddToRow(TierCell, Tier);
-	AddToRow(Line, MakeSized(WidgetTree, TierWidth, 0.0f, TierCell));
+	AddToRow(Line, MakeSized(WidgetTree, TierWidth, 0.0f, TierCell), FMargin(0.0f), VAlign_Center);
 	UTextBlock *Count = MakeText(WidgetTree, LineFontSize, CyanColor, true);
-	AddToRow(Line, MakeSized(WidgetTree, CountWidth, 0.0f, Count));
+	AddToRow(Line, MakeSized(WidgetTree, CountWidth, 0.0f, Count), FMargin(0.0f), VAlign_Center);
 	UTextBlock *Pay = MakeText(WidgetTree, RowFontSize, TextColor, true);
 	Pay->SetJustification(ETextJustify::Right);
-	AddToRow(Line, MakeSized(WidgetTree, PayWidth, 0.0f, Pay));
+	AddToRow(Line, MakeSized(WidgetTree, PayWidth, 0.0f, Pay), FMargin(0.0f, 0.0f, RowPaddingX, 0.0f), VAlign_Center);
+	UBorder *AddButton = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
+	AddButton->SetBrushColor(PlateColor);
+	AddButton->SetHorizontalAlignment(HAlign_Center);
+	UTextBlock *Plus = MakeText(WidgetTree, RowFontSize, TextColor, true);
+	Plus->SetText(LOCTEXT("RowAdd", "+"));
+	AddButton->SetContent(Plus);
+	AddToRow(Line, MakeSized(WidgetTree, AddButtonWidth, 0.0f, AddButton), FMargin(0.0f), VAlign_Center);
 
 	if (UScrollBoxSlot *RowSlot = Cast<UScrollBoxSlot>(RowScroll->AddChild(Frame)))
 	{
@@ -279,6 +309,7 @@ UVendorScreenWidget::FRowWidgets UVendorScreenWidget::BuildRow()
 	Widgets.Pay = Pay;
 	Widgets.Icon = Icon;
 	Widgets.TierBadge = TierBadge;
+	Widgets.AddButton = AddButton;
 	return Widgets;
 }
 
@@ -479,6 +510,12 @@ void UVendorScreenWidget::RefreshData()
 		Widgets.Count->SetColorAndOpacity(FSlateColor(Row.bStateIsBad ? WarnColor : CyanColor));
 		Widgets.Pay->SetText(bRefused && HasMemberTabs() ? FText::GetEmpty() : Row.PayMoney.IsEmpty() ? Row.Pay : FText::Format(LOCTEXT("PayAndMore", "{0} +"), Row.PayMoney));
 		Widgets.Pay->SetColorAndOpacity(FSlateColor(bRefused ? OffColor : TextColor));
+		// B-608: the "+" only on Buy; a refused line keeps its place (the columns stay lined up) but shows none, and
+		// a Hidden one takes no click.
+		if (UBorder *AddButton = Widgets.AddButton.Get())
+		{
+			AddButton->SetVisibility(!bBuy ? ESlateVisibility::Collapsed : bRefused ? ESlateVisibility::Hidden : ESlateVisibility::Visible);
+		}
 	}
 }
 
@@ -964,7 +1001,10 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 		return FReply::Handled();
 	}
 	// The line sits in the detail panel: hidden with it, it keeps the place it last had.
-	if (bBuy && BuyForButton && DetailPanel && DetailPanel->IsVisible() && BuyForButton->GetCachedGeometry().IsUnderLocation(Position))
+	// B-608: the details scroll; the line counts only where its scroll box shows it (a scrolled-away line's place may lie
+	// over the cart).
+	if (bBuy && BuyForButton && DetailPanel && DetailPanel->IsVisible() && BuyForButton->GetCachedGeometry().IsUnderLocation(Position) &&
+		DetailScroll && DetailScroll->GetCachedGeometry().IsUnderLocation(Position))
 	{
 		MoveMember(1);
 		return FReply::Handled();
@@ -995,12 +1035,38 @@ FReply UVendorScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeometry,
 	const int32 OverRow = FindRowUnder(InMouseEvent);
 	if (OverRow != INDEX_NONE)
 	{
-		// A click on a row chooses it, as moving onto it and pressing A does (a second click confirms).
-		SelectRow(OverRow, /*bScrollIntoView=*/false);
-		Confirm();
+		const UBorder *AddButton = RowWidgets[OverRow].AddButton.Get();
+		ClickRow(OverRow, bBuy && AddButton && AddButton->IsVisible() && AddButton->GetCachedGeometry().IsUnderLocation(Position));
 		return FReply::Handled();
 	}
 	return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+}
+
+EVendorRowClick UVendorScreenWidget::GetRowClick(bool bBuy, bool bOnAddButton, bool bAlreadySelected)
+{
+	if (bBuy)
+	{
+		return bOnAddButton ? EVendorRowClick::Add : EVendorRowClick::Select; // adding is A, Right or the "+"
+	}
+	return bAlreadySelected ? EVendorRowClick::Confirm : EVendorRowClick::Select;
+}
+
+void UVendorScreenWidget::ClickRow(int32 Index, bool bOnAddButton)
+{
+	if (!Page.Rows.IsValidIndex(Index))
+	{
+		return;
+	}
+	const EVendorRowClick Click = GetRowClick(IsBuy(), bOnAddButton, Index == SelectedRow);
+	SelectRow(Index, /*bScrollIntoView=*/false);
+	if (Click == EVendorRowClick::Add)
+	{
+		AddFocusedToCart();
+	}
+	else if (Click == EVendorRowClick::Confirm)
+	{
+		Confirm();
+	}
 }
 
 #if !UE_BUILD_SHIPPING

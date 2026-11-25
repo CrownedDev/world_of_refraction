@@ -4,7 +4,6 @@
 Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Planned` = decided, not built; `Proposed` = standard-practice default, Crown may change.
 
 ## Exploration (hub and trial map)
-
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
 | Move | WASD | Left stick | — | Built. D-255 (B-583): ignored from contact with an enemy team until the fight starts; given back if it doesn't |
@@ -23,7 +22,6 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 | Journal (memories, lore) | J | D-pad Up | `IA_Field_Journal` | Proposed |
 
 ## Combat
-
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
 | Defend (main menu only) | G; click its hint | RB (R1) (was Y) | `IA_Combat_MenuDefend` | Built (B-093; moved by B-436g, D-258c). RB is also the infusion level: two actions on one button, and only one can act, as Defend works on the main menu and the level in a target picker |
@@ -59,7 +57,6 @@ Gamepad names are Xbox (PlayStation in brackets). `Built` = in code today; `Plan
 ## Menus (CommonUI screens)
 
 Fixed keys read by the screen itself while it's open (game input is off then), so they need no input action or mapping context yet. `UIScreens.md` proposes the shared set (tabs, sub-tabs, screen actions) for the screens to come; each gets its row here when it's built.
-
 | Action | Keyboard / mouse | Gamepad | Input action | State |
 |---|---|---|---|---|
 | Open the game menu | Esc | Menu (Options) | `IA_ToggleMenu` | Built (B-439): `AWoRHubController::OpenGameMenu`, hub and trial map (not in a battle). Console: `wor.UI.Pause`. In the editor Esc ends PIE, so use the gamepad or the console |
@@ -126,7 +123,7 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Inventory: sort the tiles (Kind, Tier, Name) | R | Y (Triangle) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_Action2`) | Built (B-461, inventory screen; Q-461): `WoRMenuStyle::IsSecondActionKey` |
 | Inventory: the Loadout tab (Gear, Loadout, Pouch, Chest): open the Equipment screen for the same character | Q / E onto the tab, then Enter / Space; or click the tab | LB / RB onto the tab, then A (Cross) | none (the screen's keys) | Retired (D-249: the tab is hidden; the merged screen's Loadout button replaces it). Was built (B-543) |
 | Inventory: the filter row (Gear and Chest tabs) | Up from the top row of tiles, then Left / Right; Down, Enter or Esc back to the tiles; click a filter | D-pad or left stick up, then left / right; down, A or B back | none | Built (B-461, inventory screen; Q-461) |
-| Shop: put the focused line in the cart / take one back | Enter, Space, Right, D, left click / Left, A, right click | A (Cross), D-pad right, stick right / D-pad left, stick left | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab; Q-456b) |
+| Shop: put the focused line in the cart / take one back | Enter, Space, Right, D, left click on the row's + / Left, A, right click | A (Cross), D-pad right, stick right / D-pad left, stick left | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab; Q-456b). **B-608:** a left click on the row only selects it (its details show); the row's + adds. On the other tabs a click on the selected row is A |
 | Shop: buy the cart | X, click "Purchase" | X (Square) | none (the screen's keys) | Built (B-456b, vendor screen, Buy tab): `WoRMenuStyle::IsToggleKey` |
 | Shop: who it is bought for ("Buying for") | R, Z / C, click the line | Y (Triangle), LT / RT | none (the screen's keys; `UIScreens.md` proposes `IA_UI_Action2`) | Built (B-456b, vendor screen, Buy tab): `WoRMenuStyle::IsSecondActionKey` |
 | Journal: quest filter, memory character, Ready / Played (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys) | Built (B-463, journal screen; D-198): `WoRMenuStyle::IsSubTabPrevKey` / `NextKey` |
@@ -141,7 +138,6 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 ## Screens and how they are reached (B-536)
 
 Every player screen as of 2026-11-16. "Console only" means a player could not reach it by playing. **Mouse** (D-233, every screen takes the mouse as well as keys and a pad): what it does today. "Hover + click" = moving lights a row and a click picks it (the confirm key's path); "wheel" = a list in a scroll box scrolls under the cursor (Slate does it); a key-driven list with no scroll box does not take the wheel.
-
 | Screen | Reached by | Console | Mouse |
 |---|---|---|---|
 | Title | The menu level (B-537); Quit to title | `wor.UI.Title` | **Yes** (B-538, B-546): hover + click on the slots, buttons and Yes / No; right-click a slot to delete; no list to wheel |
@@ -171,7 +167,6 @@ Still console only, on purpose (each has a replacement the player reaches): the 
 ## Mapping contexts (B-129)
 
 Higher priority wins a key two contexts both map. The numbers live in `WoRInputPriority` (`Public/Player/InputPriorities.h`); no literal priority is left in C++.
-
 | Context | Added by | Priority | State |
 |---|---|---|---|
 | Exploration (hub and trial map) | `AExplorationPlayerController` (`ExplorationMappingContext`; a BP may override `ExplorationMappingPriority`) | `EXPLORATION` = 0 | Built (B-129: named) |
@@ -188,7 +183,6 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 - Keyboard double-tap and gamepad double-click windows: one named constant (`// TODO: tune`).
 
 ## Changelog
-
 | Date | Change | Branch |
 |---|---|---|
 | 2026-10-27 | Created: built keys, Crown's double-click L3, standard-practice proposals | docs/input-map |
@@ -261,3 +255,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-23 | B-582c (D-269): W / S (`IA_Combat_MenuRowUp` / `RowDown`) move a highlight through the open battle list, wrapping; D (`IA_Combat_MenuForward`) presses it; A (`IA_Combat_MenuBackA`) is Back. New HUD only; move input never moves a fighter in a fight; Q / E unbound (no tab row) | feature/B-582c-menu-nav |
 | 2026-11-23 | B-582c (D-270): single targets picked on the field: W / S and the new D-pad Up / Down (`IA_Combat_MenuTargetPrevPad` / `NextPad`, target pick only) move the marker; the pointer over a fighter marks it and a left click (or on the marked enemy's card) picks it | feature/B-582c-menu-nav |
 | 2026-11-25 | B-610: on the loadout's Equipment tab K / R3 opens the focused weapon's or adapter's skill slots (and Y Options, Skills); Back returns to the same line; `{Skills}` key cap. Row 88's proposed X-again-for-skills gives way to it | `feature/B-610-equipment-skills-jump` |
+| 2026-11-25 | B-608: vendor screen, Buy: a left click on a row only selects it, its + adds (A / Right unchanged); other tabs: a click on the selected row is A | `fix/B-608-vendor-cart-rows` |

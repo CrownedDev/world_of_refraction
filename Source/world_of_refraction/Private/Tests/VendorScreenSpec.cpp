@@ -347,6 +347,26 @@ void FVendorScreenSpec::Define()
 		TestFalse(TEXT("the screen says what happened"), Screen->GetStatus().IsEmpty());
 	});
 
+	It("B-608: a click on a Buy row only selects it, its + adds; on another service a click on the selected row is A", [this]()
+	{
+		TestTrue(TEXT("Buy, the row: select"), UVendorScreenWidget::GetRowClick(true, false, false) == EVendorRowClick::Select);
+		TestTrue(TEXT("Buy, the selected row again: still select"), UVendorScreenWidget::GetRowClick(true, false, true) == EVendorRowClick::Select);
+		TestTrue(TEXT("Buy, its +: add"), UVendorScreenWidget::GetRowClick(true, true, false) == EVendorRowClick::Add);
+		TestTrue(TEXT("Sell, a new row: select"), UVendorScreenWidget::GetRowClick(false, false, false) == EVendorRowClick::Select);
+		TestTrue(TEXT("Sell, the selected row: A"), UVendorScreenWidget::GetRowClick(false, false, true) == EVendorRowClick::Confirm);
+
+		if (!Inventory) return;
+		Fund();
+		UVendorScreenWidget *Screen = OpenScreen(EVendorScreenTab::Buy);
+		if (!TestNotNull(TEXT("screen created"), Screen)) return;
+		Screen->ClickRow(VENDOR_SCREEN_SPEAR_ROW, /*bOnAddButton=*/false);
+		TestEqual(TEXT("the click selects the row"), Screen->GetSelectedRow(), VENDOR_SCREEN_SPEAR_ROW);
+		Screen->ClickRow(VENDOR_SCREEN_SPEAR_ROW, /*bOnAddButton=*/false);
+		TestTrue(TEXT("clicking it again adds nothing"), Screen->GetCart().IsEmpty());
+		Screen->ClickRow(VENDOR_SCREEN_SPEAR_ROW, /*bOnAddButton=*/true);
+		TestTrue(TEXT("its + adds one"), Screen->GetCart().Num() == 1 && Screen->GetCart()[0].Stock.Count == 1);
+	});
+
 	It("Buy: a line the wallet can't pay says why and stays out of the cart; X on an empty cart buys nothing", [this]()
 	{
 		if (!Inventory) return;

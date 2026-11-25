@@ -503,7 +503,6 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
   inferred from header comments and may be incomplete.
 
 ## Changelog
-
 | Date | Change | Branch |
 |------|--------|--------|
 | 2026-05-17 | Initial documentation | docs/architecture-documentation |
@@ -678,3 +677,4 @@ CommonUI keeps the last screen's Menu input config once every screen has closed,
 | 2026-11-24 | B-598b (Q-598b, Crown): no hover tooltips on the battle HUD. The party card's frame is hit-test invisible on every card (`FBattleCardParts::bGear`, `FBattleHUDCard::GearTooltip` and `BattleHUDView::FormatGearTooltip` removed). The corner hints set no tooltip and a greyed hint stays clickable: `UBattleCommandMenuWidget::PressRow` on a greyed corner hint, or `ShowRefusalForKey` (called by `ACombatPlayerController::PressMenuKey` when the subsystem refuses a key), puts its reason in `SummaryText` (`GetRefusal`, wor.UI.Print `refusal=`). Cleared by MoveLitRow, an enabled press, the next OnCommandMenuReady or a close. Spec: `WoR.UI.CommandMenu.Keys`. | `fix/B-598b-battle-hud-no-hover` |
 | 2026-11-24 | B-604c: the native `UDefensePromptWidget` text (DEFEND! Guard / Dodge) gets a dark outline and shadow (`DefensePromptText::NativeOutlineSize`, `NativeBackingColor`, `NativeShadowOffset`), readable on the bright sky and over the defender in the defend camera. | `fix/B-604c-defend-hold-until-hit` |
 | 2026-11-25 | B-610: Loadout v2 Equipment tab: `ULoadoutV2ScreenWidget::JumpToEntrySkills` (K / R3, `LoadoutV2ScreenStyle::IsSkillsJumpKey`; Options `ELoadoutV2Option::Skills`, second) opens the focused entry's slots (`WoRLoadoutV2Skills::FindEntryFor`) in `SkillRows`; `SkillsReturnLine` sends Back to the same Equipment line (cleared by `ShowTab` and by A on the Skills tab's entries). `{Skills}` cap in `WoRKeyHintText`. | `feature/B-610-equipment-skills-jump` |
+| 2026-11-25 | B-608: `UVendorScreenWidget`: the cart lines in a scroll box capped by `CartListMaxHeight` (Total, After purchase and Buy stay below it); the side column fills the body and the details scroll in what the cart leaves; one-line rows (`RowPaddingX` / `RowPaddingY`, the kind or refusal a small tag after the name) with a + (`AddButtonWidth`) on Buy; `GetRowClick` / `ClickRow`: a click on a Buy row selects, its + adds; elsewhere a click on the selected row is A. | `fix/B-608-vendor-cart-rows` |
