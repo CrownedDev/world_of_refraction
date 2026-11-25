@@ -4,6 +4,7 @@
 #include "Equipment/Weapons/WeaponData.h"
 #include "UI/WoRIconTable.h"
 
+#include "Currency/EconomyService.h"
 #include "Engine/GameInstance.h"
 #include "Engine/World.h"
 #include "Equipment/Apparel/ApparelData.h"
@@ -446,6 +447,52 @@ TArray<FInventoryScreenVerb> WoRInventoryScreen::BuildVerbs(UWorld *World, FName
 													  : WoRInventoryVerbs::GetRefusal(World, Verb, Member, NAME_None, Tile.Row);
 	}
 	return Verbs;
+}
+
+TArray<FLoadoutScreenDetail> WoRInventoryScreen::BuildFacts(UWorld *World, FName Member, const FInventoryScreenTile &Tile)
+{
+	TArray<FLoadoutScreenDetail> Facts;
+	const UInventoryComponent *Inventory = WoRGive::FindMemberInventory(World, Member);
+	if (Tile.Row.IsGear() && Inventory)
+	{
+		const TArray<int32> Using = Inventory->GetLoadoutsUsing(Tile.Row.GearID);
+		const int32 Active = Inventory->ActiveLoadoutIndex;
+		const auto Title = [Inventory](int32 Index)
+		{ return WoRLoadoutScreen::FormatLoadoutTitle(Inventory->SavedLoadouts[Index].LoadoutName, Index + 1, Inventory->SavedLoadouts.Num()); };
+		const bool bWornNow = Using.Contains(Active) && Inventory->SavedLoadouts.IsValidIndex(Active);
+		Facts.Add({LOCTEXT("FactWornIn", "Worn in"), bWornNow ? Title(Active) : LOCTEXT("FactNotWorn", "Not worn")});
+		TArray<FText> Others;
+		for (const int32 Index : Using)
+		{
+			if (Index != Active && Inventory->SavedLoadouts.IsValidIndex(Index))
+			{
+				Others.Add(Title(Index));
+			}
+		}
+		if (!Others.IsEmpty())
+		{
+			Facts.Add({LOCTEXT("FactAlsoIn", "Also in"), FText::Join(LOCTEXT("FactJoin", ", "), Others)});
+		}
+	}
+	int32 Owned = Tile.IsStack() ? Tile.Row.Count : 0;
+	if (!Tile.IsStack())
+	{
+		// Copies of the same piece: the same kind, name and tier on the member's whole Gear tab.
+		for (const FInventoryScreenTile &Each : BuildPage(World, Member, EInventoryScreenTab::Gear).Tiles)
+		{
+			Owned += Each.Kind == Tile.Kind && Each.TierValue == Tile.TierValue && Each.Name.EqualTo(Tile.Name) ? 1 : 0;
+		}
+	}
+	Facts.Add({LOCTEXT("FactOwned", "Owned"), FText::AsNumber(FMath::Max(Owned, 1))});
+	if (const FLoadoutScreenDetail *Wear = Tile.Details.FindByPredicate([](const FLoadoutScreenDetail &Detail) { return Detail.Label.IsEmpty() && !Detail.Value.IsEmpty(); }))
+	{
+		Facts.Add({LOCTEXT("FactDurability", "Durability"), Wear->Value}); // D-231: the wear line has no word of its own
+	}
+	if (!Tile.Tier.IsEmpty()) // B-579: a potion has no tier, and no price here
+	{
+		Facts.Add({LOCTEXT("FactSellsFor", "Sells for"), FText::Format(LOCTEXT("FactGold", "{0} Gold"), FText::AsNumber(UEconomyService::GetSellPriceForTier(Tile.TierValue)))});
+	}
+	return Facts;
 }
 
 TArray<FInventoryScreenReceiver> WoRInventoryScreen::BuildReceivers(UWorld *World, FName Member, const FInventoryScreenTile &Tile)

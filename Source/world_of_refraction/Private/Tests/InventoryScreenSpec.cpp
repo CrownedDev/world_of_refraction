@@ -229,6 +229,54 @@ void FInventoryScreenSpec::Define()
 		TestFalse(TEXT("FocusLoadoutSide is gone (OBSOLETE)"), Screen->FocusLoadoutSide());
 	});
 
+	It("B-598c piece 2: the Details column's facts (worn in, owned, sells for) and buttons (Equip on…, Give to…, Sell greyed)", [this]()
+	{
+		if (!IsReady()) return;
+		const FGuid DaggerID = AddDagger();
+		const FInventoryScreenPage Gear = PageOf(EInventoryScreenTab::Gear);
+		const int32 SwordTile = FindGear(Gear, IDOf(Sword));
+		const int32 DaggerTile = FindGear(Gear, DaggerID);
+		if (!TestTrue(TEXT("both tiles"), SwordTile != INDEX_NONE && DaggerTile != INDEX_NONE)) return;
+		const auto FactOf = [](const TArray<FLoadoutScreenDetail> &Facts, const TCHAR *Label) -> const FLoadoutScreenDetail *
+		{ return Facts.FindByPredicate([Label](const FLoadoutScreenDetail &Fact) { return Fact.Label.ToString() == Label; }); };
+		const TArray<FLoadoutScreenDetail> SwordFacts = WoRInventoryScreen::BuildFacts(World(), KeyOf(SCREEN_MEMBER), Gear.Tiles[SwordTile]);
+		const FLoadoutScreenDetail *SwordWorn = FactOf(SwordFacts, TEXT("Worn in"));
+		TestTrue(TEXT("the sword is worn in the active loadout"), SwordWorn && SwordWorn->Value.ToString() != TEXT("Not worn"));
+		const FLoadoutScreenDetail *SwordOwned = FactOf(SwordFacts, TEXT("Owned"));
+		TestTrue(TEXT("one sword owned"), SwordOwned && SwordOwned->Value.ToString() == TEXT("1"));
+		TestNotNull(TEXT("a price by tier"), FactOf(SwordFacts, TEXT("Sells for")));
+		const FLoadoutScreenDetail *DaggerWorn = FactOf(WoRInventoryScreen::BuildFacts(World(), KeyOf(SCREEN_MEMBER), Gear.Tiles[DaggerTile]), TEXT("Worn in"));
+		TestTrue(TEXT("the dagger is not worn"), DaggerWorn && DaggerWorn->Value.ToString() == TEXT("Not worn"));
+
+		ULoadoutV2ScreenWidget *Screen = CreateWidget<ULoadoutV2ScreenWidget>(World(), ULoadoutV2ScreenWidget::StaticClass());
+		if (!TestNotNull(TEXT("screen"), Screen)) return;
+		Screen->ActivateWidget();
+		const int32 ScreenSword = FindGear(Screen->GetInventorySide(), IDOf(Sword));
+		const int32 ScreenDagger = FindGear(Screen->GetInventorySide(), DaggerID);
+		const auto LightTile = [Screen](int32 Tile)
+		{
+			while (Screen->GetInventoryTile() < Tile) Screen->MoveInventoryTile(1, 0);
+			while (Screen->GetInventoryTile() > Tile) Screen->MoveInventoryTile(-1, 0);
+		};
+		LightTile(ScreenSword);
+		TestFalse(TEXT("the lit tile's facts are in the Details column"), Screen->GetInventoryFacts().IsEmpty());
+		if (!TestEqual(TEXT("three buttons: Equip on, Give to, Sell"), Screen->GetInventoryActions().Num(), 3)) return;
+		TestTrue(TEXT("Equip on is open for a weapon"), Screen->GetInventoryActions()[0].Refusal.IsEmpty());
+		TestFalse(TEXT("the worn sword can't be given (D-116), with the reason"), Screen->GetInventoryActions()[1].Refusal.IsEmpty());
+		TestFalse(TEXT("Sell is greyed: the Blacksmith's"), Screen->GetInventoryActions()[2].Refusal.IsEmpty());
+		Screen->PressGive();
+		TestFalse(TEXT("a refused Give opens no list, it says why"), Screen->IsGiving() || Screen->GetMessage().IsEmpty());
+
+		LightTile(ScreenDagger);
+		TestTrue(TEXT("the spare dagger can be given"), Screen->GetInventoryActions().IsValidIndex(1) && Screen->GetInventoryActions()[1].Refusal.IsEmpty());
+		Screen->PressGive();
+		TestTrue(TEXT("X: the other members are the buttons"), Screen->IsGiving() && Screen->GetInventoryActions().Num() == SCREEN_PARTY_SIZE - 1);
+		Screen->PressBack();
+		TestTrue(TEXT("Back: out of the list, the screen stays"), !Screen->IsGiving() && Screen->IsActivated() && Screen->GetInventoryActions().Num() == 3);
+		Screen->PressEquipOn();
+		TestTrue(TEXT("A, Equip on: the Equipment page, saying what to pick"), Screen->GetPageIndex() == ULoadoutV2ScreenWidget::EQUIPMENT_PAGE && !Screen->GetMessage().IsEmpty());
+	});
+
 	It("lists the member's gear on the Gear tab and marks the worn piece", [this]()
 	{
 		if (!IsReady()) return;

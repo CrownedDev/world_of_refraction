@@ -146,6 +146,11 @@ namespace WoRInventoryScreen
 	 *  refused: nothing moves those yet (Q-323). */
 	WORLD_OF_REFRACTION_API TArray<FInventoryScreenVerb> BuildVerbs(UWorld *World, FName Member, EInventoryScreenTab Tab, const FInventoryScreenTile &Tile);
 
+	/** B-598c (mockup menus/inventory/v4): the Details column's facts about Tile, as label / value lines: Worn in (the
+	 *  active loadout, else "Not worn") and Also in (the other loadouts) for gear; Owned (copies of the same piece, a
+	 *  stack's count); Durability (the tile's wear line, when it has one); Sells for (by tier; not for a potion). */
+	WORLD_OF_REFRACTION_API TArray<FLoadoutScreenDetail> BuildFacts(UWorld *World, FName Member, const FInventoryScreenTile &Tile);
+
 	/** The other party members, for Give. */
 	WORLD_OF_REFRACTION_API TArray<FInventoryScreenReceiver> BuildReceivers(UWorld *World, FName Member, const FInventoryScreenTile &Tile);
 
