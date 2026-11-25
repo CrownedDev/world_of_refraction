@@ -45,6 +45,8 @@ namespace
 	/** Spans the executor's 10 s action timeout at 0.01 s a frame; a run stops once the turn moves on. */
 	constexpr int32 MULTI_TARGET_SETTLE_FRAMES = 1100;
 	constexpr float MULTI_TARGET_NOT_HIT = -1.0f;
+	/** A skill window expecting two impacts (the window-rule case). */
+	constexpr int32 MULTI_TARGET_SKILL_HITS = 2;
 
 	void SetMultiTargetCVar(const TCHAR *Name, int32 Value)
 	{
@@ -259,17 +261,23 @@ void FMultiTargetDeliverySpec::Define()
 		});
 	});
 
-	It("a skill's windows wait for its shots once it sent any, not for the swing's end; a spell's always wait", [this]()
+	It("a skill's window waits for its shots when they cover its impacts, not for the swing's end; a spell's always waits", [this]()
 	{
 		FActionExecutionContext Exec;
 		FPendingDefenseContext SkillWindow;
 		SkillWindow.ActionType = EActionType::Ability;
+		SkillWindow.ExpectedImpacts = MULTI_TARGET_SKILL_HITS;
 		FPendingDefenseContext SpellWindow;
 		SpellWindow.ActionType = EActionType::Spell;
 		TestFalse(TEXT("A swing with nothing sent: closes at the animation's end"), WaitsForArrivals(Exec, SkillWindow));
 		TestTrue(TEXT("A spell: waits"), WaitsForArrivals(Exec, SpellWindow));
-		Exec.bArrivalsSent = true;
-		TestTrue(TEXT("A skill that sent copies or a wave: waits"), WaitsForArrivals(Exec, SkillWindow));
+		Exec.ArrivalsSentPerTarget = MULTI_TARGET_SKILL_HITS - 1;
+		TestFalse(TEXT("Fewer shots than its hits: closes at the animation's end (lands the rest there)"), WaitsForArrivals(Exec, SkillWindow));
+		Exec.ArrivalsSentPerTarget = MULTI_TARGET_SKILL_HITS;
+		TestTrue(TEXT("Shots covering its hits: waits for them"), WaitsForArrivals(Exec, SkillWindow));
+		FPendingDefenseContext TimerWindow;
+		TimerWindow.ActionType = EActionType::Ability;
+		TestFalse(TEXT("A timer-close window (no impacts expected) is not held"), WaitsForArrivals(Exec, TimerWindow));
 	});
 
 	Describe("a cast at three foes", [this]()

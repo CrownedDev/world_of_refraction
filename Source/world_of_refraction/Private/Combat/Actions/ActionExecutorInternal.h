@@ -41,11 +41,13 @@ inline void StashHitFlags(FPendingDefenseContext &Ctx, const TArray<FResolvedHit
 // re-entrantly removes the PendingDefenses entry, so we must not close mid-iteration.
 // B-032d: a SPELL window is left open: its projectiles may still be flying, and its arrivals (or the 8s failsafe /
 // action timeout, landing the rest per impact) close it.
-// B-607: so is any window of an action that sent projectiles or a wave (bArrivalsSent): a skill's far target is hit
-// when the shot reaches it, not when the swing ends.
+// B-607: so is a skill's window whose impacts are all coming as projectile or wave arrivals (ArrivalsSentPerTarget
+// covers its ExpectedImpacts): its far target is hit when the shot reaches it, not when the swing ends. One that the
+// arrivals can't fill (HitCount above them) still closes at the animation's end, landing the rest there.
 inline bool WaitsForArrivals(const FActionExecutionContext &ExecContext, const FPendingDefenseContext &Ctx)
 {
-	return Ctx.ActionType == EActionType::Spell || ExecContext.bArrivalsSent;
+	return Ctx.ActionType == EActionType::Spell ||
+		   (Ctx.ExpectedImpacts > 0 && ExecContext.ArrivalsSentPerTarget >= Ctx.ExpectedImpacts);
 }
 
 inline void ReconcileCountBasedDefenseWindows(FActionExecutionContext &ExecContext, UDefenseSystem *DefenseSys)
