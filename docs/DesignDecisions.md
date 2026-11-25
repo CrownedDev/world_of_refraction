@@ -1490,7 +1490,8 @@ Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wi
 - The Act panel shows no infusion line for it; an infusion sent with it anyway is ignored (the skill still runs).
 - Using one leaves the fighter's kept infusion (Q-613) as it was, on for the next strike.
 - **Weapon abilities only.** Spell buffs and debuffs keep their infusion as before: spells are naturally elemental.
-**Built:** B-620 (`SupportSkillRules::IsWeaponBuffOrDebuff`).
+- **Its look takes the infusion's colour (Crown, 2026-11-25: "Yes, tint only", asked whether Rally's look should take the weapon's infusion colour).** With an infusion on, a weapon buff or debuff's effects are tinted with that element, the same way an infused skill's are; it's only a look: no EP, no infusion applied, the action stays uninfused. With no infusion on, it stays clear (no tint).
+**Built:** B-620 (`SupportSkillRules::IsWeaponBuffOrDebuff`); the tint B-622 (`FActionResult::LookElement`, `EffectTint::ChooseTintElement`).
 
 ### D-274 — Every fighter starts a fight with 1 action
 **Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, play-testing action pips) · **Blocks:** B-605
