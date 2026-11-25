@@ -6,6 +6,7 @@
 #include "Combat/CombatPresentationComponent.h"
 #include "Combat/Presentation/CastVisuals.h"
 #include "Combat/Presentation/EffectTint.h"
+#include "Combat/Presentation/SkillSounds.h"
 #include "Combat/Presentation/WeaponTrail.h"
 #include "ActionExecutorInternal.h"
 #include "MotionWarpingComponent.h"
@@ -620,9 +621,37 @@ void UActionExecutor::OnCombatNotifyReceived(ECombatNotifyFamily Family, int32 I
 	}
 
 	case ECombatNotifyFamily::SFX:
-		// No production SFX array yet (deferred).
-		UE_LOG(LogTemp, Verbose, TEXT("[Runner] SFX notify %d — no SFX array (deferred)"), Index);
+	{
+		// B-618: plays Notify entry Index of the skill's SFXArray. The C++ test montages carry an SFX notify, so a
+		// skill with no sound there is normal (Verbose).
+		const USkillDataBase *Skill = GetCurrentSkillData();
+		AActor *Caster = PendingExecutionActor;
+		if (!Skill || !Caster || !Skill->SFXArray.IsValidIndex(Index))
+		{
+			UE_LOG(LogWoR, Verbose, TEXT("[Runner] SFX notify %d: no entry (%d sounds)"), Index, Skill ? Skill->SFXArray.Num() : 0);
+			return;
+		}
+		const FSkillSFXEntry &Entry = Skill->SFXArray[Index];
+		if (Entry.Role != ESFXRole::Notify)
+		{
+			UE_LOG(LogWoR, Warning, TEXT("[Runner] SFX notify %d on %s: '%s' is an Impact sound (it plays on each hit, not from a notify)"),
+				   Index, *GetNameSafe(Skill), *Entry.Label);
+			return;
+		}
+		const ACharacter *Character = Cast<ACharacter>(Caster);
+		if (Entry.Attach == EVFXAttach::CasterSocket && Character && Character->GetMesh() &&
+			Character->GetMesh()->DoesSocketExist(Entry.SocketName))
+		{
+			SkillSounds::PlayAttached(Entry, Character->GetMesh(), Entry.SocketName);
+			return;
+		}
+		FVector Location;
+		if (ResolveVFXAttachLocation(Entry.Attach, Entry.SocketName, Index, Location))
+		{
+			SkillSounds::PlayAtLocation(Caster, Entry, Location);
+		}
 		return;
+	}
 	}
 }
 

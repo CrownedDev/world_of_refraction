@@ -1312,6 +1312,12 @@ The queue of questions only Crown can answer.
 - **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
+### Q-621 — A buff on yourself or an ally lands no hit, and a single-ally buff goes to the ally you picked
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-621, Crown: a self buff opened a DEFEND prompt and hit its user for 34) · **Blocks:** nothing
+**Question:** (1) What does a no-damage skill aimed at yourself or an ally do at its "hit"? (2) Where does a single-ally buff land? It always went to the caster (a TODO in the code).
+**Answer (default, built):** (1) Nothing: an ability or spell with no damage and a Self or Ally target opens no defend window, deals no damage, plays no hit reaction and lands no fallback impact; its effects apply to its targets. A damaging skill, or a no-damage one aimed at an enemy (a debuff swing), still lands its hit. (2) On the ally the player picked; on the caster only when the action's target is not on the caster's side.
+**Reference:** in Expedition 33 and Final Fantasy X a buff or heal on a party member has no parry or dodge prompt and lands on the member chosen; a defend prompt is only for an enemy's attack.
+
 ### Q-603 — The test trial's enemy mirrors the party's Generic
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-603, Crown: mirror our Generic's pillars and stat spread) · **Blocks:** nothing
 **Question:** the test enemy (`DA_Enemy_Generic`) already had the same sub-stats as the Generic assets (Mind 1 / Body 7 / Spirit 1), but a new game's Generic plays at the class table's levels (Mind 0 / Body 0 / Spirit 0, `DA_Loadout_ClassDefaults`) with an F sword, while the enemy wore a D sword. Mirror only the pillars, or the sword tier too?
@@ -1359,6 +1365,22 @@ The queue of questions only Crown can answer.
 - **(1) Crown: keep the reset (D-221 stands).** The Loadout opened from the Gate (R / Y) keeps one line under it while open: "A trial starts you on your class kit; changes here stay with your home gear and won't come with you." A step's own message (a refusal, a done line) shows instead for that step. Opened from the game menu, no line. A read-only kit preview was not built: a character's kit is minted at their first trial, so before it there is nothing to show.
 - **(2) The Caster's kit row: nothing is missing.** Crown's first shape of the kits (`Design/AssetOverhaulPlan.md`, "the class kits", 2026-11-15) gives a Refractor **no pieces and no starting skills**: "since they have innate". A Refractor may go into a fight with no gear (`ABattleGameMode`, the Caster check), so the `no primary (D-116)` line is that warning and nothing breaks. Since D-224 a ring carries no spells (`URingData::PresetSpells` is obsolete; nothing reads it), so Flow and Healing Spring put on a ring do nothing. A Refractor's spells are its element row's innate spells: `Classes` > Caster > `Elements` > the element > `InnateSpells` (filled by Fill From Sources from today's Lords). Steps for the editor worker: `docs/PIE/B-615.md`. If Crown wants a Refractor to start with a ring, `Pieces[0]` = `/Game/Data/Pool/Generic/Rings/DA_Ring_Generic` (the B-512 row) is the one change.
 **Reference:** Hades keeps the House's lasting upgrades and the run's start on separate, labelled screens (the Mirror and the weapon pick); Dead Cells shows run-start gear apart from the Collector's lasting unlocks. Both tell the player what carries into a run, and both are praised for clear run structure. The deckbuilder has no hub loadout, so no rule there.
+
+### Q-613 — Infusion stays on: what carries, what turns it off
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-613) · **Blocks:** nothing
+**Question:** Crown wants a fighter's infusion to stay on from one action to the next. What carries over, what turns it off, and what happens on an action that can't pay for it?
+**Answer (default, built):**
+- **What carries:** the level, and the element where the player chose one (an attack, an ability, a Breakthrough spell). A spell of one fixed element keeps its own element and takes only the level.
+- **Turned off:** by confirming an action at no infusion. Backing out of a target step changes nothing.
+- **Can't pay:** an action that can't pay the infused EP opens with no infusion, and the target panel says "Infusion off: not enough EP". It stays on for the next action. Only EP is checked: L2's HP backlash stays the player's call, shown in the cost line as now.
+- **Left as it is:** items, a stunned fighter, and an action immune to infusion.
+- **Scope:** per fighter, for one fight (kept by the fight's command menu, cleared with the fight, as B-582's last target). Enemies are unchanged: the AI builds its own actions and never reads it. In co-op each machine's menu keeps its own players'.
+**Reference:** FFXIV's stances stay on until switched off, so a player sets them once per fight; Octopath Traveler's boost is picked per action. Crown asked for the first. The deckbuilder has no infusion carry rule.
+### Q-618 — When a skill's sounds play
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-618) · **Blocks:** nothing
+**Question:** Skills get a sound list (`SFXArray`). When does each sound play, and what about a guarded or dodged hit, a multi-hit skill and a spell that hits several targets?
+**Answer (default):** (1) Each sound is either a **Notify** sound, played by an SFX notify on the montage at that moment (a release, a swing), at the caster, a caster socket or the target, or an **Impact** sound, played at the target's hit point. (2) An Impact sound plays on **every landed hit** (Hit or Crit), a projectile's landing too, so a three-hit combo sounds three times and a spell that hits three enemies sounds once on each. (3) A **Guard, Perfect Guard or Dodge plays no skill impact sound**: the defence has its own feedback. (4) The sound plays whether or not the hit has a visual.
+**Reference:** action RPGs give every landed hit its own impact sound and let a block or dodge replace it with its own (Hades: each enemy struck gives its hit sound; Elden Ring and Sekiro: a block or deflect plays the clang instead of the flesh hit). Both are widely praised for how hits feel.
 
 ### Q-609 — The gear upgrade screen: who, where and how much per press
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-609) · **Blocks:** nothing

@@ -28,6 +28,14 @@ namespace SupportSkillRules
 		return Skill->BaseDamage == 0 && Skill->HasBuffEffects();
 	}
 
+	/** B-621: a no-damage skill aimed at the caster's own side (Self / Ally). It lands no hit: no defend
+	 *  window, no damage, no hit reaction; its effects still apply to its targets. */
+	inline bool IsFriendlyNoDamageSkill(const USkillDataBase *Skill)
+	{
+		return Skill && Skill->BaseDamage <= 0 &&
+			   (Skill->TargetType == ETargetType::Self || Skill->TargetType == ETargetType::Ally);
+	}
+
 	/** The authored status buildup the skill brings to a hit: none for a support skill. */
 	inline int32 GetAuthoredStatusBuildup(const USkillDataBase *Skill)
 	{

@@ -16,6 +16,7 @@
 #include "Skills/Definitions/SkillGearRequirement.h"
 #include "Skills/Definitions/ESpellDeliveryType.h"
 #include "Skills/Definitions/SkillVFXEntry.h"
+#include "Skills/Definitions/SkillSFXEntry.h"
 #include "Skills/Definitions/SkillCastEntry.h"
 #include "Skills/Definitions/EScalingTier.h"
 #include "Combat/Actions/EAbilityExecutionType.h"
@@ -261,7 +262,8 @@ public:
     /** DEPRECATED — legacy combined target type. Migrated to TargetType + TargetCount
      *  in PostLoad. Do not use directly. Named LegacyTargetType (not TargetType_DEPRECATED)
      *  so UHT does not strip the suffix and collide its FName with the live TargetType
-     *  field. Legacy serialized data routes here via PropertyRedirects in DefaultEngine.ini. */
+     *  field. B-621 retired the PropertyRedirects that routed legacy data here (every asset is migrated, and the
+     *  redirect also caught the live TargetType); PostLoad takes a Self / Ally target back from it. */
     UPROPERTY()
     ETargetType_Legacy LegacyTargetType = ETargetType_Legacy::SingleEnemy;
 
@@ -376,6 +378,11 @@ public:
      *  (Stage 10B). All three skill types inherit it. */
     UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (TitleProperty = "Label"))
     TArray<FSkillVFXEntry> VFXArray;
+
+    /** B-618: the skill's sounds. INDEX-ORDERED like VFXArray: a UCombatNotify (Family=SFX, Index=N) plays Notify
+     *  entry N; Impact entries play at the target on each landed hit or projectile arrival. */
+    UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Animation", meta = (TitleProperty = "Label"))
+    TArray<FSkillSFXEntry> SFXArray;
 
     // ==================== REQUIREMENTS ====================
 
