@@ -2348,7 +2348,7 @@ void ULoadoutV2ScreenWidget::RefreshRightPanel()
 			Rows.Emplace(LOCTEXT("RightCant", "Can't"), Item.Refusal);
 		}
 	}
-	else if (Mode == ELoadoutV2Mode::SkillPicker && SkillChoices.IsValidIndex(Selected) && SkillRows.IsValidIndex(SkillRowSelected) &&
+	else if (Mode == ELoadoutV2Mode::SkillPicker && !IsOnSkillFits() && SkillChoices.IsValidIndex(Selected) && SkillRows.IsValidIndex(SkillRowSelected) && // B-629b: not on the selector
 			 SkillsPage.Entries.IsValidIndex(SkillEntry))
 	{
 		// B-629 (mockup menus/skills/v1 2): the slot's skill now against the lit one.
@@ -3388,7 +3388,7 @@ void ULoadoutV2ScreenWidget::PlayCue(EWoRMenuCue Cue)
 
 uint32 ULoadoutV2ScreenWidget::GetFocusKey() const
 {
-	const uint32 GridKindKey = HashCombine(HashCombine(GetTypeHash(IsOnGridKinds() || IsOnSkillFits()),HashCombine(GetTypeHash(SkillEntry), GetTypeHash(bSkillsAllLearned))), // B-629
+	const uint32 GridKindKey = HashCombine(HashCombine(GetTypeHash(IsOnGridKinds() || IsOnSkillFits()), HashCombine(GetTypeHash(SkillEntry), GetTypeHash(bSkillsAllLearned))), // B-629
 										   HashCombine(GetTypeHash(static_cast<uint8>(GetGridKind())), GetTypeHash(SlotIndex))); // B-614
 	return HashCombine(HashCombine(HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(InvSelected)), HashCombine(GetTypeHash(bOnLoadoutSide), GetTypeHash(bOnInvFilters))),
 								   HashCombine(HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), GetTypeHash(static_cast<uint8>(Mode))),
