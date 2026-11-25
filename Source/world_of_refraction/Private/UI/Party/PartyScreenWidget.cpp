@@ -39,6 +39,9 @@ namespace PartyScreenStyle
 	constexpr float EntryPadding = 15.0f;
 	constexpr float EntryGap = 12.0f;
 	constexpr float SeatWidth = 120.0f;
+	/** B-628b: the seat card's HP / EP bars, after their label. */
+	constexpr float VitalLabelWidth = 51.0f;
+	constexpr float LowHPFraction = 0.3f; // as the game menu's cards were (B-439)
 	constexpr float CellSize = 78.0f;
 	constexpr float CellGap = 6.0f;
 	inline const FLinearColor EmptyCellColor = TrackColor;
@@ -143,19 +146,54 @@ UPartyScreenWidget::FSeatWidgets UPartyScreenWidget::BuildSeat()
 	FSeatWidgets Widgets;
 	UBorder *Frame = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
 	Frame->SetPadding(FMargin(CardPadding));
+	UVerticalBox *Card = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	Frame->SetContent(Card);
 	UHorizontalBox *Line = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
-	Frame->SetContent(Line);
+	AddToColumn(Card, Line);
 	UVerticalBox *Words = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UTextBlock *Name = MakeText(WidgetTree, RowFontSize, TextColor, true);
 	UTextBlock *ClassLine = MakeText(WidgetTree, SmallFontSize, DimColor);
+	UTextBlock *Pillars = MakeText(WidgetTree, SmallFontSize, TextColor); // B-628b
 	UTextBlock *PlayedBy = MakeText(WidgetTree, LineFontSize, TextColor, true);
 	AddToColumn(Words, Name);
 	AddToColumn(Words, ClassLine, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	AddToColumn(Words, Pillars, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 	AddToColumn(Words, PlayedBy, FMargin(0.0f, LineGap, 0.0f, 0.0f));
 	AddToRow(Line, Words, FMargin(0.0f), VAlign_Center)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+	UVerticalBox *Corner = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
 	UTextBlock *Seat = MakeText(WidgetTree, SmallFontSize, OffColor, true);
 	Seat->SetJustification(ETextJustify::Right);
-	AddToRow(Line, MakeSized(WidgetTree, SeatWidth, 0.0f, Seat), FMargin(0.0f), VAlign_Top);
+	UTextBlock *Weapon = MakeWrappedText(WidgetTree, SmallFontSize, DimColor); // B-628b: the active loadout's piece
+	Weapon->SetJustification(ETextJustify::Right);
+	AddToColumn(Corner, Seat);
+	AddToColumn(Corner, Weapon, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+	AddToRow(Line, MakeSized(WidgetTree, SeatWidth, 0.0f, Corner), FMargin(0.0f), VAlign_Top);
+
+	// B-628b: HP and EP under the words, as the game menu's cards had them.
+	UVerticalBox *Vitals = WidgetTree->ConstructWidget<UVerticalBox>(UVerticalBox::StaticClass());
+	const auto AddVital = [this, Vitals](const FText &Label, const FLinearColor &Color, TWeakObjectPtr<UProgressBar> &OutBar, TWeakObjectPtr<UTextBlock> &OutValue)
+	{
+		UHorizontalBox *Row = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
+		UTextBlock *LabelText = MakeText(WidgetTree, SmallFontSize, DimColor, true);
+		LabelText->SetText(Label);
+		UProgressBar *Bar = nullptr;
+		UTextBlock *Value = nullptr;
+		UWidget *BarWithValue = MakeBarWithValue(WidgetTree, Color, Bar, Value);
+		AddToRow(Row, MakeSized(WidgetTree, VitalLabelWidth, 0.0f, LabelText));
+		USizeBox *BarBox = WidgetTree->ConstructWidget<USizeBox>(USizeBox::StaticClass());
+		BarBox->SetHeightOverride(BarWithValueHeight);
+		BarBox->AddChild(BarWithValue);
+		AddToRow(Row, BarBox)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
+		AddToColumn(Vitals, Row, FMargin(0.0f, LineGap, 0.0f, 0.0f));
+		OutBar = Bar;
+		OutValue = Value;
+	};
+	AddVital(LOCTEXT("HP", "HP"), HPColor, Widgets.HPBar, Widgets.HPValue);
+	AddVital(LOCTEXT("EP", "EP"), EPColor, Widgets.EPBar, Widgets.EPValue);
+	AddToColumn(Card, Vitals);
+	Widgets.Pillars = Pillars;
+	Widgets.Weapon = Weapon;
+	Widgets.Vitals = Vitals;
 	if (UScrollBoxSlot *CardSlot = Cast<UScrollBoxSlot>(SeatList->AddChild(Frame)))
 	{
 		CardSlot->SetPadding(FMargin(0.0f, 0.0f, 0.0f, CardGap));
@@ -337,6 +375,25 @@ void UPartyScreenWidget::RefreshData()
 		Widgets.ClassLine->SetText(Member.ClassName);
 		Widgets.PlayedBy->SetText(Member.PlayedBy);
 		Widgets.Seat->SetText(FText::Format(LOCTEXT("Seat", "Seat {0}"), Index + 1));
+		// B-628b: Mind / Body / Spirit, the active weapon, and HP / EP when their maximums can be read.
+		if (Widgets.Pillars.IsValid() && Widgets.Weapon.IsValid())
+		{
+			Widgets.Pillars->SetText(FText::Format(LOCTEXT("Pillars", "Mind {0}    Body {1}    Spirit {2}"), Member.Mind, Member.Body, Member.Spirit));
+			Widgets.Weapon->SetText(Member.Weapon);
+			SetShown(Widgets.Weapon.Get(), !Member.Weapon.IsEmpty());
+		}
+		const bool bHasVitals = Member.MaxHP > 0 && Member.MaxEP > 0;
+		SetShown(Widgets.Vitals.Get(), bHasVitals);
+		if (bHasVitals && Widgets.HPBar.IsValid() && Widgets.EPBar.IsValid() && Widgets.HPValue.IsValid() && Widgets.EPValue.IsValid())
+		{
+			const float HPFraction = static_cast<float>(Member.HP) / Member.MaxHP;
+			const FText ValueFormat = LOCTEXT("VitalValue", "{0}/{1}");
+			Widgets.HPBar->SetPercent(HPFraction);
+			Widgets.HPBar->SetFillColorAndOpacity(HPFraction < LowHPFraction ? LowHPBarColor : HPColor);
+			Widgets.HPValue->SetText(FText::Format(ValueFormat, Member.HP, Member.MaxHP));
+			Widgets.EPBar->SetPercent(static_cast<float>(Member.EP) / Member.MaxEP);
+			Widgets.EPValue->SetText(FText::Format(ValueFormat, Member.EP, Member.MaxEP));
+		}
 	}
 	RefreshSelection();
 }
