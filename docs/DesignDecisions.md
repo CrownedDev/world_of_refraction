@@ -1471,15 +1471,15 @@ Enemy attacks keep Standard. A skill set to Melee Rush, Ranged Release, Heavy Wi
 **Reference:** Final Fantasy XIII's enemy screen fills in as you fight that enemy, and Octopath Traveler 2 shows a weakness once you hit it (https://progameguides.com/octopath-traveler-2/octopath-traveler-2-weakness-order/). The deckbuilder has no rule for it: it isn't a match engine.
 **Built (B-586), with these build defaults (Crown may change):** only elements are listed under Weak to / Resists (a physical type carries no damage multiplier, Q-145, so (1)'s physical lines have nothing to show); a neutral element is never listed, it only leaves the "?" line; the enemy's HP number stays hidden though the picture shows one (Q-391); a heal or a hit on the party teaches nothing; what is learned is not in the save, so loading a run mid-way starts it blank again; while Intel is open every combat menu key stands down and Back closes it.
 
-### D-275 — Weapon buffs can't be infused
+### D-275 — Weapon buffs and debuffs can't be infused
 **Status:** ANSWERED (Crown, 2026-11-25) · **Raised:** 2026-11-25 (Crown, planning the Rally buff) · **Blocks:** B-620
-**Crown:** "weapon buffs cannot be infused with elements".
+**Crown:** "weapon buffs cannot be infused with elements", and debuffs too. "spells buffs would be fine since they are naturally infused".
 **Ruled:**
-- A **weapon buff** is a weapon ability with **no damage and a buff or heal effect, aimed at its user or an ally** (a buff like Rally). It takes **no infusion**: no element, no level.
-- The Act panel shows no infusion line for it; an infusion sent with it anyway is ignored (the buff still runs).
+- A **weapon buff or debuff** is a weapon ability with **no damage and a buff, heal or debuff effect, whatever its target** (a buff like Rally). It takes **no infusion**: no element, no level.
+- The Act panel shows no infusion line for it; an infusion sent with it anyway is ignored (the skill still runs).
 - Using one leaves the fighter's kept infusion (Q-613) as it was, on for the next strike.
-- A no-damage weapon skill aimed at a foe (a debuff) is not a buff and can still be infused.
-**Built:** B-620 (`SupportSkillRules::IsWeaponBuff`).
+- **Weapon abilities only.** Spell buffs and debuffs keep their infusion as before: spells are naturally elemental.
+**Built:** B-620 (`SupportSkillRules::IsWeaponBuffOrDebuff`).
 
 ### D-274 — Every fighter starts a fight with 1 action
 **Status:** ANSWERED (Crown, 2026-11-24) · **Raised:** 2026-11-24 (Crown, play-testing action pips) · **Blocks:** B-605
