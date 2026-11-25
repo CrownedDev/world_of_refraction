@@ -81,4 +81,8 @@ namespace WoRGateScreen
 	WORLD_OF_REFRACTION_API FText Enter(UGameInstance *GameInstance, UTrialData *Gate, int32 TrialIndex, ETrialDifficulty Difficulty);
 
 	WORLD_OF_REFRACTION_API FString GetGateScreenString(UWorld *World);
+
+	/** B-615 (D-221, Q-615): the line the Loadout screen keeps while opened from the gate. Changes there are the home
+	 *  gear's; a trial starts every member on the class kit. */
+	WORLD_OF_REFRACTION_API FText GetLoadoutKitNote();
 }

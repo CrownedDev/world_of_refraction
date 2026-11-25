@@ -281,6 +281,12 @@ ULoadoutV2ScreenWidget *ULoadoutV2ScreenWidget::OpenWithLoadout(APlayerControlle
 	return Screen;
 }
 
+void ULoadoutV2ScreenWidget::SetStandingNote(const FText &Note)
+{
+	StandingNote = Note;
+	RefreshView();
+}
+
 TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 {
 	using namespace LoadoutV2ScreenStyle;
@@ -452,6 +458,7 @@ void ULoadoutV2ScreenWidget::NativeOnActivated()
 {
 	Super::NativeOnActivated();
 	Message = FText::GetEmpty();
+	StandingNote = FText::GetEmpty(); // the stack reuses a closed screen: the Gate sets its note after each open
 	Mode = ELoadoutV2Mode::List;
 	bEditing = false;
 	Draft = FLoadoutV2Draft();
@@ -2018,8 +2025,9 @@ void ULoadoutV2ScreenWidget::RefreshBox()
 	}
 	CompareText->SetText(Compare);
 	SetShown(CompareText, !Compare.IsEmpty());
-	WoRKeyHints::SetHint(MessageText, Message);
-	SetShown(MessageText, !Message.IsEmpty());
+	const FText MessageLine = PickMessageLine(Message, StandingNote);
+	WoRKeyHints::SetHint(MessageText, MessageLine);
+	SetShown(MessageText, !MessageLine.IsEmpty());
 	// B-481: the footer is a pattern; {ViewName} is the view X switches to.
 	FFormatNamedArguments HintArguments;
 	HintArguments.Add(TEXT("ViewName"), bSimpleView ? LOCTEXT("ViewFull", "Full") : LOCTEXT("ViewSimple", "Simple"));
