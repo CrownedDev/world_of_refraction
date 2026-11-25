@@ -1196,12 +1196,25 @@ void ACombatOrchestrator::HandleTurnStarted(AActor *Actor, int32 TurnNumber)
 		// B-624c: fire next tick. Right after the caster's own action this turn starts in the frame its last montage
 		// ended, and the anim instance's return to stance stomps a montage started in that frame (the executor plays
 		// chain legs next tick for the same reason): the strike was cut at once and the turn moved on.
-		GetWorld()->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this]()
+		// Held like the boss-cinematic hold: no action can be submitted in the gap; a stale tick (the turn ended
+		// meanwhile) does nothing.
+		UWorld *World = GetWorld();
+		if (!World)
 		{
-			if (CombatState == ECombatState::InProgress)
+			FireScheduledExecution();
+			return;
+		}
+		bWaitingForAsyncAction = true;
+		const int32 FireTurn = CurrentTurnNumber;
+		World->GetTimerManager().SetTimerForNextTick(FTimerDelegate::CreateWeakLambda(this, [this, FireTurn]()
+		{
+			if (CombatState != ECombatState::InProgress || CurrentTurnNumber != FireTurn || !TurnManagerRef ||
+				TurnManagerRef->GetCurrentTurnType() != ETurnType::Execution)
 			{
-				FireScheduledExecution();
+				return;
 			}
+			bWaitingForAsyncAction = false; // StartActionAsync owns it from here
+			FireScheduledExecution();
 		}));
 		return;
 	}

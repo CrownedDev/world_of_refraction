@@ -174,8 +174,10 @@ void FCombatRitualFireSpec::Define()
 		Orchestrator->OnActionCompleted(); // the caster's action ends: its Execution turn starts in this frame
 		TestTrue(TEXT("on the Execution turn"), TurnManager->GetCurrentTurnType() == ETurnType::Execution);
 		TestEqual(TEXT("nothing fired in that frame"), Recorder->Entries.Num(), 0);
+		Orchestrator->SubmitActionAsync(MakeDefend()); // refused: the turn is the ritual's
 		TestWorld->Tick(RITUAL_SETTLE_FRAMES);
 		TestTrue(TEXT("it fired on the next tick"), Recorder->Saw(Hero, EActionType::Defend, true));
+		TestEqual(TEXT("only the ritual acted on its turn"), Recorder->Entries.Num(), 1);
 		TestTrue(TEXT("and the turn moved on"), TurnManager->GetCurrentTurnType() == ETurnType::Normal);
 	});
 

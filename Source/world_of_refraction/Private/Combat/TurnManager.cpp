@@ -564,7 +564,8 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	// the prior lazy drop: only ready entries are examined; a not-ready dead entry is left.
 	for (int32 p = 0; p < Pending.Num();)
 	{
-		if (Pending[p].TurnsRemaining <= 0)
+		// B-624c: a ritual counts only its caster's turns, so a dead caster's never gets ready; drop it at once.
+		if (Pending[p].TurnsRemaining <= 0 || Pending[p].Type == ETurnType::Execution)
 		{
 			bool bGranteeAlive = false;
 			if (IsValid(Pending[p].Actor))
