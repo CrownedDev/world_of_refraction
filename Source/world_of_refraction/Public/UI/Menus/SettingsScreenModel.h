@@ -42,7 +42,18 @@ enum class ESettingId : uint8
 	Subtitles,
 	IntelKey,
 	TurnOrderLayout,
-	TurnsShown
+	TurnsShown,
+	/** B-631: a Controls page row, a fixed key (D-063); nothing changes it. */
+	FixedKey
+};
+
+/** B-631: one choice a setting has, as Details lists it (or a fixed key's key on one device). */
+struct FSettingsChoice
+{
+	FText Name;
+	/** What the choice does, in plain words; empty when the name says it all. */
+	FText What;
+	bool bDefault = false;
 };
 
 struct FSettingsRow
@@ -53,10 +64,17 @@ struct FSettingsRow
 	FText Value;
 	/** The side panel's plain-words explanation. */
 	FText Explanation;
-	/** Why the row can't be changed (not built yet); empty when it can. */
+	/** Why the row can't be changed (not built yet, or a fixed key); empty when it can. */
 	FText Refusal;
+	/** B-631: every choice, in the order Left / Right steps them; none for a row that isn't built. */
+	TArray<FSettingsChoice> Choices;
+	/** B-631: the choice in use; INDEX_NONE when none is (a key row, a row that isn't built). */
+	int32 Current = INDEX_NONE;
+	/** B-631: an On / Off row, drawn as a switch. */
+	bool bSwitch = false;
 
 	bool CanChange() const { return Refusal.IsEmpty(); }
+	int32 GetDefaultChoice() const { return Choices.IndexOfByPredicate([](const FSettingsChoice &Choice) { return Choice.bDefault; }); }
 };
 
 /** One line of the Controls page: an action and its key on each device. */
@@ -89,9 +107,18 @@ namespace WoRSettingsScreen
 	/** The Controls page: the built keys, by section (InputMap.md). */
 	WORLD_OF_REFRACTION_API TArray<FSettingsKeyRow> BuildKeyRows();
 
+	/** B-631: the Controls page's kinds (BuildKeyRows' sections: Battle, Field, Menus). */
+	WORLD_OF_REFRACTION_API TArray<FText> GetKeySections();
+
+	/** B-631: one kind's keys as rows ("Attack", "1 / A"), each with its key per device as Details' choices. */
+	WORLD_OF_REFRACTION_API TArray<FSettingsRow> BuildKeyPage(int32 Section);
+
 	/** Steps the setting one value in Direction (+1 / -1; a toggle flips either way). True when it changed.
 	 *  The change is live at once and reaches the save file with SaveChanges. */
 	WORLD_OF_REFRACTION_API bool ChangeSetting(UWorld *World, ESettingId Id, int32 Direction);
+
+	/** B-631: puts the setting on its Choice (a Details card, or Y's default). True when it changed. */
+	WORLD_OF_REFRACTION_API bool SetSettingChoice(UWorld *World, ESettingId Id, int32 Choice);
 
 	/** Writes the settings to the save file (the screen calls it on closing after a change). */
 	WORLD_OF_REFRACTION_API void SaveChanges(UWorld *World);

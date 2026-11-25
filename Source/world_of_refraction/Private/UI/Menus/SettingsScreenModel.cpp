@@ -44,6 +44,32 @@ namespace SettingsScreenBuild
 						LOCTEXT("BattleControlsExplain", "How you move through the skill menu in a fight. Shortcuts is faster; Omni D-pad uses fewer buttons. Both reach every skill."));
 	}
 
+	FSettingsChoice Choice(const FText &Name, const FText &What, bool bDefault)
+	{
+		FSettingsChoice Out;
+		Out.Name = Name;
+		Out.What = What;
+		Out.bDefault = bDefault;
+		return Out;
+	}
+
+	/** B-631: an On / Off row: its value, its two choices (On first) and the switch look. */
+	void SetSwitch(FSettingsRow &Row, bool bOn, bool bDefaultOn, const FText &OnWhat, const FText &OffWhat)
+	{
+		Row.Value = OnOff(bOn);
+		Row.Choices = {Choice(OnOff(true), OnWhat, bDefaultOn), Choice(OnOff(false), OffWhat, !bDefaultOn)};
+		Row.Current = bOn ? 0 : 1;
+		Row.bSwitch = true;
+	}
+
+	/** B-631: a row of named choices (Left / Right step them in this order); Current is the one in use. */
+	void SetChoices(FSettingsRow &Row, TArray<FSettingsChoice> &&Choices, int32 Current)
+	{
+		Row.Choices = MoveTemp(Choices);
+		Row.Current = Row.Choices.IsValidIndex(Current) ? Current : INDEX_NONE;
+		Row.Value = Row.Choices.IsValidIndex(Current) ? Row.Choices[Current].Name : FText::GetEmpty();
+	}
+
 	FSettingsKeyRow Heading(const FText &Section)
 	{
 		FSettingsKeyRow Row;
@@ -95,15 +121,21 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		FSettingsRow TurnView;
 		TurnView.Id = ESettingId::TurnView;
 		TurnView.Label = FCombatCameraRules::GetTurnViewSettingName();
-		TurnView.Value = FCombatCameraRules::GetTurnViewStyleName(Save ? Save->GetTurnViewStyle() : ETurnViewStyle::OverTheShoulder);
 		TurnView.Explanation = LOCTEXT("TurnViewExplain", "Where the camera sits on your turn in a fight: behind and above the character, over their shoulder, or from the side.");
+		// In ETurnViewStyle's order, so Left / Right step as ChangeSetting does; Over the Shoulder is the default (Q-600g).
+		SetChoices(TurnView,
+				   {Choice(FCombatCameraRules::GetTurnViewStyleName(ETurnViewStyle::CentredWide), LOCTEXT("TurnViewWide", "Behind and above your side; the whole fight on screen."), false),
+					Choice(FCombatCameraRules::GetTurnViewStyleName(ETurnViewStyle::OverTheShoulder), LOCTEXT("TurnViewShoulder", "Close behind the fighter whose turn it is."), true),
+					Choice(FCombatCameraRules::GetTurnViewStyleName(ETurnViewStyle::Tactical), LOCTEXT("TurnViewTactical", "From the side: both rows and their places easy to read."), false)},
+				   static_cast<int32>(Save ? Save->GetTurnViewStyle() : ETurnViewStyle::OverTheShoulder));
 		Rows.Add(TurnView);
 
 		FSettingsRow EndTurn;
 		EndTurn.Id = ESettingId::EndTurnButton;
 		EndTurn.Label = LOCTEXT("EndTurnButton", "End Turn button");
-		EndTurn.Value = OnOff(!Save || !Save->IsEndTurnButtonHidden());
 		EndTurn.Explanation = LOCTEXT("EndTurnExplain", "Shows the End Turn button on the battle menu.");
+		SetSwitch(EndTurn, !Save || !Save->IsEndTurnButtonHidden(), true, LOCTEXT("EndTurnOn", "The battle menu shows End Turn."),
+				  LOCTEXT("EndTurnOff", "Hidden from the battle menu."));
 		Rows.Add(EndTurn);
 
 		Rows.Add(NotBuilt(ESettingId::CornerHints, LOCTEXT("CornerHints", "Button hints"),
@@ -113,30 +145,42 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		FSettingsRow Idle; // B-453e (D-190)
 		Idle.Id = ESettingId::AIFinishesTurn;
 		Idle.Label = LOCTEXT("AIFinishesTurn", "Auto-finish turn");
-		Idle.Value = OnOff(Save && Save->IsAIFinishesIdleTurnOn());
 		Idle.Explanation = FText::Format(LOCTEXT("AIFinishesTurnExplain", "If you don't act for {0} seconds, the AI plays the rest of your turn. Your next turn is yours again."),
 										 FText::AsNumber(FMath::RoundToInt32(ACombatOrchestrator::GetIdleTurnSeconds())));
+		SetSwitch(Idle, Save && Save->IsAIFinishesIdleTurnOn(), false, LOCTEXT("AIFinishesOn", "When you idle, the AI plays the rest of your turn."),
+				  LOCTEXT("AIFinishesOff", "Your turn waits for you."));
 		Rows.Add(Idle);
 		Rows.Add(NotBuilt(ESettingId::TutorialTips, LOCTEXT("TutorialTips", "Tutorial tips"),
 						  LOCTEXT("TutorialTipsExplain", "Short tips the first time something new comes up.")));
 		FSettingsRow Intel; // B-587 (D-262)
 		Intel.Id = ESettingId::IntelKey;
 		Intel.Label = LOCTEXT("IntelKey", "Intel key");
-		Intel.Value = !Save || Save->IsIntelKeyCycle() ? LOCTEXT("IntelKeyCycle", "Cycle") : LOCTEXT("IntelKeyOpenClose", "Open and close");
 		Intel.Explanation = LOCTEXT("IntelKeyExplain", "V / R3 in a fight. Cycle: the first press shows your party, the second the enemies, the third closes it. Open and close: each press opens or closes it. Holding it always closes.");
+		SetChoices(Intel,
+				   {Choice(LOCTEXT("IntelKeyCycle", "Cycle"), LOCTEXT("IntelKeyCycleWhat", "Your party, then the enemies, then closed."), true),
+					Choice(LOCTEXT("IntelKeyOpenClose", "Open and close"), LOCTEXT("IntelKeyOpenCloseWhat", "Each press opens or closes it."), false)},
+				   !Save || Save->IsIntelKeyCycle() ? 0 : 1);
 		Rows.Add(Intel);
 		FSettingsRow Layout; // B-590 (D-264)
 		Layout.Id = ESettingId::TurnOrderLayout;
 		Layout.Label = LOCTEXT("TurnOrderLayout", "Turn order layout");
-		Layout.Value = Save && Save->IsTurnOrderColumn() ? LOCTEXT("TurnOrderColumn", "Column") : LOCTEXT("TurnOrderRow", "Row");
 		Layout.Explanation = LOCTEXT("TurnOrderLayoutExplain", "How the fight's turn order sits at the top right: a row across, or a column down the side.");
+		SetChoices(Layout,
+				   {Choice(LOCTEXT("TurnOrderRow", "Row"), LOCTEXT("TurnOrderRowWhat", "A row across the top right."), true),
+					Choice(LOCTEXT("TurnOrderColumn", "Column"), LOCTEXT("TurnOrderColumnWhat", "A column down the right side."), false)},
+				   Save && Save->IsTurnOrderColumn() ? 1 : 0);
 		Rows.Add(Layout);
 		FSettingsRow Turns; // B-590 (D-264)
 		Turns.Id = ESettingId::TurnsShown;
 		Turns.Label = LOCTEXT("TurnsShown", "Turns shown");
-		Turns.Value = FText::AsNumber(Save ? Save->GetTurnsShown() : BattleHUDView::DEFAULT_TURNS_SHOWN);
 		Turns.Explanation = FText::Format(LOCTEXT("TurnsShownExplain", "How many turns the turn order shows, the current one included: {0} to {1}."),
 										  FText::AsNumber(BattleHUDView::MIN_TURNS_SHOWN), FText::AsNumber(BattleHUDView::MAX_TURNS_SHOWN));
+		TArray<FSettingsChoice> Counts;
+		for (int32 Count = BattleHUDView::MIN_TURNS_SHOWN; Count <= BattleHUDView::MAX_TURNS_SHOWN; ++Count)
+		{
+			Counts.Add(Choice(FText::AsNumber(Count), FText::GetEmpty(), Count == BattleHUDView::DEFAULT_TURNS_SHOWN));
+		}
+		SetChoices(Turns, MoveTemp(Counts), (Save ? Save->GetTurnsShown() : BattleHUDView::DEFAULT_TURNS_SHOWN) - BattleHUDView::MIN_TURNS_SHOWN);
 		Rows.Add(Turns);
 	}
 	else if (Page == ESettingsPage::Accessibility)
@@ -145,32 +189,43 @@ TArray<FSettingsRow> WoRSettingsScreen::BuildRows(const UWorld *World, ESettings
 		FSettingsRow Text; // B-453d (D-190)
 		Text.Id = ESettingId::TextSize;
 		Text.Label = WoRTextSize::GetSettingName();
-		Text.Value = WoRTextSize::GetLevelName(Save ? Save->GetTextSizeLevel() : ETextSizeLevel::Normal);
 		Text.Explanation = LOCTEXT("TextSizeExplain", "Makes the text in menus and in fights larger: the whole screen's text and panels grow together.");
+		SetChoices(Text,
+				   {Choice(WoRTextSize::GetLevelName(ETextSizeLevel::Normal), LOCTEXT("TextSizeNormal", "The game's own size."), true),
+					Choice(WoRTextSize::GetLevelName(ETextSizeLevel::Large), LOCTEXT("TextSizeLarge", "Text and panels one size up."), false),
+					Choice(WoRTextSize::GetLevelName(ETextSizeLevel::Larger), LOCTEXT("TextSizeLarger", "Text and panels two sizes up."), false)},
+				   static_cast<int32>(Save ? Save->GetTextSizeLevel() : ETextSizeLevel::Normal));
 		Rows.Add(Text);
 		FSettingsRow Movement; // B-453b (D-190, D-078)
 		Movement.Id = ESettingId::FightCameraMovement;
 		Movement.Label = LOCTEXT("FightCameraMovement", "Camera motion");
-		Movement.Value = OnOff(!Save || !Save->IsFightCameraMovementOff());
 		Movement.Explanation = LOCTEXT("FightCameraMovementExplain", "Off keeps the camera still during attacks, for anyone the movement makes unwell.");
+		SetSwitch(Movement, !Save || !Save->IsFightCameraMovementOff(), true, LOCTEXT("FightCameraMovementOn", "The camera moves with attacks."),
+				  LOCTEXT("FightCameraMovementOff", "One still view through the fight."));
 		Rows.Add(Movement);
 		FSettingsRow Shake; // B-453a (D-190)
 		Shake.Id = ESettingId::ScreenShake;
 		Shake.Label = FCombatCameraRules::GetScreenShakeSettingName();
-		Shake.Value = FCombatCameraRules::GetScreenShakeLevelName(Save ? Save->GetScreenShakeLevel() : EScreenShakeLevel::Full);
 		Shake.Explanation = LOCTEXT("ScreenShakeExplain", "How much the screen shakes on heavy hits: full, reduced to half, or off.");
+		SetChoices(Shake,
+				   {Choice(FCombatCameraRules::GetScreenShakeLevelName(EScreenShakeLevel::Full), LOCTEXT("ScreenShakeFull", "Heavy hits shake the screen."), true),
+					Choice(FCombatCameraRules::GetScreenShakeLevelName(EScreenShakeLevel::Reduced), LOCTEXT("ScreenShakeReduced", "Half the shake."), false),
+					Choice(FCombatCameraRules::GetScreenShakeLevelName(EScreenShakeLevel::Off), LOCTEXT("ScreenShakeOff", "The screen stays still."), false)},
+				   static_cast<int32>(Save ? Save->GetScreenShakeLevel() : EScreenShakeLevel::Full));
 		Rows.Add(Shake);
 		FSettingsRow Hold; // B-453c (D-190)
 		Hold.Id = ESettingId::HoldToConfirm;
 		Hold.Label = LOCTEXT("HoldToConfirm", "Hold to confirm");
-		Hold.Value = OnOff(!Save || Save->IsHoldToConfirmOn());
 		Hold.Explanation = LOCTEXT("HoldToConfirmExplain", "Asks you to hold the button, not press it, before something that can't be undone. Off: a second press confirms.");
+		SetSwitch(Hold, !Save || Save->IsHoldToConfirmOn(), true, LOCTEXT("HoldToConfirmOn", "Hold the button before something that can't be undone."),
+				  LOCTEXT("HoldToConfirmOff", "A second press confirms."));
 		Rows.Add(Hold);
 		FSettingsRow Letters; // B-453f (D-190)
 		Letters.Id = ESettingId::ElementLetters;
 		Letters.Label = LOCTEXT("ElementLetters", "Element letters");
-		Letters.Value = OnOff(Save && Save->IsElementLettersOn());
 		Letters.Explanation = LOCTEXT("ElementLettersExplain", "Adds a letter to each element's colour, so elements can be told apart without colour: damage numbers read \"120 Fi\" and the status line names the element.");
+		SetSwitch(Letters, Save && Save->IsElementLettersOn(), false, LOCTEXT("ElementLettersOn", "Damage numbers and status lines name the element."),
+				  LOCTEXT("ElementLettersOff", "Colour only."));
 		Rows.Add(Letters);
 		Rows.Add(NotBuilt(ESettingId::Subtitles, LOCTEXT("Subtitles", "Subtitles"), LOCTEXT("SubtitlesExplain", "Shows spoken lines as text.")));
 	}
@@ -207,14 +262,8 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	using namespace SettingsScreenBuild;
 
 	// The built rows of docs/Design/InputMap.md; a key added there gets its row here in the same change.
+	// B-631: Battle first, as the settings v2 mockup's kind plate (Battle, Field, Menus).
 	TArray<FSettingsKeyRow> Rows;
-	Rows.Add(Heading(LOCTEXT("SectionField", "Field")));
-	Rows.Add(Key(LOCTEXT("KeyMove", "Move"), LOCTEXT("KeyMoveKB", "W A S D"), LOCTEXT("KeyMovePad", "Left stick")));
-	Rows.Add(Key(LOCTEXT("KeyCamera", "Camera"), LOCTEXT("KeyCameraKB", "Mouse"), LOCTEXT("KeyCameraPad", "Right stick")));
-	Rows.Add(Key(LOCTEXT("KeySprint", "Sprint"), LOCTEXT("KeySprintKB", "Left Shift (hold)"), LOCTEXT("KeySprintPad", "L3")));
-	Rows.Add(Key(LOCTEXT("KeyInteract", "Interact"), LOCTEXT("KeyInteractKB", "E"), LOCTEXT("KeyInteractPad", "X")));
-	Rows.Add(Key(LOCTEXT("KeyMenu", "Game menu"), LOCTEXT("KeyMenuKB", "Esc"), LOCTEXT("KeyMenuPad", "Menu")));
-
 	Rows.Add(Heading(LOCTEXT("SectionBattle", "Battle")));
 	Rows.Add(Key(LOCTEXT("KeyAttack", "Attack"), LOCTEXT("KeyAttackKB", "1"), LOCTEXT("KeyAttackPad", "A")));
 	Rows.Add(Key(LOCTEXT("KeySkills", "Skills"), LOCTEXT("KeySkillsKB", "2"), LOCTEXT("KeySkillsPad", "X")));
@@ -231,6 +280,13 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Key(LOCTEXT("KeyIntelStep", "Intel previous / next"), LOCTEXT("KeyIntelStepKB", "Q / E"), LOCTEXT("KeyIntelStepPad", "LB / RB")));
 	Rows.Add(Key(LOCTEXT("KeySkipCinematic", "Skip a cinematic"), LOCTEXT("KeySkipCinematicKB", "Tab"), LOCTEXT("KeySkipCinematicPad", "Menu")));
 
+	Rows.Add(Heading(LOCTEXT("SectionField", "Field")));
+	Rows.Add(Key(LOCTEXT("KeyMove", "Move"), LOCTEXT("KeyMoveKB", "W A S D"), LOCTEXT("KeyMovePad", "Left stick")));
+	Rows.Add(Key(LOCTEXT("KeyCamera", "Camera"), LOCTEXT("KeyCameraKB", "Mouse"), LOCTEXT("KeyCameraPad", "Right stick")));
+	Rows.Add(Key(LOCTEXT("KeySprint", "Sprint"), LOCTEXT("KeySprintKB", "Left Shift (hold)"), LOCTEXT("KeySprintPad", "L3")));
+	Rows.Add(Key(LOCTEXT("KeyInteract", "Interact"), LOCTEXT("KeyInteractKB", "E"), LOCTEXT("KeyInteractPad", "X")));
+	Rows.Add(Key(LOCTEXT("KeyMenu", "Game menu"), LOCTEXT("KeyMenuKB", "Esc"), LOCTEXT("KeyMenuPad", "Menu")));
+
 	Rows.Add(Heading(LOCTEXT("SectionMenus", "Menus")));
 	Rows.Add(Key(LOCTEXT("KeyMenuMove", "Move"), LOCTEXT("KeyMenuMoveKB", "Arrows, W / S"), LOCTEXT("KeyMenuMovePad", "D-pad, left stick")));
 	Rows.Add(Key(LOCTEXT("KeyMenuSelect", "Select"), LOCTEXT("KeyMenuSelectKB", "Enter, Space"), LOCTEXT("KeyMenuSelectPad", "A")));
@@ -239,6 +295,85 @@ TArray<FSettingsKeyRow> WoRSettingsScreen::BuildKeyRows()
 	Rows.Add(Key(LOCTEXT("KeyMenuCharacter", "Previous / next character"), LOCTEXT("KeyMenuCharacterKB", "Z / C"), LOCTEXT("KeyMenuCharacterPad", "LT / RT")));
 	Rows.Add(Key(LOCTEXT("KeyMenuChange", "Change"), LOCTEXT("KeyMenuChangeKB", "Left / Right, A / D"), LOCTEXT("KeyMenuChangePad", "D-pad left / right")));
 	return Rows;
+}
+
+TArray<FText> WoRSettingsScreen::GetKeySections()
+{
+	TArray<FText> Sections;
+	for (const FSettingsKeyRow &Row : BuildKeyRows())
+	{
+		if (Row.IsHeading())
+		{
+			Sections.Add(Row.Section);
+		}
+	}
+	return Sections;
+}
+
+TArray<FSettingsRow> WoRSettingsScreen::BuildKeyPage(int32 Section)
+{
+	using namespace SettingsScreenBuild;
+
+	TArray<FSettingsRow> Rows;
+	int32 SectionIndex = INDEX_NONE;
+	for (const FSettingsKeyRow &KeyRow : BuildKeyRows())
+	{
+		if (KeyRow.IsHeading())
+		{
+			++SectionIndex;
+			continue;
+		}
+		if (SectionIndex != Section)
+		{
+			continue;
+		}
+		FSettingsRow Row;
+		Row.Id = ESettingId::FixedKey;
+		Row.Label = KeyRow.Action;
+		Row.Value = FText::Format(LOCTEXT("KeyValue", "{0} / {1}"), KeyRow.Keyboard, KeyRow.Gamepad);
+		Row.Refusal = GetPageNote(ESettingsPage::Controls);
+		Row.Choices = {Choice(LOCTEXT("DeviceKeyboard", "Keyboard"), KeyRow.Keyboard, false), Choice(LOCTEXT("DeviceController", "Controller"), KeyRow.Gamepad, false)};
+		Rows.Add(Row);
+	}
+	return Rows;
+}
+
+bool WoRSettingsScreen::SetSettingChoice(UWorld *World, ESettingId Id, int32 Choice)
+{
+	// The setting's row, from whichever page lists it (the battle controls row is on two).
+	const auto FindRow = [World, Id](FSettingsRow &Out)
+	{
+		for (const ESettingsPage Page : {ESettingsPage::Gameplay, ESettingsPage::Accessibility})
+		{
+			for (FSettingsRow &Row : BuildRows(World, Page))
+			{
+				if (Row.Id == Id)
+				{
+					Out = MoveTemp(Row);
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+	FSettingsRow Row;
+	if (!FindRow(Row) || !Row.CanChange() || !Row.Choices.IsValidIndex(Choice) || Row.Current == INDEX_NONE)
+	{
+		return false;
+	}
+	// One step at a time, so ChangeSetting stays the one place a setting changes; never more than a lap.
+	const int32 Direction = Choice > Row.Current ? 1 : -1;
+	bool bChanged = false;
+	for (int32 Step = 0; Step < Row.Choices.Num() && Row.Current != Choice; ++Step)
+	{
+		if (!ChangeSetting(World, Id, Direction) || !FindRow(Row))
+		{
+			break;
+		}
+		bChanged = true;
+	}
+	UE_CLOG(Row.Current != Choice, LogWoRUI, Warning, TEXT("[Settings] %s: choice %d not reached (on %d)"), *Row.Label.ToString(), Choice, Row.Current);
+	return bChanged;
 }
 
 bool WoRSettingsScreen::ChangeSetting(UWorld *World, ESettingId Id, int32 Direction)
@@ -331,6 +466,10 @@ FString WoRSettingsScreen::GetSettingsString(const UWorld *World)
 		for (const FSettingsRow &Row : BuildRows(World, Page))
 		{
 			Out += FString::Printf(TEXT("\n    %s = %s"), *Row.Label.ToString(), Row.CanChange() ? *Row.Value.ToString() : TEXT("(not built)"));
+			if (Row.Choices.Num() > 0)
+			{
+				Out += FString::Printf(TEXT(" (choice %d of %d, default %d)"), Row.Current + 1, Row.Choices.Num(), Row.GetDefaultChoice() + 1);
+			}
 		}
 		const FText Note = GetPageNote(Page);
 		if (!Note.IsEmpty())
