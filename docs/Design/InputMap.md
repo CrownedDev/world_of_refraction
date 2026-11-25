@@ -75,7 +75,9 @@ Fixed keys read by the screen itself while it's open (game input is off then), s
 | Yes / no question (the title's delete and new character) | Left / Right, A / D, mouse over Yes or No; Enter, Space, left click; Esc | D-pad, left stick; A (Cross); B (Circle) answers No | none (the screen's keys) | Built (B-546): opens on No, so a stray press never deletes |
 | Credits: scroll faster | hold Enter, Space or the left button | hold A (Cross) | none | Built (B-470): five times faster while held; B / Esc leaves |
 | Previous / next page (the top tab row) | Q / E, click a tab | LB / RB (L1 / R1) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_TabPrev` / `Next`) | Built (B-452, settings screen) |
-| Change a setting | Left / Right, A / D, Enter, click the row | D-pad left / right, left stick, A (Cross) | none | Built (B-452, settings screen). These letters are read only while a menu has the keys, so they don't clash with the field's |
+| Change a setting | Left / Right, A / D (a step); Enter (the next choice); click a Details choice, or the lit row | D-pad left / right, left stick; A (Cross) | none | Built (B-452, settings screen; B-631, Q-631: a click on another row only lights it). These letters are read only while a menu has the keys, so they don't clash with the field's |
+| Settings: put the lit setting back on its default | R, click the default's card | Y (Triangle) | none (the screen's keys) | Built (B-631, Q-631): `WoRMenuStyle::IsSecondActionKey` |
+| Settings, Controls: the kind (Battle, Field, Menus) on the ‹ › plate | Left / Right, A / D; click a word | D-pad / left stick left / right | none (the screen's keys) | Built (B-631, Q-631): `IsLeftKey` / `IsRightKey` |
 | Previous / next character (sub-tabs) | Z / C, click a tab | LT / RT (L2 / R2) | none (the screen's keys; `UIScreens.md` proposes `IA_UI_SubTabPrev` / `Next`) | Built (B-440a, loadout screen) |
 | Loadout: change the lit gear row (opens the picker); in the picker, put the lit piece in | Enter, Space, left click | A (Cross) | none (the screen's keys) | Retired (B-488: the first loadout screen is deleted; see the Loadout v2 rows) |
 | Loadout: unequip the lit gear row | X | X (Square) | none (the screen's keys) | Retired (B-488; v2: A Remove on the EQUIPPED line) |
@@ -273,3 +275,4 @@ Higher priority wins a key two contexts both map. The numbers live in `WoRInputP
 | 2026-11-25 | B-629 (Q-629): the Skills tab opens on the slots; Left / Right turn the entry, and in the picker Fits this slot / All learned | `feature/B-629-skills-tab` |
 | 2026-11-25 | B-628 (Q-628): the party screen's A moves the start place, Left / Right turn the seat, Y opens the loadout, X twice dismisses; no Invite row | `feature/B-628-party-screen` |
 | 2026-11-25 | B-630 (Q-630): the journal's kind turns on Left / Right (LT / RT kept); a row click only lights it, the Details buttons act | `feature/B-630-journal` |
+| 2026-11-25 | B-631 (Q-631): the settings screen's A takes the next choice, Y the default; Controls' Left / Right turn Battle / Field / Menus; a click on another row only lights it | `feature/B-631-settings` |
