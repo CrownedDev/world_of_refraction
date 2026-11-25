@@ -1312,6 +1312,17 @@ The queue of questions only Crown can answer.
 - **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
+### Q-611 — The training dummy's practice fight
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-611) · **Blocks:** nothing
+**Question:** what does a practice fight keep, how does it end, and what is the dummy?
+**Answer (default, built):**
+- Nobody falls: the dummy's HP and the party's refill at 0 (the hit's number still shows in full), so a backlash or HP cost can't end it either. The dummy never acts; its turn passes at once.
+- Home gear and home learned spells, as in the hub. Nothing is kept: no rewards, no crystal or evolution wear, no fight item used up, no Gold, no save, no memory unlocks, no loadout written back.
+- Leaving: the battle menu's Flee row reads **End practice** (5 / D-pad Down, no new key) and returns the party to where the leader stood by the dummy.
+- The dummy is the test trial's Generic enemy (`DA_Enemy_Generic`) on the trials' battle level (`TestLevel_Encounter`), both in `DefaultGame.ini` (`PracticeLevel`, `PracticeDummy`) until a dummy asset and arena exist.
+- Refused during a trial run (the dummy is a hub thing).
+**Reference:** FFXIV's striking dummies and Monster Hunter's training area: free practice, nothing at stake, damage numbers shown, leave any time (Crown's brief).
+
 ### Q-621 — A buff on yourself or an ally lands no hit, and a single-ally buff goes to the ally you picked
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-621, Crown: a self buff opened a DEFEND prompt and hit its user for 34) · **Blocks:** nothing
 **Question:** (1) What does a no-damage skill aimed at yourself or an ally do at its "hit"? (2) Where does a single-ally buff land? It always went to the caster (a TODO in the code).
