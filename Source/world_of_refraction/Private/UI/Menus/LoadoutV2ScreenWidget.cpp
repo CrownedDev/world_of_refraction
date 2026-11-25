@@ -416,9 +416,6 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		// B-629 (mockup menus/skills/v1): the Skills tab's ‹ entry › selector, the lit entry's name between the arrows.
 		SkillEntryPlate = MakeKindSelector(WidgetTree, 1, SkillEntryChips, SkillEntryUnderlines);
 		AddToColumn(ListColumn, SkillEntryPlate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
-		// B-629: the picker's ‹ Fits this slot  All learned ›.
-		SkillFitsPlate = MakeKindSelector(WidgetTree, SKILL_PICKER_KINDS, SkillFitsChips, SkillFitsUnderlines);
-		AddToColumn(ListColumn, SkillFitsPlate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		// B-440e: the saved loadout's new name; shown only while renaming.
 		NameBox = WidgetTree->ConstructWidget<UEditableTextBox>(UEditableTextBox::StaticClass(), TEXT("LoadoutNameBox"));
 		NameBox->SetHintText(LOCTEXT("NameHint", "Loadout name"));
@@ -487,6 +484,9 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		// B-614 (mockup v5): a slot's ‹ Weapon  Adapter  Evolution › (a socket's Crystal  Stone  Evolution), the same plate.
 		GridKindsPlate = MakeKindSelector(WidgetTree, PIECE_KINDS_PER_SLOT, GridKindChips, GridKindUnderlines);
 		AddToColumn(GridColumn, GridKindsPlate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
+		// B-629 (B-629b: over the skill picker's tiles): ‹ Fits this slot  All learned ›.
+		SkillFitsPlate = MakeKindSelector(WidgetTree, SKILL_PICKER_KINDS, SkillFitsChips, SkillFitsUnderlines);
+		AddToColumn(GridColumn, SkillFitsPlate, FMargin(0.0f, 0.0f, 0.0f, LineGap));
 		GridTabsRow = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		AddToColumn(GridColumn, GridTabsRow, FMargin(0.0f, 0.0f, 0.0f, SectionGap));
 		// The wheel: over a grid with more rows than fit, the scroll box takes it and scrolls (its default); otherwise
@@ -499,9 +499,9 @@ TSharedRef<SWidget> ULoadoutV2ScreenWidget::RebuildWidget()
 		AddToColumn(GridColumn, GridScroll)->SetSize(FSlateChildSize(ESlateSizeRule::Fill));
 		UHorizontalBox *GridLegend = WidgetTree->ConstructWidget<UHorizontalBox>(UHorizontalBox::StaticClass());
 		UTextBlock *WornWord = MakeText(WidgetTree, SmallFontSize, DimColor);
-		WornWord->SetText(LOCTEXT("GridLegendWorn", "worn"));
 		UTextBlock *LockWord = MakeText(WidgetTree, SmallFontSize, DimColor);
-		LockWord->SetText(LOCTEXT("GridLegendLocked", "can't go in this slot (why: in the details)"));
+		GridLegendWorn = WornWord; // their words: RefreshGrid (a slot's, or the skill picker's)
+		GridLegendLock = LockWord;
 		AddToRow(GridLegend, MakeTick(WidgetTree), FMargin(0.0f, 0.0f, WordGap, 0.0f));
 		AddToRow(GridLegend, WornWord, FMargin(0.0f, 0.0f, SectionGap, 0.0f));
 		AddToRow(GridLegend, MakeLock(WidgetTree), FMargin(0.0f, 0.0f, WordGap, 0.0f));
@@ -751,6 +751,74 @@ void ULoadoutV2ScreenWidget::RefreshSkills()
 		return;
 	}
 	SkillChoices = WoRLoadoutSkills::BuildSkillChoices(GetWorld(), Members[MemberIndex], SkillsPage.Source, SkillRows[SkillRowSelected].Tab, *Row, bSkillsAllLearned);
+	FilterSkillGrid();
+}
+
+namespace LoadoutV2SkillTiles
+{
+	/** The weapon type a skill needs, when it names one. */
+	bool GetNeededWeaponType(const USkillDataBase *Skill, EWeaponType &OutType)
+	{
+		if (!Skill)
+		{
+			return false;
+		}
+		const FSkillGearRequirement Need = Skill->GetGearRequirement();
+		OutType = Need.WeaponType;
+		return Need.Kind == ESkillGearKind::Weapon && Need.bNeedsWeaponType;
+	}
+
+	/** B-629b (mockup menus/skills/v1 2): a skill's tile picture is the piece it needs: a weapon type, an adapter (its
+	 *  element's badge in the frame), an evolution (its element's badge); none for any weapon. Its name is the word a
+	 *  tile with no picture shows. */
+	FWoRIcon MakeSkillIcon(const FLoadoutScreenChoice &Choice)
+	{
+		FWoRIcon Icon;
+		Icon.Name = Choice.Row.Name;
+		if (!Choice.Row.Skill)
+		{
+			return Icon;
+		}
+		const FSkillGearRequirement Need = Choice.Row.Skill->GetGearRequirement();
+		Icon.Element = Need.Element;
+		if (GetNeededWeaponType(Choice.Row.Skill, Icon.WeaponType))
+		{
+			Icon.Kind = EWoRIconKind::WeaponType;
+		}
+		else if (Need.Kind == ESkillGearKind::Adapter)
+		{
+			Icon.Kind = EWoRIconKind::Adapter;
+		}
+		else if (Need.Kind == ESkillGearKind::Evolution && Need.Element != ESpellElement::None)
+		{
+			Icon.Kind = EWoRIconKind::Element;
+		}
+		return Icon;
+	}
+}
+
+void ULoadoutV2ScreenWidget::FilterSkillGrid()
+{
+	TArray<EWeaponType> Types;
+	for (const FLoadoutScreenChoice &Choice : SkillChoices)
+	{
+		EWeaponType Type = EWeaponType::Sword;
+		if (LoadoutV2SkillTiles::GetNeededWeaponType(Choice.Row.Skill, Type))
+		{
+			Types.Add(Type);
+		}
+	}
+	GridPieceCount = SkillChoices.Num(); // before the filter
+	GridTypes = WoRLoadoutV2Grid::GetTypesPresent(Types);
+	bGridFiltered = bGridFiltered && GridTypes.Contains(GridFilter); // a type that left the choices: back to All
+	if (bGridFiltered)
+	{
+		SkillChoices.RemoveAll([this](const FLoadoutScreenChoice &Choice)
+							   {
+								   EWeaponType Type = EWeaponType::Sword;
+								   return !LoadoutV2SkillTiles::GetNeededWeaponType(Choice.Row.Skill, Type) || Type != GridFilter;
+							   });
+	}
 }
 
 void ULoadoutV2ScreenWidget::LogSkillsTab() const
@@ -1475,7 +1543,13 @@ FText ULoadoutV2ScreenWidget::GetHints() const
 		// X the view, as on Weapons; Y / R takes the lit skill out (B-488). B-629: the arrows' Left / Right turn the entry.
 		return LOCTEXT("HintsSkillRows", "{Confirm}  Change        {Arrows}  Entry        {Second}  Take out        {Toggle}  {ViewName}        {Tabs}  Page        {SubTabs}  Character        {Back}  Back");
 	case ELoadoutV2Mode::SkillPicker:
-		return LOCTEXT("HintsSkillPicker", "{Confirm}  Put in slot        {Arrows}  Fits / all        {Toggle}  {ViewName}        {Back}  Cancel");
+		// B-629b: the arrows move on the tiles; Up from the top row reaches the Fits / all selector.
+		if (IsOnSkillFits())
+		{
+			return LOCTEXT("HintsSkillFits", "{Arrows}  Fits / all        {Confirm}  To the skills        {Back}  Cancel");
+		}
+		return GridTypes.IsEmpty() ? LOCTEXT("HintsSkillPicker", "{Confirm}  Put in slot        {Toggle}  {ViewName}        {Back}  Cancel")
+								   : LOCTEXT("HintsSkillPickerFilter", "{Confirm}  Put in slot        {Tabs}  Filter        {Toggle}  {ViewName}        {Back}  Cancel");
 	case ELoadoutV2Mode::ApparelItems:
 		return Items.IsValidIndex(Selected) && Items[Selected].bEquipped ? LOCTEXT("HintsApparelEquipped", "{Confirm}  Remove        {Back}  Back")
 																		 : LOCTEXT("HintsApparelItems", "{Confirm}  Pick        {Back}  Back");
@@ -1586,6 +1660,7 @@ void ULoadoutV2ScreenWidget::RefreshView()
 		}
 		SkillFitsUnderlines[Index]->SetVisibility(bLit ? ESlateVisibility::HitTestInvisible : ESlateVisibility::Hidden);
 	}
+	SkillFitsPlate->SetBrushColor(IsOnSkillFits() ? FocusColor : PlateColor); // B-629b: lit while the keys are on it
 	if (UTextBlock *EntryWord = SkillEntryChips.Labels.IsEmpty() ? nullptr : SkillEntryChips.Labels[0].Get())
 	{
 		EntryWord->SetText(ShownSkillEntry ? ShownSkillEntry->Name : FText::GetEmpty());
@@ -1737,10 +1812,12 @@ void ULoadoutV2ScreenWidget::RefreshSelection()
 	{
 		SetItemColor(LineRows[Index], GetLineColor(Index, bSlotGrid));
 	}
-	const int32 TileCount = FMath::Min(bSlotGrid ? Items.Num() : InvPage.Tiles.Num(), GridTiles.Num());
+	const bool bPickGrid = IsPickGrid();
+	const int32 TileCount = FMath::Min(bPickGrid ? GetPickTileCount() : InvPage.Tiles.Num(), GridTiles.Num());
 	for (int32 Index = 0; Index < TileCount; ++Index)
 	{
-		SetItemColor(GridTiles[Index], GetTileColor(Index, bSlotGrid && !Items[Index].Refusal.IsEmpty(), bSlotGrid));
+		const bool bLocked = bSlotGrid ? !Items[Index].Refusal.IsEmpty() : bPickGrid && !SkillChoices[Index].Refusal.IsEmpty();
+		SetItemColor(GridTiles[Index], GetTileColor(Index, bLocked, bPickGrid));
 	}
 	ScrollToSelection();
 	RefreshBox();
@@ -1813,11 +1890,11 @@ void ULoadoutV2ScreenWidget::SetItemColor(UBorder *Item, const FLinearColor &Col
 
 UBorder *ULoadoutV2ScreenWidget::GetLitItem() const
 {
-	const bool bSlotGrid = IsGridOpen();
-	if (bSlotGrid || !bOnLoadoutSide)
+	const bool bPickGrid = IsPickGrid();
+	if (bPickGrid || !bOnLoadoutSide)
 	{
-		const int32 Tile = bSlotGrid ? Selected : InvSelected;
-		return (bSlotGrid || !IsAboveInventoryTiles()) && GridTiles.IsValidIndex(Tile) ? GridTiles[Tile].Get() : nullptr;
+		const int32 Tile = bPickGrid ? Selected : InvSelected;
+		return (bPickGrid || !IsAboveInventoryTiles()) && GridTiles.IsValidIndex(Tile) ? GridTiles[Tile].Get() : nullptr;
 	}
 	return bLoadoutOpen && LineRows.IsValidIndex(Selected) ? LineRows[Selected].Get() : nullptr;
 }
@@ -1938,10 +2015,13 @@ void ULoadoutV2ScreenWidget::ScrollToSelection()
 	// The grid's lit tile, the same way. The offset is set at once (ScrollWidgetIntoView waits a frame), so the card is
 	// Before the grid has been drawn its height isn't known: it opens at the top anyway, and the scroll is tried again
 	// once it is drawn (SettleViewNextFrame).
-	const int32 Tile = bSlotGrid ? Selected : bOnLoadoutSide || IsAboveInventoryTiles() ? static_cast<int32>(INDEX_NONE) : InvSelected;
-	const int32 TileCount = bSlotGrid ? Items.Num() : InvPage.Tiles.Num();
+	const bool bPickGrid = IsPickGrid();
+	const int32 Tile = bPickGrid ? Selected : bOnLoadoutSide || IsAboveInventoryTiles() ? static_cast<int32>(INDEX_NONE) : InvSelected;
+	const int32 TileCount = bPickGrid ? GetPickTileCount() : InvPage.Tiles.Num();
 	const int32 Columns = GetGridColumns();
-	const uint32 GridKey = HashCombine(HashCombine(HashCombine(GetTypeHash(Tile), GetTypeHash(TileCount)), HashCombine(GetTypeHash(SlotIndex), GetTypeHash(bSlotGrid))),
+	// B-629b: the skill picker's slot and selector too, so a picker opened again (or turned to All) starts at its top.
+	const uint32 PickKey = IsSkillGrid() ? HashCombine(GetTypeHash(SkillRowSelected), GetTypeHash(bSkillsAllLearned)) : GetTypeHash(SlotIndex);
+	const uint32 GridKey = HashCombine(HashCombine(HashCombine(GetTypeHash(Tile), GetTypeHash(TileCount)), HashCombine(PickKey, GetTypeHash(static_cast<uint8>(Mode)))),
 									   HashCombine(HashCombine(GetTypeHash(Columns), GetTypeHash(static_cast<uint8>(InvTab))),
 												   HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), HashCombine(GetTypeHash(bGridFiltered), GetTypeHash(static_cast<uint8>(GridFilter))))));
 	const float ViewHeight = GridScroll->GetCachedGeometry().GetLocalSize().Y;
@@ -2712,6 +2792,19 @@ void ULoadoutV2ScreenWidget::TurnEntryKind(ELoadoutV2DraftKind Kind)
 TArray<FLoadoutV2GridTile> ULoadoutV2ScreenWidget::GetGridTiles() const
 {
 	TArray<FLoadoutV2GridTile> Tiles;
+	if (IsSkillGrid())
+	{
+		for (const FLoadoutScreenChoice &Choice : SkillChoices)
+		{
+			FLoadoutV2GridTile &Tile = Tiles.AddDefaulted_GetRef();
+			Tile.Icon = LoadoutV2SkillTiles::MakeSkillIcon(Choice);
+			Tile.bWorn = Choice.bSlotted;
+			Tile.bLocked = !Choice.Refusal.IsEmpty();
+			Tile.bHasTier = Choice.Row.Skill != nullptr;
+			Tile.Tier = Choice.Row.Skill ? Choice.Row.Skill->Tier : Tile.Tier;
+		}
+		return Tiles;
+	}
 	for (int32 Index = 0; Index < Items.Num(); ++Index)
 	{
 		const FLoadoutV2WindowItem &Item = Items[Index];
@@ -2773,6 +2866,14 @@ void ULoadoutV2ScreenWidget::ApplyGridFilter()
 
 void ULoadoutV2ScreenWidget::LogGrid() const
 {
+	if (IsSkillGrid())
+	{
+		UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] skill grid, slot %d, %s%s, filter %s, %d of %d skill(s):\n%s"), SkillRowSelected + 1,
+			   bSkillsAllLearned ? TEXT("all learned") : TEXT("fits this slot"), IsOnSkillFits() ? TEXT(" (keys on the selector)") : TEXT(""),
+			   bGridFiltered ? *WoRGameNames::GetWeaponTypeName(GridFilter).ToString() : TEXT("All"), SkillChoices.Num(), GridPieceCount,
+			   *WoRLoadoutV2Grid::GetGridString(GetGridTiles(), WoRLoadoutV2Grid::COLUMNS, Selected));
+		return;
+	}
 	UE_LOG(LogWoRUI, Log, TEXT("[LoadoutV2] grid, %s, kind %s%s, filter %s, %d piece(s):\n%s"), Slots.IsValidIndex(SlotIndex) ? *GetSlotName(Slots[SlotIndex]).ToString() : TEXT("?"),
 		   *GetPieceKindName(GetGridKind()).ToString(), IsOnGridKinds() ? TEXT(" (keys on the selector)") : TEXT(""), // B-614
 		   bGridFiltered ? *WoRGameNames::GetWeaponTypeName(GridFilter).ToString() : TEXT("All"), GridPieceCount,
@@ -2781,11 +2882,11 @@ void ULoadoutV2ScreenWidget::LogGrid() const
 
 void ULoadoutV2ScreenWidget::MoveInGrid(int32 DeltaX, int32 DeltaY)
 {
-	if (!IsGridOpen())
+	if (!IsPickGrid())
 	{
 		return;
 	}
-	const int32 Target = WoRLoadoutV2Grid::Move(Selected, Items.Num(), WoRLoadoutV2Grid::COLUMNS, DeltaX, DeltaY);
+	const int32 Target = WoRLoadoutV2Grid::Move(Selected, GetPickTileCount(), WoRLoadoutV2Grid::COLUMNS, DeltaX, DeltaY);
 	if (Target != INDEX_NONE && Target != Selected)
 	{
 		MoveSelection(Target - Selected);
@@ -2794,7 +2895,7 @@ void ULoadoutV2ScreenWidget::MoveInGrid(int32 DeltaX, int32 DeltaY)
 
 void ULoadoutV2ScreenWidget::ClickGridTab(int32 GridTab)
 {
-	if (!IsGridOpen() || GridTab < 0 || GridTab > GridTypes.Num())
+	if (!IsPickGrid() || GridTab < 0 || GridTab > GridTypes.Num())
 	{
 		return;
 	}
@@ -2824,13 +2925,13 @@ void ULoadoutV2ScreenWidget::CycleGridFilter(int32 Delta)
 int32 ULoadoutV2ScreenWidget::FindTileUnder(const FVector2D &ScreenPosition) const
 {
 	// B-602: the tiles' places as scrolled now (a tile scrolled out of the panel keeps its last drawn place).
-	const int32 Count = FMath::Min(IsGridOpen() ? Items.Num() : InvPage.Tiles.Num(), GridTiles.Num()); // a slot's choices, or the inventory's tab
+	const int32 Count = FMath::Min(IsPickGrid() ? GetPickTileCount() : InvPage.Tiles.Num(), GridTiles.Num()); // a slot's or the picker's choices, or the inventory's tab
 	return WoRMenuStyle::FindScrolledRowUnder(GridScroll, Count, [this](int32 Index) -> const UWidget * { return GridTiles[Index]; }, ScreenPosition);
 }
 
 int32 ULoadoutV2ScreenWidget::FindGridTabUnder(const FVector2D &ScreenPosition) const
 {
-	const int32 Count = FMath::Min(IsGridOpen() ? GridTypes.Num() + 1 : InvFilters.Num(), GridTabs.Num()); // the weapon types, or the inventory's filters
+	const int32 Count = FMath::Min(IsPickGrid() ? GridTypes.Num() + 1 : InvFilters.Num(), GridTabs.Num()); // the weapon types, or the inventory's filters
 	for (int32 Index = 0; Index < Count; ++Index)
 	{
 		if (GridTabs[Index] && GridTabs[Index]->GetCachedGeometry().IsUnderLocation(ScreenPosition))
@@ -2846,17 +2947,32 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 	using namespace LoadoutV2ScreenStyle;
 	// B-598c: the left column is the loadout's list, or the grid: the bag on the Inventory page, a slot's choices while
 	// one is being filled.
-	SetShown(ListSizer, bLoadoutOpen && !bSlotGrid);
-	SetShown(GridSizer, !bLoadoutOpen || bSlotGrid);
-	SetShown(InvKindsPlate, !bSlotGrid);
+	// B-629b: the skill picker's choices are tiles too, under its Fits / all selector.
+	const bool bSkillGrid = IsSkillGrid();
+	const bool bPickGrid = bSlotGrid || bSkillGrid;
+	SetShown(ListSizer, bLoadoutOpen && !bPickGrid);
+	SetShown(GridSizer, !bLoadoutOpen || bPickGrid);
+	SetShown(InvKindsPlate, !bPickGrid);
 	SetShown(GridKindsPlate, bSlotGrid);
 	const float AreaHeight = ListArea->GetCachedGeometry().GetLocalSize().Y;
 	GridSizer->SetMaxDesiredHeight(AreaHeight > 0.0f ? AreaHeight : ListMaxHeight); // as the list's panel
+	GridLegendWorn->SetText(bSkillGrid ? LOCTEXT("GridLegendSlotted", "slotted already") : LOCTEXT("GridLegendWorn", "worn"));
+	GridLegendLock->SetText(bSkillGrid ? LOCTEXT("GridLegendSkillLocked", "can't go here (why: in the details)") : LOCTEXT("GridLegendLocked", "can't go in this slot (why: in the details)"));
 
-	// What the grid shows: a weapon slot's choices while one is being filled (D-248), else the inventory's tab (D-249).
-	const TArray<FLoadoutV2GridTile> Tiles = bSlotGrid ? GetGridTiles() : GetInventoryTiles();
+	// What the grid shows: a weapon slot's choices while one is being filled (D-248), the skill picker's (B-629b), else
+	// the inventory's tab (D-249).
+	const TArray<FLoadoutV2GridTile> Tiles = bPickGrid ? GetGridTiles() : GetInventoryTiles();
 	const int32 Columns = GetGridColumns();
-	if (bSlotGrid)
+	if (bSkillGrid)
+	{
+		// Mockup menus/skills/v1 2: "Slot 6 · empty" (or the skill in it), and how many there are to pick from.
+		const FLoadoutScreenRow *SlotRow = SkillRows.IsValidIndex(SkillRowSelected) ? WoRLoadoutV2Skills::FindRow(SkillsPage, SkillRows[SkillRowSelected]) : nullptr;
+		GridTitleText->SetText(FText::Format(LOCTEXT("SkillGridTitle", "Slot {0}  ·  {1}"), SkillRowSelected + 1,
+											 SlotRow && SlotRow->Skill ? SlotRow->Name : LOCTEXT("SkillGridEmpty", "empty")));
+		GridCountText->SetText(bSkillsAllLearned ? FText::Format(LOCTEXT("SkillGridLearned", "{0} learned"), GridPieceCount)
+												 : FText::Format(LOCTEXT("SkillGridFit", "{0} fit"), GridPieceCount));
+	}
+	else if (bSlotGrid)
 	{
 		GridTitleText->SetText(GetSlotName(Slots[SlotIndex]));
 		const bool bHand = Slots[SlotIndex] == ELoadoutV2Slot::MainHand || Slots[SlotIndex] == ELoadoutV2Slot::OffHand;
@@ -2874,7 +2990,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 
 	// The filter tabs. A slot's grid: All, then a picture for each weapon type present (its word where the icon table
 	// has no picture). The inventory: the tab's own filter row, in words (none on the Pouch).
-	const int32 TabCount = bSlotGrid ? GridTypes.Num() + 1 : InvFilters.Num();
+	const int32 TabCount = bPickGrid ? GridTypes.Num() + 1 : InvFilters.Num();
 	while (GridTabs.Num() < TabCount)
 	{
 		UBorder *GridTab = WidgetTree->ConstructWidget<UBorder>(UBorder::StaticClass());
@@ -2891,7 +3007,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		GridTabIcons.Add(Icon);
 		GridTabLabels.Add(Label);
 	}
-	const int32 CurrentTab = bSlotGrid ? (bGridFiltered ? GridTypes.IndexOfByKey(GridFilter) + 1 : 0) : InvFilters.IndexOfByKey(InvFilter);
+	const int32 CurrentTab = bPickGrid ? (bGridFiltered ? GridTypes.IndexOfByKey(GridFilter) + 1 : 0) : InvFilters.IndexOfByKey(InvFilter);
 	for (int32 Index = 0; Index < GridTabs.Num(); ++Index)
 	{
 		const bool bTabShown = Index < TabCount;
@@ -2903,7 +3019,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		GridTabs[Index]->SetBrushColor(Index == CurrentTab ? FocusColor : Index == HoveredGridTab ? HoverColor : PlateColor);
 		FLoadoutV2Icon Icon;
 		FText Word = LOCTEXT("GridTabAll", "All");
-		if (!bSlotGrid)
+		if (!bPickGrid)
 		{
 			Word = WoRInventoryScreen::GetFilterName(InvFilters[Index]);
 		}
@@ -2948,6 +3064,8 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		};
 		UImage *Icon = MakeIcon(WidgetTree, TileIconSize);
 		UTextBlock *Word = MakeText(WidgetTree, SmallFontSize, DimColor);
+		Word->SetAutoWrapText(true); // B-629b: a skill with no picture shows its name, which may be two words
+		Word->SetJustification(ETextJustify::Center);
 		UWidget *Tick = MakeTick(WidgetTree);
 		UWidget *Lock = MakeLock(WidgetTree);
 		UTextBlock *CountText = MakeText(WidgetTree, SmallFontSize, TextColor, true);
@@ -2958,6 +3076,8 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		UWidget *Fight = MakeFightBadge(WidgetTree);
 		AddLayer(Fight, HAlign_Right, VAlign_Top, 0.0f); // a picked stack is never locked: the lock's corner
 		AddLayer(CountText, HAlign_Right, VAlign_Bottom, TileMarkInset);
+		UImage *TierBadge = MakeIcon(WidgetTree, BadgeSize);
+		AddLayer(TierBadge, HAlign_Left, VAlign_Bottom, TileMarkInset); // B-629b: a skill's tier (mockup menus/skills/v1 2)
 		GridTilePanel->AddChildToUniformGrid(Tile, Index / Columns, Index % Columns);
 		GridTiles.Add(Tile);
 		GridTileIcons.Add(Icon);
@@ -2966,6 +3086,7 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 		GridTileLocks.Add(Lock);
 		GridTileFights.Add(Fight);
 		GridTileCounts.Add(CountText);
+		GridTileTiers.Add(TierBadge);
 	}
 	for (int32 Index = 0; Index < GridTiles.Num(); ++Index)
 	{
@@ -2976,7 +3097,8 @@ void ULoadoutV2ScreenWidget::RefreshGrid(bool bSlotGrid)
 			continue;
 		}
 		const FLoadoutV2GridTile &Tile = Tiles[Index];
-		GridTiles[Index]->SetBrushColor(GetTileColor(Index, Tile.bLocked, bSlotGrid));
+		GridTiles[Index]->SetBrushColor(GetTileColor(Index, Tile.bLocked, bPickGrid));
+		SetIcon(GridTileTiers[Index], Tile.bHasTier ? WoRIcons::GetTierBadge(Tile.Tier) : nullptr);
 		const bool bPicture = SetIcon(GridTileIcons[Index], FindIcon(Tile.Icon));
 		GridTileIcons[Index]->SetColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, Tile.bLocked ? LockedTileOpacity : 1.0f));
 		GridTileWords[Index]->SetText(Tile.Icon.Name);
@@ -3266,7 +3388,7 @@ void ULoadoutV2ScreenWidget::PlayCue(EWoRMenuCue Cue)
 
 uint32 ULoadoutV2ScreenWidget::GetFocusKey() const
 {
-	const uint32 GridKindKey = HashCombine(HashCombine(GetTypeHash(IsOnGridKinds()), HashCombine(GetTypeHash(SkillEntry), GetTypeHash(bSkillsAllLearned))), // B-629
+	const uint32 GridKindKey = HashCombine(HashCombine(GetTypeHash(IsOnGridKinds() || IsOnSkillFits()),HashCombine(GetTypeHash(SkillEntry), GetTypeHash(bSkillsAllLearned))), // B-629
 										   HashCombine(GetTypeHash(static_cast<uint8>(GetGridKind())), GetTypeHash(SlotIndex))); // B-614
 	return HashCombine(HashCombine(HashCombine(HashCombine(GetTypeHash(Selected), GetTypeHash(InvSelected)), HashCombine(GetTypeHash(bOnLoadoutSide), GetTypeHash(bOnInvFilters))),
 								   HashCombine(HashCombine(GetTypeHash(static_cast<uint8>(InvFilter)), GetTypeHash(static_cast<uint8>(Mode))),
@@ -3276,9 +3398,9 @@ uint32 ULoadoutV2ScreenWidget::GetFocusKey() const
 
 bool ULoadoutV2ScreenWidget::IsLitRefused() const
 {
-	if (IsOnGridKinds())
+	if (IsOnGridKinds() || IsOnSkillFits())
 	{
-		return false; // B-614: A there goes down to the pieces
+		return false; // B-614: A there goes down to the pieces (B-629b: to the skills)
 	}
 	if (IsGridOpen() || bOnLoadoutSide)
 	{
@@ -3327,6 +3449,31 @@ bool ULoadoutV2ScreenWidget::MoveInDirection(int32 DeltaX, int32 DeltaY)
 		MoveInGrid(DeltaX, DeltaY); // D-248: a slot's grid, tile to tile
 		return true;
 	}
+	if (IsSkillGrid())
+	{
+		// B-629b: as a slot's grid: Up off the top row reaches ‹ Fits this slot  All learned ›; Left / Right turn it there.
+		if (IsOnSkillFits())
+		{
+			if (DeltaX != 0)
+			{
+				SetSkillsAllLearned(DeltaX > 0);
+			}
+			else if (DeltaY > 0 && !SkillChoices.IsEmpty())
+			{
+				bOnGridKinds = false;
+				RefreshView();
+			}
+			return true;
+		}
+		if ((DeltaY < 0 && DeltaX == 0 && Selected < WoRLoadoutV2Grid::COLUMNS) || SkillChoices.IsEmpty())
+		{
+			bOnGridKinds = true; // nothing to pick (Fits this slot found none): the keys go to the selector
+			RefreshView();
+			return true;
+		}
+		MoveInGrid(DeltaX, DeltaY);
+		return true;
+	}
 	if (DeltaY != 0)
 	{
 		MoveSelection(DeltaY);
@@ -3335,11 +3482,6 @@ bool ULoadoutV2ScreenWidget::MoveInDirection(int32 DeltaX, int32 DeltaY)
 	if (Mode == ELoadoutV2Mode::SkillRows && SkillsPage.Entries.Num() > 1)
 	{
 		TurnSkillEntry(DeltaX); // B-629: ‹ › turn the entry
-		return true;
-	}
-	if (Mode == ELoadoutV2Mode::SkillPicker)
-	{
-		SetSkillsAllLearned(DeltaX > 0); // B-629: ‹ Fits this slot  All learned ›
 		return true;
 	}
 	return false;
@@ -3557,7 +3699,7 @@ int32 ULoadoutV2ScreenWidget::FindLineUnder(const FVector2D &ScreenPosition) con
 	// No line while the list isn't drawn (the Inventory page, a slot's grid: B-598c, the grid has the list's column; its
 	// last place is stale). B-602: the lines' places as scrolled now (a line scrolled out of the panel keeps its last
 	// drawn place).
-	if (!bLoadoutOpen || IsGridOpen())
+	if (!bLoadoutOpen || IsPickGrid())
 	{
 		return INDEX_NONE;
 	}
@@ -3585,7 +3727,7 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseMove(const FGeometry &InGeometry, co
 		const FVector2D Position = InMouseEvent.GetScreenSpacePosition();
 		const bool bList = IsLoadoutAtTopLevel(); // a tab's top level (B-476d)
 		// D-248: while the grid shows, the hovered line is a tile (the box follows it), and a filter tab lights too.
-		const bool bGrid = IsGridOpen();
+		const bool bGrid = IsPickGrid(); // B-629b: the skill picker's tiles too
 		// D-249: the grid's filter tabs light in both its uses; an inventory tile and an inventory tab light too (the
 		// card follows the tile while the keys are on the inventory's side).
 		const int32 GridTab = FindGridTabUnder(Position);
@@ -3757,6 +3899,24 @@ FReply ULoadoutV2ScreenWidget::NativeOnMouseButtonDown(const FGeometry &InGeomet
 		}
 		return FReply::Handled();
 	}
+	if (IsSkillGrid())
+	{
+		// B-629b: a filter tab, or a tile (as a line: focus, then A). The selector's words are handled above.
+		const int32 GridTab = FindGridTabUnder(Position);
+		const int32 Tile = FindTileUnder(Position);
+		if (GridTab != INDEX_NONE)
+		{
+			ClickGridTab(GridTab);
+			return FReply::Handled();
+		}
+		if (Tile != INDEX_NONE)
+		{
+			bOnGridKinds = false;
+			ClickLine(Tile);
+			return FReply::Handled();
+		}
+		return Super::NativeOnMouseButtonDown(InGeometry, InMouseEvent);
+	}
 	const int32 Line = FindLineUnder(Position);
 	if (Line != INDEX_NONE)
 	{
@@ -3842,16 +4002,26 @@ void ULoadoutV2ScreenWidget::PressA()
 		SkillRowSelected = Selected;
 		Mode = ELoadoutV2Mode::SkillPicker;
 		bSkillsAllLearned = false; // B-629: the picker opens on Fits this slot
+		bGridFiltered = false;	   // B-629b: on All, the keys on the tiles
+		bOnGridKinds = false;
 		Selected = 0;
 		Message = FText::GetEmpty();
 		RefreshData();
 		if (SkillChoices.IsEmpty())
 		{
+			bOnGridKinds = true; // nothing fits: the keys start on the selector (All learned is one step away)
 			Message = LOCTEXT("NoSkillToPick", "No learned skill fits this slot.");
 			RefreshView();
 		}
+		LogGrid();
 		return;
 	case ELoadoutV2Mode::SkillPicker:
+		if (IsOnSkillFits())
+		{
+			bOnGridKinds = SkillChoices.IsEmpty(); // B-629b: A on the selector goes down to the skills
+			RefreshView();
+			return;
+		}
 		PutPickedSkill();
 		return;
 	case ELoadoutV2Mode::List:
@@ -4203,9 +4373,9 @@ FReply ULoadoutV2ScreenWidget::NativeOnKeyDown(const FGeometry &InGeometry, cons
 			return FReply::Handled(); // the loadout's own keys (the view, Set active) do nothing from this side
 		}
 	}
-	if (IsGridOpen())
+	if (IsPickGrid())
 	{
-		// D-248 step 1: in the grid the tab keys turn the filter (the arrows: MoveInDirection).
+		// D-248 step 1: in the grid the tab keys turn the filter (the arrows: MoveInDirection). B-629b: the skill picker's too.
 		if (IsTabPrevKey(Key) || IsTabNextKey(Key))
 		{
 			if (!InKeyEvent.IsRepeat())
