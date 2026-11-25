@@ -1342,6 +1342,17 @@ The queue of questions only Crown can answer.
 **Known limits:** an enemy's return home does not cut to the wide; the wide comes at the next turn start. No motion blur on the sweep. The menu opens when the game asks for the action, as before, not timed to the end of the sweep. A boss's push-in framing is not checked yet (PIE). The per-skill attack shots are unchanged (a separate job after the second E33 study).
 **Reference:** Expedition 33 (`docs/analysis/TurnBasedCameraComparison.md` section 6 (on `claude/docs-camera-video-study-a23bbe`, 065f41016)): the cut to the low wide about 1 s after the hit, the fast sweep into the next hero's view, the slow push-in before an enemy's turn; widely praised for its readable, cinematic turns.
 
+### Q-613 — Infusion stays on: what carries, what turns it off
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-613) · **Blocks:** nothing
+**Question:** Crown wants a fighter's infusion to stay on from one action to the next. What carries over, what turns it off, and what happens on an action that can't pay for it?
+**Answer (default, built):**
+- **What carries:** the level, and the element where the player chose one (an attack, an ability, a Breakthrough spell). A spell of one fixed element keeps its own element and takes only the level.
+- **Turned off:** by confirming an action at no infusion. Backing out of a target step changes nothing.
+- **Can't pay:** an action that can't pay the infused EP opens with no infusion, and the target panel says "Infusion off: not enough EP". It stays on for the next action. Only EP is checked: L2's HP backlash stays the player's call, shown in the cost line as now.
+- **Left as it is:** items, a stunned fighter, and an action immune to infusion.
+- **Scope:** per fighter, for one fight (kept by the fight's command menu, cleared with the fight, as B-582's last target). Enemies are unchanged: the AI builds its own actions and never reads it. In co-op each machine's menu keeps its own players'.
+**Reference:** FFXIV's stances stay on until switched off, so a player sets them once per fight; Octopath Traveler's boost is picked per action. Crown asked for the first. The deckbuilder has no infusion carry rule.
+
 ### Q-609 — The gear upgrade screen: who, where and how much per press
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-609) · **Blocks:** nothing
 **Question:** Levelling a weapon or adapter (`UEconomyService::LevelUpWeapon` / `LevelUpRing`) has no screen. Which vendor offers it, where, and does one press raise one tier or pick a target tier?
