@@ -1312,6 +1312,16 @@ The queue of questions only Crown can answer.
 - **Price (B-595e shop piece):** sold by the Combat Master at its tier price, like every shop ability (prices aren't authored): tier F = **25 Gold + 10 Dormant Essence**, half the shop's other sword skills (tier E, 50 Gold + 13; e.g. Wrath Cut, 70 damage / 25 EP). The tier stays F: raising it would also raise its power.
 **Reference:** Expedition 33's free-aim shots hit lighter than its melee skills, the trade for range that players liked. The deckbuilder has no per-card number to copy (its costs are energy per card).
 
+### Q-595h — Rally's numbers (the sword charge, a self damage buff)
+**Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-25 (B-595h) · **Blocks:** nothing
+**Question:** Rally is a charge with the sword that raises the user's damage (Crown: "keep it simple"). How much, for how long, and what does it cost next to the other sword skills (Quick Strike 10 EP, Force Strike 12, WhirlWind 20)?
+**Answer (default, built):** **+25% damage (`DamageBuff`, scope All) for 2 turns, on the user only; 10 EP, 1 action, tier F; no damage, no buildup.**
+- 2 turns (Crown's default): the next two turns' hits get it, so it pays off only if you follow up; it doesn't stack with itself (a second Rally refreshes it).
+- +25% sits above the shop's Might spell (+15% raw and spell for 3 turns, 15 EP): one turn shorter, one kind of damage boost, a cheap opener for a sword user.
+- 10 EP like Quick Strike: the turn you spend charging is the real cost.
+- **Price:** tier F, so the Combat Master sells it for 25 Gold + 10 Dormant Essence, like the other refined sword skills.
+**Reference:** Pokémon's Swords Dance and Final Fantasy's Focus / Persona's Charge: spend a turn to power up your next hits, a staple players use and like; the short timer keeps it a set-up move, not a permanent stat. The deckbuilder has no rule for it.
+
 ### Q-603 — The test trial's enemy mirrors the party's Generic
 **Status:** ANSWERED (approved by the reference-backed default, Crown may change) · **Raised:** 2026-11-24 (B-603, Crown: mirror our Generic's pillars and stat spread) · **Blocks:** nothing
 **Question:** the test enemy (`DA_Enemy_Generic`) already had the same sub-stats as the Generic assets (Mind 1 / Body 7 / Spirit 1), but a new game's Generic plays at the class table's levels (Mind 0 / Body 0 / Spirit 0, `DA_Loadout_ClassDefaults`) with an F sword, while the enemy wore a D sword. Mirror only the pillars, or the sword tier too?
