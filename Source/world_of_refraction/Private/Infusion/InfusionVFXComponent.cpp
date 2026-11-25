@@ -196,7 +196,8 @@ void UInfusionVFXComponent::SetDealsIce(bool bIce)
 
 void UInfusionVFXComponent::HandleWeaponMeshRebuilt()
 {
-    if (bWeaponInfusion)
+    // B-626: a weapon crystal's glow, or a stacked weapon look, rides the weapon too.
+    if (bWeaponInfusion || CurrentSource == EInfusionSourceOption::WeaponCrystal || !StackLookComponents.IsEmpty())
     {
         RespawnKeepingLevel();
     }
@@ -265,7 +266,9 @@ void UInfusionVFXComponent::ActivateInfusion(EInfusionSourceOption Source)
         SpawnVFX(Glow, InfusionDisplay ? InfusionDisplay->DisplayLocation : EInfusionDisplayLocation::Weapon); // clears first
     }
     // B-626: each other stacked source's kind shows too (a kind the glow above already covers isn't doubled).
-    const EInfusionLookKind ShownKind = Look ? Kind : EInfusionLookKind::Weapon;
+    const bool bGlowOnWeapon = bWeaponInfusion || Source == EInfusionSourceOption::WeaponCrystal ||
+                               !InfusionDisplay || InfusionDisplay->DisplayLocation == EInfusionDisplayLocation::Weapon;
+    const EInfusionLookKind ShownKind = (Look || !bGlowOnWeapon) ? Kind : EInfusionLookKind::Weapon;
     for (const EInfusionLookKind StackKind : GetLookKindsFor(Source, CurrentInfusionLevel))
     {
         UNiagaraComponent *Extra = StackKind != ShownKind && StackKind != Kind ? SpawnLook(StackKind, Element, bRaw, bIce) : nullptr;
@@ -486,8 +489,11 @@ TArray<EInfusionLookKind> UInfusionVFXComponent::GetLookKindsFor(EInfusionSource
 UNiagaraComponent *UInfusionVFXComponent::SpawnLook(EInfusionLookKind Kind, ESpellElement Element, bool bRaw, bool bIce) const
 {
     const UImpactVisualDefaults *Defaults = UImpactVisualDefaults::Get();
+    // A weapon look is the display's own glow (else the element's default), the same as the primary weapon glow.
     // shortcut: loads on first use, which may hitch once; preload with the fight's assets when the art lands.
-    UNiagaraSystem *System = Defaults ? Defaults->GetInfusionLookVFX(Kind, Element, bRaw, bIce).LoadSynchronous() : nullptr;
+    UNiagaraSystem *System = Kind == EInfusionLookKind::Weapon
+                                 ? FindGlowSystem(LoadoutComponent ? LoadoutComponent->GetInfusionDisplay() : nullptr, Element, bRaw, bIce)
+                                 : (Defaults ? Defaults->GetInfusionLookVFX(Kind, Element, bRaw, bIce).LoadSynchronous() : nullptr);
     if (!System)
     {
         return nullptr; // no art for this kind yet (the editor worker fills DA_ImpactVisualDefaults)
@@ -497,9 +503,18 @@ UNiagaraComponent *UInfusionVFXComponent::SpawnLook(EInfusionLookKind Kind, ESpe
     case EInfusionLookKind::Weapon:
     {
         UMeshComponent *WeaponMesh = WeaponMeshComponent ? WeaponMeshComponent->GetWeaponVFXMesh() : nullptr;
-        return WeaponMesh ? UNiagaraFunctionLibrary::SpawnSystemAttached(System, WeaponMesh, NAME_None, FVector::ZeroVector,
-                                                                         FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true)
-                          : nullptr;
+        UNiagaraComponent *Glow = WeaponMesh ? UNiagaraFunctionLibrary::SpawnSystemAttached(System, WeaponMesh, NAME_None, FVector::ZeroVector,
+                                                                                            FRotator::ZeroRotator, EAttachLocation::SnapToTarget, true)
+                                             : nullptr;
+        if (UStaticMeshComponent *StaticWeapon = Glow ? Cast<UStaticMeshComponent>(WeaponMesh) : nullptr)
+        {
+            UNiagaraFunctionLibrary::OverrideSystemUserVariableStaticMeshComponent(Glow, WeaponMeshParameterName.ToString(), StaticWeapon);
+        }
+        else if (USkeletalMeshComponent *SkeletalWeapon = Glow ? Cast<USkeletalMeshComponent>(WeaponMesh) : nullptr)
+        {
+            UNiagaraFunctionLibrary::OverrideSystemUserVariableSkeletalMeshComponent(Glow, WeaponMeshParameterName.ToString(), SkeletalWeapon);
+        }
+        return Glow;
     }
     case EInfusionLookKind::Ring:
     {
