@@ -26,16 +26,6 @@ class WORLD_OF_REFRACTION_API ATrialGameMode : public AWoRGameModeBase
 {
     GENERATED_BODY()
 
-public:
-    /** B-187c: after a mini-boss revive the party comes back where it stood to rest
-     *  (UTrialRunSubsystem::ConsumePendingReturnStand), else at a player start as usual. B-187d: every player in
-     *  this level comes back there, side by side (TrialReturn::GetReturnStand). */
-    virtual void RestartPlayer(AController *NewPlayer) override;
-    // The leader's pawn, the player state and seamless travel: AWoRGameModeBase (B-529), shared with the hub.
-
-private:
-    /** B-187d: this level's return stand, taken from the run by the first player restarted. */
-    FTransform ReturnStand;
-    bool bHasReturnStand = false;
-    int32 PlayersReturned = 0;
+    // The leader's pawn, the player state, seamless travel and the return stand (B-187c, moved up by B-611 so the hub
+    // takes it too): AWoRGameModeBase (B-529), shared with the hub.
 };
