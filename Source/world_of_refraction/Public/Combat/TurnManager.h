@@ -70,7 +70,8 @@ struct FCombatantTurnDebt
 
 /**
  * A pinned bonus turn (Emerald). Pinned bonus: fires at its slot regardless of debt;
- * every turn taken (normal or another fired entry) decrements it. TurnsRemaining is the delay
+ * every turn taken (normal or another fired entry) decrements it; a ritual's Execution entry counts only its caster's
+ * own turns (B-624c, CountsTurnOf). TurnsRemaining is the delay
  * in turns until fire; at <= 0 the entry preempts the debt pick in AdvanceSimState
  * and emits Count back-to-back bonus turns. Actor is a raw UPROPERTY ref (matching
  * FCombatantTurnDebt) — GC-tracked; a liveness check guards the fire, so a dead/invalid
@@ -312,6 +313,10 @@ public:
 	 *  NO CharacterData lookup; the caller supplies SpellSpeed. */
 	UFUNCTION(BlueprintCallable, Category = "Turn Manager")
 	void ScheduleExecutionTurn(AActor *Caster, int32 DelayTurns, int32 PayloadId, float SpellSpeed);
+
+	/** B-624c (Q-624c): whether a turn TurnTaker takes burns a unit of Entry's delay. A ritual (Execution) counts only
+	 *  its caster's own turns, so its delay is "N of your turns"; a pinned bonus turn counts every turn. */
+	static bool CountsTurnOf(const FScheduledTurn &Entry, const AActor *TurnTaker);
 
 	// ========================================
 	// EVENTS

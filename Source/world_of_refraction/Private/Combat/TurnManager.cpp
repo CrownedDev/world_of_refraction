@@ -333,6 +333,12 @@ void UTurnManager::ScheduleBonusTurn(AActor *Actor, int32 DelayTurns, int32 Coun
 		   Entry.Count, *Actor->GetName(), DelayTurns);
 }
 
+bool UTurnManager::CountsTurnOf(const FScheduledTurn &Entry, const AActor *TurnTaker)
+{
+	// B-624c (Q-624c): a ritual's delay counts its caster's own turns; other pinned turns count every turn.
+	return Entry.Type != ETurnType::Execution || Entry.Actor == TurnTaker;
+}
+
 void UTurnManager::ScheduleExecutionTurn(AActor *Caster, int32 DelayTurns, int32 PayloadId, float SpellSpeed)
 {
 	if (!Caster)
@@ -668,7 +674,10 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 			{
 				continue; // a surviving multi-count winner never decrements itself
 			}
-			Pending[p].TurnsRemaining--;
+			if (CountsTurnOf(Pending[p], PinnedActor))
+			{
+				Pending[p].TurnsRemaining--;
+			}
 		}
 		return true;
 	}
@@ -689,7 +698,10 @@ bool UTurnManager::AdvanceSimState(TArray<FCombatantTurnDebt> &State,
 	Picked.TurnsTaken++;
 	for (FScheduledTurn &Entry : Pending)
 	{
-		Entry.TurnsRemaining--; // all turns count: every pending entry burns one turn of delay
+		if (CountsTurnOf(Entry, Picked.Actor))
+		{
+			Entry.TurnsRemaining--;
+		}
 	}
 	return true;
 }
